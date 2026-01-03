@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BRDC - Burning River Dart Club</title>
+  <meta name="description" content="Northeast Ohio's Premier Dart League & Tournament Venue">
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Firebase SDK -->
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+    import { getFirestore, collection, getDocs, query, where, orderBy, Timestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+    
+    // Your web app's Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyANG7v6mzJwfzTEp3GXZ6s7IYm11XYz8t0",
+  authDomain: "brdc-1e428.firebaseapp.com",
+  projectId: "brdc-1e428",
+  storageBucket: "brdc-1e428.firebasestorage.app",
+  messagingSenderId: "303481025848",
+  appId: "1:303481025848:web:80e017b43c062299f4bdcd"
+};
+    
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    
+    window.db = db;
+    window.firestore = { collection, getDocs, query, where, orderBy, Timestamp };
+  </script>
+  
+  <style>
+    :root {
+      --brdc-pink: #FF469A;
+      --brdc-blue: #1F85AF;
+      --brdc-teal: #91D7EB;
+      --brdc-dark: #1a1a2e;
+      --brdc-dark-gray: #16213e;
+    }
+    
+    body {
+      background-color: var(--brdc-dark);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    }
+    
+    .scrollbar-hide::-webkit-scrollbar {
+      display: none;
+    }
+    
+    .scrollbar-hide {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    
+    .hover-scale {
+      transition: transform 0.2s;
+    }
+    
+    .hover-scale:hover {
+      transform: scale(1.05);
+    }
+  </style>
+</head>
+<body>
+  <!-- Hero Section -->
+  <div class="relative h-96 overflow-hidden" style="background: linear-gradient(135deg, var(--brdc-pink) 0%, var(--brdc-blue) 50%, var(--brdc-teal) 100%);">
+    <div class="absolute inset-0 bg-black opacity-20"></div>
+    <div class="relative z-10 h-full flex flex-col items-center justify-center text-white px-6">
+      <h1 class="text-6xl font-bold mb-4 text-center">BURNING RIVER DART CLUB</h1>
+      <p class="text-xl mb-8 text-center">Northeast Ohio's Premier Dart League & Tournament Venue</p>
+      <div class="flex gap-4 flex-wrap justify-center">
+        <button onclick="window.location.href='/leagues'" class="px-8 py-3 rounded-lg font-bold text-lg hover-scale" style="background-color: var(--brdc-pink);">
+          Join a League
+        </button>
+        <button onclick="window.location.href='/tournaments'" class="px-8 py-3 rounded-lg font-bold text-lg bg-white hover-scale" style="color: var(--brdc-blue);">
+          View Tournaments
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Dynamic Content Rows -->
+  <div id="content-container" class="py-12">
+    <div id="loading" class="text-white text-center text-2xl">Loading...</div>
+  </div>
+  
+  <script type="module">
+    const COLORS = {
+      pink: '#FF469A',
+      blue: '#1F85AF',
+      teal: '#91D7EB',
+      dark: '#1a1a2e'
+    };
+    
+    // Calculate priority for dynamic ordering
+    function calculatePriority(event) {
+      const now = new Date();
+      const regDeadline = event.registrationDeadline.toDate();
+      const daysUntilRegClose = Math.ceil((regDeadline - now) / (1000 * 60 * 60 * 24));
+      const fillRate = event.registeredCount ? 
+        event.registeredCount / event.maxCapacity : 
+        event.currentEntries / event.maxEntries;
+      
+      let priority = 0;
+      
+      if (daysUntilRegClose <= 3) priority += 100;
+      else if (daysUntilRegClose <= 7) priority += 75;
+      else if (daysUntilRegClose <= 14) priority += 50;
+      else if (daysUntilRegClose <= 30) priority += 25;
+      
+      if (fillRate >= 0.9) priority += 80;
+      else if (fillRate >= 0.75) priority += 60;
+      else if (fillRate >= 0.5) priority += 30;
+      
+      if (daysUntilRegClose <= 7 && fillRate >= 0.75) {
+        priority += 50;
+      }
+      
+      return priority;
+    }
+    
+    // Generate urgency badge HTML
+    function getUrgencyBadge(event) {
+      const now = new Date();
+      const regDeadline = event.registrationDeadline.toDate();
+      const daysUntilRegClose = Math.ceil((regDeadline - now) / (1000 * 60 * 60 * 24));
+      const fillRate = event.registeredCount ? 
+        event.registeredCount / event.maxCapacity : 
+        event.currentEntries / event.maxEntries;
+      
+      if (fillRate >= 0.9) {
+        const spotsLeft = event.maxCapacity ? 
+          event.maxCapacity - event.registeredCount : 
+          event.maxEntries - event.currentEntries;
+        return `<div class="flex items-center gap-1 bg-red-500 text-white px-2 py-1 rounded-full text-xs font-bold">
+          🔥 Only ${spotsLeft} spots left!
+        </div>`;
+      }
+      
+      if (daysUntilRegClose <= 3) {
+        return `<div class="flex items-center gap-1 bg-orange-500 text-white px-2 py-1 rounded-full text-xs font-bold">
+          ⏰ Closes in ${daysUntilRegClose} days
+        </div>`;
+      }
+      
+      if (fillRate >= 0.75) {
+        return `<div class="flex items-center gap-1 bg-yellow-500 text-white px-2 py-1 rounded-full text-xs font-bold">
+          ⚡ Filling fast - ${Math.round(fillRate * 100)}% full
+        </div>`;
+      }
+      
+      return '';
+    }
+    
+    // Create league card HTML
+    function createLeagueCard(league) {
+      const fillRate = league.registeredCount / league.maxCapacity;
+      const fillColor = fillRate >= 0.9 ? '#ef4444' : fillRate >= 0.75 ? '#f59e0b' : COLORS.teal;
+      const startDate = league.startDate.toDate().toLocaleDateString();
+      
+      return `
+        <div class="w-80 bg-gray-800 rounded-lg overflow-hidden shadow-lg hover:shadow-2xl transition-shadow cursor-pointer flex-shrink-0">
+          <div class="h-40 relative" style="background: linear-gradient(135deg, ${COLORS.pink} 0%, ${COLORS.blue} 100%);">
+            <div class="absolute top-3 right-3">
+              ${getUrgencyBadge(league)}
+            </div>
+            <div class="absolute bottom-3 left-3 text-white">
+              <div class="text-xs font-semibold uppercase tracking-wide">${league.leagueType.replace('_', ' ')}</div>
+              <div class="text-2xl font-bold mt-1">${league.leagueName}</div>
+            </div>
+          </div>
+          
+          <div class="p-4">
+            <div class="flex items-center gap-2 text-gray-300 text-sm mb-2">
+              📅 <span>Starts ${startDate}</span>
+            </div>
+            
+            <div class="flex items-center gap-2 text-gray-300 text-sm mb-3">
+              👥 <span>${league.registeredCount}/${league.maxCapacity} registered</span>
+            </div>
+            
+            <div class="bg-gray-700 rounded-full h-2 mb-3">
+              <div class="h-full rounded-full transition-all" style="width: ${fillRate * 100}%; background-color: ${fillColor};"></div>
+            </div>
+            
+            <div class="flex items-center justify-between mb-4">
+              <div class="text-sm text-gray-400">
+                ${league.leagueNight} nights • ${league.venueName}
+              </div>
+              <div class="text-lg font-bold" style="color: ${COLORS.pink};">
+                $${league.sessionFee}
+              </div>
+            </div>
+            
+            <button onclick="window.location.href='/register-league?id=${league.id}'" class="w-full py-2 rounded-lg font-semibold text-white transition-colors" style="background-color: ${COLORS.pink};">
+              Register Now
+            </button>
+          </div>
+        </div>
+      `;
+    }
+    
+    // Create tournament card HTML
+    function createTournamentCard(tournament) {
+      const fillRate = tournament.currentEntries / tournament.maxEntries;
+      const fillColor = fillRate >= 0.9 ? '#ef4444' : fillRate >= 0.75 ? '#f59e0b' : COLORS.blue;
+      const startDate = tournament.startDate.toDate().toLocaleDateString();
+      
+      return `
+        <div class="w-80 bg-gray-800 rounded-lg overflow-hidden shadow-lg hover:shadow-2xl transition-shadow cursor-pointer flex-shrink-0">
+          <div class="h-40 relative" style="background: linear-gradient(135deg, ${COLORS.blue} 0%, ${COLORS.teal} 100%);">
+            <div class="absolute top-3 right-3">
+              ${getUrgencyBadge(tournament)}
+            </div>
+            <div class="absolute bottom-3 left-3 text-white">
+              <div class="flex items-center gap-2 mb-1">
+                🏆 <div class="text-xs font-semibold uppercase tracking-wide">${tournament.format}</div>
+              </div>
+              <div class="text-2xl font-bold">${tournament.eventName}</div>
+            </div>
+          </div>
+          
+          <div class="p-4">
+            <div class="flex items-center gap-2 text-gray-300 text-sm mb-2">
+              📅 <span>${startDate}</span>
+            </div>
+            
+            <div class="flex items-center gap-2 text-gray-300 text-sm mb-3">
+              👥 <span>${tournament.currentEntries}/${tournament.maxEntries} entries</span>
+            </div>
+            
+            <div class="bg-gray-700 rounded-full h-2 mb-3">
+              <div class="h-full rounded-full transition-all" style="width: ${fillRate * 100}%; background-color: ${fillColor};"></div>
+            </div>
+            
+            <div class="flex items-center justify-between mb-4">
+              <div class="text-sm text-gray-400">${tournament.venueName}</div>
+              <div class="text-lg font-bold" style="color: ${COLORS.blue};">
+                $${tournament.entryFee}
+              </div>
+            </div>
+            
+            <button onclick="window.location.href='/register-tournament?id=${tournament.id}'" class="w-full py-2 rounded-lg font-semibold text-white transition-colors" style="background-color: ${COLORS.blue};">
+              Enter Tournament
+            </button>
+          </div>
+        </div>
+      `;
+    }
+    
+    // Create scrollable row
+    function createScrollableRow(title, items, renderCard, linkText, linkHref) {
+      if (items.length === 0) return '';
+      
+      const cardsHtml = items.map(renderCard).join('');
+      
+      return `
+        <div class="mb-12">
+          <div class="flex items-center justify-between mb-4 px-6">
+            <h2 class="text-2xl font-bold text-white">${title}</h2>
+            ${linkText ? `<a href="${linkHref}" class="text-teal-400 hover:text-teal-300 text-sm font-semibold">${linkText} →</a>` : ''}
+          </div>
+          
+          <div class="relative group px-6">
+            <div class="flex gap-4 overflow-x-auto scrollbar-hide scroll-smooth pb-4">
+              ${cardsHtml}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+    
+    // Load data from Firestore
+    async function loadData() {
+      try {
+        const { collection, getDocs, query, where } = window.firestore;
+        const db = window.db;
+        
+        // Load active leagues
+        const leaguesQuery = query(
+          collection(db, 'leagues'),
+          where('status', '==', 'registration_open')
+        );
+        const leaguesSnapshot = await getDocs(leaguesQuery);
+        const leagues = leaguesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        
+        // Load active tournaments
+        const tournamentsQuery = query(
+          collection(db, 'tournaments'),
+          where('status', '==', 'registration_open')
+        );
+        const tournamentsSnapshot = await getDocs(tournamentsQuery);
+        const tournaments = tournamentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        
+        // Calculate priorities
+        const topLeague = leagues.reduce((max, league) => {
+          const priority = calculatePriority(league);
+          return priority > (max?.priority || 0) ? { ...league, priority } : max;
+        }, null);
+        
+        const topTournament = tournaments.reduce((max, tournament) => {
+          const priority = calculatePriority(tournament);
+          return priority > (max?.priority || 0) ? { ...tournament, priority } : max;
+        }, null);
+        
+        const leaguesFirst = (topLeague?.priority || 0) >= (topTournament?.priority || 0);
+        
+        // Build HTML
+        let html = '';
+        
+        if (leaguesFirst) {
+          html += createScrollableRow('Join a League', leagues, createLeagueCard, 'View All Leagues', '/leagues');
+          html += createScrollableRow('Upcoming Tournaments', tournaments, createTournamentCard, 'View All Tournaments', '/tournaments');
+        } else {
+          html += createScrollableRow('Upcoming Tournaments', tournaments, createTournamentCard, 'View All Tournaments', '/tournaments');
+          html += createScrollableRow('Join a League', leagues, createLeagueCard, 'View All Leagues', '/leagues');
+        }
+        
+        // TODO: Add social updates and merch sections when those collections are ready
+        
+        document.getElementById('content-container').innerHTML = html;
+        
+      } catch (error) {
+        console.error('Error loading data:', error);
+        document.getElementById('content-container').innerHTML = `
+          <div class="text-white text-center">
+            <p class="text-xl mb-4">Error loading content</p>
+            <p class="text-gray-400">${error.message}</p>
+          </div>
+        `;
+      }
+    }
+    
+    // Load when page is ready
+    window.addEventListener('load', loadData);
+  </script>
+</body>
+</html>
