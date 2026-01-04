@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>501 Scorer - BRDC</title>
+  
+  <style>
+    :root {
+      --brdc-pink: #FF469A;
+      --brdc-blue: #1F85AF;
+      --brdc-teal: #91D7EB;
+      --brdc-dark: #1a1a2e;
+    }
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+    
+    body {
+      background: var(--brdc-dark);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      color: white;
+      overflow: hidden;
+      touch-action: manipulation;
+    }
+    
+    .scorer-container {
+      display: flex;
+      height: 100vh;
+      padding: 12px;
+      gap: 12px;
+    }
+    
+    .player-column {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    
+    .player-header {
+      background: #2a2a3e;
+      border-radius: 12px;
+      padding: 16px;
+      text-align: center;
+    }
+    
+    .player-header.active {
+      background: linear-gradient(135deg, var(--brdc-pink) 0%, var(--brdc-blue) 100%);
+    }
+    
+    .player-name {
+      font-size: 24px;
+      font-weight: bold;
+      margin-bottom: 8px;
+    }
+    
+    .score-display {
+      font-size: 72px;
+      font-weight: bold;
+      line-height: 1;
+    }
+    
+    .score-history {
+      background: #2a2a3e;
+      border-radius: 12px;
+      padding: 16px;
+      flex: 1;
+      overflow-y: auto;
+    }
+    
+    .history-item {
+      padding: 8px;
+      border-bottom: 1px solid #3a3a4e;
+      font-size: 18px;
+      display: flex;
+      justify-content: space-between;
+    }
+    
+    .history-item:last-child {
+      border-bottom: none;
+    }
+    
+    .input-section {
+      background: #2a2a3e;
+      border-radius: 12px;
+      padding: 16px;
+    }
+    
+    .score-input {
+      width: 100%;
+      padding: 16px;
+      font-size: 48px;
+      text-align: center;
+      background: #1a1a2e;
+      border: 3px solid var(--brdc-teal);
+      border-radius: 8px;
+      color: white;
+      margin-bottom: 16px;
+    }
+    
+    .shortcut-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    
+    .shortcut-btn {
+      padding: 12px;
+      font-size: 20px;
+      font-weight: bold;
+      background: #3a3a4e;
+      border: none;
+      border-radius: 8px;
+      color: white;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .shortcut-btn:active {
+      transform: scale(0.95);
+      background: var(--brdc-teal);
+    }
+    
+    .action-buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    
+    .btn-submit {
+      padding: 16px;
+      font-size: 20px;
+      font-weight: bold;
+      background: linear-gradient(135deg, var(--brdc-pink) 0%, var(--brdc-blue) 100%);
+      border: none;
+      border-radius: 8px;
+      color: white;
+      cursor: pointer;
+    }
+    
+    .btn-undo {
+      padding: 16px;
+      font-size: 20px;
+      font-weight: bold;
+      background: #dc3545;
+      border: none;
+      border-radius: 8px;
+      color: white;
+      cursor: pointer;
+    }
+    
+    .game-controls {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      display: flex;
+      gap: 8px;
+    }
+    
+    .btn-control {
+      padding: 8px 16px;
+      background: #3a3a4e;
+      border: none;
+      border-radius: 6px;
+      color: white;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    
+    .winner-banner {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: linear-gradient(135deg, var(--brdc-pink) 0%, var(--brdc-blue) 100%);
+      padding: 48px 64px;
+      border-radius: 16px;
+      font-size: 48px;
+      font-weight: bold;
+      z-index: 1000;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="game-controls">
+    <button class="btn-control" onclick="resetGame()">New Game</button>
+    <button class="btn-control" onclick="window.location.href='/'">Exit</button>
+  </div>
+
+  <div id="winnerBanner" class="winner-banner"></div>
+
+  <div class="scorer-container">
+    <!-- Player 1 Column -->
+    <div class="player-column">
+      <div class="player-header active" id="p1Header">
+        <div class="player-name" id="p1Name">Player 1</div>
+        <div class="score-display" id="p1Score">501</div>
+      </div>
+      
+      <div class="score-history" id="p1History">
+        <div style="text-align: center; color: #666; padding: 20px;">
+          Throw history will appear here
+        </div>
+      </div>
+    </div>
+
+    <!-- Input Section -->
+    <div class="player-column" style="max-width: 400px;">
+      <div class="input-section">
+        <input 
+          type="number" 
+          id="scoreInput" 
+          class="score-input" 
+          placeholder="0"
+          min="0"
+          max="180"
+          autofocus
+        >
+        
+        <div class="shortcut-grid">
+          <button class="shortcut-btn" onclick="setScore(26)">26</button>
+          <button class="shortcut-btn" onclick="setScore(40)">40</button>
+          <button class="shortcut-btn" onclick="setScore(41)">41</button>
+          <button class="shortcut-btn" onclick="setScore(43)">43</button>
+          <button class="shortcut-btn" onclick="setScore(45)">45</button>
+          
+          <button class="shortcut-btn" onclick="setScore(60)">60</button>
+          <button class="shortcut-btn" onclick="setScore(81)">81</button>
+          <button class="shortcut-btn" onclick="setScore(85)">85</button>
+          <button class="shortcut-btn" onclick="setScore(100)">100</button>
+          <button class="shortcut-btn" onclick="setScore(140)">140</button>
+          
+          <button class="shortcut-btn" onclick="setScore(180)">180</button>
+          <button class="shortcut-btn" onclick="setScore(0)">Miss</button>
+        </div>
+        
+        <div class="action-buttons">
+          <button class="btn-submit" onclick="submitScore()">Submit</button>
+          <button class="btn-undo" onclick="undoLast()">Undo</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Player 2 Column -->
+    <div class="player-column">
+      <div class="player-header" id="p2Header">
+        <div class="player-name" id="p2Name">Player 2</div>
+        <div class="score-display" id="p2Score">501</div>
+      </div>
+      
+      <div class="score-history" id="p2History">
+        <div style="text-align: center; color: #666; padding: 20px;">
+          Throw history will appear here
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let gameState = {
+      p1: { name: 'Player 1', score: 501, history: [] },
+      p2: { name: 'Player 2', score: 501, history: [] },
+      currentPlayer: 1,
+      gameOver: false
+    };
+
+    // Load player names from URL or use defaults
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('p1')) gameState.p1.name = urlParams.get('p1');
+    if (urlParams.has('p2')) gameState.p2.name = urlParams.get('p2');
+    
+    document.getElementById('p1Name').textContent = gameState.p1.name;
+    document.getElementById('p2Name').textContent = gameState.p2.name;
+
+    function setScore(value) {
+      document.getElementById('scoreInput').value = value;
+      document.getElementById('scoreInput').focus();
+    }
+
+    function submitScore() {
+      if (gameState.gameOver) return;
+      
+      const input = document.getElementById('scoreInput');
+      const score = parseInt(input.value) || 0;
+      
+      if (score < 0 || score > 180) {
+        alert('Invalid score. Must be 0-180.');
+        return;
+      }
+      
+      const player = gameState.currentPlayer === 1 ? gameState.p1 : gameState.p2;
+      const newScore = player.score - score;
+      
+      // Check for bust (score < 0 or score === 1)
+      if (newScore < 0 || newScore === 1) {
+        player.history.push({ throw: score, result: 'BUST', remaining: player.score });
+        updateDisplay();
+        switchPlayer();
+        input.value = '';
+        return;
+      }
+      
+      // Check for win
+      if (newScore === 0) {
+        player.score = 0;
+        player.history.push({ throw: score, result: 'WIN!', remaining: 0 });
+        gameState.gameOver = true;
+        updateDisplay();
+        showWinner(player.name);
+        return;
+      }
+      
+      // Normal score
+      player.score = newScore;
+      player.history.push({ throw: score, result: 'OK', remaining: newScore });
+      updateDisplay();
+      switchPlayer();
+      input.value = '';
+    }
+
+    function undoLast() {
+      const player = gameState.currentPlayer === 1 ? gameState.p1 : gameState.p2;
+      
+      if (player.history.length === 0) {
+        // Try other player
+        const otherPlayer = gameState.currentPlayer === 1 ? gameState.p2 : gameState.p1;
+        if (otherPlayer.history.length > 0) {
+          const lastThrow = otherPlayer.history.pop();
+          otherPlayer.score = lastThrow.remaining + lastThrow.throw;
+          gameState.gameOver = false;
+          switchPlayer();
+          updateDisplay();
+        }
+        return;
+      }
+      
+      const lastThrow = player.history.pop();
+      player.score = lastThrow.remaining + lastThrow.throw;
+      gameState.gameOver = false;
+      updateDisplay();
+    }
+
+    function switchPlayer() {
+      gameState.currentPlayer = gameState.currentPlayer === 1 ? 2 : 1;
+      updateActivePlayer();
+    }
+
+    function updateActivePlayer() {
+      document.getElementById('p1Header').classList.toggle('active', gameState.currentPlayer === 1);
+      document.getElementById('p2Header').classList.toggle('active', gameState.currentPlayer === 2);
+    }
+
+    function updateDisplay() {
+      // Update scores
+      document.getElementById('p1Score').textContent = gameState.p1.score;
+      document.getElementById('p2Score').textContent = gameState.p2.score;
+      
+      // Update history
+      updateHistory('p1', gameState.p1.history);
+      updateHistory('p2', gameState.p2.history);
+    }
+
+    function updateHistory(playerId, history) {
+      const container = document.getElementById(`${playerId}History`);
+      
+      if (history.length === 0) {
+        container.innerHTML = '<div style="text-align: center; color: #666; padding: 20px;">Throw history will appear here</div>';
+        return;
+      }
+      
+      container.innerHTML = history.map((item, idx) => `
+        <div class="history-item">
+          <span>Throw ${idx + 1}: ${item.throw}</span>
+          <span style="color: ${item.result === 'BUST' ? '#dc3545' : item.result === 'WIN!' ? '#28a745' : '#91D7EB'}">
+            ${item.result === 'OK' ? item.remaining : item.result}
+          </span>
+        </div>
+      `).reverse().join('');
+    }
+
+    function showWinner(playerName) {
+      const banner = document.getElementById('winnerBanner');
+      banner.textContent = `🎯 ${playerName} WINS! 🎯`;
+      banner.style.display = 'block';
+    }
+
+    function resetGame() {
+      if (confirm('Start a new game?')) {
+        gameState = {
+          p1: { name: gameState.p1.name, score: 501, history: [] },
+          p2: { name: gameState.p2.name, score: 501, history: [] },
+          currentPlayer: 1,
+          gameOver: false
+        };
+        document.getElementById('winnerBanner').style.display = 'none';
+        updateDisplay();
+        updateActivePlayer();
+        document.getElementById('scoreInput').value = '';
+      }
+    }
+
+    // Keyboard shortcuts
+    document.getElementById('scoreInput').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        submitScore();
+      }
+    });
+
+    // Prevent zoom on double tap
+    let lastTouchEnd = 0;
+    document.addEventListener('touchend', (e) => {
+      const now = Date.now();
+      if (now - lastTouchEnd <= 300) {
+        e.preventDefault();
+      }
+      lastTouchEnd = now;
+    }, false);
+  </script>
+</body>
+</html>

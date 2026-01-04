@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Cricket Scorer - BRDC</title>
+  
+  <style>
+    :root {
+      --brdc-pink: #FF469A;
+      --brdc-blue: #1F85AF;
+      --brdc-teal: #91D7EB;
+      --brdc-dark: #1a1a2e;
+    }
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+    
+    body {
+      background: var(--brdc-dark);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      color: white;
+      overflow: hidden;
+      touch-action: manipulation;
+    }
+    
+    .scorer-container {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      padding: 12px;
+      gap: 12px;
+    }
+    
+    .game-controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .btn-control {
+      padding: 8px 16px;
+      background: #3a3a4e;
+      border: none;
+      border-radius: 6px;
+      color: white;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    
+    .scoreboard {
+      background: #2a2a3e;
+      border-radius: 12px;
+      padding: 16px;
+      overflow-x: auto;
+    }
+    
+    .score-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 20px;
+    }
+    
+    .score-table th {
+      padding: 12px;
+      text-align: center;
+      background: #1a1a2e;
+      border: 2px solid #3a3a4e;
+    }
+    
+    .score-table td {
+      padding: 16px;
+      text-align: center;
+      border: 2px solid #3a3a4e;
+      font-weight: bold;
+      font-size: 24px;
+    }
+    
+    .player-name {
+      font-size: 18px;
+      font-weight: bold;
+    }
+    
+    .active-player {
+      background: linear-gradient(135deg, var(--brdc-pink) 0%, var(--brdc-blue) 100%);
+    }
+    
+    .mark-cell {
+      font-family: monospace;
+      font-size: 32px;
+      line-height: 1;
+    }
+    
+    .mark-closed {
+      color: var(--brdc-teal);
+    }
+    
+    .mark-points {
+      color: var(--brdc-pink);
+    }
+    
+    .input-section {
+      background: #2a2a3e;
+      border-radius: 12px;
+      padding: 16px;
+    }
+    
+    .target-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    
+    .target-btn {
+      padding: 20px;
+      font-size: 32px;
+      font-weight: bold;
+      background: #3a3a4e;
+      border: none;
+      border-radius: 8px;
+      color: white;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .target-btn:active {
+      transform: scale(0.95);
+      background: var(--brdc-teal);
+    }
+    
+    .hit-buttons {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    
+    .hit-btn {
+      padding: 16px;
+      font-size: 24px;
+      font-weight: bold;
+      background: #3a3a4e;
+      border: none;
+      border-radius: 8px;
+      color: white;
+      cursor: pointer;
+    }
+    
+    .hit-btn:active {
+      transform: scale(0.95);
+      background: var(--brdc-teal);
+    }
+    
+    .action-buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    
+    .btn-undo {
+      padding: 16px;
+      font-size: 18px;
+      font-weight: bold;
+      background: #dc3545;
+      border: none;
+      border-radius: 8px;
+      color: white;
+      cursor: pointer;
+    }
+    
+    .btn-next-player {
+      padding: 16px;
+      font-size: 18px;
+      font-weight: bold;
+      background: linear-gradient(135deg, var(--brdc-pink) 0%, var(--brdc-blue) 100%);
+      border: none;
+      border-radius: 8px;
+      color: white;
+      cursor: pointer;
+    }
+    
+    .winner-banner {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: linear-gradient(135deg, var(--brdc-pink) 0%, var(--brdc-blue) 100%);
+      padding: 48px 64px;
+      border-radius: 16px;
+      font-size: 48px;
+      font-weight: bold;
+      z-index: 1000;
+      display: none;
+    }
+    
+    .current-selection {
+      text-align: center;
+      font-size: 18px;
+      color: var(--brdc-teal);
+      margin-bottom: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="scorer-container">
+    <!-- Controls -->
+    <div class="game-controls">
+      <button class="btn-control" onclick="resetGame()">New Game</button>
+      <div class="current-selection" id="currentSelection">Select a target...</div>
+      <button class="btn-control" onclick="window.location.href='/'">Exit</button>
+    </div>
+
+    <div id="winnerBanner" class="winner-banner"></div>
+
+    <!-- Scoreboard -->
+    <div class="scoreboard">
+      <table class="score-table" id="scoreTable">
+        <thead>
+          <tr>
+            <th>Player</th>
+            <th>20</th>
+            <th>19</th>
+            <th>18</th>
+            <th>17</th>
+            <th>16</th>
+            <th>15</th>
+            <th>Bull</th>
+            <th>Score</th>
+          </tr>
+        </thead>
+        <tbody id="scoreBody">
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Input Section -->
+    <div class="input-section">
+      <div class="target-grid">
+        <button class="target-btn" onclick="selectTarget(20)">20</button>
+        <button class="target-btn" onclick="selectTarget(19)">19</button>
+        <button class="target-btn" onclick="selectTarget(18)">18</button>
+        <button class="target-btn" onclick="selectTarget(17)">17</button>
+        <button class="target-btn" onclick="selectTarget(16)">16</button>
+        <button class="target-btn" onclick="selectTarget(15)">15</button>
+        <button class="target-btn" onclick="selectTarget(25)">Bull</button>
+      </div>
+      
+      <div class="hit-buttons">
+        <button class="hit-btn" onclick="recordHit(1)">×1</button>
+        <button class="hit-btn" onclick="recordHit(2)">×2</button>
+        <button class="hit-btn" onclick="recordHit(3)">×3</button>
+        <button class="hit-btn" onclick="recordHit(0)">Miss</button>
+      </div>
+      
+      <div class="action-buttons">
+        <button class="btn-undo" onclick="undoLast()">Undo</button>
+        <button class="btn-next-player" onclick="nextPlayer()">Next Player</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const TARGETS = [20, 19, 18, 17, 16, 15, 25];
+    
+    let gameState = {
+      players: [
+        { name: 'Player 1', marks: {}, score: 0, history: [] },
+        { name: 'Player 2', marks: {}, score: 0, history: [] }
+      ],
+      currentPlayer: 0,
+      selectedTarget: null,
+      gameOver: false
+    };
+
+    // Initialize marks
+    gameState.players.forEach(p => {
+      TARGETS.forEach(t => p.marks[t] = 0);
+    });
+
+    // Load player names from URL
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('p1')) gameState.players[0].name = urlParams.get('p1');
+    if (urlParams.has('p2')) gameState.players[1].name = urlParams.get('p2');
+
+    function selectTarget(target) {
+      gameState.selectedTarget = target;
+      document.getElementById('currentSelection').textContent = 
+        `Selected: ${target === 25 ? 'Bull' : target}`;
+    }
+
+    function recordHit(multiplier) {
+      if (gameState.gameOver) return;
+      if (!gameState.selectedTarget) {
+        alert('Please select a target first!');
+        return;
+      }
+      
+      const player = gameState.players[gameState.currentPlayer];
+      const target = gameState.selectedTarget;
+      
+      // Record in history
+      player.history.push({ target, multiplier });
+      
+      // Update marks
+      const currentMarks = player.marks[target];
+      const newMarks = Math.min(3, currentMarks + multiplier);
+      player.marks[target] = newMarks;
+      
+      // Calculate points (if over 3 marks and opponent hasn't closed)
+      if (newMarks > 3) {
+        const opponent = gameState.players[gameState.currentPlayer === 0 ? 1 : 0];
+        if (opponent.marks[target] < 3) {
+          const points = (newMarks - 3) * target;
+          player.score += points;
+        }
+      }
+      
+      updateDisplay();
+      checkWinner();
+      
+      // Clear selection
+      gameState.selectedTarget = null;
+      document.getElementById('currentSelection').textContent = 'Select a target...';
+    }
+
+    function nextPlayer() {
+      if (gameState.gameOver) return;
+      gameState.currentPlayer = (gameState.currentPlayer + 1) % gameState.players.length;
+      updateDisplay();
+    }
+
+    function undoLast() {
+      const player = gameState.players[gameState.currentPlayer];
+      
+      if (player.history.length === 0) return;
+      
+      const lastHit = player.history.pop();
+      const target = lastHit.target;
+      const multiplier = lastHit.multiplier;
+      
+      // Restore marks
+      player.marks[target] = Math.max(0, player.marks[target] - multiplier);
+      
+      // Recalculate score
+      player.score = 0;
+      TARGETS.forEach(t => {
+        if (player.marks[t] > 3) {
+          const opponent = gameState.players[gameState.currentPlayer === 0 ? 1 : 0];
+          if (opponent.marks[t] < 3) {
+            player.score += (player.marks[t] - 3) * t;
+          }
+        }
+      });
+      
+      gameState.gameOver = false;
+      updateDisplay();
+    }
+
+    function updateDisplay() {
+      const tbody = document.getElementById('scoreBody');
+      tbody.innerHTML = gameState.players.map((player, idx) => `
+        <tr class="${idx === gameState.currentPlayer ? 'active-player' : ''}">
+          <td class="player-name">${player.name}</td>
+          ${TARGETS.map(target => `
+            <td class="mark-cell ${player.marks[target] >= 3 ? 'mark-closed' : ''}">
+              ${getMarkDisplay(player.marks[target])}
+            </td>
+          `).join('')}
+          <td class="mark-points">${player.score}</td>
+        </tr>
+      `).join('');
+    }
+
+    function getMarkDisplay(marks) {
+      if (marks === 0) return '';
+      if (marks === 1) return '/';
+      if (marks === 2) return 'X';
+      if (marks === 3) return '⊗';
+      return `⊗+${marks - 3}`;
+    }
+
+    function checkWinner() {
+      const player = gameState.players[gameState.currentPlayer];
+      const opponent = gameState.players[gameState.currentPlayer === 0 ? 1 : 0];
+      
+      // Check if player closed all targets
+      const allClosed = TARGETS.every(t => player.marks[t] >= 3);
+      
+      if (allClosed) {
+        // Player wins if score >= opponent's score
+        if (player.score >= opponent.score) {
+          gameState.gameOver = true;
+          showWinner(player.name);
+        }
+      }
+    }
+
+    function showWinner(playerName) {
+      const banner = document.getElementById('winnerBanner');
+      banner.textContent = `🎯 ${playerName} WINS! 🎯`;
+      banner.style.display = 'block';
+    }
+
+    function resetGame() {
+      if (confirm('Start a new game?')) {
+        const names = gameState.players.map(p => p.name);
+        gameState = {
+          players: names.map(name => ({
+            name,
+            marks: {},
+            score: 0,
+            history: []
+          })),
+          currentPlayer: 0,
+          selectedTarget: null,
+          gameOver: false
+        };
+        
+        gameState.players.forEach(p => {
+          TARGETS.forEach(t => p.marks[t] = 0);
+        });
+        
+        document.getElementById('winnerBanner').style.display = 'none';
+        document.getElementById('currentSelection').textContent = 'Select a target...';
+        updateDisplay();
+      }
+    }
+
+    // Initialize display
+    updateDisplay();
+
+    // Prevent zoom on double tap
+    let lastTouchEnd = 0;
+    document.addEventListener('touchend', (e) => {
+      const now = Date.now();
+      if (now - lastTouchEnd <= 300) {
+        e.preventDefault();
+      }
+      lastTouchEnd = now;
+    }, false);
+  </script>
+</body>
+</html>

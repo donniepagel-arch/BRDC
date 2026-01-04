@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Director Dashboard - BRDC</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Firebase SDK -->
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+    import { getFirestore, collection, getDocs, doc, updateDoc, query, orderBy, where } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+    
+    const firebaseConfig = {
+      apiKey: "AIzaSyANG7v6mzJwfzTEp3GXZ6s7IYm11XYz8t0",
+      authDomain: "brdc-1e428.firebaseapp.com",
+      projectId: "brdc-1e428",
+      storageBucket: "brdc-1e428.firebasestorage.app",
+      messagingSenderId: "303481025848",
+      appId: "1:303481025848:web:80e017b43c062299f4bdcd"
+    };
+    
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    
+    window.db = db;
+    window.firestore = { collection, getDocs, doc, updateDoc, query, orderBy, where };
+  </script>
+  
+  <style>
+    :root {
+      --brdc-pink: #FF469A;
+      --brdc-blue: #1F85AF;
+      --brdc-teal: #91D7EB;
+      --brdc-dark: #1a1a2e;
+    }
+    
+    body {
+      background-color: var(--brdc-dark);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+    
+    .card {
+      background: #2a2a3e;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+    
+    .tab-button {
+      padding: 12px 24px;
+      background: transparent;
+      color: #9ca3af;
+      border: none;
+      cursor: pointer;
+      font-weight: 600;
+      border-bottom: 3px solid transparent;
+      transition: all 0.2s;
+    }
+    
+    .tab-button.active {
+      color: white;
+      border-bottom-color: var(--brdc-teal);
+    }
+    
+    .btn-primary {
+      background: linear-gradient(135deg, var(--brdc-pink) 0%, var(--brdc-blue) 100%);
+      color: white;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    
+    .btn-primary:hover {
+      transform: translateY(-2px);
+    }
+    
+    .status-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    
+    .status-registration_open {
+      background: #10b981;
+      color: white;
+    }
+    
+    .status-in_progress {
+      background: #f59e0b;
+      color: white;
+    }
+    
+    .status-completed {
+      background: #6b7280;
+      color: white;
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    
+    th {
+      text-align: left;
+      padding: 12px;
+      border-bottom: 2px solid #3a3a4e;
+      color: #9ca3af;
+      font-weight: 600;
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+    
+    td {
+      padding: 16px 12px;
+      border-bottom: 1px solid #3a3a4e;
+      color: white;
+    }
+    
+    tr:hover {
+      background: #353549;
+    }
+    
+    .action-btn {
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      margin-right: 8px;
+      transition: all 0.2s;
+    }
+    
+    .action-btn-view {
+      background: var(--brdc-blue);
+      color: white;
+    }
+    
+    .action-btn-bracket {
+      background: var(--brdc-teal);
+      color: #1a1a2e;
+    }
+    
+    .action-btn-delete {
+      background: #ef4444;
+      color: white;
+    }
+  </style>
+</head>
+<body>
+  <div class="max-w-7xl mx-auto p-6">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-8">
+      <div>
+        <h1 class="text-4xl font-bold mb-2" style="background: linear-gradient(135deg, var(--brdc-pink) 0%, var(--brdc-teal) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+          Director Dashboard
+        </h1>
+        <p class="text-gray-400">Manage tournaments, leagues, and events</p>
+      </div>
+      <div class="flex gap-3">
+        <button onclick="window.location.href='/create-tournament.html'" class="btn-primary">
+          + New Tournament
+        </button>
+        <button onclick="window.location.href='/create-league.html'" class="btn-primary">
+          + New League
+        </button>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="flex gap-2 mb-6 border-b border-gray-700">
+      <button class="tab-button active" onclick="switchTab('tournaments')">Tournaments</button>
+      <button class="tab-button" onclick="switchTab('leagues')">Leagues</button>
+      <button class="tab-button" onclick="switchTab('registrations')">Registrations</button>
+    </div>
+
+    <!-- Tournaments Tab -->
+    <div id="tournaments-tab" class="tab-content">
+      <div class="card">
+        <div class="flex items-center justify-between mb-6">
+          <h2 class="text-2xl font-bold text-white">Active Tournaments</h2>
+          <div class="flex gap-2">
+            <select id="tournamentFilter" onchange="filterTournaments()" class="px-4 py-2 rounded-lg bg-gray-700 text-white border-none">
+              <option value="all">All Tournaments</option>
+              <option value="registration_open">Registration Open</option>
+              <option value="in_progress">In Progress</option>
+              <option value="completed">Completed</option>
+            </select>
+          </div>
+        </div>
+        
+        <div id="tournamentsLoading" class="text-center text-gray-400 py-8">
+          Loading tournaments...
+        </div>
+        
+        <div id="tournamentsTable" class="hidden">
+          <table>
+            <thead>
+              <tr>
+                <th>Event Name</th>
+                <th>Type</th>
+                <th>Format</th>
+                <th>Date</th>
+                <th>Entries</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="tournamentsTableBody">
+            </tbody>
+          </table>
+        </div>
+        
+        <div id="tournamentsEmpty" class="hidden text-center text-gray-400 py-8">
+          No tournaments found. <a href="/create-tournament.html" class="text-teal-400 hover:underline">Create your first tournament</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Leagues Tab -->
+    <div id="leagues-tab" class="tab-content hidden">
+      <div class="card">
+        <div class="flex items-center justify-between mb-6">
+          <h2 class="text-2xl font-bold text-white">Active Leagues</h2>
+        </div>
+        
+        <div id="leaguesLoading" class="text-center text-gray-400 py-8">
+          Loading leagues...
+        </div>
+        
+        <div id="leaguesTable" class="hidden">
+          <table>
+            <thead>
+              <tr>
+                <th>League Name</th>
+                <th>Type</th>
+                <th>Season</th>
+                <th>Start Date</th>
+                <th>Teams</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="leaguesTableBody">
+            </tbody>
+          </table>
+        </div>
+        
+        <div id="leaguesEmpty" class="hidden text-center text-gray-400 py-8">
+          No leagues found. <a href="/create-league.html" class="text-teal-400 hover:underline">Create your first league</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Registrations Tab -->
+    <div id="registrations-tab" class="tab-content hidden">
+      <div class="card">
+        <h2 class="text-2xl font-bold text-white mb-6">Recent Registrations</h2>
+        
+        <div id="registrationsLoading" class="text-center text-gray-400 py-8">
+          Loading registrations...
+        </div>
+        
+        <div id="registrationsTable" class="hidden">
+          <table>
+            <thead>
+              <tr>
+                <th>Player Name</th>
+                <th>Event</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>Paid</th>
+                <th>Date</th>
+              </tr>
+            </thead>
+            <tbody id="registrationsTableBody">
+            </tbody>
+          </table>
+        </div>
+        
+        <div id="registrationsEmpty" class="hidden text-center text-gray-400 py-8">
+          No registrations yet.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    let allTournaments = [];
+    let allLeagues = [];
+    
+    // Tab switching
+    function switchTab(tabName) {
+      // Update tab buttons
+      document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+      event.target.classList.add('active');
+      
+      // Update tab content
+      document.querySelectorAll('.tab-content').forEach(content => content.classList.add('hidden'));
+      document.getElementById(tabName + '-tab').classList.remove('hidden');
+    }
+    
+    window.switchTab = switchTab;
+    
+    // Load tournaments
+    async function loadTournaments() {
+      const { collection, getDocs, query, orderBy } = window.firestore;
+      const db = window.db;
+      
+      try {
+        const q = query(collection(db, 'tournaments'), orderBy('createdAt', 'desc'));
+        const snapshot = await getDocs(q);
+        allTournaments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        
+        displayTournaments(allTournaments);
+        
+      } catch (error) {
+        console.error('Error loading tournaments:', error);
+        document.getElementById('tournamentsLoading').innerHTML = 'Error loading tournaments: ' + error.message;
+      }
+    }
+    
+    // Display tournaments
+    function displayTournaments(tournaments) {
+      const loading = document.getElementById('tournamentsLoading');
+      const table = document.getElementById('tournamentsTable');
+      const empty = document.getElementById('tournamentsEmpty');
+      const tbody = document.getElementById('tournamentsTableBody');
+      
+      loading.classList.add('hidden');
+      
+      if (tournaments.length === 0) {
+        table.classList.add('hidden');
+        empty.classList.remove('hidden');
+        return;
+      }
+      
+      table.classList.remove('hidden');
+      empty.classList.add('hidden');
+      
+      tbody.innerHTML = tournaments.map(t => `
+        <tr>
+          <td><strong>${t.eventName}</strong></td>
+          <td>${t.eventType.replace('_', ' ')}</td>
+          <td>${t.format}</td>
+          <td>${t.startDate ? new Date(t.startDate.seconds * 1000).toLocaleDateString() : 'N/A'}</td>
+          <td>${t.currentEntries || 0}/${t.maxEntries}</td>
+          <td><span class="status-badge status-${t.status}">${t.status.replace('_', ' ')}</span></td>
+          <td>
+            <button onclick="viewTournament('${t.id}')" class="action-btn action-btn-view">View</button>
+            ${t.status === 'registration_open' && t.currentEntries >= 4 ? 
+              `<button onclick="generateBracket('${t.id}')" class="action-btn action-btn-bracket">Generate Bracket</button>` : ''}
+          </td>
+        </tr>
+      `).join('');
+    }
+    
+    window.displayTournaments = displayTournaments;
+    
+    // Filter tournaments
+    function filterTournaments() {
+      const filter = document.getElementById('tournamentFilter').value;
+      
+      if (filter === 'all') {
+        displayTournaments(allTournaments);
+      } else {
+        const filtered = allTournaments.filter(t => t.status === filter);
+        displayTournaments(filtered);
+      }
+    }
+    
+    window.filterTournaments = filterTournaments;
+    
+    // View tournament details
+    function viewTournament(id) {
+      window.location.href = `/tournament-details.html?id=${id}`;
+    }
+    
+    window.viewTournament = viewTournament;
+    
+    // Generate bracket
+    async function generateBracket(tournamentId) {
+      if (!confirm('Generate bracket for this tournament? This will lock registration and create the bracket.')) {
+        return;
+      }
+      
+      try {
+        // This will call the bracket generation logic
+        window.location.href = `/generate-bracket.html?id=${tournamentId}`;
+      } catch (error) {
+        alert('Error generating bracket: ' + error.message);
+      }
+    }
+    
+    window.generateBracket = generateBracket;
+    
+    // Load leagues
+    async function loadLeagues() {
+      const { collection, getDocs, query, orderBy } = window.firestore;
+      const db = window.db;
+      
+      try {
+        const q = query(collection(db, 'leagues'), orderBy('createdAt', 'desc'));
+        const snapshot = await getDocs(q);
+        allLeagues = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        
+        const loading = document.getElementById('leaguesLoading');
+        const table = document.getElementById('leaguesTable');
+        const empty = document.getElementById('leaguesEmpty');
+        const tbody = document.getElementById('leaguesTableBody');
+        
+        loading.classList.add('hidden');
+        
+        if (allLeagues.length === 0) {
+          empty.classList.remove('hidden');
+          return;
+        }
+        
+        table.classList.remove('hidden');
+        
+        tbody.innerHTML = allLeagues.map(l => `
+          <tr>
+            <td><strong>${l.leagueName}</strong></td>
+            <td>${l.leagueType.replace('_', ' ')}</td>
+            <td>${l.season}</td>
+            <td>${l.startDate ? new Date(l.startDate.seconds * 1000).toLocaleDateString() : 'N/A'}</td>
+            <td>TBD</td>
+            <td><span class="status-badge status-${l.status}">${l.status.replace('_', ' ')}</span></td>
+            <td>
+              <button onclick="viewLeague('${l.id}')" class="action-btn action-btn-view">View</button>
+            </td>
+          </tr>
+        `).join('');
+        
+      } catch (error) {
+        console.error('Error loading leagues:', error);
+        document.getElementById('leaguesLoading').innerHTML = 'Error loading leagues: ' + error.message;
+      }
+    }
+    
+    function viewLeague(id) {
+      window.location.href = `/league-details.html?id=${id}`;
+    }
+    
+    window.viewLeague = viewLeague;
+    
+    // Load registrations
+    async function loadRegistrations() {
+      const { collection, getDocs, query, orderBy } = window.firestore;
+      const db = window.db;
+      
+      try {
+        // Get tournament registrations
+        const q = query(collection(db, 'tournamentRegistrations'), orderBy('createdAt', 'desc'));
+        const snapshot = await getDocs(q);
+        const registrations = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        
+        const loading = document.getElementById('registrationsLoading');
+        const table = document.getElementById('registrationsTable');
+        const empty = document.getElementById('registrationsEmpty');
+        const tbody = document.getElementById('registrationsTableBody');
+        
+        loading.classList.add('hidden');
+        
+        if (registrations.length === 0) {
+          empty.classList.remove('hidden');
+          return;
+        }
+        
+        table.classList.remove('hidden');
+        
+        // Get tournament names
+        const tournaments = {};
+        allTournaments.forEach(t => tournaments[t.id] = t.eventName);
+        
+        tbody.innerHTML = registrations.slice(0, 20).map(r => `
+          <tr>
+            <td><strong>${r.fullName}</strong></td>
+            <td>${tournaments[r.eventId] || 'Unknown Event'}</td>
+            <td>${r.email}</td>
+            <td>${r.phone || 'N/A'}</td>
+            <td>${r.paid ? '✓ Paid' : '⏳ Pending'}</td>
+            <td>${r.createdAt ? new Date(r.createdAt.seconds * 1000).toLocaleDateString() : 'N/A'}</td>
+          </tr>
+        `).join('');
+        
+      } catch (error) {
+        console.error('Error loading registrations:', error);
+        document.getElementById('registrationsLoading').innerHTML = 'Error loading registrations: ' + error.message;
+      }
+    }
+    
+    // Load all data on page load
+    window.addEventListener('load', async () => {
+      await loadTournaments();
+      await loadLeagues();
+      await loadRegistrations();
+    });
+  </script>
+</body>
+</html>
