@@ -208,6 +208,21 @@
             gap: 12px;
         }
         
+        .leg-selector {
+            background: var(--white);
+            border: 3px solid var(--black);
+            padding: 16px;
+            margin-bottom: 12px;
+            box-shadow: 3px 3px 0 rgba(0, 0, 0, 1);
+        }
+        
+        .leg-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 20px;
+            color: var(--black);
+            margin-bottom: 12px;
+        }
+        
         @media (max-width: 768px) {
             .grid-2, .grid-3, .in-out-grid { grid-template-columns: 1fr; }
             .header-title { font-size: 32px; }
@@ -345,7 +360,7 @@
                         
                         <div class="form-group">
                             <label class="form-label">Format *</label>
-                            <select name="events[${eventCounter}][format]" required class="input-field">
+                            <select id="format_${eventCounter}" name="events[${eventCounter}][format]" required class="input-field" onchange="handleFormatChange(${eventCounter})">
                                 <option value="single_elim">Single Elimination</option>
                                 <option value="double_elim">Double Elimination</option>
                                 <option value="round_robin">Round Robin</option>
@@ -354,7 +369,7 @@
                         </div>
                     </div>
                     
-                    <!-- GAME SELECTOR -->
+                    <!-- GAME & LEGS -->
                     <div class="grid-2">
                         <div class="form-group">
                             <label class="form-label">Game *</label>
@@ -364,12 +379,18 @@
                                 <option value="301">301</option>
                                 <option value="701">701</option>
                                 <option value="cricket">Cricket</option>
+                                <option value="mixed">🎲 Mixed Format</option>
                             </select>
                         </div>
                         
-                        <div class="form-group">
+                        <div class="form-group" id="best_of_container_${eventCounter}">
                             <label class="form-label">Best Of (Legs) *</label>
-                            <input type="number" name="events[${eventCounter}][best_of]" min="1" value="3" required class="input-field">
+                            <input type="number" id="best_of_${eventCounter}" name="events[${eventCounter}][best_of]" min="1" value="3" required class="input-field" onchange="handleBestOfChange(${eventCounter})">
+                        </div>
+                        
+                        <div class="form-group" id="total_legs_container_${eventCounter}" style="display: none;">
+                            <label class="form-label">Total Legs *</label>
+                            <input type="number" id="total_legs_${eventCounter}" name="events[${eventCounter}][total_legs]" min="1" value="5" class="input-field" onchange="handleBestOfChange(${eventCounter})">
                         </div>
                     </div>
                     
@@ -396,11 +417,17 @@
                     <div class="form-group">
                         <label class="form-label">Cork Rules *</label>
                         <select name="events[${eventCounter}][cork_rules]" required class="input-field">
-                            <option value="alternate">Alternate (No Cork)</option>
-                            <option value="bull_up">Bull Up (Closest to Bullseye)</option>
+                            <option value="alternate_cork_first_last">Alternate Start, Cork First & Last Leg</option>
                             <option value="cork_every_leg">Cork Every Leg</option>
-                            <option value="cork_once">Cork Once (Winner Starts All)</option>
+                            <option value="loser_starts_cork_first">Loser Starts, Cork First Leg</option>
+                            <option value="choose_no_cork">Choose Starter, No Cork</option>
                         </select>
+                    </div>
+                    
+                    <!-- MIXED FORMAT LEG-BY-LEG SELECTOR -->
+                    <div id="mixed_section_${eventCounter}" style="display: none; margin-top: 20px;">
+                        <h4 class="form-label" style="font-size: 16px; margin-bottom: 16px;">🎯 Select Game for Each Leg</h4>
+                        <div id="leg_selectors_${eventCounter}"></div>
                     </div>
                     
                     <!-- EVENT DETAILS -->
@@ -418,13 +445,107 @@
             document.getElementById(`event-${id}`).remove();
         };
         
+        window.handleFormatChange = function(eventId) {
+            const formatSelect = document.getElementById(`format_${eventId}`);
+            const format = formatSelect.value;
+            const bestOfContainer = document.getElementById(`best_of_container_${eventId}`);
+            const totalLegsContainer = document.getElementById(`total_legs_container_${eventId}`);
+            
+            if (format === 'round_robin') {
+                bestOfContainer.style.display = 'none';
+                totalLegsContainer.style.display = 'block';
+            } else {
+                bestOfContainer.style.display = 'block';
+                totalLegsContainer.style.display = 'none';
+            }
+        };
+        
         window.handleGameChange = function(eventId) {
             const gameSelect = document.getElementById(`game_${eventId}`);
             const game = gameSelect.value;
             const inOutSection = document.getElementById(`in_out_section_${eventId}`);
+            const mixedSection = document.getElementById(`mixed_section_${eventId}`);
             
-            // Show IN/OUT for X01 games
+            inOutSection.style.display = 'none';
+            mixedSection.style.display = 'none';
+            
             if (game === '501' || game === '301' || game === '701') {
+                inOutSection.style.display = 'block';
+            }
+            
+            if (game === 'mixed') {
+                mixedSection.style.display = 'block';
+                generateLegSelectors(eventId);
+            }
+        };
+        
+        window.handleBestOfChange = function(eventId) {
+            const gameSelect = document.getElementById(`game_${eventId}`);
+            if (gameSelect && gameSelect.value === 'mixed') {
+                generateLegSelectors(eventId);
+            }
+        };
+        
+        function generateLegSelectors(eventId) {
+            const formatSelect = document.getElementById(`format_${eventId}`);
+            const format = formatSelect.value;
+            
+            let numLegs;
+            if (format === 'round_robin') {
+                const totalLegsInput = document.getElementById(`total_legs_${eventId}`);
+                numLegs = parseInt(totalLegsInput.value) || 5;
+            } else {
+                const bestOfInput = document.getElementById(`best_of_${eventId}`);
+                numLegs = parseInt(bestOfInput.value) || 3;
+            }
+            
+            const container = document.getElementById(`leg_selectors_${eventId}`);
+            let html = '';
+            
+            for (let leg = 1; leg <= numLegs; leg++) {
+                html += `
+                    <div class="leg-selector">
+                        <div class="leg-title">Leg ${leg}</div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label class="form-label">Game Type</label>
+                            <select id="leg_${eventId}_${leg}_game" name="events[${eventId}][legs][${leg}][game]" required class="input-field" onchange="handleLegGameChange(${eventId}, ${leg})">
+                                <option value="">Select game...</option>
+                                <option value="501">501</option>
+                                <option value="301">301</option>
+                                <option value="cricket">Cricket</option>
+                                <option value="choice">Player's Choice</option>
+                            </select>
+                        </div>
+                        
+                        <div id="leg_${eventId}_${leg}_in_out" style="display: none; margin-top: 12px;">
+                            <div class="in-out-grid">
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <select name="events[${eventId}][legs][${leg}][in_option]" class="input-field" style="margin-bottom: 0;">
+                                        <option value="free">Free In</option>
+                                        <option value="double">Double In</option>
+                                    </select>
+                                </div>
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <select name="events[${eventId}][legs][${leg}][out_option]" class="input-field" style="margin-bottom: 0;">
+                                        <option value="free">Free Out</option>
+                                        <option value="double">Double Out</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            container.innerHTML = html;
+        }
+        
+        window.handleLegGameChange = function(eventId, legNum) {
+            const gameSelect = document.getElementById(`leg_${eventId}_${legNum}_game`);
+            const game = gameSelect.value;
+            const inOutSection = document.getElementById(`leg_${eventId}_${legNum}_in_out`);
+            
+            if (game === '501' || game === '301') {
                 inOutSection.style.display = 'block';
             } else {
                 inOutSection.style.display = 'none';
@@ -458,23 +579,49 @@
                 if (!document.getElementById(`event-${i}`)) continue;
                 
                 const gameValue = formData.get(`events[${i}][game]`);
+                const formatValue = formData.get(`events[${i}][format]`);
                 
                 const event = {
                     event_name: formData.get(`events[${i}][event_name]`),
                     entry_type: formData.get(`events[${i}][event_type]`),
-                    format: formData.get(`events[${i}][format]`),
+                    format: formatValue,
                     game: gameValue,
-                    best_of: parseInt(formData.get(`events[${i}][best_of]`)),
                     cork_rules: formData.get(`events[${i}][cork_rules]`),
                     entry_fee: parseFloat(formData.get(`events[${i}][entry_fee]`)),
                     start_time: formData.get(`events[${i}][start_time]`) || '',
                     event_details: formData.get(`events[${i}][event_details]`) || ''
                 };
                 
+                // Best of or total legs
+                if (formatValue === 'round_robin') {
+                    event.total_legs = parseInt(formData.get(`events[${i}][total_legs]`)) || 5;
+                } else {
+                    event.best_of = parseInt(formData.get(`events[${i}][best_of]`)) || 3;
+                }
+                
                 // Add IN/OUT for X01 games
                 if (gameValue === '501' || gameValue === '301' || gameValue === '701') {
                     event.in_option = formData.get(`events[${i}][in_option]`) || 'free';
                     event.out_option = formData.get(`events[${i}][out_option]`) || 'double';
+                }
+                
+                // Handle mixed format legs
+                if (gameValue === 'mixed') {
+                    event.legs = [];
+                    const numLegs = event.best_of || event.total_legs || 3;
+                    for (let leg = 1; leg <= numLegs; leg++) {
+                        const legGame = formData.get(`events[${i}][legs][${leg}][game]`);
+                        const legData = { game: legGame };
+                        
+                        if (legGame === '501' || legGame === '301') {
+                            const inOpt = formData.get(`events[${i}][legs][${leg}][in_option]`) || 'free';
+                            const outOpt = formData.get(`events[${i}][legs][${leg}][out_option]`) || 'double';
+                            legData.in_option = inOpt;
+                            legData.out_option = outOpt;
+                        }
+                        
+                        event.legs.push(legData);
+                    }
                 }
                 
                 data.events.push(event);
@@ -505,6 +652,10 @@
                                         ${result.pin}
                                     </div>
                                     <div style="font-size: 12px; font-weight: 600; margin-top: 10px; color: #666;">Save this PIN - you'll need it to manage your tournament!</div>
+                                </div>
+                                
+                                <div style="margin: 20px 0; font-size: 16px;">
+                                    <strong>${result.events_created} events created</strong>
                                 </div>
                                 
                                 <a href="/director-dashboard.html?pin=${result.pin}" style="display: inline-block; background: #FF469A; color: white; padding: 20px 40px; font-family: 'Bebas Neue', cursive; font-size: 24px; text-decoration: none; border: 4px solid black; box-shadow: 6px 6px 0 rgba(0, 0, 0, 1); margin-top: 20px;">
