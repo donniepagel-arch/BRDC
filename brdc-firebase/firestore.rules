@@ -1,0 +1,42 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Tournaments - Public read, authenticated write
+    match /tournaments/{tournamentId} {
+      allow read: if true;
+      allow write: if request.auth != null || request.resource.data.director_pin != null;
+    }
+    
+    // Matches - Public read, authenticated write
+    match /matches/{matchId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    
+    // Registrations - Public read, authenticated write
+    match /registrations/{regId} {
+      allow read: if true;
+      allow create: if true;
+      allow update, delete: if request.auth != null;
+    }
+    
+    // Leagues - Public read, authenticated write
+    match /leagues/{leagueId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    
+    // League matches - Public read, authenticated write
+    match /league_matches/{matchId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    
+    // League registrations - Public read, create allowed
+    match /league_registrations/{regId} {
+      allow read: if true;
+      allow create: if true;
+      allow update, delete: if request.auth != null;
+    }
+  }
+}

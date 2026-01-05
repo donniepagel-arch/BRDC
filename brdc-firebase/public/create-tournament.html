@@ -1,532 +1,178 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Create Tournament - BRDC</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  
-  <!-- Firebase SDK -->
-  <script type="module">
-    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-    import { getFirestore, collection, addDoc, Timestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
-    
-    const firebaseConfig = {
-      apiKey: "AIzaSyANG7v6mzJwfzTEp3GXZ6s7IYm11XYz8t0",
-      authDomain: "brdc-1e428.firebaseapp.com",
-      projectId: "brdc-1e428",
-      storageBucket: "brdc-1e428.firebasestorage.app",
-      messagingSenderId: "303481025848",
-      appId: "1:303481025848:web:80e017b43c062299f4bdcd"
-    };
-    
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-    
-    window.db = db;
-    window.firestore = { collection, addDoc, Timestamp };
-  </script>
-  
-  <style>
-    :root {
-      --brdc-pink: #FF469A;
-      --brdc-blue: #1F85AF;
-      --brdc-teal: #91D7EB;
-      --brdc-dark: #1a1a2e;
-    }
-    
-    body {
-      background-color: var(--brdc-dark);
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    }
-    
-    .form-section {
-      background: #2a2a3e;
-      border-radius: 12px;
-      padding: 24px;
-      margin-bottom: 24px;
-    }
-    
-    .form-label {
-      display: block;
-      color: #e0e0e0;
-      font-weight: 600;
-      margin-bottom: 8px;
-      font-size: 14px;
-    }
-    
-    .form-input, .form-select {
-      width: 100%;
-      padding: 10px 12px;
-      border-radius: 6px;
-      border: 2px solid #3a3a4e;
-      background: #1a1a2e;
-      color: white;
-      font-size: 14px;
-      transition: border-color 0.2s;
-    }
-    
-    .form-input:focus, .form-select:focus {
-      outline: none;
-      border-color: var(--brdc-teal);
-    }
-    
-    .form-row {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 16px;
-      margin-bottom: 16px;
-    }
-    
-    .btn-primary {
-      background: linear-gradient(135deg, var(--brdc-pink) 0%, var(--brdc-blue) 100%);
-      color: white;
-      padding: 14px 32px;
-      border-radius: 8px;
-      font-weight: bold;
-      font-size: 16px;
-      border: none;
-      cursor: pointer;
-      transition: transform 0.2s;
-    }
-    
-    .btn-primary:hover {
-      transform: translateY(-2px);
-    }
-    
-    .hidden {
-      display: none;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Tournament - BRDC</title>
+    <link rel="stylesheet" href="/css/brdc-styles.css">
+    <style>
+        .form-container {
+            max-width: 900px;
+            margin: 40px auto;
+        }
+        .form-group {
+            margin-bottom: 24px;
+        }
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        @media (max-width: 768px) {
+            .grid-2 { grid-template-columns: 1fr; }
+        }
+    </style>
 </head>
 <body>
-  <div class="max-w-4xl mx-auto p-6">
-    <!-- Header -->
-    <div class="mb-8">
-      <h1 class="text-4xl font-bold mb-2" style="background: linear-gradient(135deg, var(--brdc-pink) 0%, var(--brdc-teal) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
-        Create Tournament
-      </h1>
-      <p class="text-gray-400">Set up a new tournament or league event</p>
+    <div class="container form-container">
+        <div class="brdc-card">
+            <div class="brdc-card-header">
+                <h1 class="brdc-title" style="font-size: 48px; color: white;">CREATE TOURNAMENT</h1>
+                <p class="brdc-subtitle" style="color: white; margin-top: 10px;">Burning River Dart Club</p>
+            </div>
+            
+            <div style="padding: 40px 30px;">
+                <form id="tournamentForm">
+                    <div class="form-group">
+                        <label class="brdc-label">Tournament Name *</label>
+                        <input type="text" id="name" class="brdc-input" required>
+                    </div>
+                    
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label class="brdc-label">Date *</label>
+                            <input type="date" id="date" class="brdc-input" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="brdc-label">Venue</label>
+                            <input type="text" id="venue" class="brdc-input" placeholder="e.g., Rookies">
+                        </div>
+                    </div>
+                    
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label class="brdc-label">Format *</label>
+                            <select id="format" class="brdc-select" required>
+                                <option value="single_elimination">Single Elimination</option>
+                                <option value="double_elimination">Double Elimination</option>
+                                <option value="round_robin">Round Robin</option>
+                                <option value="swiss">Swiss System</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="brdc-label">Entry Fee ($)</label>
+                            <input type="number" id="entry_fee" class="brdc-input" value="10" min="0" step="0.01">
+                        </div>
+                    </div>
+                    
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label class="brdc-label">Best of (Legs)</label>
+                            <select id="best_of" class="brdc-select">
+                                <option value="1">1</option>
+                                <option value="3" selected>3</option>
+                                <option value="5">5</option>
+                                <option value="7">7</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="brdc-label">Starting Score</label>
+                            <select id="starting_score" class="brdc-select">
+                                <option value="301">301</option>
+                                <option value="501" selected>501</option>
+                                <option value="701">701</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div style="margin: 30px 0; padding: 20px; background: #f9fafb; border: 3px solid var(--black);">
+                        <h3 style="font-family: 'Bebas Neue'; font-size: 20px; margin-bottom: 16px;">PAYOUT STRUCTURE (%)</h3>
+                        <div class="grid-2">
+                            <div class="form-group" style="margin-bottom: 12px;">
+                                <label class="brdc-label">1st Place</label>
+                                <input type="number" id="payout_1st" class="brdc-input" value="50" min="0" max="100">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 12px;">
+                                <label class="brdc-label">2nd Place</label>
+                                <input type="number" id="payout_2nd" class="brdc-input" value="30" min="0" max="100">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 12px;">
+                                <label class="brdc-label">3rd Place</label>
+                                <input type="number" id="payout_3rd" class="brdc-input" value="20" min="0" max="100">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 12px;">
+                                <label class="brdc-label">4th Place</label>
+                                <input type="number" id="payout_4th" class="brdc-input" value="0" min="0" max="100">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="brdc-btn" style="width: 100%; margin-top: 20px;">
+                        CREATE TOURNAMENT
+                    </button>
+                </form>
+                
+                <div id="result" style="margin-top: 30px; display: none;"></div>
+            </div>
+        </div>
     </div>
-
-    <form id="tournamentForm">
-      <!-- Basic Info -->
-      <div class="form-section">
-        <h2 class="text-2xl font-bold text-white mb-4">Basic Information</h2>
-        
-        <div class="mb-4">
-          <label class="form-label">Event Name *</label>
-          <input type="text" id="eventName" class="form-input" required placeholder="Spring Singles Championship">
-        </div>
-        
-        <div class="form-row">
-          <div>
-            <label class="form-label">Event Type *</label>
-            <select id="eventType" class="form-select" required>
-              <option value="">Select type...</option>
-              <option value="single_elimination">Single Elimination</option>
-              <option value="double_elimination">Double Elimination</option>
-              <option value="round_robin">Round Robin</option>
-              <option value="swiss">Swiss System</option>
-            </select>
-          </div>
-          
-          <div>
-            <label class="form-label">Game Format *</label>
-            <select id="format" class="form-select" required>
-              <option value="">Select format...</option>
-              <option value="501FI">501 FI</option>
-              <option value="Cricket">Cricket</option>
-              <option value="301">301</option>
-              <option value="701">701</option>
-              <option value="Mixed">Mixed (501 & Cricket)</option>
-            </select>
-          </div>
-        </div>
-        
-        <div class="form-row">
-          <div>
-            <label class="form-label">Entry Type *</label>
-            <select id="entryType" class="form-select" required onchange="toggleEntryTypeFields()">
-              <option value="">Select entry type...</option>
-              <option value="individual">Individual</option>
-              <option value="team">Team (Doubles/Triples)</option>
-              <option value="blind_draw">Blind Draw</option>
-            </select>
-          </div>
-          
-          <div id="teamSizeField" class="hidden">
-            <label class="form-label">Team Size</label>
-            <select id="teamSize" class="form-select">
-              <option value="2">Doubles (2 players)</option>
-              <option value="3">Triples (3 players)</option>
-            </select>
-          </div>
-        </div>
-      </div>
-
-      <!-- Dates & Venue -->
-      <div class="form-section">
-        <h2 class="text-2xl font-bold text-white mb-4">Dates & Venue</h2>
-        
-        <div class="form-row">
-          <div>
-            <label class="form-label">Start Date *</label>
-            <input type="date" id="startDate" class="form-input" required>
-          </div>
-          
-          <div>
-            <label class="form-label">Registration Deadline *</label>
-            <input type="date" id="registrationDeadline" class="form-input" required>
-          </div>
-        </div>
-        
-        <div class="mb-4">
-          <label class="form-label">Venue Name *</label>
-          <input type="text" id="venueName" class="form-input" required placeholder="Rookies Sports Bar and Grill">
-        </div>
-      </div>
-
-      <!-- Registration Settings -->
-      <div class="form-section">
-        <h2 class="text-2xl font-bold text-white mb-4">Registration Settings</h2>
-        
-        <div class="form-row">
-          <div>
-            <label class="form-label">Max Entries *</label>
-            <input type="number" id="maxEntries" class="form-input" required min="4" max="128" value="32">
-          </div>
-          
-          <div>
-            <label class="form-label">Entry Fee ($) *</label>
-            <input type="number" id="entryFee" class="form-input" required min="0" step="5" value="20">
-          </div>
-          
-          <div>
-            <label class="form-label">Minimum Players to Run</label>
-            <input type="number" id="minPlayers" class="form-input" min="2" value="8">
-          </div>
-        </div>
-      </div>
-
-      <!-- Match Settings -->
-      <div class="form-section">
-        <h2 class="text-2xl font-bold text-white mb-4">Match Settings</h2>
-        
-        <div class="form-row">
-          <div>
-            <label class="form-label">Best of (Regular Matches) *</label>
-            <select id="bestOf" class="form-select" required>
-              <option value="1">Single Game</option>
-              <option value="3" selected>Best of 3</option>
-              <option value="5">Best of 5</option>
-              <option value="7">Best of 7</option>
-            </select>
-          </div>
-          
-          <div>
-            <label class="form-label">Best of (Finals)</label>
-            <select id="bestOfFinals" class="form-select">
-              <option value="3">Best of 3</option>
-              <option value="5" selected>Best of 5</option>
-              <option value="7">Best of 7</option>
-              <option value="9">Best of 9</option>
-            </select>
-          </div>
-        </div>
-        
-        <div class="mb-4">
-          <label class="flex items-center gap-2 text-white cursor-pointer">
-            <input type="checkbox" id="bronzeMatch" class="w-4 h-4">
-            <span>Include 3rd Place Match</span>
-          </label>
-        </div>
-      </div>
-
-      <!-- Tournament Type Specific Settings -->
-      <div id="roundRobinSettings" class="form-section hidden">
-        <h2 class="text-2xl font-bold text-white mb-4">Round Robin Settings</h2>
-        
-        <div class="form-row">
-          <div>
-            <label class="form-label">Number of Groups</label>
-            <input type="number" id="rrGroups" class="form-input" min="1" max="8" value="2">
-          </div>
-          
-          <div>
-            <label class="form-label">Advance per Group</label>
-            <input type="number" id="rrAdvancePerGroup" class="form-input" min="1" max="8" value="2">
-          </div>
-        </div>
-      </div>
-
-      <div id="swissSettings" class="form-section hidden">
-        <h2 class="text-2xl font-bold text-white mb-4">Swiss Settings</h2>
-        
-        <div class="form-row">
-          <div>
-            <label class="form-label">Number of Swiss Rounds</label>
-            <input type="number" id="swissRounds" class="form-input" min="3" max="10" value="5">
-          </div>
-        </div>
-      </div>
-
-      <div id="blindDrawSettings" class="form-section hidden">
-        <h2 class="text-2xl font-bold text-white mb-4">Blind Draw Settings</h2>
-        
-        <div class="mb-4">
-          <label class="form-label">Odd Player Handling</label>
-          <select id="oddPlayerHandling" class="form-select">
-            <option value="exclude">Exclude from draw</option>
-            <option value="solo">Solo entry (play alone)</option>
-            <option value="triple">Make a triple</option>
-            <option value="manual">Manual assignment</option>
-          </select>
-        </div>
-      </div>
-
-      <!-- Seeding -->
-      <div class="form-section">
-        <h2 class="text-2xl font-bold text-white mb-4">Seeding</h2>
-        
-        <div class="form-row">
-          <div>
-            <label class="form-label">Seeding Method *</label>
-            <select id="seedingMethod" class="form-select" required>
-              <option value="random" selected>Random</option>
-              <option value="manual">Manual</option>
-              <option value="rating">By Rating/Skill Level</option>
-            </select>
-          </div>
-        </div>
-      </div>
-
-      <!-- Payouts -->
-      <div class="form-section">
-        <h2 class="text-2xl font-bold text-white mb-4">Payout Structure</h2>
-        
-        <div class="form-row">
-          <div>
-            <label class="form-label">Payout Preset</label>
-            <select id="payoutPreset" class="form-select" onchange="applyPayoutPreset()">
-              <option value="custom">Custom</option>
-              <option value="winner_take_all">Winner Take All</option>
-              <option value="50_30_20">50/30/20</option>
-              <option value="40_30_20_10">40/30/20/10</option>
-              <option value="35_25_20_10_5_5">35/25/20/10/5/5</option>
-            </select>
-          </div>
-          
-          <div>
-            <label class="form-label">House Fee %</label>
-            <input type="number" id="houseFeePercent" class="form-input" min="0" max="100" value="0">
-          </div>
-        </div>
-        
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-          <div>
-            <label class="form-label">1st Place %</label>
-            <input type="number" id="payout1st" class="form-input" min="0" max="100" value="50">
-          </div>
-          <div>
-            <label class="form-label">2nd Place %</label>
-            <input type="number" id="payout2nd" class="form-input" min="0" max="100" value="30">
-          </div>
-          <div>
-            <label class="form-label">3rd Place %</label>
-            <input type="number" id="payout3rd" class="form-input" min="0" max="100" value="20">
-          </div>
-          <div>
-            <label class="form-label">4th Place %</label>
-            <input type="number" id="payout4th" class="form-input" min="0" max="100" value="0">
-          </div>
-          <div>
-            <label class="form-label">5th Place %</label>
-            <input type="number" id="payout5th" class="form-input" min="0" max="100" value="0">
-          </div>
-          <div>
-            <label class="form-label">6th Place %</label>
-            <input type="number" id="payout6th" class="form-input" min="0" max="100" value="0">
-          </div>
-          <div>
-            <label class="form-label">7th Place %</label>
-            <input type="number" id="payout7th" class="form-input" min="0" max="100" value="0">
-          </div>
-          <div>
-            <label class="form-label">8th Place %</label>
-            <input type="number" id="payout8th" class="form-input" min="0" max="100" value="0">
-          </div>
-        </div>
-      </div>
-
-      <!-- Director Info -->
-      <div class="form-section">
-        <h2 class="text-2xl font-bold text-white mb-4">Director Information</h2>
-        
-        <div class="form-row">
-          <div>
-            <label class="form-label">Director Name *</label>
-            <input type="text" id="directorName" class="form-input" required placeholder="Your Name">
-          </div>
-          
-          <div>
-            <label class="form-label">Director Email *</label>
-            <input type="email" id="directorEmail" class="form-input" required placeholder="director@example.com">
-          </div>
-          
-          <div>
-            <label class="form-label">Director Phone</label>
-            <input type="tel" id="directorPhone" class="form-input" placeholder="216-555-0100">
-          </div>
-        </div>
-      </div>
-
-      <!-- Submit -->
-      <div class="flex gap-4 justify-end">
-        <button type="button" onclick="window.location.href='/director-dashboard.html'" class="px-6 py-3 rounded-lg bg-gray-600 text-white font-semibold hover:bg-gray-700">
-          Cancel
-        </button>
-        <button type="submit" class="btn-primary">
-          Create Tournament
-        </button>
-      </div>
-    </form>
-
-    <!-- Success Message -->
-    <div id="successMessage" class="hidden fixed top-4 right-4 bg-green-500 text-white px-6 py-4 rounded-lg shadow-lg">
-      <p class="font-bold">Tournament Created!</p>
-      <p class="text-sm">Redirecting to director dashboard...</p>
-    </div>
-  </div>
-
-  <script type="module">
-    // Toggle visibility based on selections
-    function toggleEntryTypeFields() {
-      const entryType = document.getElementById('entryType').value;
-      document.getElementById('teamSizeField').classList.toggle('hidden', entryType !== 'team');
-      document.getElementById('blindDrawSettings').classList.toggle('hidden', entryType !== 'blind_draw');
-    }
     
-    window.toggleEntryTypeFields = toggleEntryTypeFields;
-    
-    // Toggle tournament type specific fields
-    document.getElementById('eventType').addEventListener('change', function() {
-      const eventType = this.value;
-      document.getElementById('roundRobinSettings').classList.toggle('hidden', eventType !== 'round_robin');
-      document.getElementById('swissSettings').classList.toggle('hidden', eventType !== 'swiss');
-    });
-    
-    // Payout presets
-    function applyPayoutPreset() {
-      const preset = document.getElementById('payoutPreset').value;
-      const payouts = {
-        winner_take_all: [100, 0, 0, 0, 0, 0, 0, 0],
-        '50_30_20': [50, 30, 20, 0, 0, 0, 0, 0],
-        '40_30_20_10': [40, 30, 20, 10, 0, 0, 0, 0],
-        '35_25_20_10_5_5': [35, 25, 20, 10, 5, 5, 0, 0]
-      };
-      
-      if (preset !== 'custom' && payouts[preset]) {
-        document.getElementById('payout1st').value = payouts[preset][0];
-        document.getElementById('payout2nd').value = payouts[preset][1];
-        document.getElementById('payout3rd').value = payouts[preset][2];
-        document.getElementById('payout4th').value = payouts[preset][3];
-        document.getElementById('payout5th').value = payouts[preset][4];
-        document.getElementById('payout6th').value = payouts[preset][5];
-        document.getElementById('payout7th').value = payouts[preset][6];
-        document.getElementById('payout8th').value = payouts[preset][7];
-      }
-    }
-    
-    window.applyPayoutPreset = applyPayoutPreset;
-    
-    // Form submission
-    document.getElementById('tournamentForm').addEventListener('submit', async function(e) {
-      e.preventDefault();
-      
-      const { collection, addDoc, Timestamp } = window.firestore;
-      const db = window.db;
-      
-      try {
-        const tournamentData = {
-          eventName: document.getElementById('eventName').value,
-          eventType: document.getElementById('eventType').value,
-          format: document.getElementById('format').value,
-          entryType: document.getElementById('entryType').value,
-          teamSize: document.getElementById('entryType').value === 'team' ? parseInt(document.getElementById('teamSize').value) : null,
-          
-          // Dates
-          startDate: Timestamp.fromDate(new Date(document.getElementById('startDate').value)),
-          registrationDeadline: Timestamp.fromDate(new Date(document.getElementById('registrationDeadline').value)),
-          
-          // Venue
-          venueId: '',
-          venueName: document.getElementById('venueName').value,
-          
-          // Registration
-          maxEntries: parseInt(document.getElementById('maxEntries').value),
-          currentEntries: 0,
-          entryFee: parseFloat(document.getElementById('entryFee').value),
-          minPlayers: parseInt(document.getElementById('minPlayers').value),
-          
-          // Match settings
-          bestOf: parseInt(document.getElementById('bestOf').value),
-          bestOfFinals: parseInt(document.getElementById('bestOfFinals').value),
-          bronzeMatch: document.getElementById('bronzeMatch').checked,
-          
-          // Tournament type specific
-          rrGroups: document.getElementById('eventType').value === 'round_robin' ? parseInt(document.getElementById('rrGroups').value) : null,
-          rrAdvancePerGroup: document.getElementById('eventType').value === 'round_robin' ? parseInt(document.getElementById('rrAdvancePerGroup').value) : null,
-          swissRounds: document.getElementById('eventType').value === 'swiss' ? parseInt(document.getElementById('swissRounds').value) : null,
-          oddPlayerHandling: document.getElementById('entryType').value === 'blind_draw' ? document.getElementById('oddPlayerHandling').value : null,
-          
-          // Seeding
-          seedingMethod: document.getElementById('seedingMethod').value,
-          seedingLockedAt: null,
-          teamsGeneratedAt: null,
-          teamsLockedAt: null,
-          
-          // Payouts
-          payoutStructureName: document.getElementById('payoutPreset').value,
-          houseFeePercent: parseFloat(document.getElementById('houseFeePercent').value),
-          payout1stPercent: parseFloat(document.getElementById('payout1st').value),
-          payout2ndPercent: parseFloat(document.getElementById('payout2nd').value),
-          payout3rdPercent: parseFloat(document.getElementById('payout3rd').value),
-          payout4thPercent: parseFloat(document.getElementById('payout4th').value),
-          payout5thPercent: parseFloat(document.getElementById('payout5th').value),
-          payout6thPercent: parseFloat(document.getElementById('payout6th').value),
-          payout7thPercent: parseFloat(document.getElementById('payout7th').value),
-          payout8thPercent: parseFloat(document.getElementById('payout8th').value),
-          
-          // Director
-          directorId: 'dir_' + Date.now(),
-          directorName: document.getElementById('directorName').value,
-          directorEmail: document.getElementById('directorEmail').value,
-          directorPhone: document.getElementById('directorPhone').value,
-          
-          // Status
-          status: 'registration_open',
-          
-          // Timestamps
-          createdAt: Timestamp.now(),
-          updatedAt: Timestamp.now()
-        };
+    <script type="module">
+        import { callFunction } from '/js/firebase-config.js';
         
-        const docRef = await addDoc(collection(db, 'tournaments'), tournamentData);
-        
-        // Show success message
-        document.getElementById('successMessage').classList.remove('hidden');
-        
-        // Redirect to director dashboard after 2 seconds
-        setTimeout(() => {
-          window.location.href = '/director-dashboard.html';
-        }, 2000);
-        
-      } catch (error) {
-        console.error('Error creating tournament:', error);
-        alert('Error creating tournament: ' + error.message);
-      }
-    });
-  </script>
+        document.getElementById('tournamentForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const btn = e.target.querySelector('button[type="submit"]');
+            btn.disabled = true;
+            btn.textContent = 'CREATING...';
+            
+            try {
+                const data = {
+                    name: document.getElementById('name').value,
+                    date: document.getElementById('date').value,
+                    venue: document.getElementById('venue').value,
+                    format: document.getElementById('format').value,
+                    entry_fee: document.getElementById('entry_fee').value,
+                    best_of: document.getElementById('best_of').value,
+                    starting_score: document.getElementById('starting_score').value,
+                    payout_1st: document.getElementById('payout_1st').value,
+                    payout_2nd: document.getElementById('payout_2nd').value,
+                    payout_3rd: document.getElementById('payout_3rd').value,
+                    payout_4th: document.getElementById('payout_4th').value,
+                };
+                
+                const result = await callFunction('createTournament', data);
+                
+                if (result.success) {
+                    const resultDiv = document.getElementById('result');
+                    resultDiv.className = 'brdc-alert brdc-alert-success';
+                    resultDiv.innerHTML = `
+                        <h3 style="font-family: 'Bebas Neue'; font-size: 24px; margin-bottom: 12px;">
+                            TOURNAMENT CREATED!
+                        </h3>
+                        <p><strong>Tournament ID:</strong> ${result.tournament_id}</p>
+                        <p><strong>Director PIN:</strong> <span style="font-size: 24px; color: var(--pink);">${result.pin}</span></p>
+                        <p style="margin-top: 12px; font-size: 14px;">Save this PIN - you'll need it to manage your tournament!</p>
+                        <a href="/director-dashboard.html?pin=${result.pin}" class="brdc-btn" style="margin-top: 20px; display: inline-block; text-decoration: none;">
+                            GO TO DASHBOARD
+                        </a>
+                    `;
+                    resultDiv.style.display = 'block';
+                    document.getElementById('tournamentForm').style.display = 'none';
+                } else {
+                    throw new Error(result.error);
+                }
+                
+            } catch (error) {
+                const resultDiv = document.getElementById('result');
+                resultDiv.className = 'brdc-alert brdc-alert-error';
+                resultDiv.innerHTML = `<strong>Error:</strong> ${error.message}`;
+                resultDiv.style.display = 'block';
+                btn.disabled = false;
+                btn.textContent = 'CREATE TOURNAMENT';
+            }
+        });
+    </script>
 </body>
 </html>
