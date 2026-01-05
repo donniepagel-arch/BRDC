@@ -18,12 +18,7 @@
             --white: #FFFFFF;
         }
         
-        * { 
-            font-family: 'Inter', sans-serif;
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { font-family: 'Inter', sans-serif; margin: 0; padding: 0; box-sizing: border-box; }
         
         body {
             background: linear-gradient(180deg, var(--blue-light) 0%, var(--blue-dark) 100%);
@@ -86,7 +81,7 @@
             letter-spacing: 1px;
         }
         
-        .input-field, .brdc-input, .brdc-select {
+        .input-field {
             width: 100%;
             padding: 14px 16px;
             border: 3px solid var(--black);
@@ -97,7 +92,7 @@
             margin-bottom: 20px;
         }
         
-        .input-field:focus, .brdc-input:focus, .brdc-select:focus {
+        .input-field:focus {
             outline: none;
             border-color: var(--pink);
             box-shadow: 0 0 0 3px rgba(255, 70, 154, 0.3), 6px 6px 0 rgba(0, 0, 0, 1);
@@ -108,7 +103,7 @@
             line-height: 1.5;
         }
         
-        .btn-primary, .brdc-btn {
+        .btn-primary {
             background: var(--pink);
             color: var(--white);
             padding: 16px 32px;
@@ -123,7 +118,7 @@
             text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.8);
         }
         
-        .btn-primary:hover, .brdc-btn:hover {
+        .btn-primary:hover {
             background: #E03786;
             transform: translateY(-4px);
             box-shadow: 10px 10px 0 rgba(0, 0, 0, 1);
@@ -207,8 +202,14 @@
             background: #f9fafb;
         }
         
+        .in-out-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        
         @media (max-width: 768px) {
-            .grid-2, .grid-3 { grid-template-columns: 1fr; }
+            .grid-2, .grid-3, .in-out-grid { grid-template-columns: 1fr; }
             .header-title { font-size: 32px; }
         }
     </style>
@@ -243,7 +244,11 @@
                     </div>
                     <div class="form-group">
                         <label class="form-label">Venue Address</label>
-                        <input type="text" name="venue_address" class="input-field" placeholder="123 Main St">
+                        <input type="text" name="venue_address" class="input-field" placeholder="123 Main St, City, State">
+                    </div>
+                    <div class="form-group" style="grid-column: 1 / -1;">
+                        <label class="form-label">Tournament Details / Special Info</label>
+                        <textarea name="tournament_details" class="input-field" rows="3" placeholder="Any special rules or info..."></textarea>
                     </div>
                 </div>
             </div>
@@ -307,6 +312,7 @@
                         ${eventCounter > 1 ? `<button type="button" class="btn-danger" onclick="removeEvent(${eventCounter})">Remove</button>` : ''}
                     </div>
                     
+                    <!-- EVENT BASICS -->
                     <div class="grid-3">
                         <div class="form-group" style="grid-column: 1 / -1;">
                             <label class="form-label">Event Name *</label>
@@ -314,8 +320,27 @@
                         </div>
                         
                         <div class="form-group">
+                            <label class="form-label">Start Time</label>
+                            <input type="time" name="events[${eventCounter}][start_time]" class="input-field">
+                        </div>
+                        
+                        <div class="form-group">
                             <label class="form-label">Entry Fee ($) *</label>
-                            <input type="number" name="events[${eventCounter}][entry_fee]" required min="0" value="10" class="input-field">
+                            <input type="number" name="events[${eventCounter}][entry_fee]" required min="0" value="10" step="0.01" class="input-field">
+                        </div>
+                    </div>
+                    
+                    <!-- EVENT TYPE & FORMAT -->
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label class="form-label">Event Type *</label>
+                            <select name="events[${eventCounter}][event_type]" required class="input-field">
+                                <option value="">Select type...</option>
+                                <option value="individual">👤 Singles (1v1)</option>
+                                <option value="doubles">👥 Doubles (2v2)</option>
+                                <option value="triples">👥 Triples (3v3)</option>
+                                <option value="blind_draw">🎲 Blind Draw</option>
+                            </select>
                         </div>
                         
                         <div class="form-group">
@@ -324,13 +349,64 @@
                                 <option value="single_elim">Single Elimination</option>
                                 <option value="double_elim">Double Elimination</option>
                                 <option value="round_robin">Round Robin</option>
+                                <option value="swiss">Swiss System</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- GAME SELECTOR -->
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label class="form-label">Game *</label>
+                            <select id="game_${eventCounter}" name="events[${eventCounter}][game]" required class="input-field" onchange="handleGameChange(${eventCounter})">
+                                <option value="">Select game...</option>
+                                <option value="501">501</option>
+                                <option value="301">301</option>
+                                <option value="701">701</option>
+                                <option value="cricket">Cricket</option>
                             </select>
                         </div>
                         
                         <div class="form-group">
-                            <label class="form-label">Best Of *</label>
+                            <label class="form-label">Best Of (Legs) *</label>
                             <input type="number" name="events[${eventCounter}][best_of]" min="1" value="3" required class="input-field">
                         </div>
+                    </div>
+                    
+                    <!-- IN/OUT OPTIONS (Show for X01 games) -->
+                    <div id="in_out_section_${eventCounter}" style="display: none; margin-bottom: 20px;">
+                        <label class="form-label">IN / OUT</label>
+                        <div class="in-out-grid">
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <select name="events[${eventCounter}][in_option]" class="input-field" style="margin-bottom: 0;">
+                                    <option value="free">Free In</option>
+                                    <option value="double">Double In</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <select name="events[${eventCounter}][out_option]" class="input-field" style="margin-bottom: 0;">
+                                    <option value="free">Free Out</option>
+                                    <option value="double" selected>Double Out</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- CORK RULES -->
+                    <div class="form-group">
+                        <label class="form-label">Cork Rules *</label>
+                        <select name="events[${eventCounter}][cork_rules]" required class="input-field">
+                            <option value="alternate">Alternate (No Cork)</option>
+                            <option value="bull_up">Bull Up (Closest to Bullseye)</option>
+                            <option value="cork_every_leg">Cork Every Leg</option>
+                            <option value="cork_once">Cork Once (Winner Starts All)</option>
+                        </select>
+                    </div>
+                    
+                    <!-- EVENT DETAILS -->
+                    <div class="form-group">
+                        <label class="form-label">Event Details / Special Rules</label>
+                        <textarea name="events[${eventCounter}][event_details]" class="input-field" rows="3" placeholder="Any special rules or handicaps..."></textarea>
                     </div>
                 </div>
             `;
@@ -340,6 +416,19 @@
         
         window.removeEvent = function(id) {
             document.getElementById(`event-${id}`).remove();
+        };
+        
+        window.handleGameChange = function(eventId) {
+            const gameSelect = document.getElementById(`game_${eventId}`);
+            const game = gameSelect.value;
+            const inOutSection = document.getElementById(`in_out_section_${eventId}`);
+            
+            // Show IN/OUT for X01 games
+            if (game === '501' || game === '301' || game === '701') {
+                inOutSection.style.display = 'block';
+            } else {
+                inOutSection.style.display = 'none';
+            }
         };
         
         window.submitTournament = async function() {
@@ -357,6 +446,7 @@
                 tournament_time: formData.get('tournament_time') || '',
                 venue_name: formData.get('venue_name'),
                 venue_address: formData.get('venue_address') || '',
+                tournament_details: formData.get('tournament_details') || '',
                 full_name: formData.get('director_first') + ' ' + formData.get('director_last'),
                 email: formData.get('director_email'),
                 phone: formData.get('director_phone') || '',
@@ -367,20 +457,32 @@
             for (let i = 1; i <= eventCounter; i++) {
                 if (!document.getElementById(`event-${i}`)) continue;
                 
+                const gameValue = formData.get(`events[${i}][game]`);
+                
                 const event = {
                     event_name: formData.get(`events[${i}][event_name]`),
-                    entry_fee: parseFloat(formData.get(`events[${i}][entry_fee]`)),
+                    entry_type: formData.get(`events[${i}][event_type]`),
                     format: formData.get(`events[${i}][format]`),
-                    best_of: parseInt(formData.get(`events[${i}][best_of]`))
+                    game: gameValue,
+                    best_of: parseInt(formData.get(`events[${i}][best_of]`)),
+                    cork_rules: formData.get(`events[${i}][cork_rules]`),
+                    entry_fee: parseFloat(formData.get(`events[${i}][entry_fee]`)),
+                    start_time: formData.get(`events[${i}][start_time]`) || '',
+                    event_details: formData.get(`events[${i}][event_details]`) || ''
                 };
+                
+                // Add IN/OUT for X01 games
+                if (gameValue === '501' || gameValue === '301' || gameValue === '701') {
+                    event.in_option = formData.get(`events[${i}][in_option]`) || 'free';
+                    event.out_option = formData.get(`events[${i}][out_option]`) || 'double';
+                }
                 
                 data.events.push(event);
             }
             
-            // Submit to Firebase
             console.log('Submitting:', data);
             
-            const btn = document.querySelector('.btn-primary');
+            const btn = document.querySelector('.footer-actions .btn-primary');
             btn.disabled = true;
             btn.textContent = 'Creating...';
             
@@ -388,7 +490,7 @@
                 const result = await callFunction('createTournament', data);
                 
                 if (result.success) {
-                    // Show success
+                    // Show success page
                     document.body.innerHTML = `
                         <div style="background: linear-gradient(180deg, #1F85AF 0%, #001F4D 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px;">
                             <div style="max-width: 600px; background: white; padding: 60px 40px; text-align: center; border: 4px solid black; box-shadow: 12px 12px 0 rgba(0, 0, 0, 1);">
@@ -398,14 +500,14 @@
                                 </h1>
                                 
                                 <div style="background: #FDD835; border: 4px solid black; padding: 30px; margin: 30px 0; box-shadow: 6px 6px 0 rgba(0, 0, 0, 1);">
-                                    <div style="font-size: 14px; font-weight: 800; margin-bottom: 10px;">YOUR DIRECTOR PIN</div>
-                                    <div style="font-family: 'Bebas Neue', cursive; font-size: 64px; color: black;">
+                                    <div style="font-size: 14px; font-weight: 800; margin-bottom: 10px; text-transform: uppercase;">Your Director PIN</div>
+                                    <div style="font-family: 'Bebas Neue', cursive; font-size: 64px; color: black; text-shadow: 3px 3px 0 rgba(255, 70, 154, 0.3);">
                                         ${result.pin}
                                     </div>
-                                    <div style="font-size: 12px; margin-top: 10px;">Save this PIN!</div>
+                                    <div style="font-size: 12px; font-weight: 600; margin-top: 10px; color: #666;">Save this PIN - you'll need it to manage your tournament!</div>
                                 </div>
                                 
-                                <a href="/director-dashboard.html?pin=${result.pin}" style="display: inline-block; background: #FF469A; color: white; padding: 20px 40px; font-family: 'Bebas Neue', cursive; font-size: 24px; text-decoration: none; border: 4px solid black; box-shadow: 6px 6px 0 rgba(0, 0, 0, 1);">
+                                <a href="/director-dashboard.html?pin=${result.pin}" style="display: inline-block; background: #FF469A; color: white; padding: 20px 40px; font-family: 'Bebas Neue', cursive; font-size: 24px; text-decoration: none; border: 4px solid black; box-shadow: 6px 6px 0 rgba(0, 0, 0, 1); margin-top: 20px;">
                                     GO TO DASHBOARD
                                 </a>
                             </div>
@@ -416,7 +518,8 @@
                 }
                 
             } catch (error) {
-                alert('Error: ' + error.message);
+                alert('Error creating tournament: ' + error.message);
+                console.error('Error:', error);
                 btn.disabled = false;
                 btn.textContent = 'CREATE TOURNAMENT';
             }
