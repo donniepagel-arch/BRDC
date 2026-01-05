@@ -1,154 +1,79 @@
+// Firebase Configuration
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
+import { getFirestore, collection, addDoc, query, where, getDocs, doc, getDoc, onSnapshot, updateDoc } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+
+const firebaseConfig = {
+    apiKey: "AIzaSyDLByd5LAfCVcKkSC8e0Ih_O_2cX7oqhDU",
+    authDomain: "brdc-1e428.firebaseapp.com",
+    projectId: "brdc-1e428",
+    storageBucket: "brdc-1e428.firebasestorage.app",
+    messagingSenderId: "651482692878",
+    appId: "1:651482692878:web:2fb93cf30a5c0de6a10e53"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
 /**
- * Create Tournament Cloud Function - WITH DETAILED ERROR LOGGING
+ * Call a Cloud Function via HTTPS
  */
-
-const functions = require('firebase-functions');
-const admin = require('firebase-admin');
-
-exports.createTournament = functions.https.onRequest(async (req, res) => {
-    // Enable CORS
-    res.set('Access-Control-Allow-Origin', '*');
-    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
+async function callFunction(functionName, data) {
+    const REGION = 'us-central1';
+    const PROJECT_ID = 'brdc-1e428';
+    const url = `https://${REGION}-${PROJECT_ID}.cloudfunctions.net/${functionName}`;
     
-    if (req.method === 'OPTIONS') {
-        return res.status(204).send('');
-    }
-    
-    if (req.method !== 'POST') {
-        return res.status(405).json({ success: false, error: 'Method not allowed' });
-    }
+    console.log('Calling function:', url);
+    console.log('With data:', data);
     
     try {
-        console.log('Received request body:', JSON.stringify(req.body, null, 2));
-        
-        const data = req.body;
-        
-        // More flexible validation
-        const tournament_name = data.tournament_name || data.name;
-        const tournament_date = data.tournament_date || data.date;
-        const venue_name = data.venue_name || data.venue;
-        const full_name = data.full_name || data.director_name || 'Unknown Director';
-        const email = data.email || data.director_email;
-        
-        console.log('Parsed fields:', {
-            tournament_name,
-            tournament_date,
-            venue_name,
-            full_name,
-            email,
-            events_count: data.events?.length
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
         });
         
-        // Validate minimum required fields
-        if (!tournament_name) {
-            return res.status(400).json({ 
-                success: false, 
-                error: 'Missing tournament_name or name field' 
-            });
+        console.log('Response status:', response.status);
+        
+        // Try to parse response body regardless of status
+        let responseData;
+        const contentType = response.headers.get('content-type');
+        
+        if (contentType && contentType.includes('application/json')) {
+            responseData = await response.json();
+            console.log('Response data:', responseData);
+        } else {
+            const text = await response.text();
+            console.error('Non-JSON response:', text);
+            throw new Error(`Server returned status ${response.status}: ${text.substring(0, 200)}`);
         }
         
-        if (!tournament_date) {
-            return res.status(400).json({ 
-                success: false, 
-                error: 'Missing tournament_date or date field' 
-            });
+        if (!response.ok) {
+            const errorMsg = responseData.error || responseData.message || `HTTP error! status: ${response.status}`;
+            console.error('Function error:', errorMsg);
+            throw new Error(errorMsg);
         }
         
-        if (!email) {
-            return res.status(400).json({ 
-                success: false, 
-                error: 'Missing email or director_email field' 
-            });
-        }
-        
-        // Generate director PIN (4 digits)
-        const pin = Math.floor(1000 + Math.random() * 9000).toString();
-        
-        // Create tournament document with ALL fields
-        const tournamentData = {
-            tournament_name,
-            tournament_date,
-            tournament_time: data.tournament_time || '',
-            venue_name: venue_name || '',
-            venue_address: data.venue_address || '',
-            tournament_details: data.tournament_details || '',
-            director_name: full_name,
-            director_email: email,
-            director_phone: data.phone || data.director_phone || '',
-            director_pin: pin,
-            status: 'created',
-            created_at: admin.firestore.FieldValue.serverTimestamp(),
-            event_count: data.events?.length || 0
-        };
-        
-        console.log('Creating tournament with data:', tournamentData);
-        
-        const tournamentRef = await admin.firestore()
-            .collection('tournaments')
-            .add(tournamentData);
-        
-        const tournamentId = tournamentRef.id;
-        console.log('Tournament created with ID:', tournamentId);
-        
-        // Create events if provided
-        if (data.events && Array.isArray(data.events) && data.events.length > 0) {
-            console.log('Creating', data.events.length, 'events');
-            
-            const batch = admin.firestore().batch();
-            
-            data.events.forEach((event, index) => {
-                const eventRef = admin.firestore()
-                    .collection('tournaments')
-                    .doc(tournamentId)
-                    .collection('events')
-                    .doc();
-                
-                const eventData = {
-                    tournament_id: tournamentId,
-                    event_number: index + 1,
-                    event_name: event.event_name || `Event ${index + 1}`,
-                    entry_type: event.entry_type || 'individual',
-                    format: event.format || 'single_elim',
-                    game: event.game || '501',
-                    best_of: parseInt(event.best_of) || 3,
-                    cork_rules: event.cork_rules || 'alternate',
-                    in_option: event.in_option || 'free',
-                    out_option: event.out_option || 'double',
-                    entry_fee: parseFloat(event.entry_fee) || 0,
-                    start_time: event.start_time || '',
-                    event_details: event.event_details || '',
-                    status: 'pending',
-                    player_count: 0,
-                    created_at: admin.firestore.FieldValue.serverTimestamp()
-                };
-                
-                console.log('Event', index + 1, ':', eventData);
-                batch.set(eventRef, eventData);
-            });
-            
-            await batch.commit();
-            console.log('Events created successfully');
-        }
-        
-        const response = {
-            success: true,
-            tournament_id: tournamentId,
-            pin: pin,
-            message: 'Tournament created successfully',
-            events_created: data.events?.length || 0
-        };
-        
-        console.log('Sending success response:', response);
-        res.json(response);
+        return responseData;
         
     } catch (error) {
-        console.error('Error creating tournament:', error);
-        console.error('Error stack:', error.stack);
-        res.status(500).json({
-            success: false,
-            error: error.message,
-            details: error.stack
-        });
+        console.error('Error calling ' + functionName + ':', error);
+        throw error;
     }
-});
+}
+
+// Export everything for use in other files
+export { 
+    db, 
+    collection, 
+    addDoc, 
+    query, 
+    where, 
+    getDocs, 
+    doc, 
+    getDoc, 
+    onSnapshot, 
+    updateDoc, 
+    callFunction 
+};
