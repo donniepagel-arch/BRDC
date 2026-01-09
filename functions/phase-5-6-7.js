@@ -14,337 +14,424 @@ const cors = require('cors')({origin: true});
 /**
  * Create a new league
  */
-// Batch 5: League Management (Refactored)
-
-// Create League
-exports.createLeague = functions.https.onRequest((req, res) => {
-    cors(req, res, async () => {
+exports.createLeague = functions.https.onRequest(async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    
+    if (req.method === 'OPTIONS') return res.status(204).send('');
+    
     try {
         const data = req.body;
-
-        if (!data.league_name || !data.start_date) {
-            return res.status(400).json({ success: false, error: 'Missing required fields' });
-        }
-
+        
+        // Calculate total weeks
+        const maxTeams = data.max_teams || 8;
+        const rounds = data.rounds || 2;
+        const teamsForCalc = maxTeams % 2 === 0 ? maxTeams : maxTeams + 1;
+        const matchWeeks = (teamsForCalc - 1) * rounds;
+        
         // Calculate end date
         const startDate = new Date(data.start_date);
-        const weeks = data.total_weeks || 12;
         const endDate = new Date(startDate);
-        endDate.setDate(endDate.getDate() + (weeks * 7));
-
+        const weeksMultiplier = data.match_frequency === 'biweekly' ? 2 : 1;
+        endDate.setDate(endDate.getDate() + (matchWeeks * 7 * weeksMultiplier));
+        
         const league = {
             league_name: data.league_name,
             league_type: data.league_type || 'triples_draft',
-            season: data.season || 'Spring 2026',
+            season: data.season || 'Spring 2025',
             start_date: data.start_date,
-            end_date: endDate.toISOString().split('T')[0],
-            venue_name: data.venue_name || 'Rookies',
+            end_date: endDate.toISOString(),
+            venue_name: data.venue_name,
+            venue_address: data.venue_address || '',
             
-            // Settings
-            total_weeks: weeks,
+            // League settings
+            total_weeks: matchWeeks,
             players_per_team: data.players_per_team || 3,
             max_teams: data.max_teams || 8,
+            session_fee: data.session_fee || 30,
             match_frequency: data.match_frequency || 'weekly',
-            rounds: data.rounds || 2,
+            rounds: rounds,
+            league_night: data.league_night || 'thursday',
             
-            // State
-            status: 'registration',
-            draft_completed: false,
-            schedule_generated: false,
+            // Draft settings
+            draft_date: data.draft_date,
+            draft_type: data.draft_type || 'snake',
+            draft_status: 'pending',
             
-            // Data
-            players: {},
-            teams: {},
-            schedule: [],
-            standings: {},
+            // Match format
+            singles_format: 'best_of_3',
+            doubles_format: 'best_of_3',
+            total_sets: 9,
+            points_per_set: 1,
+            
+            // Director info
+            director_name: data.director_name,
+            director_email: data.director_email,
+            director_phone: data.director_phone || '',
+            
+            // Status
+            status: 'registration_open',
+            current_week: 0,
+            registration_deadline: data.registration_deadline,
             
             created_at: admin.firestore.FieldValue.serverTimestamp()
         };
-
+        
         const leagueRef = await admin.firestore().collection('leagues').add(league);
-
+        
         res.json({
             success: true,
             league_id: leagueRef.id,
             message: 'League created successfully'
         });
-
+        
     } catch (error) {
-        console.error('Error:', error);
+        console.error('Error creating league:', error);
         res.status(500).json({ success: false, error: error.message });
     }
-    });
 });
 
-// Register for League
-exports.registerForLeague = functions.https.onRequest((req, res) => {
-    cors(req, res, async () => {
+/**
+ * Register player for league
+ */
+exports.registerForLeague = functions.https.onRequest(async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    
+    if (req.method === 'OPTIONS') return res.status(204).send('');
+    
     try {
-        const { league_id, player_name, player_email, player_phone } = req.body;
-
-        if (!league_id || !player_name) {
-            return res.status(400).json({ success: false, error: 'Missing required fields' });
-        }
-
-        const leagueRef = admin.firestore().collection('leagues').doc(league_id);
-        const league = await leagueRef.get();
-
-        if (!league.exists) {
+        const { league_id, full_name, email, phone, skill_level } = req.body;
+        
+        // Check if league exists
+        const leagueDoc = await admin.firestore().collection('leagues').doc(league_id).get();
+        if (!leagueDoc.exists) {
             return res.status(404).json({ success: false, error: 'League not found' });
         }
-
-        const leagueData = league.data();
-
-        if (leagueData.status !== 'registration') {
-            return res.status(400).json({ success: false, error: 'Registration is closed' });
+        
+        const league = leagueDoc.data();
+        
+        if (league.status === 'completed') {
+            return res.status(400).json({ success: false, error: 'League has ended' });
         }
-
-        const playerId = `player_${Date.now()}`;
-
-        await leagueRef.update({
-            [`players.${playerId}`]: {
-                name: player_name,
-                email: player_email || null,
-                phone: player_phone || null,
-                registered_at: admin.firestore.FieldValue.serverTimestamp(),
-                team_id: null
-            }
-        });
-
+        
+        // Check if already registered
+        const existingReg = await admin.firestore()
+            .collection('leagues').doc(league_id)
+            .collection('registrations')
+            .where('email', '==', email)
+            .where('status', '==', 'active')
+            .get();
+        
+        if (!existingReg.empty) {
+            return res.status(400).json({ success: false, error: 'Already registered' });
+        }
+        
+        // Create registration
+        const registration = {
+            full_name,
+            email,
+            phone: phone || '',
+            skill_level: skill_level || 'intermediate',
+            team_id: null,
+            position: null,
+            paid: false,
+            payment_status: 'pending',
+            amount_owed: league.session_fee,
+            status: 'active',
+            created_at: admin.firestore.FieldValue.serverTimestamp()
+        };
+        
+        const regRef = await admin.firestore()
+            .collection('leagues').doc(league_id)
+            .collection('registrations')
+            .add(registration);
+        
         res.json({
             success: true,
-            player_id: playerId,
-            message: 'Registered successfully'
+            registration_id: regRef.id,
+            message: 'Registration successful'
         });
-
+        
     } catch (error) {
-        console.error('Error:', error);
+        console.error('Error registering for league:', error);
         res.status(500).json({ success: false, error: error.message });
     }
-    });
 });
 
-// Conduct League Draft
-exports.conductLeagueDraft = functions.https.onRequest((req, res) => {
-    cors(req, res, async () => {
+/**
+ * Conduct league draft and create teams
+ */
+exports.conductLeagueDraft = functions.https.onRequest(async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    
+    if (req.method === 'OPTIONS') return res.status(204).send('');
+    
     try {
-        const { league_id, draft_order } = req.body;
-
-        if (!league_id) {
-            return res.status(400).json({ success: false, error: 'Missing league_id' });
-        }
-
-        const leagueRef = admin.firestore().collection('leagues').doc(league_id);
-        const league = await leagueRef.get();
-
-        if (!league.exists) {
+        const { league_id } = req.body;
+        
+        // Get league
+        const leagueDoc = await admin.firestore().collection('leagues').doc(league_id).get();
+        if (!leagueDoc.exists) {
             return res.status(404).json({ success: false, error: 'League not found' });
         }
-
-        const leagueData = league.data();
-        const players = Object.entries(leagueData.players || {})
-            .map(([id, data]) => ({ id, ...data }));
-
-        const playersPerTeam = leagueData.players_per_team || 3;
-        const numTeams = Math.floor(players.length / playersPerTeam);
-
-        if (players.length < playersPerTeam * 2) {
+        
+        const league = leagueDoc.data();
+        
+        // Get registrations
+        const regsSnapshot = await admin.firestore()
+            .collection('leagues').doc(league_id)
+            .collection('registrations')
+            .where('status', '==', 'active')
+            .get();
+        
+        const registrations = [];
+        regsSnapshot.forEach(doc => registrations.push({ id: doc.id, ...doc.data() }));
+        
+        if (registrations.length < league.players_per_team) {
             return res.status(400).json({ success: false, error: 'Not enough players' });
         }
-
-        // Snake draft
-        const teams = {};
-        let playerIndex = 0;
-
-        for (let teamNum = 1; teamNum <= numTeams; teamNum++) {
-            const teamId = `team_${teamNum}`;
-            teams[teamId] = {
-                name: `Team ${teamNum}`,
-                players: [],
+        
+        // Shuffle players
+        const shuffled = registrations.sort(() => Math.random() - 0.5);
+        const playersPerTeam = league.players_per_team;
+        const numTeams = Math.floor(shuffled.length / playersPerTeam);
+        
+        // Create teams
+        const batch = admin.firestore().batch();
+        const teams = [];
+        
+        for (let i = 0; i < numTeams; i++) {
+            const teamPlayers = shuffled.slice(i * playersPerTeam, (i + 1) * playersPerTeam);
+            const teamName = `Team ${i + 1}`;
+            
+            const teamRef = admin.firestore()
+                .collection('leagues').doc(league_id)
+                .collection('teams').doc();
+            
+            const team = {
+                team_number: i + 1,
+                team_name: teamName,
+                player_ids: teamPlayers.map(p => p.id),
+                player_names: teamPlayers.map(p => p.full_name),
                 wins: 0,
                 losses: 0,
-                points: 0
+                points_for: 0,
+                points_against: 0,
+                created_at: admin.firestore.FieldValue.serverTimestamp()
             };
-        }
-
-        // Draft rounds
-        for (let round = 0; round < playersPerTeam; round++) {
-            const teamKeys = Object.keys(teams);
             
-            // Forward or reverse based on round
-            if (round % 2 === 0) {
-                for (let i = 0; i < teamKeys.length && playerIndex < players.length; i++) {
-                    teams[teamKeys[i]].players.push({
-                        id: players[playerIndex].id,
-                        name: players[playerIndex].name
-                    });
-                    playerIndex++;
-                }
-            } else {
-                for (let i = teamKeys.length - 1; i >= 0 && playerIndex < players.length; i--) {
-                    teams[teamKeys[i]].players.push({
-                        id: players[playerIndex].id,
-                        name: players[playerIndex].name
-                    });
-                    playerIndex++;
-                }
-            }
+            batch.set(teamRef, team);
+            teams.push({ id: teamRef.id, ...team });
+            
+            // Update player registrations with team
+            teamPlayers.forEach((player, pos) => {
+                const playerRef = admin.firestore()
+                    .collection('leagues').doc(league_id)
+                    .collection('registrations').doc(player.id);
+                batch.update(playerRef, {
+                    team_id: teamRef.id,
+                    position: pos + 1
+                });
+            });
         }
-
-        await leagueRef.update({
-            teams: teams,
-            draft_completed: true,
-            status: 'active',
-            draft_date: admin.firestore.FieldValue.serverTimestamp()
+        
+        // Update league
+        batch.update(leagueDoc.ref, {
+            draft_status: 'completed',
+            draft_completed_at: admin.firestore.FieldValue.serverTimestamp(),
+            status: 'active'
         });
-
+        
+        await batch.commit();
+        
         res.json({
             success: true,
+            teams_created: numTeams,
             teams: teams,
             message: 'Draft completed successfully'
         });
-
+        
     } catch (error) {
-        console.error('Error:', error);
+        console.error('Error conducting draft:', error);
         res.status(500).json({ success: false, error: error.message });
     }
-    });
 });
 
-// Generate League Schedule
-exports.generateLeagueSchedule = functions.https.onRequest((req, res) => {
-    cors(req, res, async () => {
+/**
+ * Generate league schedule
+ */
+exports.generateLeagueSchedule = functions.https.onRequest(async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    
+    if (req.method === 'OPTIONS') return res.status(204).send('');
+    
     try {
         const { league_id } = req.body;
-
-        if (!league_id) {
-            return res.status(400).json({ success: false, error: 'Missing league_id' });
-        }
-
-        const leagueRef = admin.firestore().collection('leagues').doc(league_id);
-        const league = await leagueRef.get();
-
-        if (!league.exists) {
-            return res.status(404).json({ success: false, error: 'League not found' });
-        }
-
-        const leagueData = league.data();
-        const teams = Object.keys(leagueData.teams || {});
-
+        
+        // Get league
+        const leagueDoc = await admin.firestore().collection('leagues').doc(league_id).get();
+        const league = leagueDoc.data();
+        
+        // Get teams
+        const teamsSnapshot = await admin.firestore()
+            .collection('leagues').doc(league_id)
+            .collection('teams')
+            .get();
+        
+        const teams = [];
+        teamsSnapshot.forEach(doc => teams.push({ id: doc.id, ...doc.data() }));
+        
         if (teams.length < 2) {
             return res.status(400).json({ success: false, error: 'Need at least 2 teams' });
         }
-
-        // Round-robin schedule
-        const schedule = [];
-        const rounds = leagueData.rounds || 2;
-        let matchId = 1;
-        let week = 1;
-
-        for (let r = 0; r < rounds; r++) {
-            for (let i = 0; i < teams.length; i++) {
-                for (let j = i + 1; j < teams.length; j++) {
-                    schedule.push({
-                        id: `match_${matchId++}`,
-                        week: week++,
-                        team1: teams[i],
-                        team2: teams[j],
-                        team1_score: null,
-                        team2_score: null,
-                        completed: false,
-                        date: null
-                    });
-                }
-            }
-        }
-
-        await leagueRef.update({
-            schedule: schedule,
-            schedule_generated: true
+        
+        // Generate round robin schedule
+        const matches = generateRoundRobinSchedule(league_id, teams, league);
+        
+        // Save matches
+        const batch = admin.firestore().batch();
+        matches.forEach(match => {
+            const matchRef = admin.firestore()
+                .collection('leagues').doc(league_id)
+                .collection('matches').doc();
+            batch.set(matchRef, match);
         });
-
+        
+        await batch.commit();
+        
         res.json({
             success: true,
-            matches: schedule.length,
+            matches_created: matches.length,
             message: 'Schedule generated successfully'
         });
-
+        
     } catch (error) {
-        console.error('Error:', error);
+        console.error('Error generating schedule:', error);
         res.status(500).json({ success: false, error: error.message });
     }
-    });
 });
 
-// Get League Standings
-exports.getLeagueStandings = functions.https.onRequest((req, res) => {
-    cors(req, res, async () => {
-    try {
-        const { league_id } = req.query;
-
-        if (!league_id) {
-            return res.status(400).json({ success: false, error: 'Missing league_id' });
-        }
-
-        const leagueRef = admin.firestore().collection('leagues').doc(league_id);
-        const league = await leagueRef.get();
-
-        if (!league.exists) {
-            return res.status(404).json({ success: false, error: 'League not found' });
-        }
-
-        const leagueData = league.data();
-        const teams = leagueData.teams || {};
-        const schedule = leagueData.schedule || [];
-
-        // Calculate standings from completed matches
-        const standings = {};
-
-        Object.keys(teams).forEach(teamId => {
-            standings[teamId] = {
-                name: teams[teamId].name,
-                wins: 0,
-                losses: 0,
-                points: 0,
-                matchesPlayed: 0
-            };
-        });
-
-        schedule.forEach(match => {
-            if (match.completed) {
-                const t1 = match.team1;
-                const t2 = match.team2;
-
-                standings[t1].matchesPlayed++;
-                standings[t2].matchesPlayed++;
-
-                if (match.team1_score > match.team2_score) {
-                    standings[t1].wins++;
-                    standings[t1].points += 2;
-                    standings[t2].losses++;
+function generateRoundRobinSchedule(league_id, teams, league) {
+    const matches = [];
+    let teamList = [...teams];
+    
+    // Add bye if odd number
+    if (teamList.length % 2 !== 0) {
+        teamList.push({ id: 'bye', team_name: 'BYE' });
+    }
+    
+    const numTeams = teamList.length;
+    const rounds = league.rounds || 2;
+    
+    const startDate = new Date(league.start_date);
+    let currentWeek = 1;
+    
+    for (let round = 0; round < rounds; round++) {
+        for (let week = 0; week < numTeams - 1; week++) {
+            const weekMatches = [];
+            
+            for (let match = 0; match < numTeams / 2; match++) {
+                let home, away;
+                
+                if (match === 0) {
+                    home = 0;
+                    away = week + 1;
                 } else {
-                    standings[t2].wins++;
-                    standings[t2].points += 2;
-                    standings[t1].losses++;
+                    home = week + 1 - match;
+                    away = week + 1 + match;
+                    
+                    if (home < 1) home += numTeams - 1;
+                    if (away >= numTeams) away -= numTeams - 1;
                 }
+                
+                const homeTeam = teamList[home];
+                const awayTeam = teamList[away];
+                
+                if (homeTeam.id === 'bye' || awayTeam.id === 'bye') continue;
+                
+                const matchDate = new Date(startDate);
+                matchDate.setDate(startDate.getDate() + ((currentWeek - 1) * 7));
+                
+                matches.push({
+                    week: currentWeek,
+                    match_date: matchDate.toISOString(),
+                    home_team_id: homeTeam.id,
+                    home_team_name: homeTeam.team_name,
+                    away_team_id: awayTeam.id,
+                    away_team_name: awayTeam.team_name,
+                    home_score: null,
+                    away_score: null,
+                    status: 'scheduled',
+                    board_no: null,
+                    created_at: admin.firestore.FieldValue.serverTimestamp()
+                });
             }
+            
+            currentWeek++;
+        }
+    }
+    
+    return matches;
+}
+
+/**
+ * Get league standings
+ */
+exports.getLeagueStandings = functions.https.onRequest(async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    
+    if (req.method === 'OPTIONS') return res.status(204).send('');
+    
+    try {
+        const { league_id } = req.body;
+        
+        // Get teams
+        const teamsSnapshot = await admin.firestore()
+            .collection('leagues').doc(league_id)
+            .collection('teams')
+            .get();
+        
+        const teams = [];
+        teamsSnapshot.forEach(doc => teams.push({ id: doc.id, ...doc.data() }));
+        
+        // Sort by wins, then point differential
+        teams.sort((a, b) => {
+            if (b.wins !== a.wins) return b.wins - a.wins;
+            return (b.points_for - b.points_against) - (a.points_for - a.points_against);
         });
-
-        const sortedStandings = Object.entries(standings)
-            .map(([id, stats]) => ({ teamId: id, ...stats }))
-            .sort((a, b) => b.points - a.points || b.wins - a.wins);
-
+        
+        // Add rankings
+        teams.forEach((team, index) => {
+            team.rank = index + 1;
+        });
+        
         res.json({
             success: true,
-            standings: sortedStandings
+            standings: teams
         });
-
+        
     } catch (error) {
-        console.error('Error:', error);
+        console.error('Error getting standings:', error);
         res.status(500).json({ success: false, error: error.message });
     }
-    });
 });
+
+// ============================================================================
+// PHASE 6: NOTIFICATIONS (SMS & EMAIL)
+// ============================================================================
+
+/**
+ * Send SMS notification via Twilio
+ */
 exports.sendSMS = functions.https.onRequest(async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -436,93 +523,6 @@ exports.sendEmail = functions.https.onRequest(async (req, res) => {
 /**
  * Notify players of match assignment
  */
-exports.notifyMatchAssignment = functions.https.onRequest(async (req, res) => {
-    res.set('Access-Control-Allow-Origin', '*');
-    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
-    
-    if (req.method === 'OPTIONS') return res.status(204).send('');
-    
-    try {
-        const { match_id, board_number } = req.body;
-        
-        // Get match details
-        const matchDoc = await admin.firestore().collection('matches').doc(match_id).get();
-        if (!matchDoc.exists) {
-            return res.status(404).json({ success: false, error: 'Match not found' });
-        }
-        
-        const match = matchDoc.data();
-        
-        // Compose message
-        const message = `🎯 Your match is ready! ${match.player1_name} vs ${match.player2_name} - Board ${board_number}. Good luck!`;
-        
-        // Send notifications (SMS/Email based on player preferences)
-        // TODO: Implement actual sending
-        
-        res.json({
-            success: true,
-            message: 'Match notifications sent'
-        });
-        
-    } catch (error) {
-        console.error('Error notifying match:', error);
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
-
-// ============================================================================
-// PHASE 7: PAYPAL INTEGRATION
-// ============================================================================
-
-/**
- * Create PayPal payment for registration
- */
-exports.createPayment = functions.https.onRequest(async (req, res) => {
-    res.set('Access-Control-Allow-Origin', '*');
-    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
-    
-    if (req.method === 'OPTIONS') return res.status(204).send('');
-    
-    try {
-        const { tournament_id, event_ids, player_id, total_amount } = req.body;
-        
-        // TODO: Add PayPal SDK integration
-        // const paypal = require('@paypal/checkout-server-sdk');
-        // const environment = new paypal.core.SandboxEnvironment(
-        //     functions.config().paypal.client_id,
-        //     functions.config().paypal.secret
-        // );
-        // const client = new paypal.core.PayPalHttpClient(environment);
-        
-        // Create order
-        // const request = new paypal.orders.OrdersCreateRequest();
-        // request.requestBody({
-        //     intent: 'CAPTURE',
-        //     purchase_units: [{
-        //         amount: {
-        //             currency_code: 'USD',
-        //             value: total_amount.toString()
-        //         },
-        //         description: 'BRDC Tournament Entry'
-        //     }]
-        // });
-        
-        // const order = await client.execute(request);
-        
-        // Log payment intent
-        const paymentRef = await admin.firestore().collection('payments').add({
-            tournament_id,
-            event_ids,
-            player_id,
-            amount: total_amount,
-            status: 'pending',
-            // paypal_order_id: order.result.id,
-            created_at: admin.firestore.FieldValue.serverTimestamp()
-        });
-        
-        res.json({
 /**
  * Notify players of board assignment
  */
