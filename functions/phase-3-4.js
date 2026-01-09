@@ -5,6 +5,7 @@
 
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
+const cors = require('cors')({origin: true});
 
 // ============================================================================
 // PHASE 3A: PAYOUT CALCULATIONS
@@ -43,12 +44,9 @@ const PAYOUT_PRESETS = {
 /**
  * Calculate event payouts
  */
-exports.calculatePayouts = functions.https.onRequest(async (req, res) => {
-    res.set('Access-Control-Allow-Origin', '*');
-    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
+exports.calculatePayouts = functions.https.onRequest((req, res) => {
+    cors(req, res, async () => {
     
-    if (req.method === 'OPTIONS') return res.status(204).send('');
     
     try {
         const { tournament_id, event_id } = req.body;
@@ -143,12 +141,9 @@ exports.calculatePayouts = functions.https.onRequest(async (req, res) => {
 /**
  * Apply payout preset
  */
-exports.applyPayoutPreset = functions.https.onRequest(async (req, res) => {
-    res.set('Access-Control-Allow-Origin', '*');
-    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
+exports.applyPayoutPreset = functions.https.onRequest((req, res) => {
+    cors(req, res, async () => {
     
-    if (req.method === 'OPTIONS') return res.status(204).send('');
     
     try {
         const { tournament_id, event_id, preset_name } = req.body;
@@ -188,12 +183,9 @@ exports.applyPayoutPreset = functions.https.onRequest(async (req, res) => {
 /**
  * Get payout presets
  */
-exports.getPayoutPresets = functions.https.onRequest(async (req, res) => {
-    res.set('Access-Control-Allow-Origin', '*');
-    res.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
+exports.getPayoutPresets = functions.https.onRequest((req, res) => {
+    cors(req, res, async () => {
     
-    if (req.method === 'OPTIONS') return res.status(204).send('');
     
     res.json({
         success: true,
@@ -208,12 +200,9 @@ exports.getPayoutPresets = functions.https.onRequest(async (req, res) => {
 /**
  * Generate Round Robin bracket
  */
-exports.generateRoundRobinBracket = functions.https.onRequest(async (req, res) => {
-    res.set('Access-Control-Allow-Origin', '*');
-    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
+exports.generateRoundRobinBracket = functions.https.onRequest((req, res) => {
+    cors(req, res, async () => {
     
-    if (req.method === 'OPTIONS') return res.status(204).send('');
     
     try {
         const { tournament_id, event_id, num_groups } = req.body;
@@ -365,12 +354,9 @@ function divideIntoGroups(participants, numGroups) {
 /**
  * Calculate Round Robin standings
  */
-exports.calculateRoundRobinStandings = functions.https.onRequest(async (req, res) => {
-    res.set('Access-Control-Allow-Origin', '*');
-    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
+exports.calculateRoundRobinStandings = functions.https.onRequest((req, res) => {
+    cors(req, res, async () => {
     
-    if (req.method === 'OPTIONS') return res.status(204).send('');
     
     try {
         const { tournament_id, event_id, group_name } = req.body;
@@ -460,12 +446,9 @@ exports.calculateRoundRobinStandings = functions.https.onRequest(async (req, res
 /**
  * Generate Swiss tournament (first round)
  */
-exports.generateSwissTournament = functions.https.onRequest(async (req, res) => {
-    res.set('Access-Control-Allow-Origin', '*');
-    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
+exports.generateSwissTournament = functions.https.onRequest((req, res) => {
+    cors(req, res, async () => {
     
-    if (req.method === 'OPTIONS') return res.status(204).send('');
     
     try {
         const { tournament_id, event_id, num_rounds } = req.body;
@@ -548,12 +531,9 @@ exports.generateSwissTournament = functions.https.onRequest(async (req, res) => 
 /**
  * Generate next Swiss round based on standings
  */
-exports.generateNextSwissRound = functions.https.onRequest(async (req, res) => {
-    res.set('Access-Control-Allow-Origin', '*');
-    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
+exports.generateNextSwissRound = functions.https.onRequest((req, res) => {
+    cors(req, res, async () => {
     
-    if (req.method === 'OPTIONS') return res.status(204).send('');
     
     try {
         const { tournament_id, event_id } = req.body;
@@ -697,12 +677,9 @@ function calculateSwissStandings(matches) {
 /**
  * Auto-assign boards to matches
  */
-exports.assignBoards = functions.https.onRequest(async (req, res) => {
-    res.set('Access-Control-Allow-Origin', '*');
-    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
+exports.assignBoards = functions.https.onRequest((req, res) => {
+    cors(req, res, async () => {
     
-    if (req.method === 'OPTIONS') return res.status(204).send('');
     
     try {
         const { tournament_id, event_id, num_boards } = req.body;
@@ -748,12 +725,9 @@ exports.assignBoards = functions.https.onRequest(async (req, res) => {
 /**
  * Get board status (which boards are in use)
  */
-exports.getBoardStatus = functions.https.onRequest(async (req, res) => {
-    res.set('Access-Control-Allow-Origin', '*');
-    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
+exports.getBoardStatus = functions.https.onRequest((req, res) => {
+    cors(req, res, async () => {
     
-    if (req.method === 'OPTIONS') return res.status(204).send('');
     
     try {
         const { tournament_id, event_id } = req.body;

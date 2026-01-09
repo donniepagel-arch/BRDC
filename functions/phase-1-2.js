@@ -5,6 +5,7 @@
 
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
+const cors = require('cors')({origin: true});
 
 // ============================================================================
 // PHASE 1: ADVANCED BRACKET GENERATION
@@ -13,12 +14,9 @@ const admin = require('firebase-admin');
 /**
  * Generate Double Elimination Bracket
  */
-exports.generateDoubleElimBracket = functions.https.onRequest(async (req, res) => {
-    res.set('Access-Control-Allow-Origin', '*');
-    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
+exports.generateDoubleElimBracket = functions.https.onRequest((req, res) => {
+    cors(req, res, async () => {
     
-    if (req.method === 'OPTIONS') return res.status(204).send('');
     
     try {
         const { tournament_id, event_id } = req.body;
@@ -288,12 +286,9 @@ function generateGrandFinals(tournament_id, event_id, event) {
 /**
  * Generate Blind Draw Teams
  */
-exports.generateBlindDrawTeams = functions.https.onRequest(async (req, res) => {
-    res.set('Access-Control-Allow-Origin', '*');
-    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
+exports.generateBlindDrawTeams = functions.https.onRequest((req, res) => {
+    cors(req, res, async () => {
     
-    if (req.method === 'OPTIONS') return res.status(204).send('');
     
     try {
         const { tournament_id, event_id, team_size, odd_player_handling } = req.body;
@@ -398,12 +393,9 @@ exports.generateBlindDrawTeams = functions.https.onRequest(async (req, res) => {
 /**
  * Lock Blind Draw Teams
  */
-exports.lockBlindDrawTeams = functions.https.onRequest(async (req, res) => {
-    res.set('Access-Control-Allow-Origin', '*');
-    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
+exports.lockBlindDrawTeams = functions.https.onRequest((req, res) => {
+    cors(req, res, async () => {
     
-    if (req.method === 'OPTIONS') return res.status(204).send('');
     
     try {
         const { tournament_id, event_id } = req.body;
@@ -446,12 +438,9 @@ exports.lockBlindDrawTeams = functions.https.onRequest(async (req, res) => {
 /**
  * Reshuffle Blind Draw Teams
  */
-exports.reshuffleBlindDrawTeams = functions.https.onRequest(async (req, res) => {
-    res.set('Access-Control-Allow-Origin', '*');
-    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
+exports.reshuffleBlindDrawTeams = functions.https.onRequest((req, res) => {
+    cors(req, res, async () => {
     
-    if (req.method === 'OPTIONS') return res.status(204).send('');
     
     try {
         const { tournament_id, event_id } = req.body;

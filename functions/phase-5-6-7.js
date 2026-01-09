@@ -5,6 +5,7 @@
 
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
+const cors = require('cors')({origin: true});
 
 // ============================================================================
 // PHASE 5: LEAGUE MANAGEMENT SYSTEM
@@ -13,12 +14,9 @@ const admin = require('firebase-admin');
 /**
  * Create a new league
  */
-exports.createLeague = functions.https.onRequest(async (req, res) => {
-    res.set('Access-Control-Allow-Origin', '*');
-    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
+exports.createLeague = functions.https.onRequest((req, res) => {
+    cors(req, res, async () => {
     
-    if (req.method === 'OPTIONS') return res.status(204).send('');
     
     try {
         const data = req.body;
@@ -94,12 +92,9 @@ exports.createLeague = functions.https.onRequest(async (req, res) => {
 /**
  * Register player for league
  */
-exports.registerForLeague = functions.https.onRequest(async (req, res) => {
-    res.set('Access-Control-Allow-Origin', '*');
-    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
+exports.registerForLeague = functions.https.onRequest((req, res) => {
+    cors(req, res, async () => {
     
-    if (req.method === 'OPTIONS') return res.status(204).send('');
     
     try {
         const { league_id, full_name, email, phone, skill_level } = req.body;
@@ -163,12 +158,9 @@ exports.registerForLeague = functions.https.onRequest(async (req, res) => {
 /**
  * Conduct league draft and create teams
  */
-exports.conductLeagueDraft = functions.https.onRequest(async (req, res) => {
-    res.set('Access-Control-Allow-Origin', '*');
-    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
+exports.conductLeagueDraft = functions.https.onRequest((req, res) => {
+    cors(req, res, async () => {
     
-    if (req.method === 'OPTIONS') return res.status(204).send('');
     
     try {
         const { league_id } = req.body;
@@ -264,12 +256,9 @@ exports.conductLeagueDraft = functions.https.onRequest(async (req, res) => {
 /**
  * Generate league schedule
  */
-exports.generateLeagueSchedule = functions.https.onRequest(async (req, res) => {
-    res.set('Access-Control-Allow-Origin', '*');
-    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
+exports.generateLeagueSchedule = functions.https.onRequest((req, res) => {
+    cors(req, res, async () => {
     
-    if (req.method === 'OPTIONS') return res.status(204).send('');
     
     try {
         const { league_id } = req.body;
@@ -383,12 +372,9 @@ function generateRoundRobinSchedule(league_id, teams, league) {
 /**
  * Get league standings
  */
-exports.getLeagueStandings = functions.https.onRequest(async (req, res) => {
-    res.set('Access-Control-Allow-Origin', '*');
-    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
+exports.getLeagueStandings = functions.https.onRequest((req, res) => {
+    cors(req, res, async () => {
     
-    if (req.method === 'OPTIONS') return res.status(204).send('');
     
     try {
         const { league_id } = req.body;
@@ -431,12 +417,9 @@ exports.getLeagueStandings = functions.https.onRequest(async (req, res) => {
 /**
  * Send SMS notification via Twilio
  */
-exports.sendSMS = functions.https.onRequest(async (req, res) => {
-    res.set('Access-Control-Allow-Origin', '*');
-    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
+exports.sendSMS = functions.https.onRequest((req, res) => {
+    cors(req, res, async () => {
     
-    if (req.method === 'OPTIONS') return res.status(204).send('');
     
     try {
         const { to, message } = req.body;
@@ -477,12 +460,9 @@ exports.sendSMS = functions.https.onRequest(async (req, res) => {
 /**
  * Send email notification
  */
-exports.sendEmail = functions.https.onRequest(async (req, res) => {
-    res.set('Access-Control-Allow-Origin', '*');
-    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
+exports.sendEmail = functions.https.onRequest((req, res) => {
+    cors(req, res, async () => {
     
-    if (req.method === 'OPTIONS') return res.status(204).send('');
     
     try {
         const { to, subject, body } = req.body;
@@ -522,12 +502,9 @@ exports.sendEmail = functions.https.onRequest(async (req, res) => {
 /**
  * Notify players of match assignment
  */
-exports.notifyMatchAssignment = functions.https.onRequest(async (req, res) => {
-    res.set('Access-Control-Allow-Origin', '*');
-    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
+exports.notifyMatchAssignment = functions.https.onRequest((req, res) => {
+    cors(req, res, async () => {
     
-    if (req.method === 'OPTIONS') return res.status(204).send('');
     
     try {
         const { match_id, board_number } = req.body;
@@ -564,12 +541,9 @@ exports.notifyMatchAssignment = functions.https.onRequest(async (req, res) => {
 /**
  * Create PayPal payment for registration
  */
-exports.createPayment = functions.https.onRequest(async (req, res) => {
-    res.set('Access-Control-Allow-Origin', '*');
-    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
+exports.createPayment = functions.https.onRequest((req, res) => {
+    cors(req, res, async () => {
     
-    if (req.method === 'OPTIONS') return res.status(204).send('');
     
     try {
         const { tournament_id, event_ids, player_id, total_amount } = req.body;
@@ -624,12 +598,9 @@ exports.createPayment = functions.https.onRequest(async (req, res) => {
 /**
  * Capture PayPal payment after approval
  */
-exports.capturePayment = functions.https.onRequest(async (req, res) => {
-    res.set('Access-Control-Allow-Origin', '*');
-    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
+exports.capturePayment = functions.https.onRequest((req, res) => {
+    cors(req, res, async () => {
     
-    if (req.method === 'OPTIONS') return res.status(204).send('');
     
     try {
         const { payment_id, paypal_order_id } = req.body;
