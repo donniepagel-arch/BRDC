@@ -14,9 +14,12 @@ const cors = require('cors')({origin: true});
 /**
  * Generate Double Elimination Bracket
  */
-exports.generateDoubleElimBracket = functions.https.onRequest((req, res) => {
-    cors(req, res, async () => {
+exports.generateDoubleElimBracket = functions.https.onRequest(async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
     
+    if (req.method === 'OPTIONS') return res.status(204).send('');
     
     try {
         const { tournament_id, event_id } = req.body;
@@ -286,9 +289,12 @@ function generateGrandFinals(tournament_id, event_id, event) {
 /**
  * Generate Blind Draw Teams
  */
-exports.generateBlindDrawTeams = functions.https.onRequest((req, res) => {
-    cors(req, res, async () => {
+exports.generateBlindDrawTeams = functions.https.onRequest(async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
     
+    if (req.method === 'OPTIONS') return res.status(204).send('');
     
     try {
         const { tournament_id, event_id, team_size, odd_player_handling } = req.body;
@@ -393,9 +399,12 @@ exports.generateBlindDrawTeams = functions.https.onRequest((req, res) => {
 /**
  * Lock Blind Draw Teams
  */
-exports.lockBlindDrawTeams = functions.https.onRequest((req, res) => {
-    cors(req, res, async () => {
+exports.lockBlindDrawTeams = functions.https.onRequest(async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
     
+    if (req.method === 'OPTIONS') return res.status(204).send('');
     
     try {
         const { tournament_id, event_id } = req.body;
@@ -438,9 +447,12 @@ exports.lockBlindDrawTeams = functions.https.onRequest((req, res) => {
 /**
  * Reshuffle Blind Draw Teams
  */
-exports.reshuffleBlindDrawTeams = functions.https.onRequest((req, res) => {
-    cors(req, res, async () => {
+exports.reshuffleBlindDrawTeams = functions.https.onRequest(async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
     
+    if (req.method === 'OPTIONS') return res.status(204).send('');
     
     try {
         const { tournament_id, event_id } = req.body;
@@ -478,8 +490,4 @@ exports.reshuffleBlindDrawTeams = functions.https.onRequest((req, res) => {
         console.error('Error reshuffling teams:', error);
         res.status(500).json({ success: false, error: error.message });
     }
-});
-    });
-});
-    });
 });
