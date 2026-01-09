@@ -768,3 +768,12 @@ exports.getBoardStatus = functions.https.onRequest((req, res) => {
     }
 });
 
+    });
+});
+    });
+});
+    });
+});
+    });
+});
+    });
