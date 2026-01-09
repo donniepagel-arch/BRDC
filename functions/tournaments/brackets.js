@@ -47,13 +47,16 @@ exports.generateBracket = functions.https.onRequest(async (req, res) => {
             return res.status(400).json({ error: 'Need at least 2 checked-in players' });
         }
 
+        // Normalize format (accept both hyphen and underscore)
+        const format = (tournamentData.format || '').toLowerCase().replace('-', '_');
+
         // Generate bracket based on format
         let bracket = {};
 
-        if (tournamentData.format === 'single-elimination' || tournamentData.format === 'single_elimination') {
+        if (format === 'single_elimination') {
             bracket = generateSingleElimination(players, tournament_id);
         } else {
-            return res.status(400).json({ error: 'Format not yet supported' });
+            return res.status(400).json({ error: `Format "${tournamentData.format}" not yet supported. Use "single-elimination"` });
         }
 
         // Save bracket to tournament document
@@ -125,6 +128,8 @@ function generateSingleElimination(players, tournament_id) {
         const roundMatches = previousRoundMatches / 2;
 
         for (let i = 0; i < roundMatches; i++) {
+            const prevMatchBase = (round === 2) ? 0 : matches.filter(m => m.round < round).length;
+            
             matches.push({
                 id: `match-${matchNumber}`,
                 matchNumber: matchNumber++,
@@ -135,11 +140,7 @@ function generateSingleElimination(players, tournament_id) {
                 score: { player1: null, player2: null },
                 winner: null,
                 status: 'waiting',
-                board: null,
-                feedsFrom: {
-                    match1: `match-${previousRoundMatches * (round - 2) + 1 + (i * 2)}`,
-                    match2: `match-${previousRoundMatches * (round - 2) + 2 + (i * 2)}`
-                }
+                board: null
             });
         }
 
