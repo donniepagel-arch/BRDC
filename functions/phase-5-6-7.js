@@ -523,11 +523,15 @@ exports.createPayment = functions.https.onRequest(async (req, res) => {
         });
         
         res.json({
-// BATCH 6 - FINAL: Notifications & Payments (Refactored)
-
-// Notify Match Assignment
-exports.notifyMatchAssignment = functions.https.onRequest((req, res) => {
-    cors(req, res, async () => {
+/**
+ * Notify players of board assignment
+ */
+exports.notifyMatchAssignment = functions.https.onRequest(async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    if (req.method === 'OPTIONS') return res.status(204).send('');
+    
     try {
         const { tournament_id, match_id } = req.body;
 
@@ -557,7 +561,6 @@ exports.notifyMatchAssignment = functions.https.onRequest((req, res) => {
 
         const notifications = [];
 
-        // Send SMS if phone numbers available
         if (p1?.phone) {
             notifications.push({
                 type: 'sms',
@@ -574,13 +577,10 @@ exports.notifyMatchAssignment = functions.https.onRequest((req, res) => {
             });
         }
 
-        // TODO: Integrate with Twilio to actually send SMS
-        // For now, just log the notifications
-
         res.json({
             success: true,
             notifications_sent: notifications.length,
-            message: 'Match assignment notifications sent (integration pending)',
+            message: 'Match assignment notifications sent (Twilio integration pending)',
             notifications: notifications
         });
 
@@ -588,12 +588,17 @@ exports.notifyMatchAssignment = functions.https.onRequest((req, res) => {
         console.error('Error:', error);
         res.status(500).json({ success: false, error: error.message });
     }
-    });
 });
 
-// Create Payment
-exports.createPayment = functions.https.onRequest((req, res) => {
-    cors(req, res, async () => {
+/**
+ * Create PayPal payment
+ */
+exports.createPayment = functions.https.onRequest(async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    if (req.method === 'OPTIONS') return res.status(204).send('');
+    
     try {
         const { tournament_id, player_id, amount, description } = req.body;
 
@@ -601,7 +606,6 @@ exports.createPayment = functions.https.onRequest((req, res) => {
             return res.status(400).json({ success: false, error: 'Missing required fields' });
         }
 
-        // Create payment record
         const payment = {
             tournament_id: tournament_id,
             player_id: player_id,
@@ -614,26 +618,27 @@ exports.createPayment = functions.https.onRequest((req, res) => {
 
         const paymentRef = await admin.firestore().collection('payments').add(payment);
 
-        // TODO: Create PayPal order
-        // const order = await paypalClient.orders.create({...});
-
         res.json({
             success: true,
             payment_id: paymentRef.id,
-            message: 'Payment created (PayPal integration pending)',
-            // approval_url: 'pending'
+            message: 'Payment created (PayPal integration pending)'
         });
 
     } catch (error) {
         console.error('Error:', error);
         res.status(500).json({ success: false, error: error.message });
     }
-    });
 });
 
-// Capture Payment
-exports.capturePayment = functions.https.onRequest((req, res) => {
-    cors(req, res, async () => {
+/**
+ * Capture PayPal payment
+ */
+exports.capturePayment = functions.https.onRequest(async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    if (req.method === 'OPTIONS') return res.status(204).send('');
+    
     try {
         const { tournament_id, payment_id, player_id } = req.body;
 
@@ -641,16 +646,11 @@ exports.capturePayment = functions.https.onRequest((req, res) => {
             return res.status(400).json({ success: false, error: 'Missing required fields' });
         }
 
-        // TODO: Capture payment via PayPal
-        // const capture = await paypalClient.orders.capture(order_id);
-
-        // Update payment status
         await admin.firestore().collection('payments').doc(payment_id).update({
             status: 'completed',
             completed_at: admin.firestore.FieldValue.serverTimestamp()
         });
 
-        // Mark player as paid in tournament
         const tournamentRef = admin.firestore().collection('tournaments').doc(tournament_id);
         await tournamentRef.update({
             [`players.${player_id}.paid`]: true,
@@ -666,5 +666,4 @@ exports.capturePayment = functions.https.onRequest((req, res) => {
         console.error('Error:', error);
         res.status(500).json({ success: false, error: error.message });
     }
-    });
 });
