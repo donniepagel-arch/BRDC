@@ -44,151 +44,248 @@ const PAYOUT_PRESETS = {
 /**
  * Calculate event payouts
  */
-exports.calculatePayouts = functions.https.onRequest(async (req, res) => {
-    res.set('Access-Control-Allow-Origin', '*');
-    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
-    
-    if (req.method === 'OPTIONS') return res.status(204).send('');
-    
+// Batch 4: Payouts & Boards (Refactored)
+
+// Calculate Payouts
+exports.calculatePayouts = functions.https.onRequest((req, res) => {
+    cors(req, res, async () => {
     try {
-        const { tournament_id, event_id } = req.body;
-        
-        // Get event
-        const eventDoc = await admin.firestore()
-            .collection('tournaments').doc(tournament_id)
-            .collection('events').doc(event_id)
-            .get();
-        
-        if (!eventDoc.exists) {
-            return res.status(404).json({ success: false, error: 'Event not found' });
+        const { tournament_id } = req.body;
+
+        if (!tournament_id) {
+            return res.status(400).json({ success: false, error: 'Missing tournament_id' });
         }
+
+        const tournamentRef = admin.firestore().collection('tournaments').doc(tournament_id);
+        const tournament = await tournamentRef.get();
+
+        if (!tournament.exists) {
+            return res.status(404).json({ success: false, error: 'Tournament not found' });
+        }
+
+        const tournamentData = tournament.data();
+        const playersMap = tournamentData.players || {};
         
-        const event = eventDoc.data();
-        
-        // Get players
-        const playersSnapshot = await admin.firestore()
-            .collection('tournaments').doc(tournament_id)
-            .collection('players')
-            .where('events', 'array-contains', event_id)
-            .get();
-        
-        const totalPlayers = playersSnapshot.size;
-        const paidPlayers = playersSnapshot.docs.filter(doc => doc.data().paid === true).length;
+        const totalPlayers = Object.keys(playersMap).length;
+        const paidPlayers = Object.values(playersMap).filter(p => p.paid === true).length;
         const unpaidPlayers = totalPlayers - paidPlayers;
-        
-        // Calculate payout structure
-        const entryFee = event.entry_fee || 0;
+
+        // Calculate pot
+        const entryFee = tournamentData.entry_fee || 0;
         const grossPot = totalPlayers * entryFee;
         
         // House fee
-        const houseFeePercent = event.house_fee_pct || 0;
+        const houseFeePercent = tournamentData.house_fee_pct || 0;
         const houseFee = grossPot * (houseFeePercent / 100);
-        
-        // Net pot
         const netPot = grossPot - houseFee;
-        
-        // Payout pool (usually 100% but can be less if saving for future events)
-        const payoutPercent = event.payout_percent || 100;
-        const payoutPool = netPot * (payoutPercent / 100);
-        
-        // Calculate each place
-        const places = [];
-        const payoutFields = [
-            'payout_1st_pct', 'payout_2nd_pct', 'payout_3rd_pct', 'payout_4th_pct',
-            'payout_5th_pct', 'payout_6th_pct', 'payout_7th_pct', 'payout_8th_pct'
-        ];
-        
-        let totalPct = 0;
-        payoutFields.forEach((field, index) => {
-            const pct = event[field] || 0;
-            if (pct > 0) {
-                places.push({
-                    place: index + 1,
-                    percent: pct,
-                    amount: payoutPool * (pct / 100)
-                });
-                totalPct += pct;
+
+        // Get payout structure (default 60/40 for 2 places)
+        const payoutStructure = tournamentData.payout_structure || {
+            '1st': 60,
+            '2nd': 40
+        };
+
+        // Calculate actual payouts
+        const payouts = {};
+        Object.entries(payoutStructure).forEach(([place, percent]) => {
+            payouts[place] = (netPot * percent / 100).toFixed(2);
+        });
+
+        // Update tournament
+        await tournamentRef.update({
+            payouts: {
+                grossPot: grossPot,
+                houseFee: houseFee,
+                netPot: netPot,
+                structure: payoutStructure,
+                amounts: payouts,
+                totalPlayers: totalPlayers,
+                paidPlayers: paidPlayers,
+                unpaidPlayers: unpaidPlayers
             }
         });
-        
-        const outstanding = unpaidPlayers * entryFee;
-        const collected = grossPot - outstanding;
-        
+
         res.json({
             success: true,
-            event_name: event.event_name,
-            registered_entries: totalPlayers,
-            paid_entries: paidPlayers,
-            unpaid_entries: unpaidPlayers,
-            entry_fee: entryFee,
-            gross_pot: grossPot,
-            house_fee_pct: houseFeePercent,
-            house_fee: houseFee,
-            net_pot: netPot,
-            payout_percent: payoutPercent,
-            payout_pool: payoutPool,
-            places: places,
-            total_payout_pct: totalPct,
-            payout_valid: totalPct === 100,
-            outstanding: outstanding,
-            collected: collected
+            grossPot: grossPot,
+            houseFee: houseFee,
+            netPot: netPot,
+            payouts: payouts,
+            totalPlayers: totalPlayers,
+            paidPlayers: paidPlayers,
+            unpaidPlayers: unpaidPlayers
         });
-        
+
     } catch (error) {
-        console.error('Error calculating payouts:', error);
+        console.error('Error:', error);
         res.status(500).json({ success: false, error: error.message });
     }
+    });
 });
 
-/**
- * Apply payout preset
- */
-exports.applyPayoutPreset = functions.https.onRequest(async (req, res) => {
-    res.set('Access-Control-Allow-Origin', '*');
-    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
-    
-    if (req.method === 'OPTIONS') return res.status(204).send('');
-    
+// Apply Payout Preset
+exports.applyPayoutPreset = functions.https.onRequest((req, res) => {
+    cors(req, res, async () => {
     try {
-        const { tournament_id, event_id, preset_name } = req.body;
-        
+        const { tournament_id, preset_name } = req.body;
+
+        if (!tournament_id || !preset_name) {
+            return res.status(400).json({ success: false, error: 'Missing required fields' });
+        }
+
+        const PAYOUT_PRESETS = {
+            'winner_take_all': { '1st': 100 },
+            '60_40': { '1st': 60, '2nd': 40 },
+            '50_30_20': { '1st': 50, '2nd': 30, '3rd': 20 },
+            '40_30_20_10': { '1st': 40, '2nd': 30, '3rd': 20, '4th': 10 },
+            '30_25_20_15_10': { '1st': 30, '2nd': 25, '3rd': 20, '4th': 15, '5th': 10 }
+        };
+
         const preset = PAYOUT_PRESETS[preset_name];
+        
         if (!preset) {
             return res.status(400).json({ success: false, error: 'Invalid preset' });
         }
+
+        const tournamentRef = admin.firestore().collection('tournaments').doc(tournament_id);
         
-        // Update event with preset
-        await admin.firestore()
-            .collection('tournaments').doc(tournament_id)
-            .collection('events').doc(event_id)
-            .update({
-                payout_structure_name: preset_name,
-                payout_1st_pct: preset.splits[0],
-                payout_2nd_pct: preset.splits[1],
-                payout_3rd_pct: preset.splits[2],
-                payout_4th_pct: preset.splits[3],
-                payout_5th_pct: preset.splits[4],
-                payout_6th_pct: preset.splits[5],
-                payout_7th_pct: preset.splits[6],
-                payout_8th_pct: preset.splits[7]
-            });
-        
+        await tournamentRef.update({
+            payout_structure: preset,
+            payout_structure_name: preset_name
+        });
+
         res.json({
             success: true,
-            message: `Applied ${preset.name} payout structure`
+            message: `Applied ${preset_name} payout structure`,
+            structure: preset
         });
-        
+
     } catch (error) {
-        console.error('Error applying preset:', error);
+        console.error('Error:', error);
         res.status(500).json({ success: false, error: error.message });
     }
+    });
 });
 
-/**
- * Get payout presets
- */
+// Assign Boards
+exports.assignBoards = functions.https.onRequest((req, res) => {
+    cors(req, res, async () => {
+    try {
+        const { tournament_id, assignments } = req.body;
+
+        if (!tournament_id || !assignments) {
+            return res.status(400).json({ success: false, error: 'Missing required fields' });
+        }
+
+        const tournamentRef = admin.firestore().collection('tournaments').doc(tournament_id);
+        const tournament = await tournamentRef.get();
+
+        if (!tournament.exists) {
+            return res.status(404).json({ success: false, error: 'Tournament not found' });
+        }
+
+        const tournamentData = tournament.data();
+        const bracket = tournamentData.bracket || {};
+
+        if (!bracket.matches) {
+            return res.status(400).json({ success: false, error: 'No bracket generated' });
+        }
+
+        // Apply board assignments
+        // assignments format: [{ matchId: 'match-1', board: 5 }, ...]
+        assignments.forEach(({ matchId, board }) => {
+            const matchIndex = bracket.matches.findIndex(m => m.id === matchId);
+            if (matchIndex !== -1) {
+                bracket.matches[matchIndex].board = board;
+                bracket.matches[matchIndex].status = 'in_progress';
+            }
+        });
+
+        await tournamentRef.update({
+            bracket: bracket
+        });
+
+        res.json({
+            success: true,
+            message: `Assigned ${assignments.length} matches to boards`,
+            assignments: assignments
+        });
+
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+    });
+});
+
+// Get Board Status
+exports.getBoardStatus = functions.https.onRequest((req, res) => {
+    cors(req, res, async () => {
+    try {
+        const { tournament_id } = req.query;
+
+        if (!tournament_id) {
+            return res.status(400).json({ success: false, error: 'Missing tournament_id' });
+        }
+
+        const tournamentRef = admin.firestore().collection('tournaments').doc(tournament_id);
+        const tournament = await tournamentRef.get();
+
+        if (!tournament.exists) {
+            return res.status(404).json({ success: false, error: 'Tournament not found' });
+        }
+
+        const tournamentData = tournament.data();
+        const bracket = tournamentData.bracket || {};
+        const matches = bracket.matches || [];
+
+        // Get board status
+        const boardStatus = {};
+        const totalBoards = 12; // 10 primary + 2 supplemental at Rookies
+
+        // Initialize all boards
+        for (let i = 1; i <= totalBoards; i++) {
+            boardStatus[i] = {
+                board: i,
+                status: 'available',
+                match: null
+            };
+        }
+
+        // Mark boards in use
+        matches.forEach(match => {
+            if (match.board && match.status === 'in_progress') {
+                boardStatus[match.board] = {
+                    board: match.board,
+                    status: 'in_use',
+                    match: {
+                        id: match.id,
+                        matchNumber: match.matchNumber,
+                        round: match.round,
+                        player1: match.player1?.name,
+                        player2: match.player2?.name
+                    }
+                };
+            }
+        });
+
+        const available = Object.values(boardStatus).filter(b => b.status === 'available').length;
+        const inUse = Object.values(boardStatus).filter(b => b.status === 'in_use').length;
+
+        res.json({
+            success: true,
+            totalBoards: totalBoards,
+            available: available,
+            inUse: inUse,
+            boards: Object.values(boardStatus)
+        });
+
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+    });
+});
 exports.getPayoutPresets = functions.https.onRequest(async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
