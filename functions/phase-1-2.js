@@ -1,493 +1,276 @@
 /**
- * BRDC Phase 1 & 2 Cloud Functions
- * Advanced Brackets + Team Management
+ * Generate Double Elimination Bracket
+ * REFACTORED for unified structure
  */
-
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 const cors = require('cors')({origin: true});
 
-// ============================================================================
-// PHASE 1: ADVANCED BRACKET GENERATION
-// ============================================================================
-
-/**
- * Generate Double Elimination Bracket
- */
-exports.generateDoubleElimBracket = functions.https.onRequest(async (req, res) => {
-    res.set('Access-Control-Allow-Origin', '*');
-    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
-    
-    if (req.method === 'OPTIONS') return res.status(204).send('');
-    
+exports.generateDoubleElimBracket = functions.https.onRequest((req, res) => {
+    cors(req, res, async () => {
     try {
-        const { tournament_id, event_id } = req.body;
-        
-        // Get event
-        const eventDoc = await admin.firestore()
-            .collection('tournaments').doc(tournament_id)
-            .collection('events').doc(event_id)
-            .get();
-        
-        if (!eventDoc.exists) {
-            return res.status(404).json({ success: false, error: 'Event not found' });
+        const { tournament_id } = req.body;
+
+        if (!tournament_id) {
+            return res.status(400).json({ success: false, error: 'Missing tournament_id' });
         }
-        
-        const event = eventDoc.data();
+
+        const tournamentRef = admin.firestore().collection('tournaments').doc(tournament_id);
+        const tournament = await tournamentRef.get();
+
+        if (!tournament.exists) {
+            return res.status(404).json({ success: false, error: 'Tournament not found' });
+        }
+
+        const tournamentData = tournament.data();
         
         // Get checked-in players
-        const playersSnapshot = await admin.firestore()
-            .collection('tournaments').doc(tournament_id)
-            .collection('players')
-            .where('checked_in', '==', true)
-            .where('events', 'array-contains', event_id)
-            .get();
-        
-        const players = [];
-        playersSnapshot.forEach(doc => players.push({ id: doc.id, ...doc.data() }));
-        
+        const playersMap = tournamentData.players || {};
+        const players = Object.entries(playersMap)
+            .filter(([id, player]) => player.checkedIn === true)
+            .map(([id, player]) => ({ id, name: player.name, ...player }));
+
         if (players.length < 2) {
             return res.status(400).json({ success: false, error: 'Need at least 2 checked-in players' });
         }
-        
-        // Determine bracket size
-        const bracketSize = Math.pow(2, Math.ceil(Math.log2(players.length)));
-        const byeCount = bracketSize - players.length;
-        
+
         // Shuffle for random seeding
-        const seededPlayers = players.sort(() => Math.random() - 0.5);
-        
-        const allMatches = [];
-        
-        // Generate Winners Bracket
-        allMatches.push(...await generateWinnersBracket(
-            tournament_id, event_id, seededPlayers, bracketSize, event
-        ));
-        
-        // Generate Losers Bracket
-        allMatches.push(...generateLosersBracket(
-            tournament_id, event_id, bracketSize, event
-        ));
-        
-        // Generate Grand Finals
-        allMatches.push(...generateGrandFinals(
-            tournament_id, event_id, event
-        ));
-        
-        // Save all matches
-        const batch = admin.firestore().batch();
-        allMatches.forEach(match => {
-            const matchRef = admin.firestore().collection('matches').doc();
-            batch.set(matchRef, match);
+        const seeded = players.sort(() => Math.random() - 0.5);
+        const bracketSize = Math.pow(2, Math.ceil(Math.log2(seeded.length)));
+
+        const bracket = {
+            type: 'double-elimination',
+            totalPlayers: seeded.length,
+            bracketSize: bracketSize,
+            winnersMatches: generateWinnersBracket(seeded, bracketSize),
+            losersMatches: generateLosersBracket(bracketSize),
+            grandFinals: {
+                id: 'grand-finals',
+                round: 'finals',
+                player1: null,
+                player2: null,
+                score: { player1: null, player2: null },
+                winner: null,
+                status: 'waiting'
+            },
+            createdAt: admin.firestore.Timestamp.now()
+        };
+
+        await tournamentRef.update({
+            bracket: bracket,
+            bracketGenerated: true,
+            bracketGeneratedAt: admin.firestore.FieldValue.serverTimestamp(),
+            started: true
         });
-        await batch.commit();
-        
+
         res.json({
             success: true,
-            matches_created: allMatches.length,
+            matches_created: bracket.winnersMatches.length + bracket.losersMatches.length + 1,
             message: 'Double elimination bracket generated'
         });
-        
+
     } catch (error) {
-        console.error('Error generating double elim bracket:', error);
+        console.error('Error:', error);
         res.status(500).json({ success: false, error: error.message });
     }
+    });
 });
 
-async function generateWinnersBracket(tournament_id, event_id, seededPlayers, bracketSize, event) {
+function generateWinnersBracket(players, bracketSize) {
     const matches = [];
-    const totalRounds = Math.log2(bracketSize);
-    
-    // Round 1
-    const matchesInRound1 = bracketSize / 2;
-    for (let i = 0; i < matchesInRound1; i++) {
-        const p1 = seededPlayers[i * 2];
-        const p2 = seededPlayers[i * 2 + 1];
+    const rounds = Math.log2(bracketSize);
+    let matchNum = 1;
+
+    // First round
+    for (let i = 0; i < bracketSize / 2; i++) {
+        const p1 = players[i * 2];
+        const p2 = players[i * 2 + 1];
         
         matches.push({
-            tournament_id,
-            event_id,
-            round: 'WB_R1',
-            match_no: i + 1,
+            id: `w-${matchNum}`,
+            matchNumber: matchNum++,
+            round: 1,
             bracket: 'winners',
-            position: i + 1,
-            player1_id: p1 ? p1.id : null,
-            player1_name: p1 ? p1.name : 'BYE',
-            player2_id: p2 ? p2.id : null,
-            player2_name: p2 ? p2.name : 'BYE',
-            player1_score: null,
-            player2_score: null,
-            winner_id: (!p1 || !p2) ? (p1 ? p1.id : p2?.id) : null,
-            loser_id: null,
-            status: (p1 && p2) ? 'pending' : 'bye',
-            board_number: null,
-            src1_match_id: null,
-            src1_take: null,
-            src2_match_id: null,
-            src2_take: null,
-            created_at: admin.firestore.FieldValue.serverTimestamp()
+            player1: p1 ? { id: p1.id, name: p1.name } : null,
+            player2: p2 ? { id: p2.id, name: p2.name } : null,
+            score: { player1: null, player2: null },
+            winner: null,
+            loser: null,
+            status: 'pending'
         });
     }
-    
-    // Subsequent rounds (all TBD)
-    for (let round = 2; round <= totalRounds; round++) {
-        const matchesInRound = Math.pow(2, totalRounds - round);
-        const roundLabel = `WB_R${round}`;
-        
-        for (let i = 0; i < matchesInRound; i++) {
+
+    // Subsequent rounds
+    let prevMatches = bracketSize / 2;
+    for (let r = 2; r <= rounds; r++) {
+        for (let i = 0; i < prevMatches / 2; i++) {
             matches.push({
-                tournament_id,
-                event_id,
-                round: roundLabel,
-                match_no: i + 1,
+                id: `w-${matchNum}`,
+                matchNumber: matchNum++,
+                round: r,
                 bracket: 'winners',
-                position: i + 1,
-                player1_id: null,
-                player1_name: 'TBD',
-                player2_id: null,
-                player2_name: 'TBD',
-                player1_score: null,
-                player2_score: null,
-                winner_id: null,
-                loser_id: null,
-                status: 'pending',
-                board_number: null,
-                src1_match_id: `WB_R${round-1}_M${i*2+1}`,
-                src1_take: 'winner',
-                src2_match_id: `WB_R${round-1}_M${i*2+2}`,
-                src2_take: 'winner',
-                created_at: admin.firestore.FieldValue.serverTimestamp()
+                player1: null,
+                player2: null,
+                score: { player1: null, player2: null },
+                winner: null,
+                loser: null,
+                status: 'waiting'
             });
         }
+        prevMatches /= 2;
     }
-    
+
     return matches;
 }
 
-function generateLosersBracket(tournament_id, event_id, bracketSize, event) {
+function generateLosersBracket(bracketSize) {
     const matches = [];
-    const wbRounds = Math.log2(bracketSize);
-    const lbRounds = (2 * wbRounds) - 1;
-    
-    // LB Round 1
-    const lbR1Matches = bracketSize / 4;
-    for (let i = 0; i < lbR1Matches; i++) {
-        matches.push({
-            tournament_id,
-            event_id,
-            round: 'LB_R1',
-            match_no: i + 1,
-            bracket: 'losers',
-            position: i + 1,
-            player1_id: null,
-            player1_name: 'TBD',
-            player2_id: null,
-            player2_name: 'TBD',
-            player1_score: null,
-            player2_score: null,
-            winner_id: null,
-            loser_id: null,
-            status: 'pending',
-            board_number: null,
-            src1_match_id: `WB_R1_M${i*2+1}`,
-            src1_take: 'loser',
-            src2_match_id: `WB_R1_M${i*2+2}`,
-            src2_take: 'loser',
-            created_at: admin.firestore.FieldValue.serverTimestamp()
-        });
-    }
-    
-    // LB subsequent rounds
-    let currentLBWinners = lbR1Matches;
-    for (let lbRound = 2; lbRound <= lbRounds; lbRound++) {
-        const roundLabel = `LB_R${lbRound}`;
-        const isConsolidation = (lbRound % 2 === 0);
-        const matchesInRound = isConsolidation ? currentLBWinners / 2 : currentLBWinners;
-        
-        for (let i = 0; i < matchesInRound; i++) {
-            let src1_take, src2_take, src1_match_id, src2_match_id;
-            
-            if (isConsolidation) {
-                src1_match_id = `LB_R${lbRound-1}_M${i*2+1}`;
-                src1_take = 'winner';
-                src2_match_id = `LB_R${lbRound-1}_M${i*2+2}`;
-                src2_take = 'winner';
-            } else {
-                const wbRoundNum = Math.floor(lbRound / 2) + 1;
-                src1_match_id = `LB_R${lbRound-1}_M${i+1}`;
-                src1_take = 'winner';
-                src2_match_id = `WB_R${wbRoundNum}_M${i+1}`;
-                src2_take = 'loser';
-            }
-            
+    const rounds = (Math.log2(bracketSize) - 1) * 2;
+    let matchNum = 1;
+
+    for (let r = 1; r <= rounds; r++) {
+        const matchCount = Math.ceil(bracketSize / Math.pow(2, Math.ceil((r + 2) / 2)));
+        for (let i = 0; i < matchCount; i++) {
             matches.push({
-                tournament_id,
-                event_id,
-                round: roundLabel,
-                match_no: i + 1,
+                id: `l-${matchNum}`,
+                matchNumber: matchNum++,
+                round: r,
                 bracket: 'losers',
-                position: i + 1,
-                player1_id: null,
-                player1_name: 'TBD',
-                player2_id: null,
-                player2_name: 'TBD',
-                player1_score: null,
-                player2_score: null,
-                winner_id: null,
-                loser_id: null,
-                status: 'pending',
-                board_number: null,
-                src1_match_id,
-                src1_take,
-                src2_match_id,
-                src2_take,
-                created_at: admin.firestore.FieldValue.serverTimestamp()
+                player1: null,
+                player2: null,
+                score: { player1: null, player2: null },
+                winner: null,
+                status: 'waiting'
             });
         }
-        
-        if (isConsolidation) {
-            currentLBWinners = matchesInRound;
-        }
     }
-    
+
     return matches;
 }
 
-function generateGrandFinals(tournament_id, event_id, event) {
-    return [
-        {
-            tournament_id,
-            event_id,
-            round: 'GRAND_FINAL',
-            match_no: 1,
-            bracket: 'finals',
-            position: 1,
-            player1_id: null,
-            player1_name: 'TBD (WB Winner)',
-            player2_id: null,
-            player2_name: 'TBD (LB Winner)',
-            player1_score: null,
-            player2_score: null,
-            winner_id: null,
-            loser_id: null,
-            status: 'pending',
-            board_number: null,
-            src1_match_id: 'WB_FINAL',
-            src1_take: 'winner',
-            src2_match_id: 'LB_FINAL',
-            src2_take: 'winner',
-            created_at: admin.firestore.FieldValue.serverTimestamp()
-        }
-    ];
-}
-
-// ============================================================================
-// PHASE 2: BLIND DRAW TEAM MANAGEMENT
-// ============================================================================
-
-/**
- * Generate Blind Draw Teams
- */
-exports.generateBlindDrawTeams = functions.https.onRequest(async (req, res) => {
-    res.set('Access-Control-Allow-Origin', '*');
-    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
-    
-    if (req.method === 'OPTIONS') return res.status(204).send('');
-    
+exports.generateBlindDrawTeams = functions.https.onRequest((req, res) => {
+    cors(req, res, async () => {
     try {
-        const { tournament_id, event_id, team_size, odd_player_handling } = req.body;
-        
-        // Get players for this event
-        const playersSnapshot = await admin.firestore()
-            .collection('tournaments').doc(tournament_id)
-            .collection('players')
-            .where('events', 'array-contains', event_id)
-            .get();
-        
-        const players = [];
-        playersSnapshot.forEach(doc => players.push({ id: doc.id, ...doc.data() }));
-        
+        const { tournament_id, team_size } = req.body;
+
+        if (!tournament_id) {
+            return res.status(400).json({ success: false, error: 'Missing tournament_id' });
+        }
+
+        const tournamentRef = admin.firestore().collection('tournaments').doc(tournament_id);
+        const tournament = await tournamentRef.get();
+
+        if (!tournament.exists) {
+            return res.status(404).json({ success: false, error: 'Tournament not found' });
+        }
+
+        const tournamentData = tournament.data();
+        const playersMap = tournamentData.players || {};
+        const players = Object.entries(playersMap)
+            .filter(([id, player]) => player.checkedIn === true)
+            .map(([id, player]) => ({ id, name: player.name }));
+
         if (players.length < 2) {
             return res.status(400).json({ success: false, error: 'Need at least 2 players' });
         }
+
+        const size = team_size || 2;
         
-        const targetTeamSize = team_size || 2;
-        const expectedTeams = Math.floor(players.length / targetTeamSize);
-        const leftoverPlayers = players.length % targetTeamSize;
-        
-        // Check for odd players
-        if (leftoverPlayers > 0 && !odd_player_handling) {
-            return res.json({
-                success: false,
-                needs_decision: true,
-                player_count: players.length,
-                expected_teams: expectedTeams,
-                leftover_players: leftoverPlayers,
-                options: [
-                    { value: 'solo', label: `${expectedTeams} teams + ${leftoverPlayers} solo` },
-                    { value: 'triple', label: `${expectedTeams - 1} teams + 1 triple`, available: targetTeamSize === 2 && leftoverPlayers === 1 },
-                    { value: 'exclude', label: `Exclude ${leftoverPlayers} random players` }
-                ]
-            });
-        }
-        
-        // Generate teams
-        let playersToTeam = [...players];
-        
-        // Handle odd players
-        if (odd_player_handling === 'exclude' && leftoverPlayers > 0) {
-            playersToTeam = playersToTeam.sort(() => Math.random() - 0.5).slice(0, -leftoverPlayers);
-        }
-        
-        // Shuffle
-        playersToTeam = playersToTeam.sort(() => Math.random() - 0.5);
+        // Shuffle players
+        const shuffled = players.sort(() => Math.random() - 0.5);
         
         // Create teams
         const teams = [];
-        const batch = admin.firestore().batch();
-        
-        for (let i = 0; i < playersToTeam.length; i += targetTeamSize) {
-            const teamPlayers = playersToTeam.slice(i, i + targetTeamSize);
-            
-            if (teamPlayers.length < targetTeamSize && odd_player_handling !== 'solo') {
-                continue;
-            }
-            
-            const teamName = teamPlayers.map(p => p.name).join(' / ');
-            const teamRef = admin.firestore()
-                .collection('tournaments').doc(tournament_id)
-                .collection('events').doc(event_id)
-                .collection('teams').doc();
-            
-            const team = {
-                team_name: teamName,
-                team_size: teamPlayers.length,
-                player_ids: teamPlayers.map(p => p.id),
-                locked: false,
-                created_at: admin.firestore.FieldValue.serverTimestamp()
-            };
-            
-            batch.set(teamRef, team);
-            teams.push(team);
-        }
-        
-        await batch.commit();
-        
-        // Update event
-        await admin.firestore()
-            .collection('tournaments').doc(tournament_id)
-            .collection('events').doc(event_id)
-            .update({
-                teams_generated: true,
-                teams_generated_at: admin.firestore.FieldValue.serverTimestamp()
+        for (let i = 0; i < Math.ceil(shuffled.length / size); i++) {
+            const teamPlayers = shuffled.slice(i * size, (i + 1) * size);
+            teams.push({
+                id: `team-${i + 1}`,
+                name: `Team ${i + 1}`,
+                players: teamPlayers,
+                locked: false
             });
-        
+        }
+
+        await tournamentRef.update({
+            teams: teams,
+            teamsGenerated: true,
+            teamsLocked: false
+        });
+
         res.json({
             success: true,
             teams_created: teams.length,
             teams: teams
         });
-        
+
     } catch (error) {
-        console.error('Error generating blind draw teams:', error);
+        console.error('Error:', error);
         res.status(500).json({ success: false, error: error.message });
     }
+    });
 });
 
-/**
- * Lock Blind Draw Teams
- */
-exports.lockBlindDrawTeams = functions.https.onRequest(async (req, res) => {
-    res.set('Access-Control-Allow-Origin', '*');
-    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
-    
-    if (req.method === 'OPTIONS') return res.status(204).send('');
-    
+exports.lockBlindDrawTeams = functions.https.onRequest((req, res) => {
+    cors(req, res, async () => {
     try {
-        const { tournament_id, event_id } = req.body;
-        
-        // Lock all teams
-        const teamsSnapshot = await admin.firestore()
-            .collection('tournaments').doc(tournament_id)
-            .collection('events').doc(event_id)
-            .collection('teams')
-            .get();
-        
-        const batch = admin.firestore().batch();
-        teamsSnapshot.forEach(doc => {
-            batch.update(doc.ref, { locked: true });
-        });
-        
-        // Update event
-        const eventRef = admin.firestore()
-            .collection('tournaments').doc(tournament_id)
-            .collection('events').doc(event_id);
-        
-        batch.update(eventRef, {
-            teams_locked: true,
-            teams_locked_at: admin.firestore.FieldValue.serverTimestamp()
-        });
-        
-        await batch.commit();
-        
-        res.json({
-            success: true,
-            message: 'Teams locked successfully'
-        });
-        
-    } catch (error) {
-        console.error('Error locking teams:', error);
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
+        const { tournament_id } = req.body;
 
-/**
- * Reshuffle Blind Draw Teams
- */
-exports.reshuffleBlindDrawTeams = functions.https.onRequest(async (req, res) => {
-    res.set('Access-Control-Allow-Origin', '*');
-    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
-    
-    if (req.method === 'OPTIONS') return res.status(204).send('');
-    
-    try {
-        const { tournament_id, event_id } = req.body;
-        
-        // Check if teams are locked
-        const eventDoc = await admin.firestore()
-            .collection('tournaments').doc(tournament_id)
-            .collection('events').doc(event_id)
-            .get();
-        
-        if (eventDoc.data().teams_locked) {
-            return res.status(400).json({ success: false, error: 'Teams are locked and cannot be reshuffled' });
+        if (!tournament_id) {
+            return res.status(400).json({ success: false, error: 'Missing tournament_id' });
         }
+
+        const tournamentRef = admin.firestore().collection('tournaments').doc(tournament_id);
         
-        // Delete existing teams
-        const teamsSnapshot = await admin.firestore()
-            .collection('tournaments').doc(tournament_id)
-            .collection('events').doc(event_id)
-            .collection('teams')
-            .get();
-        
-        const batch = admin.firestore().batch();
-        teamsSnapshot.forEach(doc => {
-            batch.delete(doc.ref);
+        await tournamentRef.update({
+            teamsLocked: true,
+            teamsLockedAt: admin.firestore.FieldValue.serverTimestamp()
         });
-        await batch.commit();
-        
-        // Regenerate (call generateBlindDrawTeams)
+
+        res.json({ success: true, message: 'Teams locked successfully' });
+
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+    });
+});
+
+exports.reshuffleBlindDrawTeams = functions.https.onRequest((req, res) => {
+    cors(req, res, async () => {
+    try {
+        const { tournament_id } = req.body;
+
+        if (!tournament_id) {
+            return res.status(400).json({ success: false, error: 'Missing tournament_id' });
+        }
+
+        const tournamentRef = admin.firestore().collection('tournaments').doc(tournament_id);
+        const tournament = await tournamentRef.get();
+
+        if (!tournament.exists) {
+            return res.status(404).json({ success: false, error: 'Tournament not found' });
+        }
+
+        const tournamentData = tournament.data();
+
+        if (tournamentData.teamsLocked) {
+            return res.status(400).json({ success: false, error: 'Teams are locked' });
+        }
+
+        // Delete teams
+        await tournamentRef.update({
+            teams: admin.firestore.FieldValue.delete(),
+            teamsGenerated: false
+        });
+
         res.json({
             success: true,
             message: 'Teams deleted. Call generateBlindDrawTeams to create new teams'
         });
-        
+
     } catch (error) {
-        console.error('Error reshuffling teams:', error);
+        console.error('Error:', error);
         res.status(500).json({ success: false, error: error.message });
     }
+    });
 });
