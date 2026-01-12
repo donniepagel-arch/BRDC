@@ -12,7 +12,7 @@
             border-collapse: collapse;
             margin: 20px 0;
         }
-        
+
         .standings-table th {
             background: var(--pink);
             color: white;
@@ -24,17 +24,17 @@
             letter-spacing: 1px;
             border: 3px solid var(--black);
         }
-        
+
         .standings-table td {
             padding: 15px;
             border: 2px solid #e5e7eb;
             font-weight: 600;
         }
-        
+
         .standings-table tr:hover {
             background: #f9fafb;
         }
-        
+
         .rank-badge {
             display: inline-block;
             width: 30px;
@@ -43,10 +43,14 @@
             border: 2px solid var(--black);
             border-radius: 50%;
             text-align: center;
-            line-height: 30px;
+            line-height: 26px;
             font-weight: 700;
         }
-        
+
+        .rank-badge.gold { background: #ffd700; }
+        .rank-badge.silver { background: #c0c0c0; }
+        .rank-badge.bronze { background: #cd7f32; }
+
         .team-card {
             background: white;
             border: 3px solid var(--black);
@@ -54,19 +58,19 @@
             margin-bottom: 15px;
             box-shadow: 6px 6px 0 rgba(0,0,0,1);
         }
-        
+
         .team-name {
             font-family: 'Bebas Neue', cursive;
             font-size: 24px;
             margin-bottom: 10px;
         }
-        
+
         .player-list {
             display: flex;
             gap: 10px;
             flex-wrap: wrap;
         }
-        
+
         .player-badge {
             background: var(--teal);
             border: 2px solid var(--black);
@@ -74,14 +78,16 @@
             font-size: 13px;
             font-weight: 700;
         }
-        
+
+        .player-badge.captain { background: var(--yellow); }
+
         .tab-container {
             display: flex;
             gap: 10px;
             margin-bottom: 30px;
             flex-wrap: wrap;
         }
-        
+
         .tab {
             background: white;
             border: 3px solid var(--black);
@@ -92,23 +98,54 @@
             box-shadow: 4px 4px 0 rgba(0,0,0,1);
             transition: all 0.2s;
         }
-        
+
         .tab:hover {
             transform: translateY(-2px);
             box-shadow: 6px 6px 0 rgba(0,0,0,1);
         }
-        
+
         .tab.active {
             background: var(--pink);
             color: white;
         }
-        
+
         .tab-content {
             display: none;
         }
-        
+
         .tab-content.active {
             display: block;
+        }
+
+        .match-result {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            gap: 20px;
+        }
+
+        .match-team {
+            flex: 1;
+            font-weight: 700;
+        }
+
+        .match-team.home { text-align: right; }
+        .match-team.away { text-align: left; }
+
+        .match-score {
+            background: var(--teal);
+            padding: 8px 16px;
+            border: 2px solid var(--black);
+            font-weight: 700;
+            font-size: 18px;
+            min-width: 80px;
+            text-align: center;
+        }
+
+        .match-score.pending {
+            background: #eee;
+            color: #666;
         }
     </style>
 </head>
@@ -119,15 +156,14 @@
                 <h1 class="brdc-title" style="font-size: 48px; color: white;" id="leagueName">Loading...</h1>
                 <p class="brdc-subtitle" style="color: white; margin-top: 10px;" id="leagueInfo"></p>
             </div>
-            
+
             <div style="padding: 40px;">
                 <div class="tab-container">
-                    <div class="tab active" onclick="switchTab('standings')">📊 Standings</div>
-                    <div class="tab" onclick="switchTab('teams')">👥 Teams</div>
-                    <div class="tab" onclick="switchTab('schedule')">📅 Schedule</div>
-                    <div class="tab" onclick="switchTab('admin')">⚙️ Admin</div>
+                    <div class="tab active" onclick="switchTab('standings')">Standings</div>
+                    <div class="tab" onclick="switchTab('teams')">Teams</div>
+                    <div class="tab" onclick="switchTab('schedule')">Schedule</div>
                 </div>
-                
+
                 <div id="standingsTab" class="tab-content active">
                     <table class="standings-table">
                         <thead>
@@ -136,15 +172,14 @@
                                 <th>Team</th>
                                 <th>W</th>
                                 <th>L</th>
-                                <th>Win %</th>
-                                <th>Games Won</th>
-                                <th>Games Lost</th>
+                                <th>Pts</th>
+                                <th>Games</th>
                                 <th>Game %</th>
                             </tr>
                         </thead>
                         <tbody id="standingsBody">
                             <tr>
-                                <td colspan="8" style="text-align: center; padding: 40px;">
+                                <td colspan="7" style="text-align: center; padding: 40px;">
                                     <div class="brdc-spinner"></div>
                                     <p style="margin-top: 20px;">Loading standings...</p>
                                 </td>
@@ -152,7 +187,7 @@
                         </tbody>
                     </table>
                 </div>
-                
+
                 <div id="teamsTab" class="tab-content">
                     <div id="teamsContainer">
                         <div style="text-align: center; padding: 40px;">
@@ -161,7 +196,7 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <div id="scheduleTab" class="tab-content">
                     <div id="scheduleContainer">
                         <div style="text-align: center; padding: 40px;">
@@ -170,47 +205,29 @@
                         </div>
                     </div>
                 </div>
-                
-                <div id="adminTab" class="tab-content">
-                    <div class="brdc-alert brdc-alert-warning" style="margin-bottom: 20px;">
-                        <strong>⚠️ Admin Actions</strong><br>
-                        These actions require your admin PIN
-                    </div>
-                    
-                    <div style="display: grid; gap: 15px;">
-                        <button class="brdc-btn brdc-btn-secondary" onclick="conductDraft()">
-                            🎲 Conduct Draft
-                        </button>
-                        <button class="brdc-btn brdc-btn-secondary" onclick="generateSchedule()">
-                            📅 Generate Schedule
-                        </button>
-                        <button class="brdc-btn brdc-btn-secondary" onclick="startLeague()">
-                            ▶️ Start League
-                        </button>
-                    </div>
-                </div>
             </div>
         </div>
     </div>
 
     <script type="module">
-        import { db, collection, query, where, onSnapshot, doc, getDoc, callFunction } from '/js/firebase-config.js';
-        
+        import { db, collection, query, orderBy, onSnapshot, doc, getDoc } from '/js/firebase-config.js';
+
         const urlParams = new URLSearchParams(window.location.search);
-        const leagueId = urlParams.get('league_id');
-        
+        const leagueId = urlParams.get('league_id') || urlParams.get('league');
+
         let leagueData = null;
         let teamsData = [];
-        let standingsData = [];
-        
+        let matchesData = [];
+
         window.onload = async function() {
             if (!leagueId) {
-                alert('Missing league_id in URL');
+                document.getElementById('leagueName').textContent = 'Error';
+                document.getElementById('leagueInfo').textContent = 'Missing league_id in URL';
                 return;
             }
             await loadLeagueData();
         };
-        
+
         async function loadLeagueData() {
             try {
                 // Load league document
@@ -218,31 +235,29 @@
                 if (!leagueDoc.exists()) {
                     throw new Error('League not found');
                 }
-                
+
                 leagueData = { id: leagueId, ...leagueDoc.data() };
-                
+
                 // Update header
-                document.getElementById('leagueName').textContent = leagueData.name;
-                document.getElementById('leagueInfo').textContent = 
-                    `${leagueData.venue_name} • ${leagueData.match_schedule}`;
-                
-                // Set up realtime listeners
+                document.getElementById('leagueName').textContent = leagueData.league_name || 'League';
+                document.getElementById('leagueInfo').textContent =
+                    `${leagueData.venue_name || ''} ${leagueData.league_night ? '• ' + leagueData.league_night + 's' : ''}`;
+
+                // Set up realtime listeners for subcollections
                 setupRealtimeListeners();
-                
+
             } catch (error) {
                 console.error('Error loading league:', error);
-                alert('Failed to load league: ' + error.message);
+                document.getElementById('leagueName').textContent = 'Error';
+                document.getElementById('leagueInfo').textContent = error.message;
             }
         }
-        
+
         function setupRealtimeListeners() {
-            // Listen for teams
-            const teamsQuery = query(
-                collection(db, 'league_teams'),
-                where('league_id', '==', leagueId)
-            );
-            
-            onSnapshot(teamsQuery, (snapshot) => {
+            // Listen for teams in subcollection: leagues/{leagueId}/teams
+            const teamsRef = collection(db, 'leagues', leagueId, 'teams');
+
+            onSnapshot(teamsRef, (snapshot) => {
                 teamsData = [];
                 snapshot.forEach((doc) => {
                     teamsData.push({ id: doc.id, ...doc.data() });
@@ -250,84 +265,82 @@
                 renderTeams();
                 renderStandings();
             });
-            
-            // Listen for matches/schedule
-            const matchesQuery = query(
-                collection(db, 'league_matches'),
-                where('league_id', '==', leagueId)
-            );
-            
+
+            // Listen for matches in subcollection: leagues/{leagueId}/matches
+            const matchesRef = collection(db, 'leagues', leagueId, 'matches');
+            const matchesQuery = query(matchesRef, orderBy('week', 'asc'));
+
             onSnapshot(matchesQuery, (snapshot) => {
-                const matches = [];
+                matchesData = [];
                 snapshot.forEach((doc) => {
-                    matches.push({ id: doc.id, ...doc.data() });
+                    matchesData.push({ id: doc.id, ...doc.data() });
                 });
-                renderSchedule(matches);
+                renderSchedule();
             });
         }
-        
+
         function renderStandings() {
             if (!teamsData || teamsData.length === 0) {
                 document.getElementById('standingsBody').innerHTML = `
                     <tr>
-                        <td colspan="8" style="text-align: center; padding: 40px;">
+                        <td colspan="7" style="text-align: center; padding: 40px;">
                             No teams yet. Teams will appear after draft.
                         </td>
                     </tr>
                 `;
                 return;
             }
-            
-            // Calculate standings
-            standingsData = teamsData.map(team => {
+
+            // Sort teams by points, then wins, then game percentage
+            const sorted = [...teamsData].sort((a, b) => {
+                const aPoints = a.points || 0;
+                const bPoints = b.points || 0;
+                if (bPoints !== aPoints) return bPoints - aPoints;
+
+                const aWins = a.wins || 0;
+                const bWins = b.wins || 0;
+                if (bWins !== aWins) return bWins - aWins;
+
+                const aGamesWon = a.games_won || 0;
+                const aGamesLost = a.games_lost || 0;
+                const bGamesWon = b.games_won || 0;
+                const bGamesLost = b.games_lost || 0;
+                const aTotal = aGamesWon + aGamesLost;
+                const bTotal = bGamesWon + bGamesLost;
+                const aPct = aTotal > 0 ? aGamesWon / aTotal : 0;
+                const bPct = bTotal > 0 ? bGamesWon / bTotal : 0;
+                return bPct - aPct;
+            });
+
+            // Render table
+            let html = '';
+            sorted.forEach((team, index) => {
                 const wins = team.wins || 0;
                 const losses = team.losses || 0;
-                const totalMatches = wins + losses;
-                const winPct = totalMatches > 0 ? (wins / totalMatches * 100).toFixed(1) : '0.0';
-                
+                const points = team.points || 0;
                 const gamesWon = team.games_won || 0;
                 const gamesLost = team.games_lost || 0;
                 const totalGames = gamesWon + gamesLost;
                 const gamePct = totalGames > 0 ? (gamesWon / totalGames * 100).toFixed(1) : '0.0';
-                
-                return {
-                    ...team,
-                    wins,
-                    losses,
-                    winPct: parseFloat(winPct),
-                    gamesWon,
-                    gamesLost,
-                    gamePct: parseFloat(gamePct)
-                };
-            });
-            
-            // Sort by wins, then win %, then games won
-            standingsData.sort((a, b) => {
-                if (b.wins !== a.wins) return b.wins - a.wins;
-                if (b.winPct !== a.winPct) return b.winPct - a.winPct;
-                return b.gamesWon - a.gamesWon;
-            });
-            
-            // Render table
-            let html = '';
-            standingsData.forEach((team, index) => {
+
+                const rankClass = index === 0 ? 'gold' : index === 1 ? 'silver' : index === 2 ? 'bronze' : '';
+
                 html += `
                     <tr>
-                        <td><span class="rank-badge">${index + 1}</span></td>
-                        <td style="font-weight: 700;">${team.name}</td>
-                        <td>${team.wins}</td>
-                        <td>${team.losses}</td>
-                        <td>${team.winPct}%</td>
-                        <td>${team.gamesWon}</td>
-                        <td>${team.gamesLost}</td>
-                        <td>${team.gamePct}%</td>
+                        <td><span class="rank-badge ${rankClass}">${index + 1}</span></td>
+                        <td style="font-weight: 700;">${team.team_name}</td>
+                        <td>${wins}</td>
+                        <td>${losses}</td>
+                        <td style="font-weight: 800;">${points}</td>
+                        <td>${gamesWon}-${gamesLost}</td>
+                        <td>${gamePct}%</td>
                     </tr>
                 `;
             });
-            
+
             document.getElementById('standingsBody').innerHTML = html;
         }
-        
+
         function renderTeams() {
             if (!teamsData || teamsData.length === 0) {
                 document.getElementById('teamsContainer').innerHTML = `
@@ -338,142 +351,93 @@
                 `;
                 return;
             }
-            
-            let html = '';
-            teamsData.forEach(team => {
+
+            // Sort alphabetically
+            const sorted = [...teamsData].sort((a, b) =>
+                (a.team_name || '').localeCompare(b.team_name || '')
+            );
+
+            let html = '<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px;">';
+            sorted.forEach(team => {
+                const players = team.players || [];
                 html += `
                     <div class="team-card">
-                        <div class="team-name">${team.name}</div>
+                        <div class="team-name">${team.team_name}</div>
                         <div class="player-list">
-                            ${team.players ? team.players.map(p => `
-                                <span class="player-badge">${p.name}</span>
+                            ${players.length > 0 ? players.map(p => `
+                                <span class="player-badge ${p.position === 1 ? 'captain' : ''}">
+                                    P${p.position}: ${p.name}
+                                </span>
                             `).join('') : '<span style="opacity: 0.6;">No players assigned</span>'}
                         </div>
                     </div>
                 `;
             });
-            
+            html += '</div>';
+
             document.getElementById('teamsContainer').innerHTML = html;
         }
-        
-        function renderSchedule(matches) {
-            if (!matches || matches.length === 0) {
+
+        function renderSchedule() {
+            if (!matchesData || matchesData.length === 0) {
                 document.getElementById('scheduleContainer').innerHTML = `
                     <div style="text-align: center; padding: 40px;">
                         <p style="font-size: 18px; font-weight: 600;">No schedule yet</p>
-                        <p style="margin-top: 10px;">Schedule will be generated after draft</p>
+                        <p style="margin-top: 10px;">Schedule will be generated after teams are set</p>
                     </div>
                 `;
                 return;
             }
-            
+
             // Group by week
             const byWeek = {};
-            matches.forEach(match => {
+            matchesData.forEach(match => {
                 const week = match.week || 1;
                 if (!byWeek[week]) byWeek[week] = [];
                 byWeek[week].push(match);
             });
-            
+
             let html = '';
             Object.keys(byWeek).sort((a, b) => a - b).forEach(week => {
                 html += `
                     <div style="margin-bottom: 30px;">
-                        <h3 style="font-family: 'Bebas Neue', cursive; font-size: 28px; margin-bottom: 15px;">
+                        <h3 style="font-family: 'Bebas Neue', cursive; font-size: 28px; margin-bottom: 15px; border-bottom: 3px solid var(--pink); padding-bottom: 10px;">
                             Week ${week}
                         </h3>
-                        ${byWeek[week].map(match => `
-                            <div class="team-card" style="display: flex; justify-content: space-between; align-items: center;">
-                                <div style="font-weight: 700;">${match.home_team_name}</div>
-                                <div style="font-size: 24px; font-weight: 700;">vs</div>
-                                <div style="font-weight: 700;">${match.away_team_name}</div>
-                                ${match.status === 'completed' ? `
-                                    <div style="background: var(--teal); padding: 8px 16px; border: 2px solid var(--black); font-weight: 700;">
-                                        ${match.home_score} - ${match.away_score}
+                        ${byWeek[week].map(match => {
+                            const isCompleted = match.status === 'completed';
+                            const isInProgress = match.status === 'in_progress';
+                            return `
+                                <div class="team-card" style="padding: 0; overflow: hidden;">
+                                    <div class="match-result">
+                                        <div class="match-team home">${match.home_team_name}</div>
+                                        <div class="match-score ${!isCompleted && !isInProgress ? 'pending' : ''}">
+                                            ${isCompleted || isInProgress ?
+                                                `${match.home_score} - ${match.away_score}` :
+                                                match.match_date || 'TBD'}
+                                        </div>
+                                        <div class="match-team away">${match.away_team_name}</div>
                                     </div>
-                                ` : ''}
-                            </div>
-                        `).join('')}
+                                    ${isInProgress ? '<div style="background: var(--yellow); padding: 5px; text-align: center; font-weight: 700; font-size: 12px;">IN PROGRESS</div>' : ''}
+                                    ${isCompleted ? '<div style="background: var(--teal); padding: 5px; text-align: center; font-weight: 700; font-size: 12px;">FINAL</div>' : ''}
+                                </div>
+                            `;
+                        }).join('')}
                     </div>
                 `;
             });
-            
+
             document.getElementById('scheduleContainer').innerHTML = html;
         }
-        
+
         window.switchTab = function(tabName) {
             // Hide all tabs
             document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-            
+
             // Show selected tab
             event.target.classList.add('active');
             document.getElementById(tabName + 'Tab').classList.add('active');
-        };
-        
-        window.conductDraft = async function() {
-            const pin = prompt('Enter admin PIN:');
-            if (!pin) return;
-            
-            try {
-                const result = await callFunction('conductDraft', {
-                    league_id: leagueId,
-                    admin_pin: pin
-                });
-                
-                if (result.success) {
-                    alert('Draft completed! Teams have been created.');
-                } else {
-                    alert('Error: ' + (result.error || 'Draft failed'));
-                }
-            } catch (error) {
-                alert('Error: ' + error.message);
-            }
-        };
-        
-        window.generateSchedule = async function() {
-            const pin = prompt('Enter admin PIN:');
-            if (!pin) return;
-            
-            try {
-                const result = await callFunction('generateLeagueSchedule', {
-                    league_id: leagueId,
-                    admin_pin: pin
-                });
-                
-                if (result.success) {
-                    alert('Schedule generated! Check the Schedule tab.');
-                } else {
-                    alert('Error: ' + (result.error || 'Schedule generation failed'));
-                }
-            } catch (error) {
-                alert('Error: ' + error.message);
-            }
-        };
-        
-        window.startLeague = async function() {
-            const pin = prompt('Enter admin PIN:');
-            if (!pin) return;
-            
-            if (!confirm('Start the league? This will lock the roster and activate the schedule.')) {
-                return;
-            }
-            
-            try {
-                const result = await callFunction('startLeague', {
-                    league_id: leagueId,
-                    admin_pin: pin
-                });
-                
-                if (result.success) {
-                    alert('League started! Good luck to all teams!');
-                    location.reload();
-                } else {
-                    alert('Error: ' + (result.error || 'Failed to start league'));
-                }
-            } catch (error) {
-                alert('Error: ' + error.message);
-            }
         };
     </script>
 </body>
