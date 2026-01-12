@@ -21,10 +21,10 @@ async function callFunction(functionName, data) {
     const REGION = 'us-central1';
     const PROJECT_ID = 'brdc-v2';
     const url = `https://${REGION}-${PROJECT_ID}.cloudfunctions.net/${functionName}`;
-    
+
     console.log('Calling function:', url);
     console.log('With data:', data);
-    
+
     try {
         const response = await fetch(url, {
             method: 'POST',
@@ -33,12 +33,12 @@ async function callFunction(functionName, data) {
             },
             body: JSON.stringify(data)
         });
-        
+
         console.log('Response status:', response.status);
-        
+
         let responseData;
         const contentType = response.headers.get('content-type');
-        
+
         if (contentType && contentType.includes('application/json')) {
             responseData = await response.json();
             console.log('Response data:', responseData);
@@ -47,33 +47,33 @@ async function callFunction(functionName, data) {
             console.error('Non-JSON response:', text);
             throw new Error(`Server returned status ${response.status}: ${text.substring(0, 200)}`);
         }
-        
+
         if (!response.ok) {
             const errorMsg = responseData.error || responseData.message || `HTTP error! status: ${response.status}`;
             console.error('Function error:', errorMsg);
             throw new Error(errorMsg);
         }
-        
+
         return responseData;
-        
+
     } catch (error) {
         console.error('Error calling ' + functionName + ':', error);
         throw error;
     }
 }
 
-export { 
-    db, 
-    collection, 
-    addDoc, 
-    query, 
-    where, 
-    getDocs, 
-    doc, 
-    getDoc, 
-    onSnapshot, 
+export {
+    db,
+    collection,
+    addDoc,
+    query,
+    where,
+    getDocs,
+    doc,
+    getDoc,
+    onSnapshot,
     updateDoc,
     orderBy,
     limit,
-    callFunction 
+    callFunction
 };
