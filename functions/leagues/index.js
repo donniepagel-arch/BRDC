@@ -1298,5 +1298,76 @@ exports.getLeaderboards = functions.https.onRequest(async (req, res) => {
     }
 });
 
+/**
+ * Quick submit game result (for testing/manual entry)
+ */
+exports.submitGameResult = functions.https.onRequest(async (req, res) => {
+    setCorsHeaders(res);
+    if (req.method === 'OPTIONS') return res.status(204).send('');
+
+    try {
+        const { league_id, match_id, game_number, winner, home_legs_won, away_legs_won, admin_pin } = req.body;
+
+        // Verify admin (optional - can also use match_pin)
+        const leagueDoc = await db.collection('leagues').doc(league_id).get();
+        const league = leagueDoc.data();
+
+        if (admin_pin && league.admin_pin !== admin_pin) {
+            return res.status(403).json({ success: false, error: 'Invalid admin PIN' });
+        }
+
+        const matchRef = db.collection('leagues').doc(league_id)
+            .collection('matches').doc(match_id);
+        const matchDoc = await matchRef.get();
+
+        if (!matchDoc.exists) {
+            return res.status(404).json({ success: false, error: 'Match not found' });
+        }
+
+        const match = matchDoc.data();
+        const games = match.games;
+        const gameIndex = game_number - 1;
+
+        if (gameIndex < 0 || gameIndex >= games.length) {
+            return res.status(400).json({ success: false, error: 'Invalid game number' });
+        }
+
+        // Update game
+        games[gameIndex].status = 'completed';
+        games[gameIndex].winner = winner;
+        games[gameIndex].home_legs_won = home_legs_won || (winner === 'home' ? 2 : 1);
+        games[gameIndex].away_legs_won = away_legs_won || (winner === 'away' ? 2 : 1);
+        games[gameIndex].completed_at = new Date().toISOString();
+
+        // Update match score
+        let homeScore = 0;
+        let awayScore = 0;
+        games.forEach(g => {
+            if (g.status === 'completed') {
+                if (g.winner === 'home') homeScore++;
+                else if (g.winner === 'away') awayScore++;
+            }
+        });
+
+        await matchRef.update({
+            games: games,
+            home_score: homeScore,
+            away_score: awayScore
+        });
+
+        res.json({
+            success: true,
+            game_number: game_number,
+            winner: winner,
+            match_score: { home: homeScore, away: awayScore },
+            message: `Game ${game_number} result recorded`
+        });
+
+    } catch (error) {
+        console.error('Error submitting game result:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // Export match format for use in other modules
 exports.MATCH_FORMAT = MATCH_FORMAT;
