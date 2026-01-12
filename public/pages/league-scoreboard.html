@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>League Scoreboard - BRDC</title>
+    <link rel="icon" type="image/png" href="/images/favicon.png">
+    <link rel="stylesheet" href="/css/brdc-styles.css">
+    <style>
+        .scoreboard {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 20px;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+        
+        .team-panel {
+            background: white;
+            border: 4px solid var(--black);
+            padding: 30px;
+            box-shadow: 8px 8px 0 rgba(0,0,0,1);
+            text-align: center;
+        }
+        
+        .team-panel.home {
+            border-color: var(--pink);
+        }
+        
+        .team-panel.away {
+            border-color: var(--teal);
+        }
+        
+        .team-name {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+        
+        .team-score {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 72px;
+            color: var(--pink);
+            text-shadow: 4px 4px 0 rgba(0,0,0,0.2);
+        }
+        
+        .vs-divider {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 48px;
+            color: white;
+            text-shadow: 4px 4px 0 rgba(0,0,0,1);
+        }
+        
+        .game-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin: 30px 0;
+        }
+        
+        .game-card {
+            background: white;
+            border: 3px solid var(--black);
+            padding: 20px;
+            box-shadow: 6px 6px 0 rgba(0,0,0,1);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .game-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 8px 8px 0 rgba(0,0,0,1);
+        }
+        
+        .game-card.completed {
+            background: #f0fdf4;
+            border-color: #16a34a;
+        }
+        
+        .game-card.in-progress {
+            background: var(--yellow);
+        }
+        
+        .game-number {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        
+        .game-matchup {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        
+        .game-result {
+            font-size: 18px;
+            font-weight: 700;
+            color: #059669;
+        }
+        
+        .player-badge {
+            display: inline-block;
+            background: var(--teal);
+            border: 2px solid var(--black);
+            padding: 4px 10px;
+            font-size: 12px;
+            font-weight: 700;
+            margin: 2px;
+        }
+        
+        @media (max-width: 768px) {
+            .scoreboard {
+                grid-template-columns: 1fr;
+            }
+            
+            .game-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="brdc-card" style="max-width: 1200px; margin: 40px auto;">
+            <div class="brdc-card-header">
+                <h1 class="brdc-title" style="font-size: 48px; color: white;">🎯 LEAGUE SCOREBOARD</h1>
+                <p class="brdc-subtitle" style="color: white; margin-top: 10px;" id="matchInfo">Loading...</p>
+            </div>
+            
+            <div style="padding: 40px;">
+                <div class="scoreboard">
+                    <div class="team-panel home">
+                        <div class="team-name" id="homeTeamName">-</div>
+                        <div class="team-score" id="homeScore">0</div>
+                        <div style="margin-top: 15px;" id="homePlayers"></div>
+                    </div>
+                    
+                    <div class="vs-divider">VS</div>
+                    
+                    <div class="team-panel away">
+                        <div class="team-name" id="awayTeamName">-</div>
+                        <div class="team-score" id="awayScore">0</div>
+                        <div style="margin-top: 15px;" id="awayPlayers"></div>
+                    </div>
+                </div>
+                
+                <div class="game-grid" id="gamesGrid">
+                    <div style="grid-column: 1 / -1; text-align: center; padding: 40px;">
+                        <div class="brdc-spinner"></div>
+                        <p style="margin-top: 20px; color: white;">Loading games...</p>
+                    </div>
+                </div>
+                
+                <div style="text-align: center; margin-top: 30px;">
+                    <button class="brdc-btn" onclick="finalizeMatch()">
+                        ✅ FINALIZE MATCH
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Game Entry Modal -->
+        <div id="gameModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 1000; padding: 20px; overflow-y: auto;">
+            <div class="brdc-card" style="max-width: 600px; margin: 40px auto;">
+                <div class="brdc-card-header">
+                    <h2 class="brdc-title" style="font-size: 32px; color: white;" id="modalTitle">Enter Game Result</h2>
+                </div>
+                <div style="padding: 30px;">
+                    <form id="gameForm">
+                        <div style="margin-bottom: 20px;">
+                            <label class="brdc-label">Home Player</label>
+                            <select name="home_player" required class="brdc-select" id="homePlayerSelect"></select>
+                        </div>
+                        
+                        <div style="margin-bottom: 20px;">
+                            <label class="brdc-label">Away Player</label>
+                            <select name="away_player" required class="brdc-select" id="awayPlayerSelect"></select>
+                        </div>
+                        
+                        <div style="margin-bottom: 20px;">
+                            <label class="brdc-label">Winner</label>
+                            <select name="winner" required class="brdc-select" id="winnerSelect">
+                                <option value="">Select winner...</option>
+                                <option value="home">Home Player</option>
+                                <option value="away">Away Player</option>
+                            </select>
+                        </div>
+                        
+                        <div style="margin-bottom: 20px;">
+                            <label class="brdc-label">Legs Won (Winner)</label>
+                            <input type="number" name="winner_legs" required class="brdc-input" min="2" max="3" value="2">
+                        </div>
+                        
+                        <div style="margin-bottom: 20px;">
+                            <label class="brdc-label">Legs Won (Loser)</label>
+                            <input type="number" name="loser_legs" required class="brdc-input" min="0" max="1" value="0">
+                        </div>
+                        
+                        <div style="display: flex; gap: 10px;">
+                            <button type="submit" class="brdc-btn" style="flex: 1;">SAVE RESULT</button>
+                            <button type="button" class="brdc-btn brdc-btn-secondary" onclick="closeModal()">CANCEL</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { db, doc, getDoc, onSnapshot, callFunction } from '/js/firebase-config.js';
+        
+        const urlParams = new URLSearchParams(window.location.search);
+        const matchId = urlParams.get('match_id');
+        
+        let matchData = null;
+        let homeTeam = null;
+        let awayTeam = null;
+        let games = [];
+        let currentGameIndex = null;
+        
+        window.onload = async function() {
+            if (!matchId) {
+                alert('Missing match_id in URL');
+                return;
+            }
+            await loadMatchData();
+        };
+        
+        async function loadMatchData() {
+            try {
+                // Load match document
+                const matchDoc = await getDoc(doc(db, 'league_matches', matchId));
+                if (!matchDoc.exists()) {
+                    throw new Error('Match not found');
+                }
+                
+                matchData = { id: matchId, ...matchDoc.data() };
+                
+                // Load teams
+                homeTeam = (await getDoc(doc(db, 'league_teams', matchData.home_team_id))).data();
+                awayTeam = (await getDoc(doc(db, 'league_teams', matchData.away_team_id))).data();
+                
+                // Update UI
+                updateHeader();
+                updateScoreboard();
+                
+                // Set up realtime listener for games
+                setupRealtimeListener();
+                
+            } catch (error) {
+                console.error('Error loading match:', error);
+                alert('Failed to load match: ' + error.message);
+            }
+        }
+        
+        function setupRealtimeListener() {
+            onSnapshot(doc(db, 'league_matches', matchId), (doc) => {
+                if (doc.exists()) {
+                    matchData = { id: matchId, ...doc.data() };
+                    games = matchData.games || [];
+                    updateScoreboard();
+                    renderGames();
+                }
+            });
+        }
+        
+        function updateHeader() {
+            document.getElementById('matchInfo').textContent = 
+                `Week ${matchData.week} • ${new Date(matchData.date).toLocaleDateString()}`;
+        }
+        
+        function updateScoreboard() {
+            // Update team names
+            document.getElementById('homeTeamName').textContent = homeTeam.name;
+            document.getElementById('awayTeamName').textContent = awayTeam.name;
+            
+            // Calculate scores
+            let homeScore = 0;
+            let awayScore = 0;
+            
+            games.forEach(game => {
+                if (game.winner === 'home') homeScore++;
+                if (game.winner === 'away') awayScore++;
+            });
+            
+            document.getElementById('homeScore').textContent = homeScore;
+            document.getElementById('awayScore').textContent = awayScore;
+            
+            // Update player lists
+            if (homeTeam.players) {
+                document.getElementById('homePlayers').innerHTML = 
+                    homeTeam.players.map(p => `<span class="player-badge">${p.name}</span>`).join('');
+            }
+            
+            if (awayTeam.players) {
+                document.getElementById('awayPlayers').innerHTML = 
+                    awayTeam.players.map(p => `<span class="player-badge">${p.name}</span>`).join('');
+            }
+        }
+        
+        function renderGames() {
+            const totalGames = matchData.games_per_match || 9;
+            
+            // Initialize games array if empty
+            if (games.length === 0) {
+                games = Array(totalGames).fill(null).map((_, i) => ({
+                    game_number: i + 1,
+                    status: 'pending'
+                }));
+            }
+            
+            let html = '';
+            games.forEach((game, index) => {
+                const statusClass = game.status === 'completed' ? 'completed' : 
+                                  game.status === 'in_progress' ? 'in-progress' : '';
+                
+                html += `
+                    <div class="game-card ${statusClass}" onclick="openGameModal(${index})">
+                        <div class="game-number">Game ${game.game_number}</div>
+                        ${game.status === 'completed' ? `
+                            <div class="game-matchup">
+                                ${game.home_player} vs ${game.away_player}
+                            </div>
+                            <div class="game-result">
+                                ${game.winner === 'home' ? '✓ ' + game.home_player : game.away_player + ' ✓'}
+                            </div>
+                            <div style="font-size: 12px; margin-top: 5px; opacity: 0.7;">
+                                ${game.winner_legs}-${game.loser_legs}
+                            </div>
+                        ` : `
+                            <div class="game-matchup" style="opacity: 0.6;">
+                                Click to enter result
+                            </div>
+                        `}
+                    </div>
+                `;
+            });
+            
+            document.getElementById('gamesGrid').innerHTML = html;
+        }
+        
+        window.openGameModal = function(gameIndex) {
+            currentGameIndex = gameIndex;
+            const game = games[gameIndex];
+            
+            // Populate player dropdowns
+            const homeSelect = document.getElementById('homePlayerSelect');
+            const awaySelect = document.getElementById('awayPlayerSelect');
+            
+            homeSelect.innerHTML = homeTeam.players.map((p, i) => 
+                `<option value="${i}">${p.name}</option>`
+            ).join('');
+            
+            awaySelect.innerHTML = awayTeam.players.map((p, i) => 
+                `<option value="${i}">${p.name}</option>`
+            ).join('');
+            
+            // If game has data, populate form
+            if (game.status === 'completed') {
+                document.getElementById('winnerSelect').value = game.winner;
+                document.querySelector('[name="winner_legs"]').value = game.winner_legs;
+                document.querySelector('[name="loser_legs"]').value = game.loser_legs;
+            }
+            
+            document.getElementById('modalTitle').textContent = `Game ${game.game_number}`;
+            document.getElementById('gameModal').style.display = 'block';
+        };
+        
+        window.closeModal = function() {
+            document.getElementById('gameModal').style.display = 'none';
+            document.getElementById('gameForm').reset();
+        };
+        
+        document.getElementById('gameForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            const homePlayerIdx = parseInt(formData.get('home_player'));
+            const awayPlayerIdx = parseInt(formData.get('away_player'));
+            const winner = formData.get('winner');
+            const winnerLegs = parseInt(formData.get('winner_legs'));
+            const loserLegs = parseInt(formData.get('loser_legs'));
+            
+            const gameResult = {
+                game_number: games[currentGameIndex].game_number,
+                home_player: homeTeam.players[homePlayerIdx].name,
+                away_player: awayTeam.players[awayPlayerIdx].name,
+                winner: winner,
+                winner_legs: winnerLegs,
+                loser_legs: loserLegs,
+                status: 'completed'
+            };
+            
+            try {
+                const result = await callFunction('submitLeagueMatchScore', {
+                    match_id: matchId,
+                    game_index: currentGameIndex,
+                    game_result: gameResult
+                });
+                
+                if (result.success) {
+                    closeModal();
+                    // Firestore listener will update UI automatically
+                } else {
+                    alert('Error: ' + (result.error || 'Failed to submit score'));
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        });
+        
+        window.finalizeMatch = async function() {
+            if (!confirm('Finalize this match? This will update team standings.')) {
+                return;
+            }
+            
+            try {
+                const result = await callFunction('finalizeLeagueMatch', {
+                    match_id: matchId
+                });
+                
+                if (result.success) {
+                    alert('Match finalized! Standings have been updated.');
+                    window.location.href = `/pages/league-standings.html?league_id=${matchData.league_id}`;
+                } else {
+                    alert('Error: ' + (result.error || 'Failed to finalize match'));
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        };
+    </script>
+</body>
+</html>

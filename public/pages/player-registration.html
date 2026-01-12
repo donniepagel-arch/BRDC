@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Player Registration - BRDC</title>
+    <link rel="icon" type="image/png" href="/images/favicon.png">
+    <link rel="stylesheet" href="/css/brdc-styles.css">
+    
+    <!-- PayPal SDK -->
+    <script src="https://www.paypal.com/sdk/js?client-id=AUmb0UDs591R2-tgLslzyu5xEfiopDTh0emqBVTXWzvOgQus_iTPpOtqt2JZdf4mk9V3NxeIp2tRv2eR&currency=USD&disable-funding=venmo,paylater"></script>
+</head>
+<body>
+    <div id="appContainer"></div>
+
+    <script type="module">
+        import { db, doc, getDoc, callFunction } from '/js/firebase-config.js';
+        
+        const urlParams = new URLSearchParams(window.location.search);
+        const eventId = urlParams.get('event_id');
+        const tournamentId = urlParams.get('tournament_id');
+        
+        let eventData = null;
+        let currentRegId = null;
+        
+        window.onload = async function() {
+            if (!eventId || !tournamentId) {
+                showError('Missing event_id or tournament_id in URL');
+                return;
+            }
+            await loadEventData();
+        };
+        
+        async function loadEventData() {
+            try {
+                // Load event and tournament data from Firestore
+                const eventDoc = await getDoc(doc(db, 'events', eventId));
+                const tournamentDoc = await getDoc(doc(db, 'tournaments', tournamentId));
+                
+                if (!eventDoc.exists() || !tournamentDoc.exists()) {
+                    throw new Error('Event or tournament not found');
+                }
+                
+                eventData = {
+                    event: { id: eventId, ...eventDoc.data() },
+                    tournament: { id: tournamentId, ...tournamentDoc.data() },
+                    registrationCount: 0 // TODO: Query registrations count
+                };
+                
+                renderRegistrationForm();
+                
+            } catch (error) {
+                console.error('Error loading event:', error);
+                showError('Failed to load event data: ' + error.message);
+            }
+        }
+        
+        function renderRegistrationForm() {
+            const event = eventData.event;
+            const tournament = eventData.tournament;
+            const regCount = eventData.registrationCount || 0;
+            
+            const isFull = event.max_players && regCount >= event.max_players;
+            const isClosed = event.status === 'completed' || event.status === 'cancelled';
+            const entryFee = parseFloat(event.entry_fee) || 0;
+            
+            const html = `
+                <div class="brdc-card" style="max-width: 600px; margin: 40px auto;">
+                    <div class="brdc-card-header">
+                        <h1 class="brdc-title" style="font-size: 36px; color: white;">🎯 PLAYER REGISTRATION</h1>
+                        <p class="brdc-subtitle" style="color: white; margin-top: 10px;">${tournament.name}</p>
+                        <div style="background: rgba(0,0,0,0.3); padding: 10px; margin-top: 15px; border: 2px solid white;">
+                            👥 ${regCount} player${regCount === 1 ? '' : 's'} registered
+                            ${event.max_players ? ` (max ${event.max_players})` : ''}
+                        </div>
+                    </div>
+                    
+                    <div style="padding: 30px;">
+                        <h2 style="font-family: 'Bebas Neue', cursive; font-size: 28px; margin-bottom: 15px;">${event.name}</h2>
+                        <div style="margin-bottom: 20px; line-height: 1.8;">
+                            <div>📅 ${new Date(tournament.date).toLocaleDateString()}</div>
+                            <div>📍 ${tournament.venue_name || 'TBD'}</div>
+                            <div>🎮 ${event.game || '501'} • ${formatEventType(event)}</div>
+                            <div>💰 Entry Fee: $${entryFee.toFixed(2)}</div>
+                        </div>
+                        
+                        ${isFull ? `
+                            <div class="brdc-alert brdc-alert-error">
+                                <strong>Event is Full</strong><br>
+                                This event has reached maximum capacity of ${event.max_players} players.
+                            </div>
+                        ` : isClosed ? `
+                            <div class="brdc-alert brdc-alert-error">
+                                <strong>Registration Closed</strong><br>
+                                Registration is no longer available.
+                            </div>
+                        ` : `
+                            <form id="registrationForm" onsubmit="submitRegistration(event)">
+                                <div style="margin-bottom: 20px;">
+                                    <label class="brdc-label">Full Name *</label>
+                                    <input type="text" name="full_name" required class="brdc-input" placeholder="John Smith">
+                                </div>
+                                
+                                <div style="margin-bottom: 20px;">
+                                    <label class="brdc-label">Email *</label>
+                                    <input type="email" name="email" required class="brdc-input" placeholder="john@example.com">
+                                </div>
+                                
+                                <div style="margin-bottom: 20px;">
+                                    <label class="brdc-label">Phone Number</label>
+                                    <input type="tel" name="phone" class="brdc-input" placeholder="555-123-4567">
+                                </div>
+                                
+                                <div style="margin-bottom: 20px;">
+                                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                                        <input type="checkbox" name="sms_opt_in" checked style="width: 20px; height: 20px;">
+                                        <span style="font-weight: 600;">Send me SMS match updates</span>
+                                    </label>
+                                </div>
+                                
+                                <button type="submit" class="brdc-btn" style="width: 100%;">
+                                    ${entryFee > 0 ? 'CONTINUE TO PAYMENT' : 'REGISTER NOW'}
+                                </button>
+                            </form>
+                        `}
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('appContainer').innerHTML = html;
+        }
+        
+        function formatEventType(event) {
+            const size = event.team_size === 1 ? 'Singles' : 
+                        event.team_size === 2 ? 'Doubles' : 
+                        event.team_size === 3 ? 'Triples' : 
+                        event.team_size + '-player';
+            
+            if (event.entry_type === 'blind_draw') return 'Blind Draw ' + size;
+            if (event.entry_type === 'team') return 'Team ' + size;
+            return 'Individual ' + size;
+        }
+        
+        window.submitRegistration = async function(e) {
+            e.preventDefault();
+            
+            const form = e.target;
+            const formData = new FormData(form);
+            const btn = form.querySelector('button[type="submit"]');
+            
+            btn.disabled = true;
+            btn.textContent = 'REGISTERING...';
+            
+            try {
+                const result = await callFunction('registerPlayer', {
+                    event_id: eventId,
+                    tournament_id: tournamentId,
+                    full_name: formData.get('full_name'),
+                    email: formData.get('email'),
+                    phone: formData.get('phone') || '',
+                    sms_opt_in: formData.get('sms_opt_in') ? true : false
+                });
+                
+                if (!result.success) {
+                    throw new Error(result.error || 'Registration failed');
+                }
+                
+                currentRegId = result.registration_id;
+                const entryFee = parseFloat(eventData.event.entry_fee) || 0;
+                
+                if (entryFee > 0) {
+                    showPaymentScreen(result);
+                } else {
+                    showSuccess();
+                }
+                
+            } catch (error) {
+                alert('Error: ' + error.message);
+                console.error('Registration error:', error);
+                btn.disabled = false;
+                btn.textContent = eventData.event.entry_fee > 0 ? 'CONTINUE TO PAYMENT' : 'REGISTER NOW';
+            }
+        };
+        
+        function showPaymentScreen(registration) {
+            const event = eventData.event;
+            const tournament = eventData.tournament;
+            const entryFee = parseFloat(event.entry_fee);
+            
+            const html = `
+                <div class="brdc-card" style="max-width: 600px; margin: 40px auto;">
+                    <div class="brdc-card-header">
+                        <h1 class="brdc-title" style="font-size: 36px; color: white;">💳 COMPLETE PAYMENT</h1>
+                        <p class="brdc-subtitle" style="color: white; margin-top: 10px;">${tournament.name}</p>
+                    </div>
+                    
+                    <div style="padding: 30px;">
+                        <div class="brdc-alert brdc-alert-success">
+                            <strong>✅ Registration Submitted!</strong><br>
+                            Complete payment to secure your spot
+                        </div>
+                        
+                        <div style="background: #f9fafb; border: 3px solid var(--black); padding: 30px; margin: 30px 0; box-shadow: 6px 6px 0 rgba(0,0,0,1);">
+                            <h3 style="font-family: 'Bebas Neue', cursive; font-size: 24px; margin-bottom: 15px;">Payment Details</h3>
+                            <div style="margin-bottom: 20px; font-weight: 600;">
+                                <strong>${registration.full_name}</strong><br>
+                                ${event.name}<br>
+                                Entry Fee
+                            </div>
+                            <div style="font-family: 'Bebas Neue', cursive; font-size: 64px; color: var(--pink); text-shadow: 3px 3px 0 rgba(0,0,0,0.2);">
+                                $${entryFee.toFixed(2)}
+                            </div>
+                            
+                            <div style="background: var(--teal); border: 3px solid var(--black); padding: 20px; margin-top: 20px; font-weight: 700;">
+                                💳 Pay with Credit/Debit Card<br>
+                                <span style="font-size: 14px; font-weight: 600;">Click below to pay securely. No account needed!</span>
+                            </div>
+                            
+                            <div id="paypal-button-container" style="margin-top: 20px;"></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('appContainer').innerHTML = html;
+            initPayPalButtons(entryFee);
+        }
+        
+        function initPayPalButtons(amount) {
+            paypal.Buttons({
+                style: {
+                    layout: 'vertical',
+                    color: 'blue',
+                    shape: 'rect',
+                    label: 'pay'
+                },
+                
+                createOrder: async function(data, actions) {
+                    try {
+                        const result = await callFunction('createPayPalOrder', {
+                            registration_id: currentRegId,
+                            event_id: eventId,
+                            amount: amount
+                        });
+                        
+                        if (result.success && result.order_id) {
+                            return result.order_id;
+                        } else {
+                            throw new Error(result.error || 'Failed to create order');
+                        }
+                    } catch (error) {
+                        console.error('Error creating order:', error);
+                        alert('Payment failed. Please try again.');
+                        throw error;
+                    }
+                },
+                
+                onApprove: async function(data, actions) {
+                    try {
+                        const result = await callFunction('capturePayPalPayment', {
+                            order_id: data.orderID,
+                            registration_id: currentRegId
+                        });
+                        
+                        if (result.success) {
+                            showSuccess(result);
+                        } else {
+                            alert('Payment capture failed: ' + result.error);
+                        }
+                    } catch (error) {
+                        console.error('Error capturing payment:', error);
+                        alert('Payment verification failed. Contact support.');
+                    }
+                },
+                
+                onError: function(err) {
+                    console.error('PayPal error:', err);
+                    alert('Payment failed. Please try again or contact support.');
+                }
+                
+            }).render('#paypal-button-container');
+        }
+        
+        function showSuccess(paymentResult) {
+            const html = `
+                <div class="brdc-card" style="max-width: 600px; margin: 40px auto;">
+                    <div class="brdc-card-header">
+                        <h1 class="brdc-title" style="font-size: 36px; color: white;">✅ ${paymentResult ? 'PAYMENT SUCCESSFUL!' : 'REGISTRATION COMPLETE!'}</h1>
+                        <p class="brdc-subtitle" style="color: white; margin-top: 10px;">${eventData.tournament.name}</p>
+                    </div>
+                    
+                    <div style="padding: 30px; text-align: center;">
+                        <div style="font-size: 80px; margin-bottom: 20px;">🎉</div>
+                        <h2 style="font-family: 'Bebas Neue', cursive; font-size: 36px; margin-bottom: 15px;">You're All Set!</h2>
+                        <p style="font-size: 18px; font-weight: 600; margin-bottom: 20px;">
+                            ${paymentResult ? 'Registration and payment complete.' : 'Registered for ' + eventData.event.name}
+                        </p>
+                        ${paymentResult && paymentResult.transaction_id ? `
+                            <p style="font-size: 11px; font-family: monospace; opacity: 0.7;">
+                                Transaction: ${paymentResult.transaction_id}
+                            </p>
+                        ` : ''}
+                        <p style="margin-top: 30px; font-weight: 600;">We'll send you updates about the tournament.</p>
+                        <p style="font-family: 'Bebas Neue', cursive; font-size: 24px; color: var(--pink); margin-top: 20px;">
+                            See you there! 🎯
+                        </p>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('appContainer').innerHTML = html;
+        }
+        
+        function showError(message) {
+            document.getElementById('appContainer').innerHTML = `
+                <div class="brdc-card" style="max-width: 600px; margin: 40px auto;">
+                    <div class="brdc-alert brdc-alert-error">
+                        <strong>Error</strong><br>
+                        ${message}
+                    </div>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>

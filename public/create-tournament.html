@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Tournament - BRDC</title>
+    <link rel="icon" type="image/png" href="https://burningriverdarts.com/wp-content/uploads/2024/12/favicon.png">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800;900&display=swap');
+        
+        :root {
+            --pink: #FF469A;
+            --blue-light: #1F85AF;
+            --blue-dark: #001F4D;
+            --teal: #91D7EB;
+            --yellow: #FDD835;
+            --black: #000000;
+            --white: #FFFFFF;
+        }
+        
+        * { font-family: 'Inter', sans-serif; margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            background: linear-gradient(180deg, var(--blue-light) 0%, var(--blue-dark) 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: var(--white);
+            box-shadow: 12px 12px 0 rgba(0, 0, 0, 1);
+            border: 4px solid var(--black);
+        }
+        
+        .header {
+            background: var(--pink);
+            padding: 40px 30px;
+            text-align: center;
+            border-bottom: 4px solid var(--black);
+            box-shadow: 0 6px 0 rgba(0, 0, 0, 1);
+        }
+        
+        .header-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 48px;
+            color: var(--white);
+            letter-spacing: 4px;
+            text-shadow: 6px 6px 0 rgba(0, 0, 0, 1);
+        }
+        
+        .header-subtitle {
+            color: var(--white);
+            font-size: 16px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-shadow: 4px 4px 8px rgba(0, 0, 0, 1);
+            margin-top: 8px;
+        }
+        
+        .form-container { padding: 40px 30px; }
+        
+        .section-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 32px;
+            color: var(--black);
+            margin-bottom: 20px;
+            letter-spacing: 2px;
+            text-shadow: 4px 4px 8px rgba(0, 0, 0, 0.3);
+        }
+        
+        .form-label {
+            display: block;
+            font-weight: 800;
+            color: var(--black);
+            margin-bottom: 8px;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .input-field {
+            width: 100%;
+            padding: 14px 16px;
+            border: 3px solid var(--black);
+            font-size: 15px;
+            font-weight: 600;
+            background: var(--white);
+            box-shadow: 4px 4px 0 rgba(0, 0, 0, 1);
+            margin-bottom: 20px;
+        }
+        
+        .input-field:focus {
+            outline: none;
+            border-color: var(--pink);
+            box-shadow: 0 0 0 3px rgba(255, 70, 154, 0.3), 6px 6px 0 rgba(0, 0, 0, 1);
+        }
+        
+        textarea.input-field {
+            resize: vertical;
+            line-height: 1.5;
+        }
+        
+        .btn-primary {
+            background: var(--pink);
+            color: var(--white);
+            padding: 16px 32px;
+            border: 4px solid var(--black);
+            font-weight: 900;
+            font-size: 16px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            cursor: pointer;
+            font-family: 'Bebas Neue', cursive;
+            box-shadow: 6px 6px 0 rgba(0, 0, 0, 1);
+            text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.8);
+        }
+        
+        .btn-primary:hover {
+            background: #E03786;
+            transform: translateY(-4px);
+            box-shadow: 10px 10px 0 rgba(0, 0, 0, 1);
+        }
+        
+        .btn-secondary {
+            background: var(--teal);
+            color: var(--black);
+            padding: 12px 24px;
+            border: 3px solid var(--black);
+            font-weight: 800;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            box-shadow: 4px 4px 0 rgba(0, 0, 0, 1);
+        }
+        
+        .btn-secondary:hover {
+            background: #7DC8E0;
+            transform: translateY(-3px);
+            box-shadow: 6px 6px 0 rgba(0, 0, 0, 1);
+        }
+        
+        .btn-danger {
+            background: #E03786;
+            color: var(--white);
+            padding: 10px 20px;
+            border: 3px solid var(--black);
+            font-weight: 800;
+            font-size: 13px;
+            text-transform: uppercase;
+            cursor: pointer;
+            box-shadow: 3px 3px 0 rgba(0, 0, 0, 1);
+        }
+        
+        .event-card {
+            border: 4px solid var(--black);
+            padding: 24px;
+            margin-bottom: 16px;
+            background: #f9fafb;
+            box-shadow: 6px 6px 0 rgba(0, 0, 0, 1);
+        }
+        
+        .event-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 3px solid var(--black);
+        }
+        
+        .event-number {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 28px;
+            color: var(--black);
+            letter-spacing: 2px;
+        }
+        
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+        
+        .grid-3 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 16px;
+        }
+        
+        .form-group { margin-bottom: 20px; }
+        
+        .footer-actions {
+            padding: 30px;
+            border-top: 4px solid var(--black);
+            display: flex;
+            gap: 16px;
+            justify-content: flex-end;
+            background: #f9fafb;
+        }
+        
+        .in-out-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        
+        .leg-selector {
+            background: var(--white);
+            border: 3px solid var(--black);
+            padding: 16px;
+            margin-bottom: 12px;
+            box-shadow: 3px 3px 0 rgba(0, 0, 0, 1);
+        }
+        
+        .leg-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 20px;
+            color: var(--black);
+            margin-bottom: 12px;
+        }
+        
+        @media (max-width: 768px) {
+            .grid-2, .grid-3, .in-out-grid { grid-template-columns: 1fr; }
+            .header-title { font-size: 32px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="header-title">🎯 CREATE TOURNAMENT</div>
+            <div class="header-subtitle">Burning River Dart Club</div>
+        </div>
+        
+        <form id="tournamentForm" class="form-container">
+            <!-- Tournament Details -->
+            <div style="margin-bottom: 40px;">
+                <h2 class="section-title">Tournament Details</h2>
+                <div class="grid-2">
+                    <div class="form-group" style="grid-column: 1 / -1;">
+                        <label class="form-label">Tournament Name *</label>
+                        <input type="text" name="tournament_name" required class="input-field" placeholder="Weekly Tournament">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Date *</label>
+                        <input type="date" name="tournament_date" required class="input-field">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Time</label>
+                        <input type="time" name="tournament_time" class="input-field">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Venue Name *</label>
+                        <input type="text" name="venue_name" required class="input-field" placeholder="Rookies">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Venue Address</label>
+                        <input type="text" name="venue_address" class="input-field" placeholder="123 Main St, City, State">
+                    </div>
+                    <div class="form-group" style="grid-column: 1 / -1;">
+                        <label class="form-label">Tournament Details / Special Info</label>
+                        <textarea name="tournament_details" class="input-field" rows="3" placeholder="Any special rules or info..."></textarea>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Director Info -->
+            <div style="margin-bottom: 40px;">
+                <h2 class="section-title">Director Information</h2>
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label">First Name *</label>
+                        <input type="text" name="director_first" required class="input-field">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Last Name *</label>
+                        <input type="text" name="director_last" required class="input-field">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Email *</label>
+                        <input type="email" name="director_email" required class="input-field">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Phone</label>
+                        <input type="tel" name="director_phone" class="input-field">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Events -->
+            <div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2 class="section-title" style="margin: 0;">Events</h2>
+                    <button type="button" class="btn-secondary" onclick="addEvent()">+ Add Event</button>
+                </div>
+                <div id="eventsContainer"></div>
+            </div>
+        </form>
+        
+        <div class="footer-actions">
+            <button type="button" class="btn-secondary" onclick="window.location.href='/'">Cancel</button>
+            <button type="button" class="btn-primary" onclick="submitTournament()">Create Tournament</button>
+        </div>
+    </div>
+    
+    <script type="module">
+        import { callFunction } from '/js/firebase-config.js';
+        
+        let eventCounter = 0;
+        
+        window.onload = function() {
+            addEvent();
+        };
+        
+        window.addEvent = function() {
+            eventCounter++;
+            const container = document.getElementById('eventsContainer');
+            
+            const html = `
+                <div class="event-card" id="event-${eventCounter}">
+                    <div class="event-header">
+                        <h3 class="event-number">Event ${eventCounter}</h3>
+                        ${eventCounter > 1 ? `<button type="button" class="btn-danger" onclick="removeEvent(${eventCounter})">Remove</button>` : ''}
+                    </div>
+                    
+                    <!-- EVENT BASICS -->
+                    <div class="grid-3">
+                        <div class="form-group" style="grid-column: 1 / -1;">
+                            <label class="form-label">Event Name *</label>
+                            <input type="text" name="events[${eventCounter}][event_name]" required class="input-field" placeholder="Open Singles">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Start Time</label>
+                            <input type="time" name="events[${eventCounter}][start_time]" class="input-field">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Entry Fee ($) *</label>
+                            <input type="number" name="events[${eventCounter}][entry_fee]" required min="0" value="10" step="0.01" class="input-field">
+                        </div>
+                    </div>
+                    
+                    <!-- EVENT TYPE & FORMAT -->
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label class="form-label">Event Type *</label>
+                            <select name="events[${eventCounter}][event_type]" required class="input-field">
+                                <option value="">Select type...</option>
+                                <option value="individual">👤 Singles (1v1)</option>
+                                <option value="doubles">👥 Doubles (2v2)</option>
+                                <option value="triples">👥 Triples (3v3)</option>
+                                <option value="blind_draw">🎲 Blind Draw</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Format *</label>
+                            <select id="format_${eventCounter}" name="events[${eventCounter}][format]" required class="input-field" onchange="handleFormatChange(${eventCounter})">
+                                <option value="single_elim">Single Elimination</option>
+                                <option value="double_elim">Double Elimination</option>
+                                <option value="round_robin">Round Robin</option>
+                                <option value="swiss">Swiss System</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- GAME & LEGS -->
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label class="form-label">Game *</label>
+                            <select id="game_${eventCounter}" name="events[${eventCounter}][game]" required class="input-field" onchange="handleGameChange(${eventCounter})">
+                                <option value="">Select game...</option>
+                                <option value="501">501</option>
+                                <option value="301">301</option>
+                                <option value="701">701</option>
+                                <option value="cricket">Cricket</option>
+                                <option value="mixed">🎲 Mixed Format</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group" id="best_of_container_${eventCounter}">
+                            <label class="form-label">Best Of (Legs) *</label>
+                            <input type="number" id="best_of_${eventCounter}" name="events[${eventCounter}][best_of]" min="1" value="3" required class="input-field" onchange="handleBestOfChange(${eventCounter})">
+                        </div>
+                        
+                        <div class="form-group" id="total_legs_container_${eventCounter}" style="display: none;">
+                            <label class="form-label">Total Legs *</label>
+                            <input type="number" id="total_legs_${eventCounter}" name="events[${eventCounter}][total_legs]" min="1" value="5" class="input-field" onchange="handleBestOfChange(${eventCounter})">
+                        </div>
+                    </div>
+                    
+                    <!-- IN/OUT OPTIONS (Show for X01 games) -->
+                    <div id="in_out_section_${eventCounter}" style="display: none; margin-bottom: 20px;">
+                        <label class="form-label">IN / OUT</label>
+                        <div class="in-out-grid">
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <select name="events[${eventCounter}][in_option]" class="input-field" style="margin-bottom: 0;">
+                                    <option value="free">Free In</option>
+                                    <option value="double">Double In</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <select name="events[${eventCounter}][out_option]" class="input-field" style="margin-bottom: 0;">
+                                    <option value="free">Free Out</option>
+                                    <option value="double" selected>Double Out</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- CORK RULES -->
+                    <div class="form-group">
+                        <label class="form-label">Cork Rules *</label>
+                        <select name="events[${eventCounter}][cork_rules]" required class="input-field">
+                            <option value="alternate_cork_first_last">Alternate Start, Cork First & Last Leg</option>
+                            <option value="cork_every_leg">Cork Every Leg</option>
+                            <option value="loser_starts_cork_first">Loser Starts, Cork First Leg</option>
+                            <option value="choose_no_cork">Choose Starter, No Cork</option>
+                        </select>
+                    </div>
+                    
+                    <!-- MIXED FORMAT LEG-BY-LEG SELECTOR -->
+                    <div id="mixed_section_${eventCounter}" style="display: none; margin-top: 20px;">
+                        <h4 class="form-label" style="font-size: 16px; margin-bottom: 16px;">🎯 Select Game for Each Leg</h4>
+                        <div id="leg_selectors_${eventCounter}"></div>
+                    </div>
+                    
+                    <!-- EVENT DETAILS -->
+                    <div class="form-group">
+                        <label class="form-label">Event Details / Special Rules</label>
+                        <textarea name="events[${eventCounter}][event_details]" class="input-field" rows="3" placeholder="Any special rules or handicaps..."></textarea>
+                    </div>
+                </div>
+            `;
+            
+            container.insertAdjacentHTML('beforeend', html);
+        };
+        
+        window.removeEvent = function(id) {
+            document.getElementById(`event-${id}`).remove();
+        };
+        
+        window.handleFormatChange = function(eventId) {
+            const formatSelect = document.getElementById(`format_${eventId}`);
+            const format = formatSelect.value;
+            const bestOfContainer = document.getElementById(`best_of_container_${eventId}`);
+            const totalLegsContainer = document.getElementById(`total_legs_container_${eventId}`);
+            
+            if (format === 'round_robin') {
+                bestOfContainer.style.display = 'none';
+                totalLegsContainer.style.display = 'block';
+            } else {
+                bestOfContainer.style.display = 'block';
+                totalLegsContainer.style.display = 'none';
+            }
+        };
+        
+        window.handleGameChange = function(eventId) {
+            const gameSelect = document.getElementById(`game_${eventId}`);
+            const game = gameSelect.value;
+            const inOutSection = document.getElementById(`in_out_section_${eventId}`);
+            const mixedSection = document.getElementById(`mixed_section_${eventId}`);
+            
+            inOutSection.style.display = 'none';
+            mixedSection.style.display = 'none';
+            
+            if (game === '501' || game === '301' || game === '701') {
+                inOutSection.style.display = 'block';
+            }
+            
+            if (game === 'mixed') {
+                mixedSection.style.display = 'block';
+                generateLegSelectors(eventId);
+            }
+        };
+        
+        window.handleBestOfChange = function(eventId) {
+            const gameSelect = document.getElementById(`game_${eventId}`);
+            if (gameSelect && gameSelect.value === 'mixed') {
+                generateLegSelectors(eventId);
+            }
+        };
+        
+        function generateLegSelectors(eventId) {
+            const formatSelect = document.getElementById(`format_${eventId}`);
+            const format = formatSelect.value;
+            
+            let numLegs;
+            if (format === 'round_robin') {
+                const totalLegsInput = document.getElementById(`total_legs_${eventId}`);
+                numLegs = parseInt(totalLegsInput.value) || 5;
+            } else {
+                const bestOfInput = document.getElementById(`best_of_${eventId}`);
+                numLegs = parseInt(bestOfInput.value) || 3;
+            }
+            
+            const container = document.getElementById(`leg_selectors_${eventId}`);
+            let html = '';
+            
+            for (let leg = 1; leg <= numLegs; leg++) {
+                html += `
+                    <div class="leg-selector">
+                        <div class="leg-title">Leg ${leg}</div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label class="form-label">Game Type</label>
+                            <select id="leg_${eventId}_${leg}_game" name="events[${eventId}][legs][${leg}][game]" required class="input-field" onchange="handleLegGameChange(${eventId}, ${leg})">
+                                <option value="">Select game...</option>
+                                <option value="501">501</option>
+                                <option value="301">301</option>
+                                <option value="cricket">Cricket</option>
+                                <option value="choice">Player's Choice</option>
+                            </select>
+                        </div>
+                        
+                        <div id="leg_${eventId}_${leg}_in_out" style="display: none; margin-top: 12px;">
+                            <div class="in-out-grid">
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <select name="events[${eventId}][legs][${leg}][in_option]" class="input-field" style="margin-bottom: 0;">
+                                        <option value="free">Free In</option>
+                                        <option value="double">Double In</option>
+                                    </select>
+                                </div>
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <select name="events[${eventId}][legs][${leg}][out_option]" class="input-field" style="margin-bottom: 0;">
+                                        <option value="free">Free Out</option>
+                                        <option value="double">Double Out</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            container.innerHTML = html;
+        }
+        
+        window.handleLegGameChange = function(eventId, legNum) {
+            const gameSelect = document.getElementById(`leg_${eventId}_${legNum}_game`);
+            const game = gameSelect.value;
+            const inOutSection = document.getElementById(`leg_${eventId}_${legNum}_in_out`);
+            
+            if (game === '501' || game === '301') {
+                inOutSection.style.display = 'block';
+            } else {
+                inOutSection.style.display = 'none';
+            }
+        };
+        
+        window.submitTournament = async function() {
+            const form = document.getElementById('tournamentForm');
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
+            
+            const formData = new FormData(form);
+            
+            const data = {
+                tournament_name: formData.get('tournament_name'),
+                tournament_date: formData.get('tournament_date'),
+                tournament_time: formData.get('tournament_time') || '',
+                venue_name: formData.get('venue_name'),
+                venue_address: formData.get('venue_address') || '',
+                tournament_details: formData.get('tournament_details') || '',
+                full_name: formData.get('director_first') + ' ' + formData.get('director_last'),
+                email: formData.get('director_email'),
+                phone: formData.get('director_phone') || '',
+                events: []
+            };
+            
+            // Process each event
+            for (let i = 1; i <= eventCounter; i++) {
+                if (!document.getElementById(`event-${i}`)) continue;
+                
+                const gameValue = formData.get(`events[${i}][game]`);
+                const formatValue = formData.get(`events[${i}][format]`);
+                
+                const event = {
+                    event_name: formData.get(`events[${i}][event_name]`),
+                    entry_type: formData.get(`events[${i}][event_type]`),
+                    format: formatValue,
+                    game: gameValue,
+                    cork_rules: formData.get(`events[${i}][cork_rules]`),
+                    entry_fee: parseFloat(formData.get(`events[${i}][entry_fee]`)),
+                    start_time: formData.get(`events[${i}][start_time]`) || '',
+                    event_details: formData.get(`events[${i}][event_details]`) || ''
+                };
+                
+                // Best of or total legs
+                if (formatValue === 'round_robin') {
+                    event.total_legs = parseInt(formData.get(`events[${i}][total_legs]`)) || 5;
+                } else {
+                    event.best_of = parseInt(formData.get(`events[${i}][best_of]`)) || 3;
+                }
+                
+                // Add IN/OUT for X01 games
+                if (gameValue === '501' || gameValue === '301' || gameValue === '701') {
+                    event.in_option = formData.get(`events[${i}][in_option]`) || 'free';
+                    event.out_option = formData.get(`events[${i}][out_option]`) || 'double';
+                }
+                
+                // Handle mixed format legs
+                if (gameValue === 'mixed') {
+                    event.legs = [];
+                    const numLegs = event.best_of || event.total_legs || 3;
+                    for (let leg = 1; leg <= numLegs; leg++) {
+                        const legGame = formData.get(`events[${i}][legs][${leg}][game]`);
+                        const legData = { game: legGame };
+                        
+                        if (legGame === '501' || legGame === '301') {
+                            const inOpt = formData.get(`events[${i}][legs][${leg}][in_option]`) || 'free';
+                            const outOpt = formData.get(`events[${i}][legs][${leg}][out_option]`) || 'double';
+                            legData.in_option = inOpt;
+                            legData.out_option = outOpt;
+                        }
+                        
+                        event.legs.push(legData);
+                    }
+                }
+                
+                data.events.push(event);
+            }
+            
+            console.log('Submitting:', data);
+            
+            const btn = document.querySelector('.footer-actions .btn-primary');
+            btn.disabled = true;
+            btn.textContent = 'Creating...';
+            
+            try {
+                const result = await callFunction('createTournament', data);
+                
+                if (result.success) {
+                    // Show success page
+                    document.body.innerHTML = `
+                        <div style="background: linear-gradient(180deg, #1F85AF 0%, #001F4D 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px;">
+                            <div style="max-width: 600px; background: white; padding: 60px 40px; text-align: center; border: 4px solid black; box-shadow: 12px 12px 0 rgba(0, 0, 0, 1);">
+                                <div style="font-size: 80px;">✅</div>
+                                <h1 style="font-family: 'Bebas Neue', cursive; font-size: 48px; color: #FF469A; text-shadow: 4px 4px 0 rgba(0, 0, 0, 1); margin: 20px 0;">
+                                    TOURNAMENT CREATED!
+                                </h1>
+                                
+                                <div style="background: #FDD835; border: 4px solid black; padding: 30px; margin: 30px 0; box-shadow: 6px 6px 0 rgba(0, 0, 0, 1);">
+                                    <div style="font-size: 14px; font-weight: 800; margin-bottom: 10px; text-transform: uppercase;">Your Director PIN</div>
+                                    <div style="font-family: 'Bebas Neue', cursive; font-size: 64px; color: black; text-shadow: 3px 3px 0 rgba(255, 70, 154, 0.3);">
+                                        ${result.pin}
+                                    </div>
+                                    <div style="font-size: 12px; font-weight: 600; margin-top: 10px; color: #666;">Save this PIN - you'll need it to manage your tournament!</div>
+                                </div>
+                                
+                                <div style="margin: 20px 0; font-size: 16px;">
+                                    <strong>${result.events_created} events created</strong>
+                                </div>
+                                
+                                <a href="/director-dashboard.html?pin=${result.pin}" style="display: inline-block; background: #FF469A; color: white; padding: 20px 40px; font-family: 'Bebas Neue', cursive; font-size: 24px; text-decoration: none; border: 4px solid black; box-shadow: 6px 6px 0 rgba(0, 0, 0, 1); margin-top: 20px;">
+                                    GO TO DASHBOARD
+                                </a>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    throw new Error(result.error || 'Unknown error');
+                }
+                
+            } catch (error) {
+                alert('Error creating tournament: ' + error.message);
+                console.error('Error:', error);
+                btn.disabled = false;
+                btn.textContent = 'CREATE TOURNAMENT';
+            }
+        };
+    </script>
+</body>
+</html>

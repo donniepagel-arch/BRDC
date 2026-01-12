@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>League Director - BRDC</title>
+    <link rel="icon" type="image/png" href="/images/favicon.png">
+    <link rel="stylesheet" href="/css/brdc-styles.css">
+    <style>
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 30px;
+            margin-top: 30px;
+        }
+        @media (max-width: 1024px) {
+            .dashboard-grid { grid-template-columns: 1fr; }
+        }
+        .sidebar-card {
+            background: white;
+            border: 4px solid var(--black);
+            box-shadow: 8px 8px 0 rgba(0,0,0,1);
+            padding: 25px;
+            margin-bottom: 20px;
+        }
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 2px solid #eee;
+        }
+        .stat-row:last-child { border-bottom: none; }
+        .stat-label { font-weight: 600; color: #666; }
+        .stat-value { font-weight: 800; font-size: 18px; }
+        .week-selector {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .week-btn {
+            background: white;
+            border: 3px solid var(--black);
+            width: 45px;
+            height: 45px;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 20px;
+            cursor: pointer;
+            box-shadow: 3px 3px 0 rgba(0,0,0,1);
+        }
+        .week-btn:hover { transform: translateY(-2px); }
+        .week-btn.active { background: var(--pink); color: white; }
+        .match-card {
+            background: white;
+            border: 4px solid var(--black);
+            box-shadow: 8px 8px 0 rgba(0,0,0,1);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        .match-header {
+            background: var(--blue-dark);
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .match-teams {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 20px;
+            padding: 25px;
+            align-items: center;
+        }
+        .team-info { text-align: center; }
+        .team-name {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        .team-players { font-size: 13px; color: #666; line-height: 1.6; }
+        .vs-circle {
+            width: 50px;
+            height: 50px;
+            background: var(--yellow);
+            border: 3px solid var(--black);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 20px;
+        }
+        .match-score {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-top: 3px solid var(--black);
+        }
+        .score-box { text-align: center; }
+        .score-value {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 42px;
+            color: var(--pink);
+        }
+        .score-label {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: #666;
+        }
+        .match-actions {
+            display: flex;
+            gap: 10px;
+            padding: 15px;
+            border-top: 3px solid #eee;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .pin-display {
+            background: var(--yellow);
+            border: 3px solid var(--black);
+            padding: 12px 25px;
+            text-align: center;
+            margin: 15px;
+        }
+        .pin-code {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 32px;
+            letter-spacing: 6px;
+        }
+        .status-badge {
+            padding: 5px 10px;
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            border-radius: 4px;
+        }
+        .status-scheduled { background: #e5e7eb; color: #374151; }
+        .status-in_progress { background: var(--yellow); color: var(--black); }
+        .status-completed { background: #10b981; color: white; }
+        .tab-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .tab {
+            background: white;
+            border: 3px solid var(--black);
+            padding: 10px 20px;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 16px;
+            cursor: pointer;
+            box-shadow: 3px 3px 0 rgba(0,0,0,1);
+        }
+        .tab:hover { transform: translateY(-2px); }
+        .tab.active { background: var(--pink); color: white; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .login-overlay {
+            position: fixed;
+            inset: 0;
+            background: linear-gradient(180deg, var(--blue-light) 0%, var(--blue-dark) 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .login-card {
+            background: white;
+            border: 5px solid var(--black);
+            box-shadow: 12px 12px 0 rgba(0,0,0,1);
+            padding: 50px;
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+        }
+        .pin-input {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin: 30px 0;
+        }
+        .pin-digit {
+            width: 55px;
+            height: 65px;
+            border: 4px solid var(--black);
+            font-size: 28px;
+            text-align: center;
+            font-family: 'Bebas Neue', cursive;
+        }
+        .pin-digit:focus {
+            outline: none;
+            border-color: var(--pink);
+            background: #fff5f9;
+        }
+        .quick-action-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .quick-action {
+            padding: 12px 8px;
+            text-align: center;
+            font-weight: 700;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Overlay -->
+    <div id="loginOverlay" class="login-overlay">
+        <div class="login-card">
+            <h1 style="font-family: 'Bebas Neue', cursive; font-size: 36px; margin-bottom: 10px;">🔒 LEAGUE DIRECTOR</h1>
+            <p style="color: #666; margin-bottom: 30px;">Enter your admin PIN to continue</p>
+            <div class="pin-input">
+                <input type="text" maxlength="1" class="pin-digit" id="pin1" inputmode="numeric">
+                <input type="text" maxlength="1" class="pin-digit" id="pin2" inputmode="numeric">
+                <input type="text" maxlength="1" class="pin-digit" id="pin3" inputmode="numeric">
+                <input type="text" maxlength="1" class="pin-digit" id="pin4" inputmode="numeric">
+            </div>
+            <button id="loginBtn" class="brdc-btn" style="width: 100%;">ENTER DASHBOARD</button>
+            <p id="loginError" style="color: #ef4444; margin-top: 20px; display: none;"></p>
+        </div>
+    </div>
+
+    <!-- Main Dashboard -->
+    <div id="dashboard" style="display: none;">
+        <div class="brdc-card" style="max-width: 1400px; margin: 20px auto;">
+            <div class="brdc-card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+                <div>
+                    <h1 class="brdc-title" style="font-size: 32px; color: white;" id="leagueName">Loading...</h1>
+                    <p class="brdc-subtitle" style="color: white; margin-top: 5px;" id="leagueSeason"></p>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <a href="#" id="standingsLink" class="brdc-btn brdc-btn-secondary" style="text-decoration: none; font-size: 14px;">📊 PUBLIC</a>
+                    <button class="brdc-btn brdc-btn-secondary" onclick="logout()" style="font-size: 14px;">🚪 LOGOUT</button>
+                </div>
+            </div>
+
+            <div style="padding: 25px;">
+                <div class="tab-container">
+                    <div class="tab active" onclick="switchTab('matches')">📅 Matches</div>
+                    <div class="tab" onclick="switchTab('standings')">🏆 Standings</div>
+                    <div class="tab" onclick="switchTab('teams')">👥 Teams</div>
+                    <div class="tab" onclick="switchTab('stats')">📈 Stats</div>
+                    <div class="tab" onclick="switchTab('settings')">⚙️ Settings</div>
+                </div>
+
+                <!-- Matches Tab -->
+                <div id="matchesTab" class="tab-content active">
+                    <div class="dashboard-grid">
+                        <div>
+                            <div class="sidebar-card">
+                                <h3 style="font-family: 'Bebas Neue', cursive; font-size: 22px; margin-bottom: 15px;">📊 Status</h3>
+                                <div class="stat-row">
+                                    <span class="stat-label">Status</span>
+                                    <span class="stat-value" id="leagueStatus">-</span>
+                                </div>
+                                <div class="stat-row">
+                                    <span class="stat-label">Week</span>
+                                    <span class="stat-value"><span id="currentWeek">-</span> / <span id="totalWeeks">-</span></span>
+                                </div>
+                                <div class="stat-row">
+                                    <span class="stat-label">Teams</span>
+                                    <span class="stat-value" id="teamCount">-</span>
+                                </div>
+                            </div>
+                            <div class="sidebar-card">
+                                <h3 style="font-family: 'Bebas Neue', cursive; font-size: 22px; margin-bottom: 15px;">⚡ Actions</h3>
+                                <div class="quick-action-grid">
+                                    <button class="brdc-btn brdc-btn-secondary quick-action" onclick="advanceWeek()">⏭️ Next Week</button>
+                                    <button class="brdc-btn brdc-btn-secondary quick-action" onclick="startAllMatches()">▶️ Start All</button>
+                                </div>
+                            </div>
+                            <div class="sidebar-card">
+                                <h3 style="font-family: 'Bebas Neue', cursive; font-size: 22px; margin-bottom: 15px;">📅 Week</h3>
+                                <div id="weekSelector" class="week-selector"></div>
+                            </div>
+                        </div>
+                        <div id="matchesContainer">
+                            <p style="text-align: center; padding: 40px; color: #666;">Loading...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Standings Tab -->
+                <div id="standingsTab" class="tab-content">
+                    <div id="standingsContainer"><p style="text-align: center; padding: 40px;">Loading...</p></div>
+                </div>
+
+                <!-- Teams Tab -->
+                <div id="teamsTab" class="tab-content">
+                    <div id="teamsContainer"><p style="text-align: center; padding: 40px;">Loading...</p></div>
+                </div>
+
+                <!-- Stats Tab -->
+                <div id="statsTab" class="tab-content">
+                    <div id="statsContainer"><p style="text-align: center; padding: 40px;">Loading...</p></div>
+                </div>
+
+                <!-- Settings Tab -->
+                <div id="settingsTab" class="tab-content">
+                    <div class="sidebar-card" style="max-width: 600px;">
+                        <h3 style="font-family: 'Bebas Neue', cursive; font-size: 24px; margin-bottom: 20px;">⚙️ League Settings</h3>
+                        <div style="margin-bottom: 20px;">
+                            <label class="brdc-label">League Status</label>
+                            <select id="statusSelect" class="brdc-select">
+                                <option value="registration">Registration Open</option>
+                                <option value="draft">Draft Phase</option>
+                                <option value="active">Active</option>
+                                <option value="playoffs">Playoffs</option>
+                                <option value="completed">Completed</option>
+                            </select>
+                        </div>
+                        <button class="brdc-btn" onclick="updateStatus()">UPDATE STATUS</button>
+                        <hr style="margin: 30px 0; border: 2px solid #eee;">
+                        <h3 style="font-family: 'Bebas Neue', cursive; font-size: 24px; margin-bottom: 20px;">🔄 Generate Schedule</h3>
+                        <p style="color: #666; margin-bottom: 15px;">Create round-robin schedule for all teams.</p>
+                        <button class="brdc-btn brdc-btn-secondary" onclick="generateSchedule()">GENERATE SCHEDULE</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { db, doc, getDoc, collection, query, where, getDocs, updateDoc, callFunction } from '/js/firebase-config.js';
+
+        const urlParams = new URLSearchParams(window.location.search);
+        let leagueId = urlParams.get('league_id');
+        let leagueData = null;
+        let adminPin = null;
+        let currentWeek = 1;
+        let teamsData = [];
+        let matchesData = [];
+
+        // PIN input handling
+        const pinInputs = document.querySelectorAll('.pin-digit');
+        pinInputs.forEach((input, index) => {
+            input.addEventListener('input', (e) => {
+                if (e.target.value.length === 1 && index < 3) pinInputs[index + 1].focus();
+            });
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Backspace' && !e.target.value && index > 0) pinInputs[index - 1].focus();
+            });
+        });
+
+        document.getElementById('loginBtn').addEventListener('click', async () => {
+            const pin = Array.from(pinInputs).map(i => i.value).join('');
+            if (pin.length !== 4) { showLoginError('Enter 4 digits'); return; }
+
+            try {
+                if (!leagueId) {
+                    const snap = await getDocs(query(collection(db, 'leagues'), where('admin_pin', '==', pin)));
+                    if (snap.empty) { showLoginError('Invalid PIN'); return; }
+                    leagueId = snap.docs[0].id;
+                    window.history.replaceState({}, '', `?league_id=${leagueId}`);
+                }
+
+                const leagueDoc = await getDoc(doc(db, 'leagues', leagueId));
+                if (!leagueDoc.exists()) { showLoginError('League not found'); return; }
+
+                leagueData = { id: leagueId, ...leagueDoc.data() };
+                if (leagueData.admin_pin !== pin) { showLoginError('Invalid PIN'); return; }
+
+                adminPin = pin;
+                document.getElementById('loginOverlay').style.display = 'none';
+                document.getElementById('dashboard').style.display = 'block';
+                initDashboard();
+            } catch (error) {
+                showLoginError('Error: ' + error.message);
+            }
+        });
+
+        function showLoginError(msg) {
+            const el = document.getElementById('loginError');
+            el.textContent = msg;
+            el.style.display = 'block';
+        }
+
+        async function initDashboard() {
+            document.getElementById('leagueName').textContent = leagueData.league_name;
+            document.getElementById('leagueSeason').textContent = leagueData.season || '';
+            document.getElementById('standingsLink').href = `/pages/league-standings.html?league_id=${leagueId}`;
+            document.getElementById('leagueStatus').textContent = leagueData.status.toUpperCase();
+            document.getElementById('currentWeek').textContent = leagueData.current_week || 1;
+            document.getElementById('totalWeeks').textContent = leagueData.total_weeks || '-';
+            document.getElementById('statusSelect').value = leagueData.status;
+            currentWeek = leagueData.current_week || 1;
+
+            await loadTeams();
+            await loadMatches();
+            renderWeekSelector();
+            renderMatches();
+        }
+
+        async function loadTeams() {
+            try {
+                const result = await callFunction('getTeams', { league_id: leagueId });
+                if (result.success) {
+                    teamsData = result.teams;
+                    document.getElementById('teamCount').textContent = teamsData.length;
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        async function loadMatches() {
+            try {
+                const result = await callFunction('getSchedule', { league_id: leagueId });
+                if (result.success) matchesData = result.matches;
+            } catch (e) { console.error(e); }
+        }
+
+        function renderWeekSelector() {
+            const container = document.getElementById('weekSelector');
+            const total = leagueData.total_weeks || Math.max(...matchesData.map(m => m.week), 1);
+            let html = '';
+            for (let w = 1; w <= total; w++) {
+                html += `<button class="week-btn ${w === currentWeek ? 'active' : ''}" onclick="selectWeek(${w})">${w}</button>`;
+            }
+            container.innerHTML = html;
+        }
+
+        window.selectWeek = function(week) {
+            currentWeek = week;
+            document.querySelectorAll('.week-btn').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+            renderMatches();
+        };
+
+        function renderMatches() {
+            const container = document.getElementById('matchesContainer');
+            const weekMatches = matchesData.filter(m => m.week === currentWeek);
+
+            if (!weekMatches.length) {
+                container.innerHTML = `<div class="sidebar-card" style="text-align: center; padding: 50px;">
+                    <p style="font-size: 18px; font-weight: 600;">No matches for Week ${currentWeek}</p>
+                    <p style="color: #666; margin-top: 10px;">Generate schedule in Settings.</p>
+                </div>`;
+                return;
+            }
+
+            let html = `<h2 style="font-family: 'Bebas Neue', cursive; font-size: 28px; margin-bottom: 20px;">Week ${currentWeek}</h2>`;
+
+            weekMatches.forEach(match => {
+                html += `
+                    <div class="match-card">
+                        <div class="match-header">
+                            <span>${match.match_date}</span>
+                            <span class="status-badge status-${match.status}">${match.status.replace('_',' ').toUpperCase()}</span>
+                        </div>
+                        <div class="match-teams">
+                            <div class="team-info">
+                                <div class="team-name">${match.home_team_name}</div>
+                                <div class="team-players">${getTeamPlayers(match.home_team_id)}</div>
+                            </div>
+                            <div class="vs-circle">VS</div>
+                            <div class="team-info">
+                                <div class="team-name">${match.away_team_name}</div>
+                                <div class="team-players">${getTeamPlayers(match.away_team_id)}</div>
+                            </div>
+                        </div>
+                        ${match.status !== 'scheduled' ? `
+                            <div class="match-score">
+                                <div class="score-box"><div class="score-value">${match.home_score}</div><div class="score-label">Home</div></div>
+                                <div class="score-box"><div class="score-value">${match.away_score}</div><div class="score-label">Away</div></div>
+                            </div>` : ''}
+                        ${match.match_pin ? `<div class="pin-display"><div style="font-size: 11px; font-weight: 700;">MATCH PIN</div><div class="pin-code">${match.match_pin}</div></div>` : ''}
+                        <div class="match-actions">
+                            ${match.status === 'scheduled' ? `<button class="brdc-btn" onclick="startMatch('${match.id}')">▶️ START</button>` :
+                              match.status === 'in_progress' ? `<button class="brdc-btn brdc-btn-secondary" onclick="viewMatch('${match.id}')">👁️ VIEW</button><button class="brdc-btn" onclick="finalizeMatch('${match.id}')">✅ FINALIZE</button>` :
+                              `<button class="brdc-btn brdc-btn-secondary" onclick="viewMatch('${match.id}')">📋 RESULTS</button>`}
+                        </div>
+                    </div>`;
+            });
+            container.innerHTML = html;
+        }
+
+        function getTeamPlayers(teamId) {
+            const team = teamsData.find(t => t.id === teamId);
+            if (!team?.players) return 'No players';
+            return team.players.map(p => `P${p.position}: ${p.name}`).join('<br>');
+        }
+
+        window.startMatch = async function(matchId) {
+            if (!confirm('Start match? This generates a PIN for tablet access.')) return;
+            try {
+                const result = await callFunction('startMatch', { league_id: leagueId, match_id: matchId, admin_pin: adminPin });
+                if (result.success) {
+                    alert(`Match started!\n\nPIN: ${result.match_pin}`);
+                    await loadMatches();
+                    renderMatches();
+                } else alert('Error: ' + result.error);
+            } catch (e) { alert('Error: ' + e.message); }
+        };
+
+        window.viewMatch = function(matchId) {
+            window.open(`/pages/match-hub.html?league_id=${leagueId}&match_id=${matchId}`, '_blank');
+        };
+
+        window.finalizeMatch = async function(matchId) {
+            if (!confirm('Finalize match and update standings?')) return;
+            try {
+                const result = await callFunction('finalizeMatch', { league_id: leagueId, match_id: matchId });
+                if (result.success) {
+                    alert(`Finalized! ${result.final_score.home} - ${result.final_score.away}`);
+                    await loadMatches();
+                    renderMatches();
+                } else alert('Error: ' + result.error);
+            } catch (e) { alert('Error: ' + e.message); }
+        };
+
+        window.startAllMatches = async function() {
+            const scheduled = matchesData.filter(m => m.week === currentWeek && m.status === 'scheduled');
+            if (!scheduled.length) { alert('No scheduled matches.'); return; }
+            if (!confirm(`Start all ${scheduled.length} matches?`)) return;
+
+            const pins = [];
+            for (const m of scheduled) {
+                try {
+                    const r = await callFunction('startMatch', { league_id: leagueId, match_id: m.id, admin_pin: adminPin });
+                    if (r.success) pins.push(`${m.home_team_name} vs ${m.away_team_name}: ${r.match_pin}`);
+                } catch (e) { console.error(e); }
+            }
+            await loadMatches();
+            renderMatches();
+            alert(`Started!\n\n${pins.join('\n')}`);
+        };
+
+        window.advanceWeek = async function() {
+            const newWeek = (leagueData.current_week || 1) + 1;
+            if (!confirm(`Advance to Week ${newWeek}?`)) return;
+            try {
+                await updateDoc(doc(db, 'leagues', leagueId), { current_week: newWeek });
+                leagueData.current_week = newWeek;
+                currentWeek = newWeek;
+                document.getElementById('currentWeek').textContent = newWeek;
+                renderWeekSelector();
+                renderMatches();
+            } catch (e) { alert('Error: ' + e.message); }
+        };
+
+        window.generateSchedule = async function() {
+            if (!confirm('Generate schedule for entire season?')) return;
+            try {
+                const result = await callFunction('generateSchedule', { league_id: leagueId, admin_pin: adminPin });
+                if (result.success) {
+                    alert(`Created ${result.matches_created} matches over ${result.total_weeks} weeks!`);
+                    location.reload();
+                } else alert('Error: ' + result.error);
+            } catch (e) { alert('Error: ' + e.message); }
+        };
+
+        window.updateStatus = async function() {
+            const status = document.getElementById('statusSelect').value;
+            try {
+                const result = await callFunction('updateLeagueStatus', { league_id: leagueId, admin_pin: adminPin, status: status });
+                if (result.success) {
+                    leagueData.status = status;
+                    document.getElementById('leagueStatus').textContent = status.toUpperCase();
+                    alert('Updated!');
+                } else alert('Error: ' + result.error);
+            } catch (e) { alert('Error: ' + e.message); }
+        };
+
+        window.switchTab = function(tabName) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById(tabName + 'Tab').classList.add('active');
+            if (tabName === 'standings') loadStandings();
+            if (tabName === 'teams') renderTeams();
+            if (tabName === 'stats') loadStats();
+        };
+
+        async function loadStandings() {
+            const container = document.getElementById('standingsContainer');
+            try {
+                const result = await callFunction('getStandings', { league_id: leagueId });
+                if (!result.success || !result.standings.length) {
+                    container.innerHTML = '<p style="text-align: center; padding: 40px;">No standings yet.</p>';
+                    return;
+                }
+                let html = `<table style="width: 100%; border-collapse: collapse; background: white; border: 3px solid var(--black);">
+                    <thead><tr style="background: var(--pink); color: white;">
+                        <th style="padding: 12px;">#</th><th style="padding: 12px; text-align: left;">Team</th>
+                        <th style="padding: 12px;">W</th><th style="padding: 12px;">L</th><th style="padding: 12px;">T</th>
+                        <th style="padding: 12px;">Pts</th><th style="padding: 12px;">GW</th><th style="padding: 12px;">GL</th><th style="padding: 12px;">G%</th>
+                    </tr></thead><tbody>`;
+                result.standings.forEach(t => {
+                    html += `<tr style="border-bottom: 2px solid #eee;">
+                        <td style="padding: 12px; text-align: center; font-weight: 700;">${t.rank}</td>
+                        <td style="padding: 12px; font-weight: 700;">${t.team_name}</td>
+                        <td style="padding: 12px; text-align: center;">${t.wins}</td>
+                        <td style="padding: 12px; text-align: center;">${t.losses}</td>
+                        <td style="padding: 12px; text-align: center;">${t.ties}</td>
+                        <td style="padding: 12px; text-align: center; font-weight: 700; color: var(--pink);">${t.points}</td>
+                        <td style="padding: 12px; text-align: center;">${t.games_won}</td>
+                        <td style="padding: 12px; text-align: center;">${t.games_lost}</td>
+                        <td style="padding: 12px; text-align: center;">${t.game_pct}%</td>
+                    </tr>`;
+                });
+                html += '</tbody></table>';
+                container.innerHTML = html;
+            } catch (e) { container.innerHTML = `<p style="color: red;">Error: ${e.message}</p>`; }
+        }
+
+        function renderTeams() {
+            const container = document.getElementById('teamsContainer');
+            if (!teamsData.length) {
+                container.innerHTML = '<p style="text-align: center; padding: 40px;">No teams yet.</p>';
+                return;
+            }
+            let html = '<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px;">';
+            teamsData.forEach(team => {
+                html += `<div class="sidebar-card">
+                    <h3 style="font-family: 'Bebas Neue', cursive; font-size: 24px; margin-bottom: 15px;">${team.team_name}</h3>
+                    <div style="line-height: 2;">${team.players ? team.players.map(p => `<div style="display: flex; justify-content: space-between;"><span style="font-weight: 600;">P${p.position}</span><span>${p.name}${p.position === 1 ? ' 👑' : ''}</span></div>`).join('') : 'No players'}</div>
+                    <div style="margin-top: 15px; padding-top: 15px; border-top: 2px solid #eee; display: flex; justify-content: space-between;">
+                        <span>Record:</span><span style="font-weight: 700;">${team.wins}-${team.losses}${team.ties ? `-${team.ties}` : ''}</span>
+                    </div>
+                </div>`;
+            });
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        async function loadStats() {
+            const container = document.getElementById('statsContainer');
+            try {
+                const result = await callFunction('getLeaderboards', { league_id: leagueId });
+                if (!result.success) { container.innerHTML = '<p style="text-align: center; padding: 40px;">No stats yet.</p>'; return; }
+                const lb = result.leaderboards;
+                let html = '<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px;">';
+                html += renderLB('🎯 501 Average', lb.x01_average, 'x01_three_dart_avg');
+                html += renderLB('💯 180s', lb.x01_180s, 'x01_ton_eighties');
+                html += renderLB('🔥 171s', lb.x01_171s, 'x01_one_seventy_ones');
+                html += renderLB('🎯 High Out', lb.x01_high_checkout, 'x01_high_checkout');
+                html += renderLB('💪 100+ Outs', lb.x01_ton_plus_checkouts, 'x01_ton_plus_checkouts');
+                html += renderLB('🦗 Cricket MPR', lb.cricket_mpr, 'cricket_mpr');
+                html += renderLB('⭐ 9-Marks', lb.cricket_9_marks, 'cricket_nine_mark_rounds');
+                html += '</div>';
+                container.innerHTML = html;
+            } catch (e) { container.innerHTML = `<p style="color: red;">Error: ${e.message}</p>`; }
+        }
+
+        function renderLB(title, data, field) {
+            if (!data?.length) return `<div class="sidebar-card"><h3 style="font-family: 'Bebas Neue', cursive; font-size: 20px; margin-bottom: 15px;">${title}</h3><p style="color: #666;">No data</p></div>`;
+            let html = `<div class="sidebar-card"><h3 style="font-family: 'Bebas Neue', cursive; font-size: 20px; margin-bottom: 15px;">${title}</h3>`;
+            data.slice(0, 5).forEach((p, i) => {
+                const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}.`;
+                html += `<div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #eee;"><span>${medal} ${p.player_name}</span><span style="font-weight: 700;">${p[field]}</span></div>`;
+            });
+            return html + '</div>';
+        }
+
+        window.logout = function() {
+            adminPin = null;
+            document.getElementById('dashboard').style.display = 'none';
+            document.getElementById('loginOverlay').style.display = 'flex';
+            pinInputs.forEach(i => i.value = '');
+            pinInputs[0].focus();
+        };
+
+        pinInputs[0].focus();
+    </script>
+</body>
+</html>

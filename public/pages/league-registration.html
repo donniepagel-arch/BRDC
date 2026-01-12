@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>League Registration - BRDC</title>
+    <link rel="icon" type="image/png" href="/images/favicon.png">
+    <link rel="stylesheet" href="/css/brdc-styles.css">
+</head>
+<body>
+    <div id="appContainer"></div>
+
+    <script type="module">
+        import { db, doc, getDoc, callFunction } from '/js/firebase-config.js';
+        
+        const urlParams = new URLSearchParams(window.location.search);
+        const leagueId = urlParams.get('league_id');
+        
+        let leagueData = null;
+        
+        window.onload = async function() {
+            if (!leagueId) {
+                showError('Missing league_id in URL');
+                return;
+            }
+            await loadLeagueData();
+        };
+        
+        async function loadLeagueData() {
+            try {
+                const leagueDoc = await getDoc(doc(db, 'leagues', leagueId));
+                
+                if (!leagueDoc.exists()) {
+                    throw new Error('League not found');
+                }
+                
+                leagueData = { id: leagueId, ...leagueDoc.data() };
+                
+                // Get current registration count
+                // TODO: Query registrations collection for count
+                leagueData.registeredCount = 0;
+                
+                renderRegistrationForm();
+                
+            } catch (error) {
+                console.error('Error loading league:', error);
+                showError('Failed to load league data: ' + error.message);
+            }
+        }
+        
+        function renderRegistrationForm() {
+            const totalSpots = leagueData.num_teams * leagueData.team_size;
+            const spotsRemaining = totalSpots - leagueData.registeredCount;
+            const isFull = spotsRemaining <= 0;
+            const isClosed = leagueData.status === 'active' || leagueData.status === 'completed';
+            
+            const html = `
+                <div class="brdc-card" style="max-width: 600px; margin: 40px auto;">
+                    <div class="brdc-card-header">
+                        <h1 class="brdc-title" style="font-size: 36px; color: white;">🏆 LEAGUE REGISTRATION</h1>
+                        <p class="brdc-subtitle" style="color: white; margin-top: 10px;">${leagueData.name}</p>
+                        <div style="background: rgba(0,0,0,0.3); padding: 10px; margin-top: 15px; border: 2px solid white;">
+                            👥 ${leagueData.registeredCount} / ${totalSpots} spots filled
+                        </div>
+                    </div>
+                    
+                    <div style="padding: 30px;">
+                        <div style="margin-bottom: 20px; line-height: 1.8;">
+                            <div><strong>📅 Start Date:</strong> ${new Date(leagueData.start_date).toLocaleDateString()}</div>
+                            <div><strong>📍 Venue:</strong> ${leagueData.venue_name}</div>
+                            <div><strong>🕒 Schedule:</strong> ${leagueData.match_schedule}</div>
+                            <div><strong>🎯 Format:</strong> ${formatGameFormat(leagueData.game_format)} Triples</div>
+                            <div><strong>📊 Teams:</strong> ${leagueData.num_teams} teams (${totalSpots} players total)</div>
+                            ${leagueData.entry_fee > 0 ? `<div><strong>💰 Entry Fee:</strong> $${leagueData.entry_fee.toFixed(2)} per player</div>` : ''}
+                        </div>
+                        
+                        ${isFull ? `
+                            <div class="brdc-alert brdc-alert-error">
+                                <strong>League is Full</strong><br>
+                                All ${totalSpots} spots have been filled.
+                            </div>
+                        ` : isClosed ? `
+                            <div class="brdc-alert brdc-alert-error">
+                                <strong>Registration Closed</strong><br>
+                                This league has already started.
+                            </div>
+                        ` : `
+                            <div class="brdc-alert brdc-alert-warning" style="margin-bottom: 20px;">
+                                <strong>📝 Registration Info</strong><br>
+                                Teams will be drafted randomly after registration closes. You'll be notified of your team assignment.
+                            </div>
+                            
+                            <form id="registrationForm" onsubmit="submitRegistration(event)">
+                                <div style="margin-bottom: 20px;">
+                                    <label class="brdc-label">Full Name *</label>
+                                    <input type="text" name="full_name" required class="brdc-input" placeholder="John Smith">
+                                </div>
+                                
+                                <div style="margin-bottom: 20px;">
+                                    <label class="brdc-label">Email *</label>
+                                    <input type="email" name="email" required class="brdc-input" placeholder="john@example.com">
+                                </div>
+                                
+                                <div style="margin-bottom: 20px;">
+                                    <label class="brdc-label">Phone Number *</label>
+                                    <input type="tel" name="phone" required class="brdc-input" placeholder="555-123-4567">
+                                </div>
+                                
+                                <div style="margin-bottom: 20px;">
+                                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                                        <input type="checkbox" name="sms_opt_in" checked style="width: 20px; height: 20px;">
+                                        <span style="font-weight: 600;">Send me SMS match reminders</span>
+                                    </label>
+                                </div>
+                                
+                                <button type="submit" class="brdc-btn" style="width: 100%;">
+                                    REGISTER FOR LEAGUE
+                                </button>
+                            </form>
+                        `}
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('appContainer').innerHTML = html;
+        }
+        
+        function formatGameFormat(format) {
+            const formats = {
+                '501': '501',
+                'cricket': 'Cricket',
+                'mixed': 'Mixed Format'
+            };
+            return formats[format] || format;
+        }
+        
+        window.submitRegistration = async function(e) {
+            e.preventDefault();
+            
+            const form = e.target;
+            const formData = new FormData(form);
+            const btn = form.querySelector('button[type="submit"]');
+            
+            btn.disabled = true;
+            btn.textContent = 'REGISTERING...';
+            
+            try {
+                const result = await callFunction('registerForLeague', {
+                    league_id: leagueId,
+                    full_name: formData.get('full_name'),
+                    email: formData.get('email'),
+                    phone: formData.get('phone'),
+                    sms_opt_in: formData.get('sms_opt_in') ? true : false
+                });
+                
+                if (!result.success) {
+                    throw new Error(result.error || 'Registration failed');
+                }
+                
+                showSuccess();
+                
+            } catch (error) {
+                alert('Error: ' + error.message);
+                console.error('Registration error:', error);
+                btn.disabled = false;
+                btn.textContent = 'REGISTER FOR LEAGUE';
+            }
+        };
+        
+        function showSuccess() {
+            const html = `
+                <div class="brdc-card" style="max-width: 600px; margin: 40px auto;">
+                    <div class="brdc-card-header">
+                        <h1 class="brdc-title" style="font-size: 36px; color: white;">✅ REGISTRATION COMPLETE!</h1>
+                        <p class="brdc-subtitle" style="color: white; margin-top: 10px;">${leagueData.name}</p>
+                    </div>
+                    
+                    <div style="padding: 30px; text-align: center;">
+                        <div style="font-size: 80px; margin-bottom: 20px;">🎉</div>
+                        <h2 style="font-family: 'Bebas Neue', cursive; font-size: 36px; margin-bottom: 15px;">You're Registered!</h2>
+                        <p style="font-size: 18px; font-weight: 600; margin-bottom: 20px;">
+                            You'll be notified when teams are drafted
+                        </p>
+                        <div style="background: var(--teal); border: 3px solid var(--black); padding: 20px; margin: 20px 0; box-shadow: 6px 6px 0 rgba(0,0,0,1);">
+                            <strong>📧 Check your email</strong><br>
+                            <span style="font-size: 14px;">We've sent you a confirmation with league details</span>
+                        </div>
+                        <p style="margin-top: 30px; font-weight: 600;">See you on the boards! 🎯</p>
+                        <a href="/pages/league-standings.html?league_id=${leagueId}" class="brdc-btn" style="display: inline-block; margin-top: 20px; text-decoration: none;">
+                            VIEW LEAGUE INFO
+                        </a>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('appContainer').innerHTML = html;
+        }
+        
+        function showError(message) {
+            document.getElementById('appContainer').innerHTML = `
+                <div class="brdc-card" style="max-width: 600px; margin: 40px auto;">
+                    <div class="brdc-alert brdc-alert-error">
+                        <strong>Error</strong><br>
+                        ${message}
+                    </div>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create League - BRDC</title>
+    <link rel="icon" type="image/png" href="/images/favicon.png">
+    <link rel="stylesheet" href="/css/brdc-styles.css">
+</head>
+<body>
+    <div class="container">
+        <div class="brdc-card" style="max-width: 900px; margin: 40px auto;">
+            <div class="brdc-card-header">
+                <h1 class="brdc-title" style="font-size: 48px; color: white;">🏆 CREATE LEAGUE</h1>
+                <p class="brdc-subtitle" style="color: white; margin-top: 10px;">Triples Draft League System</p>
+            </div>
+            
+            <form id="leagueForm" style="padding: 40px;">
+                <div style="margin-bottom: 30px;">
+                    <label class="brdc-label">League Name *</label>
+                    <input type="text" name="name" required class="brdc-input" placeholder="Spring 2024 Triples League">
+                </div>
+                
+                <div style="margin-bottom: 30px;">
+                    <label class="brdc-label">Venue *</label>
+                    <input type="text" name="venue_name" required class="brdc-input" placeholder="Rookie's Sports Bar">
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px;">
+                    <div>
+                        <label class="brdc-label">Start Date *</label>
+                        <input type="date" name="start_date" required class="brdc-input">
+                    </div>
+                    <div>
+                        <label class="brdc-label">Match Day & Time *</label>
+                        <input type="text" name="match_schedule" required class="brdc-input" placeholder="Tuesdays 7:00 PM">
+                    </div>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px;">
+                    <div>
+                        <label class="brdc-label">Number of Teams *</label>
+                        <select name="num_teams" required class="brdc-select">
+                            <option value="">Select...</option>
+                            <option value="6">6 Teams</option>
+                            <option value="8">8 Teams</option>
+                            <option value="10">10 Teams</option>
+                            <option value="12">12 Teams</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="brdc-label">Games Per Match *</label>
+                        <input type="number" name="games_per_match" required class="brdc-input" value="9" min="1" max="15">
+                    </div>
+                </div>
+                
+                <div style="margin-bottom: 30px;">
+                    <label class="brdc-label">Game Format *</label>
+                    <select name="game_format" required class="brdc-select">
+                        <option value="501">501 (Best of 3)</option>
+                        <option value="cricket">Cricket (Best of 3)</option>
+                        <option value="mixed">Mixed Format</option>
+                    </select>
+                </div>
+                
+                <div style="margin-bottom: 30px;">
+                    <label class="brdc-label">Entry Fee Per Player</label>
+                    <input type="number" name="entry_fee" class="brdc-input" placeholder="0.00" step="0.01" min="0">
+                </div>
+                
+                <div style="margin-bottom: 30px;">
+                    <label class="brdc-label">Admin PIN (4 digits) *</label>
+                    <input type="text" name="admin_pin" required class="brdc-input" placeholder="1234" maxlength="4" pattern="[0-9]{4}">
+                    <p style="font-size: 12px; color: #666; margin-top: 5px;">You'll need this PIN to manage the league</p>
+                </div>
+                
+                <div id="estimatedInfo" style="background: var(--teal); border: 3px solid var(--black); padding: 20px; margin-bottom: 30px; box-shadow: 6px 6px 0 rgba(0,0,0,1);">
+                    <h3 style="font-family: 'Bebas Neue', cursive; font-size: 24px; margin-bottom: 10px;">League Details</h3>
+                    <div style="font-weight: 600; line-height: 1.8;">
+                        <div>Players Needed: <span id="totalPlayers">-</span></div>
+                        <div>Regular Season: <span id="regularWeeks">-</span> weeks</div>
+                        <div>Total Weeks: <span id="totalWeeks">-</span> (including playoffs)</div>
+                    </div>
+                </div>
+                
+                <button type="submit" class="brdc-btn" style="width: 100%;">CREATE LEAGUE</button>
+            </form>
+        </div>
+    </div>
+
+    <script type="module">
+        import { callFunction } from '/js/firebase-config.js';
+        
+        const form = document.getElementById('leagueForm');
+        const numTeamsSelect = form.querySelector('[name="num_teams"]');
+        
+        // Update estimates when team count changes
+        numTeamsSelect.addEventListener('change', updateEstimates);
+        
+        function updateEstimates() {
+            const numTeams = parseInt(numTeamsSelect.value);
+            if (!numTeams) return;
+            
+            const totalPlayers = numTeams * 3; // Triples league
+            const regularWeeks = (numTeams - 1) * 2; // Round-robin home/away
+            const playoffWeeks = 3; // Semi-finals, finals, makeup
+            const totalWeeks = regularWeeks + playoffWeeks;
+            
+            document.getElementById('totalPlayers').textContent = totalPlayers;
+            document.getElementById('regularWeeks').textContent = regularWeeks;
+            document.getElementById('totalWeeks').textContent = totalWeeks;
+        }
+        
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(form);
+            const btn = form.querySelector('button[type="submit"]');
+            
+            btn.disabled = true;
+            btn.textContent = 'CREATING LEAGUE...';
+            
+            try {
+                const data = {
+                    name: formData.get('name'),
+                    venue_name: formData.get('venue_name'),
+                    start_date: formData.get('start_date'),
+                    match_schedule: formData.get('match_schedule'),
+                    num_teams: parseInt(formData.get('num_teams')),
+                    games_per_match: parseInt(formData.get('games_per_match')),
+                    game_format: formData.get('game_format'),
+                    entry_fee: parseFloat(formData.get('entry_fee')) || 0,
+                    admin_pin: formData.get('admin_pin'),
+                    team_size: 3, // Triples
+                    format: 'round_robin',
+                    status: 'registration'
+                };
+                
+                const result = await callFunction('createLeague', data);
+                
+                if (result.success) {
+                    showSuccess(result);
+                } else {
+                    throw new Error(result.error || 'Failed to create league');
+                }
+                
+            } catch (error) {
+                alert('Error: ' + error.message);
+                console.error('Error:', error);
+                btn.disabled = false;
+                btn.textContent = 'CREATE LEAGUE';
+            }
+        });
+        
+        function showSuccess(result) {
+            document.body.innerHTML = `
+                <div style="background: linear-gradient(180deg, #1F85AF 0%, #001F4D 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px;">
+                    <div class="brdc-card" style="max-width: 600px; text-align: center;">
+                        <div style="font-size: 80px; margin-bottom: 20px;">✅</div>
+                        <h1 class="brdc-title" style="font-size: 48px;">LEAGUE CREATED!</h1>
+                        
+                        <div style="background: var(--yellow); border: 4px solid var(--black); padding: 30px; margin: 30px 0; box-shadow: 6px 6px 0 rgba(0,0,0,1);">
+                            <div style="font-size: 14px; font-weight: 800; margin-bottom: 10px; text-transform: uppercase;">Registration Link</div>
+                            <div style="background: white; padding: 15px; border: 3px solid var(--black); word-break: break-all; font-family: monospace; font-size: 14px;">
+                                https://brdc-v2.web.app/pages/league-registration.html?league_id=${result.league_id}
+                            </div>
+                            <button onclick="copyLink('${result.league_id}')" class="brdc-btn brdc-btn-secondary" style="margin-top: 15px;">
+                                COPY LINK
+                            </button>
+                        </div>
+                        
+                        <div style="margin: 20px 0; font-size: 16px;">
+                            <strong>League ID:</strong> ${result.league_id}<br>
+                            <strong>Admin PIN:</strong> ${result.admin_pin}
+                        </div>
+                        
+                        <a href="/pages/league-standings.html?league_id=${result.league_id}" class="brdc-btn" style="display: inline-block; margin-top: 20px; text-decoration: none;">
+                            GO TO LEAGUE DASHBOARD
+                        </a>
+                    </div>
+                </div>
+            `;
+        }
+        
+        window.copyLink = function(leagueId) {
+            const url = `https://brdc-v2.web.app/pages/league-registration.html?league_id=${leagueId}`;
+            navigator.clipboard.writeText(url).then(() => {
+                alert('Registration link copied to clipboard!');
+            });
+        };
+    </script>
+</body>
+</html>

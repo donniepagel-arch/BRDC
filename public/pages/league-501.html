@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>501 Scorer - BRDC League</title>
+    <link rel="icon" type="image/png" href="/images/favicon.png">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700;800;900&display=swap');
+        :root { --pink: #FF469A; --blue-dark: #001F4D; --blue-light: #1F85AF; --teal: #91D7EB; --yellow: #FDD835; --black: #000; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; user-select: none; }
+        body { background: var(--blue-dark); min-height: 100vh; }
+        .header { background: var(--pink); padding: 12px 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 4px solid var(--black); }
+        .back-btn { background: white; border: 3px solid var(--black); padding: 8px 15px; font-weight: 800; cursor: pointer; box-shadow: 3px 3px 0 rgba(0,0,0,1); }
+        .game-info { color: white; font-family: 'Bebas Neue', cursive; font-size: 20px; }
+        .leg-info { background: var(--yellow); border: 3px solid var(--black); padding: 8px 15px; font-family: 'Bebas Neue', cursive; font-size: 18px; }
+        .scorer-container { display: grid; grid-template-columns: 1fr 1fr; }
+        .player-panel { display: flex; flex-direction: column; border-right: 3px solid var(--black); }
+        .player-panel:last-child { border-right: none; }
+        .player-panel.active .player-header { background: var(--yellow); }
+        .player-header { background: white; padding: 15px; text-align: center; border-bottom: 4px solid var(--black); }
+        .player-name { font-family: 'Bebas Neue', cursive; font-size: 22px; margin-bottom: 5px; }
+        .player-label { font-size: 11px; font-weight: 700; color: #666; text-transform: uppercase; }
+        .score-display { background: linear-gradient(180deg, #1a1a1a 0%, #000 100%); padding: 15px; text-align: center; }
+        .current-score { font-family: 'Bebas Neue', cursive; font-size: 64px; color: #0f0; text-shadow: 0 0 20px rgba(0,255,0,0.5); line-height: 1; }
+        .player-panel.active .current-score { color: var(--yellow); text-shadow: 0 0 20px rgba(253,216,53,0.5); }
+        .last-throw { font-size: 13px; color: #888; margin-top: 5px; }
+        .last-throw span { color: #0f0; font-weight: 700; }
+        .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); background: #111; border-bottom: 3px solid var(--black); }
+        .stat-box { padding: 8px 5px; text-align: center; border-right: 1px solid #333; }
+        .stat-box:last-child { border-right: none; }
+        .stat-label { font-size: 9px; color: #666; text-transform: uppercase; }
+        .stat-value { font-family: 'Bebas Neue', cursive; font-size: 20px; color: white; }
+        .throw-history { background: #1a1a1a; flex: 1; overflow-y: auto; padding: 8px; max-height: 120px; }
+        .throw-entry { display: flex; justify-content: space-between; padding: 4px 8px; border-bottom: 1px solid #333; font-size: 12px; color: #aaa; }
+        .throw-entry .score { font-weight: 700; color: white; }
+        .throw-entry.ton { color: var(--yellow); }
+        .throw-entry.ton-forty { color: var(--pink); }
+        .throw-entry.ton-eighty { color: #0f0; }
+        .keypad-container { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 5px solid var(--black); padding: 10px; }
+        .input-display { background: #f3f4f6; border: 3px solid var(--black); padding: 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+        .input-value { font-family: 'Bebas Neue', cursive; font-size: 32px; }
+        .input-hint { font-size: 11px; color: #666; }
+        .quick-scores { display: flex; gap: 6px; margin-bottom: 8px; overflow-x: auto; }
+        .quick-btn { background: var(--blue-light); color: white; border: 2px solid var(--black); padding: 8px 12px; font-weight: 800; font-size: 13px; cursor: pointer; box-shadow: 2px 2px 0 rgba(0,0,0,1); }
+        .keypad { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+        .key { background: white; border: 3px solid var(--black); padding: 12px 8px; font-size: 18px; font-weight: 800; cursor: pointer; box-shadow: 3px 3px 0 rgba(0,0,0,1); }
+        .key:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 rgba(0,0,0,1); }
+        .key.enter { background: var(--pink); color: white; }
+        .key.clear { background: #ef4444; color: white; }
+        .key.undo { background: var(--yellow); }
+        .key.special { background: var(--teal); font-size: 12px; }
+        .checkout-hint { background: var(--yellow); border: 3px solid var(--black); padding: 6px 10px; margin-bottom: 8px; font-weight: 700; font-size: 13px; text-align: center; }
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 1000; align-items: center; justify-content: center; padding: 20px; }
+        .modal.active { display: flex; }
+        .modal-content { background: white; border: 5px solid var(--black); box-shadow: 12px 12px 0 rgba(0,0,0,1); padding: 30px; max-width: 450px; width: 100%; text-align: center; }
+        .modal-title { font-family: 'Bebas Neue', cursive; font-size: 32px; margin-bottom: 15px; }
+        .modal-btn { background: var(--pink); color: white; border: 3px solid var(--black); padding: 12px 24px; font-size: 16px; font-weight: 800; cursor: pointer; box-shadow: 4px 4px 0 rgba(0,0,0,1); margin: 8px; }
+        .modal-btn.secondary { background: white; color: var(--black); }
+        .winner-display { font-family: 'Bebas Neue', cursive; font-size: 36px; color: var(--pink); margin: 15px 0; }
+        .final-stats { text-align: left; background: #f3f4f6; padding: 15px; margin: 15px 0; border: 3px solid var(--black); font-size: 14px; }
+        .final-stats div { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #ddd; }
+        @media (max-width: 600px) { .current-score { font-size: 50px; } .player-name { font-size: 16px; } }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <button class="back-btn" onclick="goBack()">←</button>
+            <div class="game-info" id="gameTitle">Game 1 • 501</div>
+        </div>
+        <div class="leg-info" id="legInfo">LEG 1/3</div>
+    </div>
+
+    <div class="scorer-container" id="scorerContainer">
+        <div class="player-panel active" id="player1Panel" onclick="setActivePlayer(0)">
+            <div class="player-header">
+                <div class="player-label">HOME</div>
+                <div class="player-name" id="player1Name">Player 1</div>
+            </div>
+            <div class="score-display">
+                <div class="current-score" id="player1Score">501</div>
+                <div class="last-throw">Last: <span id="player1Last">-</span></div>
+            </div>
+            <div class="stats-row">
+                <div class="stat-box"><div class="stat-label">3DA</div><div class="stat-value" id="player1Avg">0.0</div></div>
+                <div class="stat-box"><div class="stat-label">Darts</div><div class="stat-value" id="player1Darts">0</div></div>
+                <div class="stat-box"><div class="stat-label">Legs</div><div class="stat-value" id="player1Legs">0</div></div>
+            </div>
+            <div class="throw-history" id="player1History"></div>
+        </div>
+        <div class="player-panel" id="player2Panel" onclick="setActivePlayer(1)">
+            <div class="player-header">
+                <div class="player-label">AWAY</div>
+                <div class="player-name" id="player2Name">Player 2</div>
+            </div>
+            <div class="score-display">
+                <div class="current-score" id="player2Score">501</div>
+                <div class="last-throw">Last: <span id="player2Last">-</span></div>
+            </div>
+            <div class="stats-row">
+                <div class="stat-box"><div class="stat-label">3DA</div><div class="stat-value" id="player2Avg">0.0</div></div>
+                <div class="stat-box"><div class="stat-label">Darts</div><div class="stat-value" id="player2Darts">0</div></div>
+                <div class="stat-box"><div class="stat-label">Legs</div><div class="stat-value" id="player2Legs">0</div></div>
+            </div>
+            <div class="throw-history" id="player2History"></div>
+        </div>
+    </div>
+
+    <div class="keypad-container">
+        <div id="checkoutHint" class="checkout-hint" style="display: none;"></div>
+        <div class="quick-scores">
+            <button class="quick-btn" onclick="enterScore(26)">26</button>
+            <button class="quick-btn" onclick="enterScore(45)">45</button>
+            <button class="quick-btn" onclick="enterScore(60)">60</button>
+            <button class="quick-btn" onclick="enterScore(100)">T</button>
+            <button class="quick-btn" onclick="enterScore(140)">140</button>
+            <button class="quick-btn" onclick="enterScore(180)">180</button>
+        </div>
+        <div class="input-display">
+            <span class="input-value" id="inputDisplay">0</span>
+            <span class="input-hint" id="inputHint">Enter 0-180</span>
+        </div>
+        <div class="keypad">
+            <button class="key" onclick="appendDigit(1)">1</button>
+            <button class="key" onclick="appendDigit(2)">2</button>
+            <button class="key" onclick="appendDigit(3)">3</button>
+            <button class="key undo" onclick="undoLast()">↩</button>
+            <button class="key" onclick="appendDigit(4)">4</button>
+            <button class="key" onclick="appendDigit(5)">5</button>
+            <button class="key" onclick="appendDigit(6)">6</button>
+            <button class="key clear" onclick="clearInput()">C</button>
+            <button class="key" onclick="appendDigit(7)">7</button>
+            <button class="key" onclick="appendDigit(8)">8</button>
+            <button class="key" onclick="appendDigit(9)">9</button>
+            <button class="key special" onclick="enterScore(0)">MISS</button>
+            <button class="key special" onclick="bust()">BUST</button>
+            <button class="key" onclick="appendDigit(0)">0</button>
+            <button class="key special" onclick="promptCheckout()">OUT</button>
+            <button class="key enter" onclick="submitScore()">OK</button>
+        </div>
+    </div>
+
+    <div class="modal" id="legModal">
+        <div class="modal-content">
+            <div class="modal-title">🎯 LEG WINNER!</div>
+            <div class="winner-display" id="legWinner">Player</div>
+            <div id="legStats" class="final-stats"></div>
+            <button class="modal-btn" onclick="nextLeg()">NEXT LEG</button>
+        </div>
+    </div>
+
+    <div class="modal" id="gameModal">
+        <div class="modal-content">
+            <div class="modal-title">🏆 GAME OVER!</div>
+            <div class="winner-display" id="gameWinner">Player</div>
+            <div id="gameStats" class="final-stats"></div>
+            <button class="modal-btn" onclick="saveAndExit()">SAVE & EXIT</button>
+        </div>
+    </div>
+
+    <div class="modal" id="checkoutModal">
+        <div class="modal-content">
+            <div class="modal-title">CHECKOUT!</div>
+            <p style="margin-bottom:15px">Darts used?</p>
+            <button class="modal-btn secondary" onclick="recordCheckout(1)">1</button>
+            <button class="modal-btn secondary" onclick="recordCheckout(2)">2</button>
+            <button class="modal-btn secondary" onclick="recordCheckout(3)">3</button>
+        </div>
+    </div>
+
+<script type="module">
+import { callFunction } from '/js/firebase-config.js';
+
+const params = new URLSearchParams(window.location.search);
+const leagueId = params.get('league_id');
+const matchId = params.get('match_id');
+const gameIndex = parseInt(params.get('game_index') || '0');
+const gameNumber = params.get('game_number') || '1';
+const checkout = params.get('checkout') || 'double';
+
+let homePlayers = [], awayPlayers = [];
+try { homePlayers = JSON.parse(params.get('home_players') || '[]'); } catch(e) {}
+try { awayPlayers = JSON.parse(params.get('away_players') || '[]'); } catch(e) {}
+
+const START = 501, LEGS_TO_WIN = 2;
+let input = '', active = 0, leg = 1, pendingCheckout = null;
+
+let players = [
+    { name: homePlayers.map(p => p?.name || 'Home').join(' & '), score: START, darts: 0, throws: [], legs: 0,
+      totalDarts: 0, totalPoints: 0, tons: 0, tonForty: 0, tonEighty: 0, t171: 0, highScore: 0, checkouts: [], attempts: 0 },
+    { name: awayPlayers.map(p => p?.name || 'Away').join(' & '), score: START, darts: 0, throws: [], legs: 0,
+      totalDarts: 0, totalPoints: 0, tons: 0, tonForty: 0, tonEighty: 0, t171: 0, highScore: 0, checkouts: [], attempts: 0 }
+];
+
+const OUTS = {170:'T20 T20 Bull',167:'T20 T19 Bull',164:'T20 T18 Bull',161:'T20 T17 Bull',160:'T20 T20 D20',158:'T20 T20 D19',157:'T20 T19 D20',156:'T20 T20 D18',155:'T20 T19 D19',154:'T20 T18 D20',153:'T20 T19 D18',152:'T20 T20 D16',151:'T20 T17 D20',150:'T20 T18 D18',149:'T20 T19 D16',148:'T20 T20 D14',147:'T20 T17 D18',146:'T20 T18 D16',145:'T20 T19 D14',144:'T20 T20 D12',143:'T20 T17 D16',142:'T20 T14 D20',141:'T20 T19 D12',140:'T20 T20 D10',139:'T20 T13 D20',138:'T20 T18 D12',137:'T20 T19 D10',136:'T20 T20 D8',135:'T20 T17 D12',134:'T20 T14 D16',133:'T20 T19 D8',132:'T20 T16 D12',131:'T20 T13 D16',130:'T20 T18 D8',129:'T19 T16 D12',128:'T18 T14 D16',127:'T20 T17 D8',126:'T19 T19 D6',125:'T20 T15 D10',124:'T20 T14 D11',123:'T19 T16 D9',122:'T18 T18 D7',121:'T20 T11 D14',120:'T20 S20 D20',119:'T19 T12 D13',118:'T20 S18 D20',117:'T20 S17 D20',116:'T20 S16 D20',115:'T20 S15 D20',114:'T20 S14 D20',113:'T20 S13 D20',112:'T20 S12 D20',111:'T20 S11 D20',110:'T20 S10 D20',109:'T20 S9 D20',108:'T20 S8 D20',107:'T19 S10 D20',106:'T20 S6 D20',105:'T20 S5 D20',104:'T18 S10 D20',103:'T19 S6 D20',102:'T20 S10 D16',101:'T17 S10 D20',100:'T20 D20',99:'T19 S10 D16',98:'T20 D19',97:'T19 D20',96:'T20 D18',95:'T19 D19',94:'T18 D20',93:'T19 D18',92:'T20 D16',91:'T17 D20',90:'T18 D18',89:'T19 D16',88:'T20 D14',87:'T17 D18',86:'T18 D16',85:'T19 D14',84:'T20 D12',83:'T17 D16',82:'T14 D20',81:'T19 D12',80:'T20 D10',79:'T13 D20',78:'T18 D12',77:'T19 D10',76:'T20 D8',75:'T17 D12',74:'T14 D16',73:'T19 D8',72:'T16 D12',71:'T13 D16',70:'T18 D8',69:'T19 D6',68:'T20 D4',67:'T17 D8',66:'T10 D18',65:'T19 D4',64:'T16 D8',63:'T13 D12',62:'T10 D16',61:'T15 D8',60:'S20 D20',58:'S18 D20',56:'T16 D4',54:'S14 D20',52:'S12 D20',50:'S10 D20',48:'S8 D20',46:'S6 D20',44:'S4 D20',42:'S10 D16',40:'D20',38:'D19',36:'D18',34:'D17',32:'D16',30:'D15',28:'D14',26:'D13',24:'D12',22:'D11',20:'D10',18:'D9',16:'D8',14:'D7',12:'D6',10:'D5',8:'D4',6:'D3',4:'D2',2:'D1'};
+
+function init() {
+    document.getElementById('gameTitle').textContent = `Game ${gameNumber} • 501 ${checkout==='choice'?'C/CH':'DO'}`;
+    document.getElementById('player1Name').textContent = players[0].name;
+    document.getElementById('player2Name').textContent = players[1].name;
+    updateUI();
+}
+
+function updateUI() {
+    for (let i = 0; i < 2; i++) {
+        const p = players[i];
+        document.getElementById(`player${i+1}Score`).textContent = p.score;
+        document.getElementById(`player${i+1}Darts`).textContent = p.darts;
+        document.getElementById(`player${i+1}Legs`).textContent = p.legs;
+        const avg = p.darts > 0 ? ((START - p.score + (p.throws.reduce((a,b)=>a+b,0))) / p.darts * 3).toFixed(1) : '0.0';
+        document.getElementById(`player${i+1}Avg`).textContent = avg;
+        document.getElementById(`player${i+1}Last`).textContent = p.throws.length > 0 ? p.throws[p.throws.length-1] : '-';
+        
+        let hist = '';
+        p.throws.slice().reverse().forEach((t, idx) => {
+            const cls = t >= 180 ? 'ton-eighty' : t >= 140 ? 'ton-forty' : t >= 100 ? 'ton' : '';
+            hist += `<div class="throw-entry ${cls}"><span>#${p.throws.length - idx}</span><span class="score">${t}</span></div>`;
+        });
+        document.getElementById(`player${i+1}History`).innerHTML = hist;
+    }
+
+    document.getElementById('player1Panel').classList.toggle('active', active === 0);
+    document.getElementById('player2Panel').classList.toggle('active', active === 1);
+    document.getElementById('legInfo').textContent = `LEG ${leg}/3`;
+
+    const hint = document.getElementById('checkoutHint');
+    const score = players[active].score;
+    if (score <= 170 && OUTS[score]) {
+        hint.textContent = `${score}: ${OUTS[score]}`;
+        hint.style.display = 'block';
+    } else {
+        hint.style.display = 'none';
+    }
+}
+
+window.setActivePlayer = function(idx) { active = idx; updateUI(); };
+window.appendDigit = function(d) { if (input.length < 3) { input += d; document.getElementById('inputDisplay').textContent = input || '0'; } };
+window.clearInput = function() { input = ''; document.getElementById('inputDisplay').textContent = '0'; };
+
+window.enterScore = function(val) {
+    input = '';
+    processScore(val);
+};
+
+window.submitScore = function() {
+    const val = parseInt(input) || 0;
+    input = '';
+    document.getElementById('inputDisplay').textContent = '0';
+    processScore(val);
+};
+
+function processScore(val) {
+    if (val < 0 || val > 180) { alert('Invalid score (0-180)'); return; }
+    
+    const p = players[active];
+    const newScore = p.score - val;
+
+    if (newScore < 0 || newScore === 1) {
+        // Bust
+        p.throws.push(0);
+        p.darts += 3;
+        if (p.score <= 170) p.attempts++;
+    } else if (newScore === 0) {
+        // Possible checkout
+        pendingCheckout = val;
+        document.getElementById('checkoutModal').classList.add('active');
+        return;
+    } else {
+        p.score = newScore;
+        p.throws.push(val);
+        p.darts += 3;
+        
+        // Track stats
+        if (val >= 100) p.tons++;
+        if (val >= 140) p.tonForty++;
+        if (val === 180) p.tonEighty++;
+        if (val === 171) p.t171++;
+        if (val > p.highScore) p.highScore = val;
+        
+        if (p.score <= 170) p.attempts++;
+        
+        // Switch player
+        active = 1 - active;
+    }
+    updateUI();
+}
+
+window.recordCheckout = function(darts) {
+    document.getElementById('checkoutModal').classList.remove('active');
+    const p = players[active];
+    const val = pendingCheckout;
+    
+    p.score = 0;
+    p.throws.push(val);
+    p.darts += darts;
+    p.checkouts.push({ out: START - (p.score + val) + val, darts: darts });
+    p.legs++;
+    
+    if (val >= 100) { p.tons++; }
+    if (val >= 140) p.tonForty++;
+    if (val === 180) p.tonEighty++;
+    
+    // Accumulate totals
+    p.totalDarts += p.darts;
+    p.totalPoints += START;
+    
+    pendingCheckout = null;
+    updateUI();
+
+    if (p.legs >= LEGS_TO_WIN) {
+        showGameWinner(active);
+    } else {
+        showLegWinner(active);
+    }
+};
+
+window.bust = function() {
+    const p = players[active];
+    p.throws.push(0);
+    p.darts += 3;
+    if (p.score <= 170) p.attempts++;
+    active = 1 - active;
+    updateUI();
+};
+
+window.undoLast = function() {
+    // Simple undo - remove last throw from current player's opponent
+    const other = 1 - active;
+    const p = players[other];
+    if (p.throws.length === 0) return;
+    
+    const lastThrow = p.throws.pop();
+    p.score += lastThrow;
+    p.darts = Math.max(0, p.darts - 3);
+    active = other;
+    updateUI();
+};
+
+window.promptCheckout = function() {
+    const p = players[active];
+    if (p.score > 170 || !OUTS[p.score]) {
+        alert('Not on a checkout!');
+        return;
+    }
+    pendingCheckout = p.score;
+    document.getElementById('checkoutModal').classList.add('active');
+};
+
+function showLegWinner(idx) {
+    const p = players[idx];
+    document.getElementById('legWinner').textContent = p.name;
+    const avg = p.darts > 0 ? (START / p.darts * 3).toFixed(2) : '0';
+    document.getElementById('legStats').innerHTML = `
+        <div><span>3-Dart Avg</span><span>${avg}</span></div>
+        <div><span>Darts</span><span>${p.darts}</span></div>
+        <div><span>High Score</span><span>${p.highScore}</span></div>
+    `;
+    document.getElementById('legModal').classList.add('active');
+}
+
+window.nextLeg = function() {
+    document.getElementById('legModal').classList.remove('active');
+    leg++;
+    // Reset scores but keep legs
+    players.forEach(p => {
+        p.totalDarts += p.darts;
+        p.totalPoints += START - p.score;
+        p.score = START;
+        p.darts = 0;
+        p.throws = [];
+    });
+    // Alternate who starts
+    active = leg % 2 === 0 ? 1 : 0;
+    updateUI();
+};
+
+function showGameWinner(idx) {
+    const p = players[idx];
+    const loser = players[1-idx];
+    document.getElementById('gameWinner').textContent = p.name + ' WINS!';
+    
+    const pAvg = p.totalDarts > 0 ? (p.totalPoints / p.totalDarts * 3).toFixed(2) : '0';
+    const lAvg = loser.totalDarts > 0 ? (loser.totalPoints / loser.totalDarts * 3).toFixed(2) : '0';
+    
+    document.getElementById('gameStats').innerHTML = `
+        <div><span>${p.name}</span><span></span></div>
+        <div><span>3DA</span><span>${pAvg}</span></div>
+        <div><span>180s</span><span>${p.tonEighty}</span></div>
+        <div><span>140+</span><span>${p.tonForty}</span></div>
+        <div><span>100+</span><span>${p.tons}</span></div>
+        <hr style="border:1px solid #ccc;margin:10px 0">
+        <div><span>${loser.name}</span><span></span></div>
+        <div><span>3DA</span><span>${lAvg}</span></div>
+        <div><span>180s</span><span>${loser.tonEighty}</span></div>
+    `;
+    document.getElementById('gameModal').classList.add('active');
+}
+
+window.saveAndExit = async function() {
+    const winner = players[0].legs >= LEGS_TO_WIN ? 'home' : 'away';
+    const p = players[winner === 'home' ? 0 : 1];
+    const loser = players[winner === 'home' ? 1 : 0];
+    
+    // Build leg data for each completed leg
+    const legData = {
+        leg_number: leg,
+        winner: winner,
+        home_stats: {
+            darts_thrown: players[0].totalDarts + players[0].darts,
+            points_scored: players[0].totalPoints + (START - players[0].score),
+            three_dart_avg: 0,
+            tons: players[0].tons,
+            ton_forties: players[0].tonForty,
+            ton_eighties: players[0].tonEighty,
+            one_seventyone: players[0].t171,
+            checkout: players[0].checkouts.length > 0 ? players[0].checkouts[players[0].checkouts.length-1]?.out : 0,
+            checkout_attempts: players[0].attempts
+        },
+        away_stats: {
+            darts_thrown: players[1].totalDarts + players[1].darts,
+            points_scored: players[1].totalPoints + (START - players[1].score),
+            three_dart_avg: 0,
+            tons: players[1].tons,
+            ton_forties: players[1].tonForty,
+            ton_eighties: players[1].tonEighty,
+            one_seventyone: players[1].t171,
+            checkout: players[1].checkouts.length > 0 ? players[1].checkouts[players[1].checkouts.length-1]?.out : 0,
+            checkout_attempts: players[1].attempts
+        }
+    };
+    
+    // Calc averages
+    if (legData.home_stats.darts_thrown > 0) {
+        legData.home_stats.three_dart_avg = (legData.home_stats.points_scored / legData.home_stats.darts_thrown * 3).toFixed(2);
+    }
+    if (legData.away_stats.darts_thrown > 0) {
+        legData.away_stats.three_dart_avg = (legData.away_stats.points_scored / legData.away_stats.darts_thrown * 3).toFixed(2);
+    }
+
+    try {
+        if (leagueId && matchId) {
+            await callFunction('recordLeg', {
+                league_id: leagueId,
+                match_id: matchId,
+                game_number: parseInt(gameNumber),
+                leg_data: legData
+            });
+        }
+    } catch (e) {
+        console.error('Error saving:', e);
+    }
+    
+    // Go back to match hub
+    window.location.href = `/pages/match-hub.html?league_id=${leagueId}&match_id=${matchId}`;
+};
+
+window.goBack = function() {
+    if (confirm('Exit without saving?')) {
+        window.location.href = `/pages/match-hub.html?league_id=${leagueId}&match_id=${matchId}`;
+    }
+};
+
+init();
+</script>
+</body>
+</html>

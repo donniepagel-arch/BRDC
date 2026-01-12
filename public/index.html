@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Burning River Dart Club</title>
+    <link rel="icon" type="image/png" href="/images/favicon.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800;900&display=swap');
+        
+        :root {
+            --pink: #FF469A;
+            --blue-light: #1F85AF;
+            --blue-dark: #001F4D;
+            --teal: #91D7EB;
+            --yellow: #FDD835;
+        }
+        
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(180deg, var(--blue-light) 0%, var(--blue-dark) 100%);
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .bebas {
+            font-family: 'Bebas Neue', cursive;
+            letter-spacing: 3px;
+        }
+        
+        /* HEADER */
+        .brdc-header {
+            background: var(--pink);
+            padding: 30px 20px;
+            box-shadow: 8px 8px 0 rgba(0, 0, 0, 1);
+            margin-bottom: 40px;
+        }
+        
+        .skull-header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 30px;
+            flex-wrap: wrap;
+        }
+        
+        .skull-logo {
+            width: 80px;
+            height: 80px;
+            filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.9));
+        }
+        
+        .header-title {
+            color: white;
+            font-size: 48px;
+            text-shadow: 4px 4px 0 rgba(0, 0, 0, 0.8);
+        }
+        
+        /* SECTION HEADERS */
+        .section-header {
+            background: var(--yellow);
+            color: black;
+            padding: 15px 30px;
+            margin: 30px 0 20px 0;
+            box-shadow: 6px 6px 0 rgba(0, 0, 0, 1);
+            display: inline-block;
+        }
+        
+        .section-title {
+            font-size: 32px;
+            margin: 0;
+        }
+        
+        /* HORIZONTAL SCROLL CONTAINER (Tournaments) */
+        .horizontal-scroll {
+            display: flex;
+            gap: 20px;
+            overflow-x: auto;
+            padding: 20px;
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        .horizontal-scroll::-webkit-scrollbar {
+            height: 12px;
+        }
+        
+        .horizontal-scroll::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+        }
+        
+        .horizontal-scroll::-webkit-scrollbar-thumb {
+            background: var(--pink);
+            border-radius: 10px;
+        }
+        
+        /* TOURNAMENT CARD (Square) */
+        .tournament-card {
+            flex: 0 0 300px;
+            width: 300px;
+            height: 300px;
+            background: white;
+            border: 5px solid black;
+            box-shadow: 8px 8px 0 rgba(0, 0, 0, 1);
+            padding: 20px;
+            cursor: pointer;
+            transition: transform 0.2s;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        
+        .tournament-card:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: 12px 12px 0 rgba(0, 0, 0, 1);
+        }
+        
+        .tournament-name {
+            font-size: 24px;
+            font-weight: 900;
+            color: var(--pink);
+            margin-bottom: 10px;
+        }
+        
+        .tournament-date {
+            font-size: 16px;
+            color: var(--blue-dark);
+            font-weight: 600;
+        }
+        
+        .tournament-venue {
+            font-size: 14px;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        .tournament-status {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-weight: 700;
+            font-size: 12px;
+            text-transform: uppercase;
+            margin-top: 15px;
+        }
+        
+        .status-active {
+            background: var(--teal);
+            color: black;
+        }
+        
+        .status-upcoming {
+            background: var(--yellow);
+            color: black;
+        }
+        
+        .status-complete {
+            background: #ddd;
+            color: #666;
+        }
+        
+        .tournament-events {
+            font-size: 14px;
+            color: #333;
+            margin-top: 10px;
+        }
+        
+        /* VERTICAL SCROLL CONTAINER (Leagues) */
+        .vertical-scroll {
+            max-height: 600px;
+            overflow-y: auto;
+            padding: 20px;
+            scroll-behavior: smooth;
+        }
+        
+        .vertical-scroll::-webkit-scrollbar {
+            width: 12px;
+        }
+        
+        .vertical-scroll::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+        }
+        
+        .vertical-scroll::-webkit-scrollbar-thumb {
+            background: var(--teal);
+            border-radius: 10px;
+        }
+        
+        /* LEAGUE CARD */
+        .league-card {
+            background: white;
+            border: 5px solid black;
+            box-shadow: 8px 8px 0 rgba(0, 0, 0, 1);
+            padding: 25px;
+            margin-bottom: 20px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        .league-card:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: 12px 12px 0 rgba(0, 0, 0, 1);
+        }
+        
+        .league-name {
+            font-size: 28px;
+            font-weight: 900;
+            color: var(--blue-dark);
+            margin-bottom: 10px;
+        }
+        
+        .league-season {
+            font-size: 16px;
+            color: var(--pink);
+            font-weight: 700;
+            margin-bottom: 15px;
+        }
+        
+        .league-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .league-info-item {
+            font-size: 14px;
+            color: #333;
+        }
+        
+        .league-info-label {
+            font-weight: 600;
+            color: #666;
+        }
+        
+        /* NO DATA MESSAGE */
+        .no-data {
+            text-align: center;
+            padding: 60px 20px;
+            color: white;
+            font-size: 18px;
+        }
+        
+        /* CONTAINER */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
+        /* LOADING */
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: white;
+            font-size: 20px;
+        }
+    </style>
+</head>
+<body>
+    <!-- HEADER -->
+    <div class="brdc-header">
+        <div class="skull-header">
+            <img src="/images/skull-logo.png" alt="BRDC" class="skull-logo">
+            <h1 class="header-title bebas">BURNING RIVER DART CLUB</h1>
+            <img src="/images/skull-logo.png" alt="BRDC" class="skull-logo">
+        </div>
+    </div>
+    
+    <div class="container">
+        <!-- TOURNAMENTS SECTION -->
+        <div class="section-header">
+            <h2 class="section-title bebas">🎯 Active Tournaments</h2>
+        </div>
+        
+        <div id="tournaments-loading" class="loading">
+            Loading tournaments...
+        </div>
+        
+        <div id="tournaments-container" class="horizontal-scroll" style="display: none;">
+            <!-- Tournament cards will be dynamically inserted here -->
+        </div>
+        
+        <div id="tournaments-empty" class="no-data" style="display: none;">
+            No active tournaments at the moment. Check back soon! 🎯
+        </div>
+        
+        <!-- LEAGUES SECTION -->
+        <div class="section-header" style="margin-top: 60px;">
+            <h2 class="section-title bebas">🏆 Current Leagues</h2>
+        </div>
+        
+        <div id="leagues-loading" class="loading">
+            Loading leagues...
+        </div>
+        
+        <div id="leagues-container" class="vertical-scroll" style="display: none;">
+            <!-- League cards will be dynamically inserted here -->
+        </div>
+        
+        <div id="leagues-empty" class="no-data" style="display: none;">
+            No active leagues at the moment. Stay tuned for upcoming seasons! 🏆
+        </div>
+    </div>
+    
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
+        import { getFirestore, collection, query, where, getDocs, orderBy, limit } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+        
+        const firebaseConfig = {
+            apiKey: "AIzaSyDPPC65WFJr5dX8khDKedHojczfy7NvPHs",
+            authDomain: "brdc-v2.firebaseapp.com",
+            projectId: "brdc-v2",
+            storageBucket: "brdc-v2.firebasestorage.app",
+            messagingSenderId: "151498821146",
+            appId: "1:151498821146:web:c8dbcc3fc59fa0ca15e9ca"
+        };
+        
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        
+        // Load tournaments
+        async function loadTournaments() {
+            try {
+                const tournamentsQuery = query(
+                    collection(db, 'tournaments'),
+                    where('status', 'in', ['created', 'active']),
+                    orderBy('tournament_date', 'desc'),
+                    limit(20)
+                );
+                
+                const snapshot = await getDocs(tournamentsQuery);
+                
+                document.getElementById('tournaments-loading').style.display = 'none';
+                
+                if (snapshot.empty) {
+                    document.getElementById('tournaments-empty').style.display = 'block';
+                    return;
+                }
+                
+                const container = document.getElementById('tournaments-container');
+                container.style.display = 'flex';
+                
+                snapshot.forEach(doc => {
+                    const tournament = doc.data();
+                    const card = createTournamentCard(doc.id, tournament);
+                    container.appendChild(card);
+                });
+                
+            } catch (error) {
+                console.error('Error loading tournaments:', error);
+                document.getElementById('tournaments-loading').textContent = 'Error loading tournaments';
+            }
+        }
+        
+        // Create tournament card
+        function createTournamentCard(id, tournament) {
+            const card = document.createElement('div');
+            card.className = 'tournament-card';
+            card.onclick = () => window.location.href = `bracket.html?tournament=${id}`;
+            
+            const statusClass = tournament.status === 'active' ? 'status-active' : 
+                              tournament.status === 'created' ? 'status-upcoming' : 
+                              'status-complete';
+            
+            const statusText = tournament.status === 'active' ? 'Live Now' : 
+                             tournament.status === 'created' ? 'Upcoming' : 
+                             'Complete';
+            
+            const date = tournament.tournament_date ? 
+                new Date(tournament.tournament_date).toLocaleDateString('en-US', { 
+                    month: 'short', 
+                    day: 'numeric', 
+                    year: 'numeric' 
+                }) : 'Date TBD';
+            
+            card.innerHTML = `
+                <div>
+                    <div class="tournament-name">${tournament.tournament_name || 'Unnamed Tournament'}</div>
+                    <div class="tournament-date">📅 ${date}</div>
+                    <div class="tournament-venue">📍 ${tournament.venue_name || 'Venue TBD'}</div>
+                    <div class="tournament-status ${statusClass}">${statusText}</div>
+                </div>
+                <div class="tournament-events">
+                    <strong>Events:</strong> Click to view brackets
+                </div>
+            `;
+            
+            return card;
+        }
+        
+        // Load leagues
+        async function loadLeagues() {
+            try {
+                const leaguesQuery = query(
+                    collection(db, 'leagues'),
+                    where('status', 'in', ['registration_open', 'active']),
+                    orderBy('start_date', 'desc'),
+                    limit(20)
+                );
+                
+                const snapshot = await getDocs(leaguesQuery);
+                
+                document.getElementById('leagues-loading').style.display = 'none';
+                
+                if (snapshot.empty) {
+                    document.getElementById('leagues-empty').style.display = 'block';
+                    return;
+                }
+                
+                const container = document.getElementById('leagues-container');
+                container.style.display = 'block';
+                
+                snapshot.forEach(doc => {
+                    const league = doc.data();
+                    const card = createLeagueCard(doc.id, league);
+                    container.appendChild(card);
+                });
+                
+            } catch (error) {
+                console.error('Error loading leagues:', error);
+                document.getElementById('leagues-loading').textContent = 'Error loading leagues';
+            }
+        }
+        
+        // Create league card
+        function createLeagueCard(id, league) {
+            const card = document.createElement('div');
+            card.className = 'league-card';
+            card.onclick = () => window.location.href = `league-standings.html?league=${id}`;
+            
+            const startDate = league.start_date ? 
+                new Date(league.start_date).toLocaleDateString('en-US', { 
+                    month: 'long', 
+                    day: 'numeric', 
+                    year: 'numeric' 
+                }) : 'TBD';
+            
+            const statusText = league.status === 'registration_open' ? '🔓 Registration Open' : 
+                             league.status === 'active' ? '🏆 In Progress' : 
+                             '✅ Complete';
+            
+            card.innerHTML = `
+                <div class="league-name">${league.league_name || 'Unnamed League'}</div>
+                <div class="league-season">${league.season || 'Season TBD'}</div>
+                <div style="font-size: 14px; font-weight: 600; color: ${league.status === 'registration_open' ? 'var(--pink)' : 'var(--teal)'};">
+                    ${statusText}
+                </div>
+                <div class="league-info">
+                    <div class="league-info-item">
+                        <span class="league-info-label">Start:</span> ${startDate}
+                    </div>
+                    <div class="league-info-item">
+                        <span class="league-info-label">Night:</span> ${league.league_night || 'TBD'}
+                    </div>
+                    <div class="league-info-item">
+                        <span class="league-info-label">Venue:</span> ${league.venue_name || 'TBD'}
+                    </div>
+                    <div class="league-info-item">
+                        <span class="league-info-label">Format:</span> ${league.league_type || 'Triples'}
+                    </div>
+                </div>
+            `;
+            
+            return card;
+        }
+        
+        // Initialize
+        loadTournaments();
+        loadLeagues();
+    </script>
+</body>
+</html>

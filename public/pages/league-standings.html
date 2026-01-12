@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>League Standings - BRDC</title>
+    <link rel="icon" type="image/png" href="/images/favicon.png">
+    <link rel="stylesheet" href="/css/brdc-styles.css">
+    <style>
+        .standings-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        
+        .standings-table th {
+            background: var(--pink);
+            color: white;
+            padding: 15px;
+            text-align: left;
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 13px;
+            letter-spacing: 1px;
+            border: 3px solid var(--black);
+        }
+        
+        .standings-table td {
+            padding: 15px;
+            border: 2px solid #e5e7eb;
+            font-weight: 600;
+        }
+        
+        .standings-table tr:hover {
+            background: #f9fafb;
+        }
+        
+        .rank-badge {
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            background: var(--teal);
+            border: 2px solid var(--black);
+            border-radius: 50%;
+            text-align: center;
+            line-height: 30px;
+            font-weight: 700;
+        }
+        
+        .team-card {
+            background: white;
+            border: 3px solid var(--black);
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 6px 6px 0 rgba(0,0,0,1);
+        }
+        
+        .team-name {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        
+        .player-list {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .player-badge {
+            background: var(--teal);
+            border: 2px solid var(--black);
+            padding: 5px 12px;
+            font-size: 13px;
+            font-weight: 700;
+        }
+        
+        .tab-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+        
+        .tab {
+            background: white;
+            border: 3px solid var(--black);
+            padding: 12px 24px;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 20px;
+            cursor: pointer;
+            box-shadow: 4px 4px 0 rgba(0,0,0,1);
+            transition: all 0.2s;
+        }
+        
+        .tab:hover {
+            transform: translateY(-2px);
+            box-shadow: 6px 6px 0 rgba(0,0,0,1);
+        }
+        
+        .tab.active {
+            background: var(--pink);
+            color: white;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="brdc-card" style="max-width: 1200px; margin: 40px auto;">
+            <div class="brdc-card-header">
+                <h1 class="brdc-title" style="font-size: 48px; color: white;" id="leagueName">Loading...</h1>
+                <p class="brdc-subtitle" style="color: white; margin-top: 10px;" id="leagueInfo"></p>
+            </div>
+            
+            <div style="padding: 40px;">
+                <div class="tab-container">
+                    <div class="tab active" onclick="switchTab('standings')">📊 Standings</div>
+                    <div class="tab" onclick="switchTab('teams')">👥 Teams</div>
+                    <div class="tab" onclick="switchTab('schedule')">📅 Schedule</div>
+                    <div class="tab" onclick="switchTab('admin')">⚙️ Admin</div>
+                </div>
+                
+                <div id="standingsTab" class="tab-content active">
+                    <table class="standings-table">
+                        <thead>
+                            <tr>
+                                <th>Rank</th>
+                                <th>Team</th>
+                                <th>W</th>
+                                <th>L</th>
+                                <th>Win %</th>
+                                <th>Games Won</th>
+                                <th>Games Lost</th>
+                                <th>Game %</th>
+                            </tr>
+                        </thead>
+                        <tbody id="standingsBody">
+                            <tr>
+                                <td colspan="8" style="text-align: center; padding: 40px;">
+                                    <div class="brdc-spinner"></div>
+                                    <p style="margin-top: 20px;">Loading standings...</p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div id="teamsTab" class="tab-content">
+                    <div id="teamsContainer">
+                        <div style="text-align: center; padding: 40px;">
+                            <div class="brdc-spinner"></div>
+                            <p style="margin-top: 20px;">Loading teams...</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="scheduleTab" class="tab-content">
+                    <div id="scheduleContainer">
+                        <div style="text-align: center; padding: 40px;">
+                            <div class="brdc-spinner"></div>
+                            <p style="margin-top: 20px;">Loading schedule...</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="adminTab" class="tab-content">
+                    <div class="brdc-alert brdc-alert-warning" style="margin-bottom: 20px;">
+                        <strong>⚠️ Admin Actions</strong><br>
+                        These actions require your admin PIN
+                    </div>
+                    
+                    <div style="display: grid; gap: 15px;">
+                        <button class="brdc-btn brdc-btn-secondary" onclick="conductDraft()">
+                            🎲 Conduct Draft
+                        </button>
+                        <button class="brdc-btn brdc-btn-secondary" onclick="generateSchedule()">
+                            📅 Generate Schedule
+                        </button>
+                        <button class="brdc-btn brdc-btn-secondary" onclick="startLeague()">
+                            ▶️ Start League
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { db, collection, query, where, onSnapshot, doc, getDoc, callFunction } from '/js/firebase-config.js';
+        
+        const urlParams = new URLSearchParams(window.location.search);
+        const leagueId = urlParams.get('league_id');
+        
+        let leagueData = null;
+        let teamsData = [];
+        let standingsData = [];
+        
+        window.onload = async function() {
+            if (!leagueId) {
+                alert('Missing league_id in URL');
+                return;
+            }
+            await loadLeagueData();
+        };
+        
+        async function loadLeagueData() {
+            try {
+                // Load league document
+                const leagueDoc = await getDoc(doc(db, 'leagues', leagueId));
+                if (!leagueDoc.exists()) {
+                    throw new Error('League not found');
+                }
+                
+                leagueData = { id: leagueId, ...leagueDoc.data() };
+                
+                // Update header
+                document.getElementById('leagueName').textContent = leagueData.name;
+                document.getElementById('leagueInfo').textContent = 
+                    `${leagueData.venue_name} • ${leagueData.match_schedule}`;
+                
+                // Set up realtime listeners
+                setupRealtimeListeners();
+                
+            } catch (error) {
+                console.error('Error loading league:', error);
+                alert('Failed to load league: ' + error.message);
+            }
+        }
+        
+        function setupRealtimeListeners() {
+            // Listen for teams
+            const teamsQuery = query(
+                collection(db, 'league_teams'),
+                where('league_id', '==', leagueId)
+            );
+            
+            onSnapshot(teamsQuery, (snapshot) => {
+                teamsData = [];
+                snapshot.forEach((doc) => {
+                    teamsData.push({ id: doc.id, ...doc.data() });
+                });
+                renderTeams();
+                renderStandings();
+            });
+            
+            // Listen for matches/schedule
+            const matchesQuery = query(
+                collection(db, 'league_matches'),
+                where('league_id', '==', leagueId)
+            );
+            
+            onSnapshot(matchesQuery, (snapshot) => {
+                const matches = [];
+                snapshot.forEach((doc) => {
+                    matches.push({ id: doc.id, ...doc.data() });
+                });
+                renderSchedule(matches);
+            });
+        }
+        
+        function renderStandings() {
+            if (!teamsData || teamsData.length === 0) {
+                document.getElementById('standingsBody').innerHTML = `
+                    <tr>
+                        <td colspan="8" style="text-align: center; padding: 40px;">
+                            No teams yet. Teams will appear after draft.
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            // Calculate standings
+            standingsData = teamsData.map(team => {
+                const wins = team.wins || 0;
+                const losses = team.losses || 0;
+                const totalMatches = wins + losses;
+                const winPct = totalMatches > 0 ? (wins / totalMatches * 100).toFixed(1) : '0.0';
+                
+                const gamesWon = team.games_won || 0;
+                const gamesLost = team.games_lost || 0;
+                const totalGames = gamesWon + gamesLost;
+                const gamePct = totalGames > 0 ? (gamesWon / totalGames * 100).toFixed(1) : '0.0';
+                
+                return {
+                    ...team,
+                    wins,
+                    losses,
+                    winPct: parseFloat(winPct),
+                    gamesWon,
+                    gamesLost,
+                    gamePct: parseFloat(gamePct)
+                };
+            });
+            
+            // Sort by wins, then win %, then games won
+            standingsData.sort((a, b) => {
+                if (b.wins !== a.wins) return b.wins - a.wins;
+                if (b.winPct !== a.winPct) return b.winPct - a.winPct;
+                return b.gamesWon - a.gamesWon;
+            });
+            
+            // Render table
+            let html = '';
+            standingsData.forEach((team, index) => {
+                html += `
+                    <tr>
+                        <td><span class="rank-badge">${index + 1}</span></td>
+                        <td style="font-weight: 700;">${team.name}</td>
+                        <td>${team.wins}</td>
+                        <td>${team.losses}</td>
+                        <td>${team.winPct}%</td>
+                        <td>${team.gamesWon}</td>
+                        <td>${team.gamesLost}</td>
+                        <td>${team.gamePct}%</td>
+                    </tr>
+                `;
+            });
+            
+            document.getElementById('standingsBody').innerHTML = html;
+        }
+        
+        function renderTeams() {
+            if (!teamsData || teamsData.length === 0) {
+                document.getElementById('teamsContainer').innerHTML = `
+                    <div style="text-align: center; padding: 40px;">
+                        <p style="font-size: 18px; font-weight: 600;">No teams yet</p>
+                        <p style="margin-top: 10px;">Teams will be created after draft</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = '';
+            teamsData.forEach(team => {
+                html += `
+                    <div class="team-card">
+                        <div class="team-name">${team.name}</div>
+                        <div class="player-list">
+                            ${team.players ? team.players.map(p => `
+                                <span class="player-badge">${p.name}</span>
+                            `).join('') : '<span style="opacity: 0.6;">No players assigned</span>'}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            document.getElementById('teamsContainer').innerHTML = html;
+        }
+        
+        function renderSchedule(matches) {
+            if (!matches || matches.length === 0) {
+                document.getElementById('scheduleContainer').innerHTML = `
+                    <div style="text-align: center; padding: 40px;">
+                        <p style="font-size: 18px; font-weight: 600;">No schedule yet</p>
+                        <p style="margin-top: 10px;">Schedule will be generated after draft</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            // Group by week
+            const byWeek = {};
+            matches.forEach(match => {
+                const week = match.week || 1;
+                if (!byWeek[week]) byWeek[week] = [];
+                byWeek[week].push(match);
+            });
+            
+            let html = '';
+            Object.keys(byWeek).sort((a, b) => a - b).forEach(week => {
+                html += `
+                    <div style="margin-bottom: 30px;">
+                        <h3 style="font-family: 'Bebas Neue', cursive; font-size: 28px; margin-bottom: 15px;">
+                            Week ${week}
+                        </h3>
+                        ${byWeek[week].map(match => `
+                            <div class="team-card" style="display: flex; justify-content: space-between; align-items: center;">
+                                <div style="font-weight: 700;">${match.home_team_name}</div>
+                                <div style="font-size: 24px; font-weight: 700;">vs</div>
+                                <div style="font-weight: 700;">${match.away_team_name}</div>
+                                ${match.status === 'completed' ? `
+                                    <div style="background: var(--teal); padding: 8px 16px; border: 2px solid var(--black); font-weight: 700;">
+                                        ${match.home_score} - ${match.away_score}
+                                    </div>
+                                ` : ''}
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            });
+            
+            document.getElementById('scheduleContainer').innerHTML = html;
+        }
+        
+        window.switchTab = function(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            // Show selected tab
+            event.target.classList.add('active');
+            document.getElementById(tabName + 'Tab').classList.add('active');
+        };
+        
+        window.conductDraft = async function() {
+            const pin = prompt('Enter admin PIN:');
+            if (!pin) return;
+            
+            try {
+                const result = await callFunction('conductDraft', {
+                    league_id: leagueId,
+                    admin_pin: pin
+                });
+                
+                if (result.success) {
+                    alert('Draft completed! Teams have been created.');
+                } else {
+                    alert('Error: ' + (result.error || 'Draft failed'));
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        };
+        
+        window.generateSchedule = async function() {
+            const pin = prompt('Enter admin PIN:');
+            if (!pin) return;
+            
+            try {
+                const result = await callFunction('generateLeagueSchedule', {
+                    league_id: leagueId,
+                    admin_pin: pin
+                });
+                
+                if (result.success) {
+                    alert('Schedule generated! Check the Schedule tab.');
+                } else {
+                    alert('Error: ' + (result.error || 'Schedule generation failed'));
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        };
+        
+        window.startLeague = async function() {
+            const pin = prompt('Enter admin PIN:');
+            if (!pin) return;
+            
+            if (!confirm('Start the league? This will lock the roster and activate the schedule.')) {
+                return;
+            }
+            
+            try {
+                const result = await callFunction('startLeague', {
+                    league_id: leagueId,
+                    admin_pin: pin
+                });
+                
+                if (result.success) {
+                    alert('League started! Good luck to all teams!');
+                    location.reload();
+                } else {
+                    alert('Error: ' + (result.error || 'Failed to start league'));
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        };
+    </script>
+</body>
+</html>
