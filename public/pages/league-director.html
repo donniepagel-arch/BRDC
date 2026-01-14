@@ -1170,6 +1170,38 @@ Alice Brown, alice@email.com, 555-1234, 42.5, B"></textarea>
         let matchesData = [];
         let playersData = [];
 
+        // Check for saved director session
+        (async function checkSavedSession() {
+            const saved = localStorage.getItem('directorSession');
+            if (saved) {
+                try {
+                    const session = JSON.parse(saved);
+                    // Session valid for 7 days
+                    if (session.pin && (Date.now() - session.timestamp) < 7 * 24 * 60 * 60 * 1000) {
+                        // Try to auto-login with saved PIN
+                        const result = await callFunction('verifyLeaguePin', {
+                            league_id: leagueId || null,
+                            pin: session.pin
+                        });
+                        if (result.success) {
+                            leagueId = result.league_id;
+                            leagueData = { id: leagueId, ...result.league };
+                            window.history.replaceState({}, '', `?league_id=${leagueId}`);
+                            adminPin = session.pin;
+                            document.getElementById('loginOverlay').style.display = 'none';
+                            document.getElementById('dashboard').style.display = 'block';
+                            initDashboard();
+                            return;
+                        }
+                    }
+                } catch (e) {
+                    console.error('Session restore error:', e);
+                }
+            }
+            // Show login if no valid session
+            document.getElementById('pinInput').focus();
+        })();
+
         // PIN input handling
         const pinInput = document.getElementById('pinInput');
         pinInput.addEventListener('input', (e) => {
@@ -1200,6 +1232,13 @@ Alice Brown, alice@email.com, 555-1234, 42.5, B"></textarea>
                 window.history.replaceState({}, '', `?league_id=${leagueId}`);
 
                 adminPin = pin;
+
+                // Save session for persistence
+                localStorage.setItem('directorSession', JSON.stringify({
+                    pin: pin,
+                    timestamp: Date.now()
+                }));
+
                 document.getElementById('loginOverlay').style.display = 'none';
                 document.getElementById('dashboard').style.display = 'block';
                 initDashboard();

@@ -1029,6 +1029,35 @@
         const urlParams = new URLSearchParams(window.location.search);
         let tournamentId = urlParams.get('pin');
 
+        // Check for saved director session
+        (async function checkSavedSession() {
+            if (tournamentId) return; // Already have PIN from URL
+            const saved = localStorage.getItem('directorSession');
+            if (saved) {
+                try {
+                    const session = JSON.parse(saved);
+                    if (session.pin && (Date.now() - session.timestamp) < 7 * 24 * 60 * 60 * 1000) {
+                        // Try to use saved PIN
+                        const tournamentsQuery = query(
+                            collection(db, 'tournaments'),
+                            where('director_pin', '==', session.pin)
+                        );
+                        const tournamentSnapshot = await getDocs(tournamentsQuery);
+                        if (!tournamentSnapshot.empty) {
+                            tournamentId = session.pin;
+                            window.history.replaceState({}, '', `?pin=${session.pin}`);
+                            document.getElementById('loginOverlay').style.display = 'none';
+                            document.getElementById('mainDashboard').style.display = 'block';
+                            loadDashboardData();
+                            return;
+                        }
+                    }
+                } catch (e) {
+                    console.error('Session restore error:', e);
+                }
+            }
+        })();
+
         // PIN input handling
         const pinInput = document.getElementById('pinInput');
         pinInput.addEventListener('input', (e) => {
@@ -1062,6 +1091,13 @@
 
                 tournamentId = pin;
                 window.history.replaceState({}, '', `?pin=${pin}`);
+
+                // Save session for persistence
+                localStorage.setItem('directorSession', JSON.stringify({
+                    pin: pin,
+                    timestamp: Date.now()
+                }));
+
                 document.getElementById('loginOverlay').style.display = 'none';
                 document.getElementById('mainDashboard').style.display = 'block';
                 loadDashboardData();
