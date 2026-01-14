@@ -18,29 +18,70 @@ exports.createLeague = functions.https.onRequest((req, res) => {
 
         // Generate admin PIN (8 digits)
         const adminPin = String(Math.floor(10000000 + Math.random() * 90000000));
-        const directorPin = data.director_pin || adminPin; // Use provided or same as admin
+        const directorPin = data.director_pin || adminPin; // Use provided player PIN or same as admin
 
         const league = {
             league_name: data.league_name,
             league_type: data.league_type || 'triples_draft',
+            league_mode: data.league_mode || 'draft',
             season: data.season || 'Spring 2026',
             start_date: data.start_date,
             end_date: endDate.toISOString().split('T')[0],
-            venue_name: data.venue_name || 'Rookies',
+            venue_name: data.venue_name || '',
+            venue_address: data.venue_address || '',
+            league_night: data.league_night || '',
+            start_time: data.start_time || '',
+
+            // Director info
+            director_first_name: data.director_first_name || '',
+            director_last_name: data.director_last_name || '',
+            director_player_id: data.director_player_id || '',
+            manager_email: data.manager_email || '',
+            manager_phone: data.manager_phone || '',
 
             // PINs
             admin_pin: adminPin,
             director_pin: directorPin,
 
-            // Settings
+            // Match settings
+            match_format: data.match_format || [],
+            games_per_match: data.games_per_match || 0,
+            format: data.format || '501',
+            checkout: data.checkout || 'double',
+            best_of: data.best_of || 3,
+            rounds_per_match: data.rounds_per_match || data.games_per_match || 0,
+
+            // Team settings
             total_weeks: weeks,
-            players_per_team: data.players_per_team || 3,
-            max_teams: data.max_teams || 8,
-            match_frequency: data.match_frequency || 'weekly',
-            rounds: data.rounds || 2,
+            players_per_team: data.players_per_team || data.min_players || 3,
+            min_players: data.min_players || 3,
+            max_roster: data.max_roster || data.min_players || 3,
+            max_teams: data.max_teams || null,
+            allow_free_agents: data.allow_free_agents || false,
+
+            // Schedule settings
+            schedule_format: data.schedule_format || 'round_robin',
+            blackout_dates: data.blackout_dates || [],
+            registration_close_date: data.registration_close_date || data.start_date,
+
+            // Scoring & rules
+            point_system: data.point_system || 'standard',
+            tiebreakers: data.tiebreakers || [],
+            cork_rule: data.cork_rule || 'standard',
+            cork_option: data.cork_option || 'alternate_random_first_last',
+            cork_winner_gets: data.cork_winner_gets || 'choice',
+            level_rules: data.level_rules || 'none',
+            league_rules: data.league_rules || '',
+            playoff_format: data.playoff_format || 'none',
+            bye_points: data.bye_points || '0',
+            session_fee: data.session_fee || 0,
+
+            // Fill-in settings
+            allow_fillins: data.allow_fillins || false,
+            fillin_settings: data.fillin_settings || null,
 
             // State
-            status: 'registration',
+            status: data.status || 'registration',
             draft_completed: false,
             schedule_generated: false,
 
@@ -59,6 +100,7 @@ exports.createLeague = functions.https.onRequest((req, res) => {
             success: true,
             league_id: leagueRef.id,
             admin_pin: adminPin,
+            director_pin: directorPin,
             message: 'League created successfully. Your admin PIN is: ' + adminPin
         });
 
