@@ -183,16 +183,21 @@ exports.createLeague = functions.https.onRequest(async (req, res) => {
             ? `${data.director_first_name} ${data.director_last_name}`
             : (data.full_name || '');
         const directorPlayerId = data.director_player_id || null;
-        const directorPin = data.director_pin || null; // 8-digit player PIN
 
-        // DEBUG logging
-        console.log('createLeague - received director_pin:', data.director_pin, 'type:', typeof data.director_pin);
+        // The director's player PIN IS the league admin PIN - no separate PIN generation
+        const directorPin = data.director_pin || null;
 
-        // Use director_pin as admin_pin if provided, otherwise generate one
-        const adminPin = data.director_pin || data.admin_pin || generatePin();
+        if (!directorPin || directorPin.length !== 8) {
+            return res.status(400).json({
+                success: false,
+                error: 'You must be signed in with your player PIN to create a league'
+            });
+        }
 
-        // DEBUG logging
-        console.log('createLeague - using adminPin:', adminPin, 'directorPin:', directorPin);
+        // Both admin_pin and director_pin are the same - the player's PIN
+        const adminPin = directorPin;
+
+        console.log('createLeague - Using player PIN as admin_pin:', adminPin);
 
         const league = {
             league_name: data.league_name,
