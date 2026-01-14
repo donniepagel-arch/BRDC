@@ -1540,6 +1540,44 @@
         let rounds = [];
         let blackoutDates = [];
 
+        // Check for saved director session on page load
+        (function restoreSession() {
+            const saved = localStorage.getItem('directorSession');
+            if (saved) {
+                try {
+                    const session = JSON.parse(saved);
+                    // Session valid for 7 days
+                    if (session.pin && session.player && (Date.now() - session.timestamp) < 7 * 24 * 60 * 60 * 1000) {
+                        window.directorPin = session.pin;
+                        const player = session.player;
+
+                        // Auto-fill director info
+                        if (player.first_name) {
+                            document.getElementById('directorFirstName').value = player.first_name;
+                        }
+                        if (player.last_name) {
+                            document.getElementById('directorLastName').value = player.last_name;
+                        } else if (player.name) {
+                            const nameParts = player.name.trim().split(/\s+/);
+                            document.getElementById('directorFirstName').value = nameParts[0] || '';
+                            document.getElementById('directorLastName').value = nameParts.slice(1).join(' ') || '';
+                        }
+                        document.getElementById('directorEmail').value = player.email || '';
+                        document.getElementById('directorPhone').value = player.phone || '';
+                        document.getElementById('directorPlayerId').value = player.player_id || '';
+
+                        console.log('Session restored for:', player.first_name || player.name);
+                    } else {
+                        // Session expired, clear it
+                        localStorage.removeItem('directorSession');
+                    }
+                } catch (e) {
+                    console.error('Error restoring session:', e);
+                    localStorage.removeItem('directorSession');
+                }
+            }
+        })();
+
         // Blackout dates management
         window.addBlackoutDate = function() {
             const input = document.getElementById('blackoutDateInput');
@@ -1697,6 +1735,13 @@
 
                     // Store director PIN for templates/drafts
                     window.directorPin = pin;
+
+                    // Save session to localStorage for persistence
+                    localStorage.setItem('directorSession', JSON.stringify({
+                        pin: pin,
+                        player: player,
+                        timestamp: Date.now()
+                    }));
 
                     // Show template/draft section
                     document.getElementById('templateDraftSection').style.display = 'flex';
