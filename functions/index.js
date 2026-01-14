@@ -466,15 +466,21 @@ exports.getLeagueTemplates = functions.https.onRequest((req, res) => {
       const { pin, director_pin } = req.body;
       const authPin = pin || director_pin;
 
+      console.log('getLeagueTemplates called with PIN:', authPin ? 'provided' : 'missing');
+
       const playerId = await verifyDirectorPin(authPin);
+      console.log('Verified player_id:', playerId);
+
       if (!playerId) {
         return res.status(401).json({ success: false, error: 'Invalid PIN' });
       }
 
+      // Simple query without orderBy to avoid index issues
       const templatesSnapshot = await db.collection('league_templates')
         .where('player_id', '==', playerId)
-        .orderBy('created_at', 'desc')
         .get();
+
+      console.log('Templates found:', templatesSnapshot.size);
 
       const templates = templatesSnapshot.docs.map(doc => ({
         id: doc.id,
@@ -482,6 +488,9 @@ exports.getLeagueTemplates = functions.https.onRequest((req, res) => {
         events_count: doc.data().events_count || 0,
         created_at: doc.data().created_at?.toDate?.() || doc.data().created_at || new Date()
       }));
+
+      // Sort in JS instead
+      templates.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
       res.json({ success: true, templates });
     } catch (error) {
@@ -692,15 +701,21 @@ exports.getTournamentTemplates = functions.https.onRequest((req, res) => {
       const { pin, director_pin } = req.body;
       const authPin = pin || director_pin;
 
+      console.log('getTournamentTemplates called with PIN:', authPin ? 'provided' : 'missing');
+
       const playerId = await verifyDirectorPin(authPin);
+      console.log('Verified player_id:', playerId);
+
       if (!playerId) {
         return res.status(401).json({ success: false, error: 'Invalid PIN' });
       }
 
+      // Simple query without orderBy to avoid index issues
       const templatesSnapshot = await db.collection('tournament_templates')
         .where('player_id', '==', playerId)
-        .orderBy('created_at', 'desc')
         .get();
+
+      console.log('Tournament templates found:', templatesSnapshot.size);
 
       const templates = templatesSnapshot.docs.map(doc => ({
         id: doc.id,
@@ -708,6 +723,9 @@ exports.getTournamentTemplates = functions.https.onRequest((req, res) => {
         events_count: doc.data().events_count || 0,
         created_at: doc.data().created_at?.toDate?.() || doc.data().created_at || new Date()
       }));
+
+      // Sort in JS instead
+      templates.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
       res.json({ success: true, templates });
     } catch (error) {
@@ -877,6 +895,66 @@ exports.deleteTournamentDraft = functions.https.onRequest((req, res) => {
       res.json({ success: true, message: 'Draft deleted' });
     } catch (error) {
       console.error('Error deleting tournament draft:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+});
+
+// DEBUG: List all templates to see player_ids
+exports.debugListAllTemplates = functions.https.onRequest((req, res) => {
+  cors(req, res, async () => {
+    try {
+      const leagueTemplates = await db.collection('league_templates').get();
+      const tournamentTemplates = await db.collection('tournament_templates').get();
+
+      const result = {
+        league_templates: leagueTemplates.docs.map(doc => ({
+          id: doc.id,
+          player_id: doc.data().player_id,
+          name: doc.data().name
+        })),
+        tournament_templates: tournamentTemplates.docs.map(doc => ({
+          id: doc.id,
+          player_id: doc.data().player_id,
+          name: doc.data().name
+        }))
+      };
+
+      res.json({ success: true, ...result });
+    } catch (error) {
+      console.error('Error:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+});
+
+// DEBUG: Check what player_id a PIN resolves to
+exports.debugCheckPin = functions.https.onRequest((req, res) => {
+  cors(req, res, async () => {
+    try {
+      const { pin } = req.body;
+      if (!pin) {
+        return res.status(400).json({ success: false, error: 'Missing pin' });
+      }
+
+      const playersSnapshot = await db.collection('players')
+        .where('pin', '==', pin)
+        .limit(1)
+        .get();
+
+      if (playersSnapshot.empty) {
+        return res.json({ success: false, error: 'PIN not found', player_id: null });
+      }
+
+      const playerDoc = playersSnapshot.docs[0];
+      res.json({
+        success: true,
+        player_id: playerDoc.id,
+        player_name: playerDoc.data().first_name + ' ' + playerDoc.data().last_name,
+        player_email: playerDoc.data().email
+      });
+    } catch (error) {
+      console.error('Error:', error);
       res.status(500).json({ success: false, error: error.message });
     }
   });
