@@ -2377,7 +2377,8 @@
         // Open template selection modal
         window.openTemplateModal = async function() {
             if (!window.directorPin) {
-                alert('Please sign in first to load templates');
+                alert('Please sign in first using "Already a member? Enter your PIN" button above');
+                openSignInModal();
                 return;
             }
 
@@ -2396,26 +2397,30 @@
             listEl.innerHTML = '<div class="no-templates">Loading templates...</div>';
 
             try {
+                console.log('Loading templates with PIN:', window.directorPin ? 'Set' : 'Not set');
                 const result = await callFunction('getLeagueTemplates', {
                     director_pin: window.directorPin
                 });
+                console.log('Template result:', result);
 
                 if (result.success && result.templates && result.templates.length > 0) {
                     listEl.innerHTML = result.templates.map(template => `
                         <div class="template-item" onclick="loadTemplate('${template.id}')">
                             <div>
                                 <div class="template-name">${template.name}</div>
-                                <div class="template-meta">Created: ${new Date(template.created_at).toLocaleDateString()}</div>
+                                <div class="template-meta">Created: ${template.created_at ? new Date(template.created_at).toLocaleDateString() : 'Unknown'}</div>
                             </div>
                             <button class="template-delete" onclick="event.stopPropagation(); deleteTemplate('${template.id}')">Delete</button>
                         </div>
                     `).join('');
-                } else {
+                } else if (result.success) {
                     listEl.innerHTML = '<div class="no-templates">No templates saved yet. Save your first template above!</div>';
+                } else {
+                    listEl.innerHTML = `<div class="no-templates">Error: ${result.error || 'Unknown error'}</div>`;
                 }
             } catch (error) {
                 console.error('Error loading templates:', error);
-                listEl.innerHTML = '<div class="no-templates">Failed to load templates</div>';
+                listEl.innerHTML = `<div class="no-templates">Failed to load templates: ${error.message}</div>`;
             }
         }
 
