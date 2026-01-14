@@ -1,0 +1,1645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>League - BRDC</title>
+    <link rel="icon" type="image/png" href="/images/favicon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --pink: #FF469A;
+            --teal: #91D7EB;
+            --yellow: #FDD835;
+            --black: #1a1a2e;
+            --blue-dark: #0f0f1a;
+            --blue-light: #1a1a2e;
+            --text-light: #ffffff;
+            --text-dim: #a0a0b0;
+            --border-strong: #000000;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(180deg, var(--blue-light) 0%, var(--blue-dark) 100%);
+            min-height: 100vh;
+            color: var(--text-light);
+        }
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse at 20% 20%, rgba(255, 70, 154, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(145, 215, 235, 0.06) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: -1;
+        }
+        .header-bar {
+            background: rgba(26, 26, 46, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 4px solid var(--pink);
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .back-btn {
+            background: transparent;
+            border: 2px solid var(--pink);
+            color: var(--pink);
+            padding: 8px 16px;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 16px;
+            letter-spacing: 2px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .back-btn:hover { background: var(--pink); color: white; }
+        .header-logo { width: 45px; height: 45px; }
+        .header-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 28px;
+            letter-spacing: 3px;
+            color: var(--pink);
+        }
+        .container { max-width: 900px; margin: 0 auto; padding: 30px 20px; }
+
+        /* League Info Card */
+        .league-card {
+            background: rgba(26, 26, 46, 0.9);
+            border: 4px solid var(--black);
+            box-shadow: 10px 10px 0 rgba(0,0,0,0.5);
+            margin-bottom: 30px;
+        }
+        .league-header {
+            background: linear-gradient(135deg, var(--pink) 0%, #cc3879 100%);
+            padding: 30px;
+            position: relative;
+        }
+        .league-name {
+            font-family: 'Archivo Black', sans-serif;
+            font-size: 36px;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+        .league-season {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 20px;
+            letter-spacing: 3px;
+            opacity: 0.9;
+        }
+        .league-body { padding: 30px; }
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+        .info-item {
+            background: rgba(255,255,255,0.05);
+            padding: 15px;
+            border-left: 4px solid var(--teal);
+        }
+        .info-label {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-dim);
+            margin-bottom: 5px;
+        }
+        .info-value {
+            font-weight: 700;
+            font-size: 18px;
+        }
+        .spots-display {
+            background: linear-gradient(135deg, var(--yellow), #e6c200);
+            color: var(--black);
+            padding: 20px;
+            text-align: center;
+            border: 4px solid var(--black);
+            margin-bottom: 20px;
+        }
+        .spots-count {
+            font-family: 'Archivo Black', sans-serif;
+            font-size: 32px;
+        }
+        .spots-label { font-weight: 700; font-size: 14px; }
+
+        .register-btn {
+            width: 100%;
+            padding: 20px;
+            background: linear-gradient(135deg, var(--pink), #cc3879);
+            border: 4px solid var(--black);
+            color: white;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 24px;
+            letter-spacing: 3px;
+            cursor: pointer;
+            box-shadow: 6px 6px 0 rgba(0,0,0,0.5);
+            transition: all 0.2s;
+        }
+        .register-btn:hover { transform: translate(-2px, -2px); box-shadow: 8px 8px 0 rgba(0,0,0,0.5); }
+        .register-btn:disabled { background: #666; cursor: not-allowed; transform: none; }
+
+        /* Sign-ups Section */
+        .signups-section {
+            background: rgba(26, 26, 46, 0.9);
+            border: 4px solid var(--black);
+            box-shadow: 10px 10px 0 rgba(0,0,0,0.5);
+        }
+        .signups-header {
+            background: var(--black);
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .signups-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 24px;
+            letter-spacing: 2px;
+        }
+        .signups-count {
+            background: var(--pink);
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: 700;
+        }
+        .signups-body { padding: 20px; }
+        .signup-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            background: rgba(255,255,255,0.03);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .signup-item:last-child { border-bottom: none; }
+        .signup-name { font-weight: 600; }
+        .signup-level {
+            background: var(--teal);
+            color: var(--black);
+            padding: 4px 12px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+        .signup-status {
+            font-size: 12px;
+            padding: 4px 10px;
+            border-radius: 10px;
+        }
+        .signup-status.confirmed { background: #10b981; }
+        .signup-status.pending { background: #f59e0b; color: var(--black); }
+        .login-prompt {
+            text-align: center;
+            padding: 30px;
+            color: var(--text-dim);
+        }
+
+        /* Registration Modal */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 20px;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal-content {
+            background: linear-gradient(180deg, var(--blue-light) 0%, var(--blue-dark) 100%);
+            border: 4px solid var(--pink);
+            box-shadow: 0 0 50px rgba(255, 70, 154, 0.3);
+            max-width: 500px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .modal-header {
+            background: var(--pink);
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .modal-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 28px;
+            letter-spacing: 2px;
+        }
+        .modal-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 28px;
+            cursor: pointer;
+            line-height: 1;
+        }
+        .modal-body { padding: 25px; }
+
+        /* PIN Lookup Section */
+        .pin-section {
+            background: linear-gradient(135deg, var(--yellow), #e6c200);
+            color: var(--black);
+            padding: 20px;
+            margin-bottom: 25px;
+            border: 3px solid var(--black);
+        }
+        .pin-section-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 18px;
+            letter-spacing: 1px;
+            margin-bottom: 12px;
+        }
+        .pin-row {
+            display: flex;
+            gap: 10px;
+        }
+        .pin-input {
+            flex: 1;
+            padding: 12px;
+            border: 3px solid var(--black);
+            font-size: 18px;
+            font-family: monospace;
+            letter-spacing: 3px;
+            text-align: center;
+        }
+        .pin-btn {
+            padding: 12px 20px;
+            background: var(--black);
+            color: white;
+            border: none;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 16px;
+            letter-spacing: 1px;
+            cursor: pointer;
+        }
+
+        .divider {
+            text-align: center;
+            margin: 20px 0;
+            position: relative;
+        }
+        .divider::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 50%;
+            height: 2px;
+            background: rgba(255,255,255,0.2);
+        }
+        .divider span {
+            background: var(--blue-light);
+            padding: 0 15px;
+            position: relative;
+            color: var(--text-dim);
+            font-weight: 600;
+        }
+
+        .form-group { margin-bottom: 20px; }
+        .form-label {
+            display: block;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+            color: var(--text-dim);
+        }
+        .form-label span { color: var(--pink); }
+        .form-input {
+            width: 100%;
+            padding: 14px;
+            border: 3px solid var(--black);
+            background: rgba(255,255,255,0.05);
+            color: white;
+            font-size: 16px;
+        }
+        .form-input:focus { outline: none; border-color: var(--pink); background: rgba(255,255,255,0.1); }
+        .form-select {
+            width: 100%;
+            padding: 14px;
+            border: 3px solid var(--black);
+            background: rgba(255,255,255,0.05);
+            color: white;
+            font-size: 16px;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+        }
+        .checkbox-group input {
+            width: 22px;
+            height: 22px;
+            accent-color: var(--pink);
+        }
+
+        /* Payment Options */
+        .payment-section { margin: 25px 0; }
+        .payment-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 18px;
+            letter-spacing: 1px;
+            margin-bottom: 15px;
+        }
+        .payment-option {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 15px;
+            background: rgba(255,255,255,0.05);
+            border: 2px solid transparent;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .payment-option:hover { background: rgba(255,255,255,0.1); }
+        .payment-option.selected { border-color: var(--pink); background: rgba(255, 70, 154, 0.1); }
+        .payment-option input { width: 20px; height: 20px; accent-color: var(--pink); }
+        .payment-label { font-weight: 600; }
+        .payment-desc { font-size: 12px; color: var(--text-dim); }
+
+        .submit-btn {
+            width: 100%;
+            padding: 18px;
+            background: linear-gradient(135deg, var(--pink), #cc3879);
+            border: 4px solid var(--black);
+            color: white;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 22px;
+            letter-spacing: 2px;
+            cursor: pointer;
+            box-shadow: 5px 5px 0 rgba(0,0,0,0.5);
+            transition: all 0.2s;
+        }
+        .submit-btn:hover { transform: translate(-2px, -2px); }
+        .submit-btn:disabled { background: #666; cursor: not-allowed; transform: none; }
+
+        .fee-display {
+            background: rgba(255,255,255,0.05);
+            padding: 15px;
+            text-align: center;
+            margin-bottom: 20px;
+            border: 2px solid var(--teal);
+        }
+        .fee-amount {
+            font-family: 'Archivo Black', sans-serif;
+            font-size: 28px;
+            color: var(--teal);
+        }
+
+        /* Success State */
+        .success-content {
+            text-align: center;
+            padding: 40px 20px;
+        }
+        .success-icon { font-size: 80px; margin-bottom: 20px; }
+        .success-title {
+            font-family: 'Archivo Black', sans-serif;
+            font-size: 32px;
+            margin-bottom: 15px;
+        }
+        .success-message {
+            color: var(--text-dim);
+            margin-bottom: 25px;
+            line-height: 1.6;
+        }
+        .pin-display-box {
+            background: var(--yellow);
+            color: var(--black);
+            padding: 20px;
+            margin: 20px 0;
+            border: 4px solid var(--black);
+        }
+        .pin-display-label { font-weight: 700; font-size: 14px; margin-bottom: 5px; }
+        .pin-display-value {
+            font-family: 'Archivo Black', sans-serif;
+            font-size: 36px;
+            letter-spacing: 8px;
+        }
+
+        .loading { text-align: center; padding: 60px; color: var(--text-dim); }
+        .error-message {
+            background: rgba(239, 68, 68, 0.2);
+            border: 2px solid #ef4444;
+            padding: 20px;
+            text-align: center;
+            color: #ef4444;
+        }
+
+        /* Tabs for Active League */
+        .tabs {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .tab {
+            padding: 12px 24px;
+            background: rgba(255,255,255,0.05);
+            border: 3px solid var(--black);
+            font-family: 'Bebas Neue', cursive;
+            font-size: 18px;
+            letter-spacing: 2px;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: var(--text-light);
+        }
+        .tab:hover { background: rgba(255,255,255,0.1); }
+        .tab.active { background: var(--pink); color: white; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* Schedule */
+        .week-card {
+            background: rgba(26, 26, 46, 0.9);
+            border: 3px solid var(--black);
+            margin-bottom: 20px;
+            box-shadow: 6px 6px 0 rgba(0,0,0,0.4);
+        }
+        .week-header {
+            background: var(--black);
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .week-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 20px;
+            letter-spacing: 2px;
+        }
+        .week-date { color: var(--text-dim); font-size: 14px; }
+        .week-matches { padding: 15px; }
+        .schedule-match {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            align-items: center;
+            padding: 15px;
+            background: rgba(255,255,255,0.03);
+            margin-bottom: 10px;
+            gap: 15px;
+        }
+        .schedule-match:last-child { margin-bottom: 0; }
+        .schedule-team { font-weight: 600; }
+        .schedule-team.home { text-align: right; }
+        .schedule-team.away { text-align: left; }
+        .schedule-vs {
+            font-family: 'Bebas Neue', cursive;
+            color: var(--text-dim);
+        }
+        .schedule-score {
+            font-family: 'Archivo Black', sans-serif;
+            font-size: 24px;
+            color: var(--yellow);
+        }
+
+        /* Standings Table */
+        .standings-table {
+            width: 100%;
+            background: rgba(26, 26, 46, 0.9);
+            border: 3px solid var(--black);
+            border-collapse: collapse;
+        }
+        .standings-table th {
+            background: var(--pink);
+            padding: 15px;
+            text-align: left;
+            font-family: 'Bebas Neue', cursive;
+            letter-spacing: 1px;
+        }
+        .standings-table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .standings-table tr:hover td { background: rgba(255,255,255,0.05); }
+        .standings-rank {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 20px;
+            color: var(--yellow);
+        }
+        .standings-team { font-weight: 700; }
+        .standings-record {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 18px;
+        }
+
+        /* Stats Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+        .stats-card {
+            background: rgba(26, 26, 46, 0.9);
+            border: 3px solid var(--black);
+            box-shadow: 6px 6px 0 rgba(0,0,0,0.4);
+        }
+        .stats-card-header {
+            background: var(--black);
+            padding: 15px;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 18px;
+            letter-spacing: 2px;
+        }
+        .stats-card-body { padding: 15px; }
+        .leaderboard-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .leaderboard-item:last-child { border-bottom: none; }
+        .leaderboard-rank {
+            width: 30px;
+            height: 30px;
+            background: var(--pink);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Bebas Neue', cursive;
+        }
+        .leaderboard-rank.gold { background: var(--yellow); color: var(--black); }
+        .leaderboard-rank.silver { background: #c0c0c0; color: var(--black); }
+        .leaderboard-rank.bronze { background: #cd7f32; }
+        .leaderboard-name { flex: 1; font-weight: 600; }
+        .leaderboard-stat {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 20px;
+            color: var(--teal);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px;
+            color: var(--text-dim);
+        }
+        .empty-state-icon { font-size: 60px; margin-bottom: 15px; }
+    </style>
+</head>
+<body>
+    <div class="header-bar">
+        <button class="back-btn" onclick="history.back()">BACK</button>
+        <img src="/images/white_logo.jpg" alt="BRDC" class="header-logo">
+        <span class="header-title">LEAGUE</span>
+        <div style="margin-left: auto;">
+            <button class="back-btn" onclick="showDirectorLogin()" style="border-color: var(--yellow); color: var(--yellow);">DIRECTOR LOGIN</button>
+        </div>
+    </div>
+
+    <div class="container" id="mainContent">
+        <div class="loading">Loading league information...</div>
+    </div>
+
+    <!-- Registration Modal -->
+    <div class="modal-overlay" id="registerModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="modal-title">REGISTER</span>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <!-- Form will be rendered here -->
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { db, doc, getDoc, collection, getDocs, query, where, orderBy, callFunction } from '/js/firebase-config.js';
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const leagueId = urlParams.get('league_id');
+
+        let leagueData = null;
+        let registrations = [];
+        let teams = [];
+        let matches = [];
+        let fillins = [];
+        let isLoggedIn = false; // TODO: Check actual login state
+        let memberData = null;
+
+        window.onload = async function() {
+            if (!leagueId) {
+                showError('Missing league_id in URL');
+                return;
+            }
+            await loadLeagueData();
+        };
+
+        function isRegistrationClosed() {
+            // Check if registration is closed based on status or date
+            if (leagueData.status === 'active' || leagueData.status === 'completed' || leagueData.status === 'playoffs') {
+                return true;
+            }
+            if (leagueData.registration_close_date) {
+                const closeDate = new Date(leagueData.registration_close_date);
+                return new Date() > closeDate;
+            }
+            return false;
+        }
+
+        async function loadLeagueData() {
+            try {
+                const leagueDoc = await getDoc(doc(db, 'leagues', leagueId));
+
+                if (!leagueDoc.exists()) {
+                    throw new Error('League not found');
+                }
+
+                leagueData = { id: leagueId, ...leagueDoc.data() };
+
+                // Load registrations
+                try {
+                    const regsSnap = await getDocs(collection(db, 'leagues', leagueId, 'registrations'));
+                    registrations = regsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+                } catch (e) {
+                    registrations = [];
+                }
+
+                // Load fill-ins (available in all phases)
+                try {
+                    const fillinsSnap = await getDocs(collection(db, 'leagues', leagueId, 'fillins'));
+                    fillins = fillinsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+                } catch (e) {
+                    fillins = [];
+                }
+
+                // If registration is closed, load teams and matches
+                if (isRegistrationClosed()) {
+                    try {
+                        const teamsSnap = await getDocs(collection(db, 'leagues', leagueId, 'teams'));
+                        teams = teamsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+                    } catch (e) {
+                        teams = [];
+                    }
+
+                    try {
+                        const matchesSnap = await getDocs(collection(db, 'leagues', leagueId, 'matches'));
+                        matches = matchesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+                    } catch (e) {
+                        matches = [];
+                    }
+                }
+
+                renderPage();
+
+            } catch (error) {
+                console.error('Error loading league:', error);
+                showError('Failed to load league: ' + error.message);
+            }
+        }
+
+        function renderPage() {
+            const totalSpots = (leagueData.num_teams || 8) * (leagueData.team_size || 3);
+            const confirmedCount = registrations.filter(r => r.status === 'confirmed' || r.payment_status === 'paid').length;
+            const totalCount = registrations.length;
+            const spotsRemaining = totalSpots - totalCount;
+            const isFull = spotsRemaining <= 0;
+            const isClosed = isRegistrationClosed();
+
+            // League info header (shown in both modes)
+            const leagueHeader = `
+                <div class="league-card">
+                    <div class="league-header">
+                        <div class="league-name">${leagueData.league_name || leagueData.name}</div>
+                        <div class="league-season">${leagueData.season || ''}</div>
+                    </div>
+                    <div class="league-body">
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <div class="info-label">${isClosed ? 'Week' : 'Start Date'}</div>
+                                <div class="info-value">${isClosed ? `${leagueData.current_week || 1} / ${leagueData.total_weeks || '?'}` : (leagueData.start_date ? new Date(leagueData.start_date).toLocaleDateString() : 'TBD')}</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Venue</div>
+                                <div class="info-value">${leagueData.venue_name || 'TBD'}</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">${isClosed ? 'Teams' : 'Format'}</div>
+                                <div class="info-value">${isClosed ? teams.length : `${formatGameType(leagueData.game_format)} ${leagueData.team_size || 3}s`}</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">${isClosed ? 'Status' : 'Entry Fee'}</div>
+                                <div class="info-value">${isClosed ? (leagueData.status || 'Active').toUpperCase() : (leagueData.entry_fee ? '$' + parseFloat(leagueData.entry_fee).toFixed(2) : 'Free')}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            if (isClosed) {
+                // Show active league view with tabs
+                const html = `
+                    ${leagueHeader}
+
+                    <div class="tabs">
+                        <div class="tab active" onclick="switchTab('schedule')">SCHEDULE</div>
+                        <div class="tab" onclick="switchTab('standings')">STANDINGS</div>
+                        <div class="tab" onclick="switchTab('stats')">STATS</div>
+                        <div class="tab" onclick="switchTab('teams')">TEAMS</div>
+                        <div class="tab" onclick="switchTab('live')">LIVE</div>
+                        <div class="tab" onclick="switchTab('register')">REGISTER</div>
+                    </div>
+
+                    <div id="scheduleTab" class="tab-content active">
+                        ${renderSchedule()}
+                    </div>
+
+                    <div id="standingsTab" class="tab-content">
+                        ${renderStandings()}
+                    </div>
+
+                    <div id="statsTab" class="tab-content">
+                        ${renderStats()}
+                    </div>
+
+                    <div id="teamsTab" class="tab-content">
+                        ${renderTeams()}
+                    </div>
+
+                    <div id="liveTab" class="tab-content">
+                        ${renderLive()}
+                    </div>
+
+                    <div id="registerTab" class="tab-content">
+                        ${renderRegistrationTab()}
+                    </div>
+                `;
+                document.getElementById('mainContent').innerHTML = html;
+            } else {
+                // Show registration view
+                const html = `
+                    ${leagueHeader}
+                    <div class="league-card" style="margin-top: -10px; border-top: none;">
+                        <div class="league-body" style="padding-top: 0;">
+                            <div class="spots-display">
+                                <div class="spots-count">${totalCount} / ${totalSpots}</div>
+                                <div class="spots-label">${isFull ? 'WAITLIST OPEN' : `${spotsRemaining} SPOTS REMAINING`}</div>
+                            </div>
+
+                            <button class="register-btn" onclick="openModal()">
+                                ${isFull ? 'JOIN WAITLIST' : 'REGISTER NOW'}
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="signups-section">
+                        <div class="signups-header">
+                            <span class="signups-title">CURRENT SIGN-UPS</span>
+                            <span class="signups-count">${totalCount}</span>
+                        </div>
+                        <div class="signups-body">
+                            ${isLoggedIn ? renderSignupsList() : `
+                                <div class="login-prompt">
+                                    <p style="margin-bottom: 15px;">Sign in to view registered players</p>
+                                    <p style="font-size: 24px; font-weight: 700;">${totalCount} players registered</p>
+                                </div>
+                            `}
+                        </div>
+                    </div>
+                `;
+                document.getElementById('mainContent').innerHTML = html;
+            }
+        }
+
+        function renderSchedule() {
+            if (matches.length === 0) {
+                return `<div class="empty-state">
+                    <div class="empty-state-icon">📅</div>
+                    <div>Schedule not generated yet</div>
+                </div>`;
+            }
+
+            // Group matches by week
+            const weeks = {};
+            matches.forEach(m => {
+                const week = m.week || 1;
+                if (!weeks[week]) weeks[week] = [];
+                weeks[week].push(m);
+            });
+
+            let html = '';
+            Object.keys(weeks).sort((a, b) => a - b).forEach(week => {
+                const weekMatches = weeks[week];
+                const weekDate = weekMatches[0]?.match_date || '';
+
+                html += `
+                    <div class="week-card">
+                        <div class="week-header">
+                            <span class="week-title">WEEK ${week}</span>
+                            <span class="week-date">${weekDate}</span>
+                        </div>
+                        <div class="week-matches">
+                            ${weekMatches.map(m => `
+                                <div class="schedule-match">
+                                    <div class="schedule-team home">${m.home_team_name || 'TBD'}</div>
+                                    <div class="schedule-vs">
+                                        ${m.status === 'completed' ?
+                                            `<span class="schedule-score">${m.home_score} - ${m.away_score}</span>` :
+                                            'VS'}
+                                    </div>
+                                    <div class="schedule-team away">${m.away_team_name || 'TBD'}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            });
+
+            return html;
+        }
+
+        function renderStandings() {
+            if (teams.length === 0) {
+                return `<div class="empty-state">
+                    <div class="empty-state-icon">🏆</div>
+                    <div>No standings available yet</div>
+                </div>`;
+            }
+
+            // Sort teams by wins, then points
+            const sorted = [...teams].sort((a, b) => {
+                if ((b.wins || 0) !== (a.wins || 0)) return (b.wins || 0) - (a.wins || 0);
+                return (b.points_for || 0) - (a.points_for || 0);
+            });
+
+            return `
+                <table class="standings-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Team</th>
+                            <th>W</th>
+                            <th>L</th>
+                            <th>PTS</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${sorted.map((t, i) => `
+                            <tr>
+                                <td class="standings-rank">${i + 1}</td>
+                                <td class="standings-team">${t.team_name}</td>
+                                <td class="standings-record">${t.wins || 0}</td>
+                                <td class="standings-record">${t.losses || 0}</td>
+                                <td class="standings-record">${t.points_for || 0}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        function renderStats() {
+            if (matches.length === 0) {
+                return `<div class="empty-state">
+                    <div class="empty-state-icon">📊</div>
+                    <div>Stats will appear once matches are played</div>
+                </div>`;
+            }
+
+            // Calculate team stats
+            const completedMatches = matches.filter(m => m.status === 'completed').length;
+            const totalLegs = matches.reduce((sum, m) => sum + (m.home_score || 0) + (m.away_score || 0), 0);
+
+            return `
+                <div class="stats-grid">
+                    <div class="stats-card">
+                        <div class="stats-card-header">LEAGUE OVERVIEW</div>
+                        <div class="stats-card-body">
+                            <div class="leaderboard-item">
+                                <div class="leaderboard-name">Matches Completed</div>
+                                <div class="leaderboard-stat">${completedMatches}/${matches.length}</div>
+                            </div>
+                            <div class="leaderboard-item">
+                                <div class="leaderboard-name">Total Legs Played</div>
+                                <div class="leaderboard-stat">${totalLegs}</div>
+                            </div>
+                            <div class="leaderboard-item">
+                                <div class="leaderboard-name">Teams</div>
+                                <div class="leaderboard-stat">${teams.length}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="stats-card">
+                        <div class="stats-card-header">TOP TEAMS BY WINS</div>
+                        <div class="stats-card-body">
+                            ${teams.sort((a, b) => (b.wins || 0) - (a.wins || 0)).slice(0, 5).map((t, i) => `
+                                <div class="leaderboard-item">
+                                    <div class="leaderboard-rank ${i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : ''}">${i + 1}</div>
+                                    <div class="leaderboard-name">${t.team_name}</div>
+                                    <div class="leaderboard-stat">${t.wins || 0}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderTeams() {
+            if (teams.length === 0) {
+                return `<div class="empty-state">
+                    <div class="empty-state-icon">👥</div>
+                    <div>Teams not created yet</div>
+                </div>`;
+            }
+
+            return `
+                <div class="stats-grid">
+                    ${teams.map(t => `
+                        <div class="stats-card">
+                            <div class="stats-card-header" style="cursor: pointer;" onclick="viewTeam('${t.id}')">${t.team_name} <span style="font-size: 12px; opacity: 0.7;">→</span></div>
+                            <div class="stats-card-body">
+                                ${(t.player_names || []).map((name, i) => {
+                                    const playerId = t.player_ids?.[i] || '';
+                                    const isCaptain = t.captain_id === playerId || i === 0;
+                                    return `
+                                    <div class="leaderboard-item" style="cursor: pointer;" onclick="viewPlayer('${playerId}')">
+                                        <div class="leaderboard-rank" style="${isCaptain ? 'background: var(--yellow); color: black;' : ''}">${isCaptain ? 'C' : i + 1}</div>
+                                        <div class="leaderboard-name">${name} <span style="font-size: 10px; color: var(--teal);">→</span></div>
+                                    </div>
+                                `}).join('')}
+                                <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-around; text-align: center;">
+                                    <div>
+                                        <div style="font-size: 12px; color: var(--text-dim);">WINS</div>
+                                        <div style="font-family: 'Bebas Neue', cursive; font-size: 24px; color: var(--teal);">${t.wins || 0}</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-size: 12px; color: var(--text-dim);">LOSSES</div>
+                                        <div style="font-family: 'Bebas Neue', cursive; font-size: 24px; color: var(--pink);">${t.losses || 0}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        window.viewTeam = function(teamId) {
+            window.location.href = `/pages/team-profile.html?league_id=${leagueId}&team_id=${teamId}`;
+        };
+
+        window.viewPlayer = function(playerId) {
+            if (playerId) {
+                window.location.href = `/pages/player-public.html?player_id=${playerId}&league_id=${leagueId}`;
+            }
+        };
+
+        function renderLive() {
+            // Get matches currently in progress
+            const liveMatches = matches.filter(m => m.status === 'in_progress');
+
+            if (liveMatches.length === 0) {
+                return `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📺</div>
+                        <div>No live matches right now</div>
+                        <p style="color: var(--text-dim); margin-top: 10px;">Check back during match nights!</p>
+                    </div>
+                `;
+            }
+
+            return `
+                <div style="display: grid; gap: 15px;">
+                    ${liveMatches.map(m => `
+                        <div class="stats-card live-match-card" data-match-id="${m.id}">
+                            <div class="stats-card-header" style="background: linear-gradient(135deg, #10b981, #059669); display: flex; justify-content: space-between; align-items: center;">
+                                <span style="display: flex; align-items: center; gap: 8px;">
+                                    <span style="width: 10px; height: 10px; background: #fff; border-radius: 50%; animation: pulse 1.5s infinite;"></span>
+                                    LIVE
+                                </span>
+                                <span style="font-size: 14px; opacity: 0.9;">Round ${m.current_round || 1}</span>
+                            </div>
+                            <div class="stats-card-body" style="padding: 15px;">
+                                <div style="display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; text-align: center; gap: 10px;">
+                                    <div>
+                                        <div style="font-weight: 700; font-size: 16px;">${m.home_team_name || 'Home'}</div>
+                                        <div style="font-family: 'Archivo Black', sans-serif; font-size: 36px; color: var(--teal);">${m.home_score || 0}</div>
+                                    </div>
+                                    <div style="font-family: 'Bebas Neue', cursive; font-size: 20px; color: var(--text-dim);">VS</div>
+                                    <div>
+                                        <div style="font-weight: 700; font-size: 16px;">${m.away_team_name || 'Away'}</div>
+                                        <div style="font-family: 'Archivo Black', sans-serif; font-size: 36px; color: var(--pink);">${m.away_score || 0}</div>
+                                    </div>
+                                </div>
+                                ${m.current_game ? `
+                                    <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1);">
+                                        <div style="text-align: center; font-size: 12px; color: var(--text-dim); margin-bottom: 8px;">CURRENT GAME</div>
+                                        <div style="display: flex; justify-content: space-around; align-items: center;">
+                                            <div style="text-align: center;">
+                                                <div style="font-size: 12px; color: var(--text-dim);">${m.current_game.home_player || '-'}</div>
+                                                <div style="font-family: 'Bebas Neue', cursive; font-size: 28px; color: var(--yellow);">${m.current_game.home_score || 501}</div>
+                                            </div>
+                                            <div style="font-family: 'Bebas Neue', cursive; color: var(--text-dim);">${m.current_game.game_type || '501'}</div>
+                                            <div style="text-align: center;">
+                                                <div style="font-size: 12px; color: var(--text-dim);">${m.current_game.away_player || '-'}</div>
+                                                <div style="font-family: 'Bebas Neue', cursive; font-size: 28px; color: var(--yellow);">${m.current_game.away_score || 501}</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ` : ''}
+                                <button onclick="expandMatch('${m.id}')" style="width: 100%; margin-top: 15px; padding: 10px; background: rgba(255,255,255,0.1); border: 2px solid var(--teal); color: var(--teal); font-family: 'Bebas Neue', cursive; font-size: 16px; letter-spacing: 1px; cursor: pointer; transition: all 0.2s;">
+                                    EXPAND SCORER
+                                </button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+                <style>
+                    @keyframes pulse {
+                        0%, 100% { opacity: 1; }
+                        50% { opacity: 0.4; }
+                    }
+                </style>
+            `;
+        }
+
+        window.expandMatch = function(matchId) {
+            // Open match in expanded scorer view
+            window.open(`/pages/league-scoreboard.html?match_id=${matchId}&league_id=${leagueId}`, '_blank');
+        };
+
+        function renderFillins() {
+            const fillinSettings = leagueData.fillin_settings || {};
+
+            return `
+                <div class="stats-card" style="margin-bottom: 20px;">
+                    <div class="stats-card-header" style="background: linear-gradient(135deg, var(--teal), #5ab8d4);">
+                        <span style="color: var(--black);">🔄 SIGN UP AS A FILL-IN</span>
+                    </div>
+                    <div class="stats-card-body" style="padding: 20px;">
+                        <p style="margin-bottom: 15px; color: var(--text-dim);">Fill-ins substitute for unavailable players. Captains will contact you when needed.</p>
+                        <button class="register-btn" style="font-size: 18px; padding: 15px;" onclick="openFillinModal()">SIGN UP AS FILL-IN</button>
+                    </div>
+                </div>
+
+                <div class="stats-card">
+                    <div class="stats-card-header">
+                        AVAILABLE FILL-INS <span style="background: var(--teal); color: var(--black); padding: 2px 10px; border-radius: 10px; margin-left: 10px; font-size: 14px;">${fillins.length}</span>
+                    </div>
+                    <div class="stats-card-body">
+                        ${fillins.length === 0 ? `
+                            <div class="empty-state" style="padding: 30px;">
+                                <div class="empty-state-icon">👤</div>
+                                <div>No fill-ins registered yet. Be the first!</div>
+                            </div>
+                        ` : fillins.map(f => `
+                            <div class="leaderboard-item">
+                                <div class="leaderboard-name">
+                                    ${f.full_name}
+                                    ${f.preferred_level ? `<span class="signup-level" style="margin-left: 8px;">${f.preferred_level}</span>` : ''}
+                                </div>
+                                <div style="text-align: right; font-size: 12px; color: var(--text-dim);">
+                                    ${fillinSettings.collect_501_avg && f.avg_501 ? `<div>501: ${f.avg_501}</div>` : ''}
+                                    ${fillinSettings.collect_cricket_avg && f.avg_cricket ? `<div>MPR: ${f.avg_cricket}</div>` : ''}
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Combined Registration Tab (shows both regular registration and fill-in)
+        function renderRegistrationTab() {
+            const fillinSettings = leagueData.fillin_settings || {};
+            const isDraftLeague = leagueData.league_type === 'triples_draft' || leagueData.league_type === 'doubles_draft' || leagueData.draft_enabled;
+            const totalSpots = (leagueData.num_teams || leagueData.max_teams || 8) * (leagueData.team_size || leagueData.players_per_team || 3);
+            const currentPlayers = registrations.length;
+            const spotsRemaining = totalSpots - currentPlayers;
+
+            return `
+                <div class="stats-grid" style="margin-bottom: 20px;">
+                    <!-- General Registration Card -->
+                    <div class="stats-card">
+                        <div class="stats-card-header" style="background: linear-gradient(135deg, var(--pink), #cc3879);">
+                            JOIN THE LEAGUE
+                        </div>
+                        <div class="stats-card-body" style="padding: 20px;">
+                            <p style="margin-bottom: 15px; color: var(--text-dim);">
+                                ${isDraftLeague ?
+                                    'Register to be drafted onto a team. Teams are formed through a draft process.' :
+                                    'Register to join the league. You\'ll be assigned to a team or can form your own.'}
+                            </p>
+                            <div class="spots-display" style="margin-bottom: 15px;">
+                                <div class="spots-count">${currentPlayers} / ${totalSpots}</div>
+                                <div class="spots-label">${spotsRemaining <= 0 ? 'WAITLIST OPEN' : `${spotsRemaining} SPOTS REMAINING`}</div>
+                            </div>
+                            <button class="register-btn" style="font-size: 18px; padding: 15px;" onclick="openModal()">
+                                ${spotsRemaining <= 0 ? 'JOIN WAITLIST' : 'REGISTER NOW'}
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Fill-in Registration Card -->
+                    <div class="stats-card">
+                        <div class="stats-card-header" style="background: linear-gradient(135deg, var(--teal), #5ab8d4);">
+                            <span style="color: var(--black);">SIGN UP AS FILL-IN</span>
+                        </div>
+                        <div class="stats-card-body" style="padding: 20px;">
+                            <p style="margin-bottom: 15px; color: var(--text-dim);">
+                                Fill-ins substitute for unavailable players. Captains will contact you when needed.
+                            </p>
+                            <div style="background: rgba(145, 215, 235, 0.2); padding: 15px; margin-bottom: 15px; border: 2px solid var(--teal); text-align: center;">
+                                <div style="font-family: 'Archivo Black', sans-serif; font-size: 24px; color: var(--teal);">${fillins.length}</div>
+                                <div style="font-size: 12px; color: var(--text-dim);">FILL-INS AVAILABLE</div>
+                            </div>
+                            <button class="register-btn" style="font-size: 18px; padding: 15px; background: linear-gradient(135deg, var(--teal), #5ab8d4); color: var(--black);" onclick="openFillinModal()">
+                                SIGN UP AS FILL-IN
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Current Registrations List -->
+                <div class="stats-card">
+                    <div class="stats-card-header">
+                        REGISTERED PLAYERS <span style="background: var(--pink); padding: 2px 10px; border-radius: 10px; margin-left: 10px; font-size: 14px;">${registrations.length}</span>
+                    </div>
+                    <div class="stats-card-body">
+                        ${registrations.length === 0 ? `
+                            <div class="empty-state" style="padding: 30px;">
+                                <div class="empty-state-icon">👥</div>
+                                <div>No players registered yet. Be the first!</div>
+                            </div>
+                        ` : registrations.slice(0, 20).map(r => `
+                            <div class="leaderboard-item">
+                                <div class="leaderboard-name">
+                                    ${r.full_name || r.name}
+                                    ${r.skill_level || r.preferred_level ? `<span class="signup-level" style="margin-left: 8px;">${r.skill_level || r.preferred_level}</span>` : ''}
+                                </div>
+                                <span class="signup-status ${r.payment_status === 'paid' ? 'confirmed' : 'pending'}">
+                                    ${r.payment_status === 'paid' ? 'Confirmed' : 'Pending'}
+                                </span>
+                            </div>
+                        `).join('')}
+                        ${registrations.length > 20 ? `<div style="text-align: center; padding: 10px; color: var(--text-dim);">+ ${registrations.length - 20} more</div>` : ''}
+                    </div>
+                </div>
+
+                <!-- Fill-ins List -->
+                ${fillins.length > 0 ? `
+                <div class="stats-card" style="margin-top: 20px;">
+                    <div class="stats-card-header">
+                        AVAILABLE FILL-INS <span style="background: var(--teal); color: var(--black); padding: 2px 10px; border-radius: 10px; margin-left: 10px; font-size: 14px;">${fillins.length}</span>
+                    </div>
+                    <div class="stats-card-body">
+                        ${fillins.map(f => `
+                            <div class="leaderboard-item">
+                                <div class="leaderboard-name">
+                                    ${f.full_name}
+                                    ${f.preferred_level ? `<span class="signup-level" style="margin-left: 8px;">${f.preferred_level}</span>` : ''}
+                                </div>
+                                <div style="text-align: right; font-size: 12px; color: var(--text-dim);">
+                                    ${fillinSettings.collect_501_avg && f.avg_501 ? `<div>501: ${f.avg_501}</div>` : ''}
+                                    ${fillinSettings.collect_cricket_avg && f.avg_cricket ? `<div>MPR: ${f.avg_cricket}</div>` : ''}
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                ` : ''}
+            `;
+        }
+
+        // Director Login
+        window.showDirectorLogin = function() {
+            const html = `
+                <div style="text-align: center;">
+                    <p style="margin-bottom: 20px; color: var(--text-dim);">Enter your Director PIN to access the league management dashboard.</p>
+                    <div class="form-group">
+                        <input type="password" id="directorPinInput" class="form-input" maxlength="8" placeholder="Enter Director PIN" style="text-align: center; font-size: 20px; letter-spacing: 3px;">
+                    </div>
+                    <button class="submit-btn" onclick="verifyDirectorPin()">LOGIN</button>
+                </div>
+            `;
+            document.getElementById('modalBody').innerHTML = html;
+            document.querySelector('.modal-title').textContent = 'DIRECTOR LOGIN';
+            document.getElementById('registerModal').classList.add('active');
+            setTimeout(() => document.getElementById('directorPinInput').focus(), 100);
+        };
+
+        window.verifyDirectorPin = async function() {
+            const pin = document.getElementById('directorPinInput').value.trim();
+            if (!pin) {
+                alert('Please enter your Director PIN');
+                return;
+            }
+
+            try {
+                // Check if PIN matches league director_pin or admin_pin
+                if (pin === leagueData.director_pin || pin === leagueData.admin_pin) {
+                    // Redirect to director dashboard
+                    window.location.href = `/pages/league-director.html?league_id=${leagueId}`;
+                } else {
+                    alert('Invalid PIN. Please try again.');
+                }
+            } catch (e) {
+                alert('Error verifying PIN: ' + e.message);
+            }
+        };
+
+        window.openFillinModal = function() {
+            renderFillinForm();
+            document.getElementById('registerModal').classList.add('active');
+        };
+
+        function renderFillinForm() {
+            const fillinSettings = leagueData.fillin_settings || {};
+
+            const html = `
+                <!-- PIN Lookup Section -->
+                <div class="pin-section">
+                    <div class="pin-section-title">ALREADY A MEMBER? ENTER YOUR PIN</div>
+                    <div class="pin-row">
+                        <input type="text" id="fillinPin" class="pin-input" maxlength="5" placeholder="12345" inputmode="numeric">
+                        <button class="pin-btn" onclick="lookupFillinPin()">GO</button>
+                    </div>
+                </div>
+
+                <div class="divider"><span>OR REGISTER NEW</span></div>
+
+                <form id="fillinForm" onsubmit="submitFillin(event)">
+                    <div class="form-group">
+                        <label class="form-label">Full Name <span>*</span></label>
+                        <input type="text" id="fillinName" name="full_name" class="form-input" required placeholder="John Smith">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Email <span>*</span></label>
+                        <input type="email" id="fillinEmail" name="email" class="form-input" required placeholder="john@example.com">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Phone <span>*</span></label>
+                        <input type="tel" id="fillinPhone" name="phone" class="form-input" required placeholder="555-123-4567">
+                    </div>
+
+                    ${fillinSettings.collect_level !== false ? `
+                    <div class="form-group">
+                        <label class="form-label">Preferred Level</label>
+                        <select id="fillinLevel" name="preferred_level" class="form-select">
+                            <option value="">-- Select --</option>
+                            <option value="A">A - Advanced</option>
+                            <option value="B">B - Intermediate</option>
+                            <option value="C">C - Beginner</option>
+                        </select>
+                    </div>
+                    ` : ''}
+
+                    ${fillinSettings.collect_501_avg !== false ? `
+                    <div class="form-group">
+                        <label class="form-label">501 Average (if known)</label>
+                        <input type="number" id="fillin501" name="avg_501" class="form-input" step="0.01" placeholder="e.g., 45.5">
+                    </div>
+                    ` : ''}
+
+                    ${fillinSettings.collect_cricket_avg !== false ? `
+                    <div class="form-group">
+                        <label class="form-label">Cricket MPR (if known)</label>
+                        <input type="number" id="fillinCricket" name="avg_cricket" class="form-input" step="0.01" placeholder="e.g., 2.5">
+                    </div>
+                    ` : ''}
+
+                    <div class="form-group">
+                        <label class="checkbox-group">
+                            <input type="checkbox" name="sms_opt_in" checked>
+                            <span>Contact me via SMS when fill-in needed</span>
+                        </label>
+                    </div>
+
+                    <button type="submit" class="submit-btn" id="fillinSubmitBtn">SIGN UP AS FILL-IN</button>
+                </form>
+            `;
+
+            document.getElementById('modalBody').innerHTML = html;
+            document.querySelector('.modal-title').textContent = 'FILL-IN SIGNUP';
+        }
+
+        window.lookupFillinPin = async function() {
+            const pin = document.getElementById('fillinPin').value.trim();
+            if (pin.length !== 5) {
+                alert('Please enter a 5-digit PIN');
+                return;
+            }
+
+            try {
+                const result = await callFunction('playerLogin', { pin: pin });
+                if (result.success && result.player) {
+                    memberData = result.player;
+                    document.getElementById('fillinName').value = memberData.name || '';
+                    document.getElementById('fillinEmail').value = memberData.email || '';
+                    document.getElementById('fillinPhone').value = memberData.phone || '';
+                    if (memberData.preferred_level && document.getElementById('fillinLevel')) {
+                        document.getElementById('fillinLevel').value = memberData.preferred_level;
+                    }
+                    alert('Welcome back, ' + memberData.name + '! Your info has been filled in.');
+                } else {
+                    alert('PIN not found. Please register as a new player.');
+                }
+            } catch (e) {
+                alert('Error looking up PIN: ' + e.message);
+            }
+        };
+
+        window.submitFillin = async function(e) {
+            e.preventDefault();
+
+            const form = e.target;
+            const formData = new FormData(form);
+            const btn = document.getElementById('fillinSubmitBtn');
+
+            btn.disabled = true;
+            btn.textContent = 'SIGNING UP...';
+
+            try {
+                const result = await callFunction('registerFillin', {
+                    league_id: leagueId,
+                    full_name: formData.get('full_name'),
+                    email: formData.get('email'),
+                    phone: formData.get('phone'),
+                    preferred_level: formData.get('preferred_level') || null,
+                    avg_501: formData.get('avg_501') ? parseFloat(formData.get('avg_501')) : null,
+                    avg_cricket: formData.get('avg_cricket') ? parseFloat(formData.get('avg_cricket')) : null,
+                    sms_opt_in: formData.get('sms_opt_in') ? true : false,
+                    member_pin: memberData?.pin || null
+                });
+
+                if (!result.success) {
+                    throw new Error(result.error || 'Fill-in signup failed');
+                }
+
+                // Show success
+                document.getElementById('modalBody').innerHTML = `
+                    <div class="success-content">
+                        <div class="success-icon">✅</div>
+                        <div class="success-title">YOU'RE SIGNED UP!</div>
+                        <div class="success-message">
+                            You've been added to the fill-in list. Captains will contact you when they need a substitute.
+                        </div>
+                        ${result.player_pin ? `
+                            <div class="pin-display-box">
+                                <div class="pin-display-label">YOUR PIN (SAVE THIS!)</div>
+                                <div class="pin-display-value">${result.player_pin}</div>
+                            </div>
+                        ` : ''}
+                        <button class="submit-btn" onclick="closeModal(); location.reload();">DONE</button>
+                    </div>
+                `;
+
+            } catch (error) {
+                alert('Error: ' + error.message);
+                btn.disabled = false;
+                btn.textContent = 'SIGN UP AS FILL-IN';
+            }
+        };
+
+        window.switchTab = function(tabName) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById(tabName + 'Tab').classList.add('active');
+        };
+
+        function renderSignupsList() {
+            if (registrations.length === 0) {
+                return '<div class="login-prompt">No registrations yet. Be the first!</div>';
+            }
+
+            return registrations.map(reg => `
+                <div class="signup-item">
+                    <div>
+                        <span class="signup-name">${reg.full_name || reg.name}</span>
+                        ${reg.preferred_level ? `<span class="signup-level">${reg.preferred_level}</span>` : ''}
+                    </div>
+                    <span class="signup-status ${reg.payment_status === 'paid' ? 'confirmed' : 'pending'}">
+                        ${reg.payment_status === 'paid' ? 'Confirmed' : 'Pending'}
+                    </span>
+                </div>
+            `).join('');
+        }
+
+        function formatGameType(type) {
+            const types = { '501': '501', 'cricket': 'Cricket', 'mixed': 'Mixed' };
+            return types[type] || type || '501';
+        }
+
+        window.openModal = function() {
+            renderRegistrationForm();
+            document.getElementById('registerModal').classList.add('active');
+        };
+
+        window.closeModal = function() {
+            document.getElementById('registerModal').classList.remove('active');
+        };
+
+        function renderRegistrationForm() {
+            const entryFee = parseFloat(leagueData.entry_fee) || 0;
+
+            const html = `
+                <!-- PIN Lookup Section -->
+                <div class="pin-section">
+                    <div class="pin-section-title">ALREADY A MEMBER? ENTER YOUR PIN</div>
+                    <div class="pin-row">
+                        <input type="text" id="memberPin" class="pin-input" maxlength="5" placeholder="12345" inputmode="numeric">
+                        <button class="pin-btn" onclick="lookupPin()">GO</button>
+                    </div>
+                </div>
+
+                <div class="divider"><span>OR REGISTER NEW</span></div>
+
+                <form id="registrationForm" onsubmit="submitRegistration(event)">
+                    <div class="form-group">
+                        <label class="form-label">Full Name <span>*</span></label>
+                        <input type="text" id="regName" name="full_name" class="form-input" required placeholder="John Smith">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Email <span>*</span></label>
+                        <input type="email" id="regEmail" name="email" class="form-input" required placeholder="john@example.com">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Phone <span>*</span></label>
+                        <input type="tel" id="regPhone" name="phone" class="form-input" required placeholder="555-123-4567">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Skill Level</label>
+                        <select id="regLevel" name="skill_level" class="form-select">
+                            <option value="">-- Select --</option>
+                            <option value="A">A - Advanced</option>
+                            <option value="B">B - Intermediate</option>
+                            <option value="C">C - Beginner</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="checkbox-group">
+                            <input type="checkbox" name="sms_opt_in" checked>
+                            <span>Send me SMS match reminders</span>
+                        </label>
+                    </div>
+
+                    ${entryFee > 0 ? `
+                        <div class="fee-display">
+                            <div style="color: var(--text-dim); font-size: 12px; margin-bottom: 5px;">ENTRY FEE</div>
+                            <div class="fee-amount">$${entryFee.toFixed(2)}</div>
+                        </div>
+
+                        <div class="payment-section">
+                            <div class="payment-title">PAYMENT METHOD</div>
+                            <label class="payment-option selected" onclick="selectPayment(this, 'paypal')">
+                                <input type="radio" name="payment_method" value="paypal" checked>
+                                <div>
+                                    <div class="payment-label">Pay Now (PayPal)</div>
+                                    <div class="payment-desc">Secure payment, instant confirmation</div>
+                                </div>
+                            </label>
+                            <label class="payment-option" onclick="selectPayment(this, 'later')">
+                                <input type="radio" name="payment_method" value="later">
+                                <div>
+                                    <div class="payment-label">Pay Later</div>
+                                    <div class="payment-desc">Reserve your spot, pay before deadline</div>
+                                </div>
+                            </label>
+                            <label class="payment-option" onclick="selectPayment(this, 'event')">
+                                <input type="radio" name="payment_method" value="event">
+                                <div>
+                                    <div class="payment-label">Pay at Event</div>
+                                    <div class="payment-desc">Cash or card at check-in</div>
+                                </div>
+                            </label>
+                        </div>
+                    ` : ''}
+
+                    <button type="submit" class="submit-btn" id="submitBtn">REGISTER</button>
+                </form>
+            `;
+
+            document.getElementById('modalBody').innerHTML = html;
+        }
+
+        window.selectPayment = function(el, method) {
+            document.querySelectorAll('.payment-option').forEach(opt => opt.classList.remove('selected'));
+            el.classList.add('selected');
+            el.querySelector('input').checked = true;
+        };
+
+        window.lookupPin = async function() {
+            const pin = document.getElementById('memberPin').value.trim();
+            if (pin.length !== 5) {
+                alert('Please enter a 5-digit PIN');
+                return;
+            }
+
+            try {
+                const result = await callFunction('playerLogin', { pin: pin });
+                if (result.success && result.player) {
+                    memberData = result.player;
+                    document.getElementById('regName').value = memberData.name || '';
+                    document.getElementById('regEmail').value = memberData.email || '';
+                    document.getElementById('regPhone').value = memberData.phone || '';
+                    if (memberData.preferred_level) {
+                        document.getElementById('regLevel').value = memberData.preferred_level;
+                    }
+                    alert('Welcome back, ' + memberData.name + '! Your info has been filled in.');
+                } else {
+                    alert('PIN not found. Please register as a new player.');
+                }
+            } catch (e) {
+                alert('Error looking up PIN: ' + e.message);
+            }
+        };
+
+        window.submitRegistration = async function(e) {
+            e.preventDefault();
+
+            const form = e.target;
+            const formData = new FormData(form);
+            const btn = document.getElementById('submitBtn');
+            const paymentMethod = formData.get('payment_method') || 'free';
+
+            btn.disabled = true;
+            btn.textContent = 'REGISTERING...';
+
+            try {
+                const result = await callFunction('registerForLeague', {
+                    league_id: leagueId,
+                    full_name: formData.get('full_name'),
+                    email: formData.get('email'),
+                    phone: formData.get('phone'),
+                    skill_level: formData.get('skill_level') || null,
+                    sms_opt_in: formData.get('sms_opt_in') ? true : false,
+                    payment_method: paymentMethod,
+                    member_pin: memberData?.pin || null
+                });
+
+                if (!result.success) {
+                    throw new Error(result.error || 'Registration failed');
+                }
+
+                // If PayPal selected, redirect to payment
+                if (paymentMethod === 'paypal' && result.paypal_url) {
+                    window.location.href = result.paypal_url;
+                    return;
+                }
+
+                showSuccess(result);
+
+            } catch (error) {
+                alert('Error: ' + error.message);
+                btn.disabled = false;
+                btn.textContent = 'REGISTER';
+            }
+        };
+
+        function showSuccess(result) {
+            const html = `
+                <div class="success-content">
+                    <div class="success-icon">🎉</div>
+                    <div class="success-title">YOU'RE REGISTERED!</div>
+                    <div class="success-message">
+                        ${result.waitlist ? 'You\'ve been added to the waitlist. We\'ll notify you if a spot opens.' :
+                          result.payment_status === 'pending' ? 'Your spot is reserved! Please complete payment before the deadline.' :
+                          'Welcome to the league! Check your email for confirmation details.'}
+                    </div>
+                    ${result.player_pin ? `
+                        <div class="pin-display-box">
+                            <div class="pin-display-label">YOUR PIN (SAVE THIS!)</div>
+                            <div class="pin-display-value">${result.player_pin}</div>
+                        </div>
+                    ` : ''}
+                    <button class="submit-btn" onclick="closeModal(); location.reload();">DONE</button>
+                </div>
+            `;
+
+            document.getElementById('modalBody').innerHTML = html;
+        }
+
+        function showError(message) {
+            document.getElementById('mainContent').innerHTML = `
+                <div class="error-message">
+                    <strong>Error</strong><br>${message}
+                </div>
+            `;
+        }
+    </script>
+    <script src="/js/nav-menu.js"></script>
+</body>
+</html>

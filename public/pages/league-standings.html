@@ -6,11 +6,54 @@
     <title>League Standings - BRDC</title>
     <link rel="icon" type="image/png" href="/images/favicon.png">
     <link rel="stylesheet" href="/css/brdc-styles.css">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="BRDC">
+    <link rel="apple-touch-icon" href="/images/white_logo.jpg">
+    <meta name="theme-color" content="#FF469A">
     <style>
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse at 20% 20%, rgba(255, 70, 154, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(145, 215, 235, 0.06) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: -1;
+        }
+        .header-bar {
+            background: var(--bg-panel);
+            border-bottom: 3px solid var(--pink);
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+        }
+        .header-logo {
+            width: 40px;
+            height: 40px;
+            mix-blend-mode: multiply;
+            filter: drop-shadow(0 0 8px rgba(255, 70, 154, 0.5));
+        }
+        .header-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 28px;
+            letter-spacing: 3px;
+            color: var(--pink);
+        }
         .standings-table {
             width: 100%;
             border-collapse: collapse;
             margin: 20px 0;
+            background: var(--bg-panel);
+            border-radius: 8px;
+            overflow: hidden;
         }
 
         .standings-table th {
@@ -20,31 +63,31 @@
             text-align: left;
             font-weight: 700;
             text-transform: uppercase;
-            font-size: 13px;
+            font-size: 12px;
             letter-spacing: 1px;
-            border: 3px solid var(--black);
         }
 
         .standings-table td {
             padding: 15px;
-            border: 2px solid #e5e7eb;
+            border-bottom: 1px solid var(--border-color);
             font-weight: 600;
+            color: var(--text-light);
         }
 
         .standings-table tr:hover {
-            background: #f9fafb;
+            background: rgba(255,255,255,0.05);
         }
 
         .rank-badge {
             display: inline-block;
-            width: 30px;
-            height: 30px;
+            width: 32px;
+            height: 32px;
             background: var(--teal);
-            border: 2px solid var(--black);
             border-radius: 50%;
             text-align: center;
-            line-height: 26px;
-            font-weight: 700;
+            line-height: 32px;
+            font-weight: 800;
+            color: #000;
         }
 
         .rank-badge.gold { background: #ffd700; }
@@ -52,17 +95,19 @@
         .rank-badge.bronze { background: #cd7f32; }
 
         .team-card {
-            background: white;
+            background: var(--bg-panel);
             border: 3px solid var(--black);
+            border-radius: 10px;
             padding: 20px;
             margin-bottom: 15px;
-            box-shadow: 6px 6px 0 rgba(0,0,0,1);
+            box-shadow: 6px 6px 0 rgba(0,0,0,0.5);
         }
 
         .team-name {
             font-family: 'Bebas Neue', cursive;
             font-size: 24px;
             margin-bottom: 10px;
+            color: var(--pink);
         }
 
         .player-list {
@@ -72,14 +117,20 @@
         }
 
         .player-badge {
-            background: var(--teal);
-            border: 2px solid var(--black);
+            background: rgba(145,215,235,0.2);
+            border: 2px solid var(--teal);
             padding: 5px 12px;
             font-size: 13px;
             font-weight: 700;
+            border-radius: 6px;
+            color: var(--teal);
         }
 
-        .player-badge.captain { background: var(--yellow); }
+        .player-badge.captain {
+            background: rgba(253,216,53,0.2);
+            border-color: var(--yellow);
+            color: var(--yellow);
+        }
 
         .tab-container {
             display: flex;
@@ -89,24 +140,28 @@
         }
 
         .tab {
-            background: white;
-            border: 3px solid var(--black);
+            background: var(--bg-card);
+            border: 3px solid var(--border-color);
             padding: 12px 24px;
             font-family: 'Bebas Neue', cursive;
-            font-size: 20px;
+            font-size: 18px;
             cursor: pointer;
-            box-shadow: 4px 4px 0 rgba(0,0,0,1);
+            box-shadow: 4px 4px 0 rgba(0,0,0,0.5);
             transition: all 0.2s;
+            border-radius: 8px;
+            color: var(--text-light);
         }
 
         .tab:hover {
             transform: translateY(-2px);
-            box-shadow: 6px 6px 0 rgba(0,0,0,1);
+            box-shadow: 6px 6px 0 rgba(0,0,0,0.5);
+            border-color: var(--pink);
         }
 
         .tab.active {
             background: var(--pink);
             color: white;
+            border-color: var(--pink);
         }
 
         .tab-content {
@@ -128,6 +183,7 @@
         .match-team {
             flex: 1;
             font-weight: 700;
+            color: var(--text-light);
         }
 
         .match-team.home { text-align: right; }
@@ -136,20 +192,218 @@
         .match-score {
             background: var(--teal);
             padding: 8px 16px;
-            border: 2px solid var(--black);
-            font-weight: 700;
+            border-radius: 6px;
+            font-weight: 800;
             font-size: 18px;
             min-width: 80px;
             text-align: center;
+            color: #000;
         }
 
         .match-score.pending {
-            background: #eee;
-            color: #666;
+            background: var(--border-color);
+            color: var(--text-dim);
+        }
+
+        /* Sub Registration */
+        .sub-form {
+            background: var(--bg-panel);
+            border: 3px solid var(--black);
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 6px 6px 0 rgba(0,0,0,0.5);
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        .sub-form h3 {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 28px;
+            margin-bottom: 20px;
+            text-align: center;
+            color: var(--teal);
+        }
+
+        .sub-form .form-group {
+            margin-bottom: 20px;
+        }
+
+        .sub-form label {
+            display: block;
+            font-weight: 700;
+            margin-bottom: 8px;
+            font-size: 13px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .sub-form input, .sub-form select {
+            width: 100%;
+            padding: 14px;
+            border: 3px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 16px;
+            font-family: inherit;
+            background: rgba(255,255,255,0.05);
+            color: var(--text-light);
+        }
+
+        .sub-form input::placeholder {
+            color: var(--text-dim);
+        }
+
+        .sub-form input:focus, .sub-form select:focus {
+            outline: none;
+            border-color: var(--pink);
+            background: rgba(255,255,255,0.08);
+        }
+
+        .sub-form select option {
+            background: var(--bg-dark);
+            color: var(--text-light);
+        }
+
+        .sub-form button {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(180deg, var(--pink) 0%, #d63384 100%);
+            color: white;
+            border: 3px solid var(--black);
+            border-radius: 8px;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 22px;
+            letter-spacing: 2px;
+            cursor: pointer;
+            box-shadow: 4px 4px 0 rgba(0,0,0,0.5);
+            transition: all 0.2s;
+        }
+
+        .sub-form button:hover {
+            transform: translateY(-2px);
+            box-shadow: 6px 6px 0 rgba(0,0,0,0.5);
+        }
+
+        .sub-form button:disabled {
+            background: var(--border-color);
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .sub-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 30px;
+        }
+
+        .sub-card {
+            background: var(--bg-panel);
+            border: 3px solid var(--border-color);
+            border-radius: 10px;
+            padding: 15px;
+            box-shadow: 4px 4px 0 rgba(0,0,0,0.5);
+        }
+
+        .sub-card .name {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 20px;
+            color: var(--text-light);
+        }
+
+        .sub-card .level-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            background: rgba(145,215,235,0.2);
+            border: 2px solid var(--teal);
+            border-radius: 4px;
+            font-weight: 700;
+            font-size: 12px;
+            margin-left: 8px;
+            color: var(--teal);
+        }
+
+        .sub-card .stats {
+            margin-top: 8px;
+            font-size: 14px;
+            color: var(--text-dim);
+        }
+
+        .success-message {
+            background: rgba(34, 197, 94, 0.2);
+            border: 3px solid #22c55e;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .success-message h4 {
+            color: #22c55e;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 24px;
+        }
+
+        .success-message p {
+            color: var(--text-light);
+        }
+
+        .week-header {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 28px;
+            margin-bottom: 15px;
+            border-bottom: 3px solid var(--pink);
+            padding-bottom: 10px;
+            color: var(--pink);
+        }
+
+        /* Leaderboard Styles */
+        .leaderboard-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .leaderboard-item:last-child { border-bottom: none; }
+        .leaderboard-rank {
+            width: 28px;
+            height: 28px;
+            background: var(--pink);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 14px;
+            color: white;
+            flex-shrink: 0;
+        }
+        .leaderboard-rank.gold { background: #ffd700; color: #000; }
+        .leaderboard-rank.silver { background: #c0c0c0; color: #000; }
+        .leaderboard-rank.bronze { background: #cd7f32; color: #000; }
+        .leaderboard-name {
+            flex: 1;
+            font-weight: 600;
+            font-size: 14px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .leaderboard-stat {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 20px;
+            color: var(--yellow);
         }
     </style>
 </head>
 <body>
+    <div class="header-bar">
+        <button class="back-btn" onclick="history.back()">← BACK</button>
+        <img src="/images/white_logo.jpg" alt="BRDC" class="header-logo">
+        <span class="header-title">STANDINGS</span>
+    </div>
+
     <div class="container">
         <div class="brdc-card" style="max-width: 1200px; margin: 40px auto;">
             <div class="brdc-card-header">
@@ -160,8 +414,10 @@
             <div style="padding: 40px;">
                 <div class="tab-container">
                     <div class="tab active" onclick="switchTab('standings')">Standings</div>
+                    <div class="tab" onclick="switchTab('stats')">Leaderboard</div>
                     <div class="tab" onclick="switchTab('teams')">Teams</div>
                     <div class="tab" onclick="switchTab('schedule')">Schedule</div>
+                    <div class="tab" onclick="switchTab('subs')">Be a Sub</div>
                 </div>
 
                 <div id="standingsTab" class="tab-content active">
@@ -188,6 +444,77 @@
                     </table>
                 </div>
 
+                <div id="statsTab" class="tab-content">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+                        <!-- 501 Leaderboards -->
+                        <div class="team-card">
+                            <div style="background: var(--pink); padding: 15px; margin: -20px -20px 15px -20px;">
+                                <h3 style="font-family: 'Bebas Neue', cursive; font-size: 20px; letter-spacing: 2px; color: white; margin: 0;">501 PPR LEADERS</h3>
+                            </div>
+                            <div id="pprLeaderboard">
+                                <div style="text-align: center; color: var(--text-dim); padding: 20px;">Loading...</div>
+                            </div>
+                        </div>
+                        <div class="team-card">
+                            <div style="background: var(--pink); padding: 15px; margin: -20px -20px 15px -20px;">
+                                <h3 style="font-family: 'Bebas Neue', cursive; font-size: 20px; letter-spacing: 2px; color: white; margin: 0;">MOST 180s</h3>
+                            </div>
+                            <div id="t80Leaderboard">
+                                <div style="text-align: center; color: var(--text-dim); padding: 20px;">Loading...</div>
+                            </div>
+                        </div>
+                        <div class="team-card">
+                            <div style="background: var(--pink); padding: 15px; margin: -20px -20px 15px -20px;">
+                                <h3 style="font-family: 'Bebas Neue', cursive; font-size: 20px; letter-spacing: 2px; color: white; margin: 0;">FIRST 9 AVG</h3>
+                            </div>
+                            <div id="first9Leaderboard">
+                                <div style="text-align: center; color: var(--text-dim); padding: 20px;">Loading...</div>
+                            </div>
+                        </div>
+                        <div class="team-card">
+                            <div style="background: var(--pink); padding: 15px; margin: -20px -20px 15px -20px;">
+                                <h3 style="font-family: 'Bebas Neue', cursive; font-size: 20px; letter-spacing: 2px; color: white; margin: 0;">HIGH CHECKOUT</h3>
+                            </div>
+                            <div id="highCOLeaderboard">
+                                <div style="text-align: center; color: var(--text-dim); padding: 20px;">Loading...</div>
+                            </div>
+                        </div>
+                        <!-- Cricket Leaderboards -->
+                        <div class="team-card">
+                            <div style="background: var(--teal); padding: 15px; margin: -20px -20px 15px -20px;">
+                                <h3 style="font-family: 'Bebas Neue', cursive; font-size: 20px; letter-spacing: 2px; color: var(--black); margin: 0;">CRICKET MPR LEADERS</h3>
+                            </div>
+                            <div id="mprLeaderboard">
+                                <div style="text-align: center; color: var(--text-dim); padding: 20px;">Loading...</div>
+                            </div>
+                        </div>
+                        <div class="team-card">
+                            <div style="background: var(--teal); padding: 15px; margin: -20px -20px 15px -20px;">
+                                <h3 style="font-family: 'Bebas Neue', cursive; font-size: 20px; letter-spacing: 2px; color: var(--black); margin: 0;">9-MARK ROUNDS</h3>
+                            </div>
+                            <div id="nineMarkLeaderboard">
+                                <div style="text-align: center; color: var(--text-dim); padding: 20px;">Loading...</div>
+                            </div>
+                        </div>
+                        <div class="team-card">
+                            <div style="background: var(--teal); padding: 15px; margin: -20px -20px 15px -20px;">
+                                <h3 style="font-family: 'Bebas Neue', cursive; font-size: 20px; letter-spacing: 2px; color: var(--black); margin: 0;">HAT TRICKS</h3>
+                            </div>
+                            <div id="hatTrickLeaderboard">
+                                <div style="text-align: center; color: var(--text-dim); padding: 20px;">Loading...</div>
+                            </div>
+                        </div>
+                        <div class="team-card">
+                            <div style="background: var(--teal); padding: 15px; margin: -20px -20px 15px -20px;">
+                                <h3 style="font-family: 'Bebas Neue', cursive; font-size: 20px; letter-spacing: 2px; color: var(--black); margin: 0;">LOWEST MISS %</h3>
+                            </div>
+                            <div id="missLeaderboard">
+                                <div style="text-align: center; color: var(--text-dim); padding: 20px;">Loading...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div id="teamsTab" class="tab-content">
                     <div id="teamsContainer">
                         <div style="text-align: center; padding: 40px;">
@@ -205,12 +532,75 @@
                         </div>
                     </div>
                 </div>
+
+                <div id="subsTab" class="tab-content">
+                    <div id="subSuccessMessage" class="success-message" style="display: none;">
+                        <h4>You're on the list!</h4>
+                        <p>Captains will reach out when they need a sub. Thanks for signing up!</p>
+                    </div>
+
+                    <div class="sub-form" id="subForm">
+                        <h3>Sign Up as a Substitute</h3>
+                        <p style="text-align: center; margin-bottom: 20px; font-size: 14px; color: #666;">
+                            Want to fill in when teams need players? Add yourself to the sub list.
+                        </p>
+
+                        <div class="form-group">
+                            <label>Full Name *</label>
+                            <input type="text" id="subName" required placeholder="Your name">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Email *</label>
+                            <input type="email" id="subEmail" required placeholder="you@email.com">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Phone *</label>
+                            <input type="tel" id="subPhone" required placeholder="(555) 123-4567">
+                        </div>
+
+                        <div class="form-group">
+                            <label>501 Average (if known)</label>
+                            <input type="number" id="subAverage" placeholder="e.g. 45" min="15" max="100" step="0.1">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Preferred Level *</label>
+                            <select id="subLevel" required>
+                                <option value="">Select your level...</option>
+                                <option value="A">A (Experienced / High Average)</option>
+                                <option value="B">B (Intermediate)</option>
+                                <option value="C">C (Beginner / New to League)</option>
+                                <option value="any">Any Level (Flexible)</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Availability Notes (optional)</label>
+                            <input type="text" id="subNotes" placeholder="e.g. Wednesdays only, after 7pm">
+                        </div>
+
+                        <button type="button" onclick="submitSubRegistration()" id="subSubmitBtn">
+                            ADD ME TO SUB LIST
+                        </button>
+                    </div>
+
+                    <div id="subListContainer">
+                        <h3 style="font-family: 'Bebas Neue', cursive; font-size: 28px; margin-top: 40px; border-bottom: 3px solid var(--pink); padding-bottom: 10px;">
+                            Available Subs (<span id="subCount">0</span>)
+                        </h3>
+                        <div id="subList" class="sub-list">
+                            <p style="color: #666; text-align: center; padding: 20px;">Loading subs...</p>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
     <script type="module">
-        import { db, collection, query, orderBy, onSnapshot, doc, getDoc } from '/js/firebase-config.js';
+        import { db, collection, query, orderBy, onSnapshot, doc, getDoc, getDocs, addDoc, serverTimestamp } from '/js/firebase-config.js';
 
         const urlParams = new URLSearchParams(window.location.search);
         const leagueId = urlParams.get('league_id') || urlParams.get('league');
@@ -438,6 +828,237 @@
             // Show selected tab
             event.target.classList.add('active');
             document.getElementById(tabName + 'Tab').classList.add('active');
+
+            // Load subs when switching to subs tab
+            if (tabName === 'subs') {
+                loadSubs();
+            }
+            // Load stats when switching to stats tab
+            if (tabName === 'stats') {
+                loadLeaderboards();
+            }
+        };
+
+        // Leaderboard data
+        let playerStatsData = [];
+        let leaderboardsLoaded = false;
+
+        async function loadLeaderboards() {
+            if (leaderboardsLoaded) return;
+
+            try {
+                // Load all player stats from the league
+                const statsRef = collection(db, 'leagues', leagueId, 'player_stats');
+                const statsSnap = await getDocs(statsRef);
+                playerStatsData = statsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+                // Render all leaderboards
+                renderLeaderboards();
+                leaderboardsLoaded = true;
+            } catch (error) {
+                console.error('Error loading leaderboards:', error);
+            }
+        }
+
+        function renderLeaderboards() {
+            const minGames = 3; // Minimum games to qualify for average leaderboards
+
+            // PPR Leaders (Points Per Round / 3-Dart Average)
+            const pprData = playerStatsData
+                .filter(p => p.x01_total_darts >= minGames * 12) // At least 12 darts per game
+                .map(p => ({
+                    name: p.player_name || p.name || 'Unknown',
+                    value: (p.x01_total_points / p.x01_total_darts * 3).toFixed(1)
+                }))
+                .sort((a, b) => parseFloat(b.value) - parseFloat(a.value))
+                .slice(0, 10);
+            renderLeaderboard('pprLeaderboard', pprData);
+
+            // Most 180s
+            const t80Data = playerStatsData
+                .map(p => ({
+                    name: p.player_name || p.name || 'Unknown',
+                    value: p.x01_ton_80 || p.x01_ton_eighties || 0
+                }))
+                .filter(p => p.value > 0)
+                .sort((a, b) => b.value - a.value)
+                .slice(0, 10);
+            renderLeaderboard('t80Leaderboard', t80Data);
+
+            // First 9 Average
+            const first9Data = playerStatsData
+                .filter(p => p.x01_first9_darts >= minGames * 9)
+                .map(p => ({
+                    name: p.player_name || p.name || 'Unknown',
+                    value: (p.x01_first9_points / p.x01_first9_darts * 3).toFixed(1)
+                }))
+                .sort((a, b) => parseFloat(b.value) - parseFloat(a.value))
+                .slice(0, 10);
+            renderLeaderboard('first9Leaderboard', first9Data);
+
+            // High Checkout
+            const highCOData = playerStatsData
+                .map(p => ({
+                    name: p.player_name || p.name || 'Unknown',
+                    value: p.x01_high_checkout || 0
+                }))
+                .filter(p => p.value > 0)
+                .sort((a, b) => b.value - a.value)
+                .slice(0, 10);
+            renderLeaderboard('highCOLeaderboard', highCOData);
+
+            // Cricket MPR Leaders
+            const mprData = playerStatsData
+                .filter(p => p.cricket_total_rounds >= minGames * 10) // At least 10 rounds per game
+                .map(p => ({
+                    name: p.player_name || p.name || 'Unknown',
+                    value: (p.cricket_total_marks / p.cricket_total_rounds).toFixed(2)
+                }))
+                .sort((a, b) => parseFloat(b.value) - parseFloat(a.value))
+                .slice(0, 10);
+            renderLeaderboard('mprLeaderboard', mprData);
+
+            // 9-Mark Rounds
+            const nineMarkData = playerStatsData
+                .map(p => ({
+                    name: p.player_name || p.name || 'Unknown',
+                    value: p.cricket_nine_mark_rounds || 0
+                }))
+                .filter(p => p.value > 0)
+                .sort((a, b) => b.value - a.value)
+                .slice(0, 10);
+            renderLeaderboard('nineMarkLeaderboard', nineMarkData);
+
+            // Hat Tricks
+            const hatTrickData = playerStatsData
+                .map(p => ({
+                    name: p.player_name || p.name || 'Unknown',
+                    value: p.cricket_hat_tricks || 0
+                }))
+                .filter(p => p.value > 0)
+                .sort((a, b) => b.value - a.value)
+                .slice(0, 10);
+            renderLeaderboard('hatTrickLeaderboard', hatTrickData);
+
+            // Lowest Miss %
+            const missData = playerStatsData
+                .filter(p => p.cricket_total_darts >= minGames * 30) // At least 30 darts per game
+                .map(p => ({
+                    name: p.player_name || p.name || 'Unknown',
+                    value: ((p.cricket_missed_darts || 0) / p.cricket_total_darts * 100).toFixed(1),
+                    rawValue: (p.cricket_missed_darts || 0) / p.cricket_total_darts
+                }))
+                .sort((a, b) => a.rawValue - b.rawValue) // Lower is better
+                .slice(0, 10)
+                .map(p => ({ name: p.name, value: p.value + '%' }));
+            renderLeaderboard('missLeaderboard', missData);
+        }
+
+        function renderLeaderboard(containerId, data) {
+            const container = document.getElementById(containerId);
+            if (!data || data.length === 0) {
+                container.innerHTML = '<div style="text-align: center; color: var(--text-dim); padding: 20px; font-size: 14px;">No data yet</div>';
+                return;
+            }
+
+            container.innerHTML = data.map((item, i) => {
+                const rankClass = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
+                return `
+                    <div class="leaderboard-item">
+                        <div class="leaderboard-rank ${rankClass}">${i + 1}</div>
+                        <div class="leaderboard-name">${item.name}</div>
+                        <div class="leaderboard-stat">${item.value}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Sub registration
+        let subsData = [];
+
+        async function loadSubs() {
+            try {
+                const subsRef = collection(db, 'leagues', leagueId, 'substitutes');
+                const subsQuery = query(subsRef, orderBy('created_at', 'desc'));
+
+                onSnapshot(subsQuery, (snapshot) => {
+                    subsData = [];
+                    snapshot.forEach((doc) => {
+                        subsData.push({ id: doc.id, ...doc.data() });
+                    });
+                    renderSubs();
+                });
+            } catch (error) {
+                console.error('Error loading subs:', error);
+            }
+        }
+
+        function renderSubs() {
+            const container = document.getElementById('subList');
+            document.getElementById('subCount').textContent = subsData.length;
+
+            if (subsData.length === 0) {
+                container.innerHTML = '<p style="color: #666; text-align: center; padding: 20px; grid-column: 1/-1;">No subs registered yet. Be the first!</p>';
+                return;
+            }
+
+            container.innerHTML = subsData.map(sub => `
+                <div class="sub-card">
+                    <div class="name">
+                        ${sub.name}
+                        <span class="level-badge">${sub.level === 'any' ? 'Any' : sub.level}</span>
+                    </div>
+                    <div class="stats">
+                        ${sub.average ? `Avg: ${sub.average}` : 'No average listed'}
+                        ${sub.notes ? ` • ${sub.notes}` : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        window.submitSubRegistration = async function() {
+            const name = document.getElementById('subName').value.trim();
+            const email = document.getElementById('subEmail').value.trim();
+            const phone = document.getElementById('subPhone').value.trim();
+            const average = document.getElementById('subAverage').value;
+            const level = document.getElementById('subLevel').value;
+            const notes = document.getElementById('subNotes').value.trim();
+
+            if (!name || !email || !phone || !level) {
+                alert('Please fill in all required fields');
+                return;
+            }
+
+            const btn = document.getElementById('subSubmitBtn');
+            btn.disabled = true;
+            btn.textContent = 'ADDING...';
+
+            try {
+                const subsRef = collection(db, 'leagues', leagueId, 'substitutes');
+                await addDoc(subsRef, {
+                    name,
+                    email,
+                    phone,
+                    average: average ? parseFloat(average) : null,
+                    level,
+                    notes,
+                    created_at: serverTimestamp(),
+                    status: 'available'
+                });
+
+                // Show success
+                document.getElementById('subSuccessMessage').style.display = 'block';
+                document.getElementById('subForm').style.display = 'none';
+
+                // Reload subs
+                loadSubs();
+
+            } catch (error) {
+                console.error('Error registering sub:', error);
+                alert('Error: ' + error.message);
+                btn.disabled = false;
+                btn.textContent = 'ADD ME TO SUB LIST';
+            }
         };
     </script>
 </body>

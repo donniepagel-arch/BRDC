@@ -16,6 +16,10 @@ exports.createLeague = functions.https.onRequest((req, res) => {
         const endDate = new Date(startDate);
         endDate.setDate(endDate.getDate() + (weeks * 7));
 
+        // Generate admin PIN (8 digits)
+        const adminPin = String(Math.floor(10000000 + Math.random() * 90000000));
+        const directorPin = data.director_pin || adminPin; // Use provided or same as admin
+
         const league = {
             league_name: data.league_name,
             league_type: data.league_type || 'triples_draft',
@@ -23,25 +27,29 @@ exports.createLeague = functions.https.onRequest((req, res) => {
             start_date: data.start_date,
             end_date: endDate.toISOString().split('T')[0],
             venue_name: data.venue_name || 'Rookies',
-            
+
+            // PINs
+            admin_pin: adminPin,
+            director_pin: directorPin,
+
             // Settings
             total_weeks: weeks,
             players_per_team: data.players_per_team || 3,
             max_teams: data.max_teams || 8,
             match_frequency: data.match_frequency || 'weekly',
             rounds: data.rounds || 2,
-            
+
             // State
             status: 'registration',
             draft_completed: false,
             schedule_generated: false,
-            
+
             // Data
             players: {},
             teams: {},
             schedule: [],
             standings: {},
-            
+
             created_at: admin.firestore.FieldValue.serverTimestamp()
         };
 
@@ -50,7 +58,8 @@ exports.createLeague = functions.https.onRequest((req, res) => {
         res.json({
             success: true,
             league_id: leagueRef.id,
-            message: 'League created successfully'
+            admin_pin: adminPin,
+            message: 'League created successfully. Your admin PIN is: ' + adminPin
         });
 
     } catch (error) {

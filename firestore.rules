@@ -1,71 +1,164 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Tournaments - Public read
-    match /tournaments/{tournamentId} {
-      allow read: if true;
-      allow write: if request.auth != null || request.resource.data.director_pin != null;
+
+    // Helper function to check if request has valid data
+    function hasValidData() {
+      return request.resource.data != null;
     }
 
-    // SUBCOLLECTIONS - Need explicit wildcard path
+    // Players collection - sensitive data, restrict access
+    match /players/{playerId} {
+      // Allow read only for the player themselves or via cloud functions
+      allow read: if true; // Cloud functions bypass rules, frontend needs basic read
+      allow write: if false; // Only cloud functions can write
+    }
+
+    // Bots collection
+    match /bots/{botId} {
+      allow read: if true;
+      allow write: if false; // Only cloud functions
+    }
+
+    // Admin sessions - private
+    match /admin_sessions/{sessionId} {
+      allow read, write: if false; // Only cloud functions
+    }
+
+    // Login attempts - private
+    match /login_attempts/{attemptId} {
+      allow read, write: if false; // Only cloud functions
+    }
+
+    // Notifications queue - private
+    match /notifications_queue/{notificationId} {
+      allow read, write: if false; // Only cloud functions
+    }
+
+    // Tournaments - Public read, controlled write
+    match /tournaments/{tournamentId} {
+      allow read: if true;
+      allow create: if hasValidData();
+      allow update, delete: if false; // Only cloud functions
+    }
+
+    // Tournament subcollections
     match /tournaments/{tournamentId}/events/{eventId} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if false; // Only cloud functions
     }
 
     match /tournaments/{tournamentId}/registrations/{regId} {
       allow read: if true;
-      allow create: if true;
-      allow update, delete: if request.auth != null;
+      allow create: if hasValidData()
+        && request.resource.data.player_name != null;
+      allow update, delete: if false; // Only cloud functions
     }
 
     match /tournaments/{tournamentId}/matches/{matchId} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if false; // Only cloud functions
     }
 
-    // Top-level collections
+    match /tournaments/{tournamentId}/brackets/{bracketId} {
+      allow read: if true;
+      allow write: if false; // Only cloud functions
+    }
+
+    // Top-level events (legacy)
     match /events/{eventId} {
       allow read: if true;
+      allow write: if false;
     }
 
+    // Top-level matches
     match /matches/{matchId} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if false; // Only cloud functions
     }
 
+    // Top-level registrations
     match /registrations/{regId} {
       allow read: if true;
-      allow create: if true;
-      allow update, delete: if request.auth != null;
+      allow create: if hasValidData();
+      allow update, delete: if false; // Only cloud functions
     }
 
     // Leagues - Public read
     match /leagues/{leagueId} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow create: if hasValidData();
+      allow update, delete: if false; // Only cloud functions
     }
 
-    // League subcollections
-    match /leagues/{leagueId}/{subcollection}/{docId} {
+    // League subcollections - all handled by cloud functions
+    match /leagues/{leagueId}/players/{playerId} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if false;
     }
 
+    match /leagues/{leagueId}/teams/{teamId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /leagues/{leagueId}/matches/{matchId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /leagues/{leagueId}/registrations/{regId} {
+      allow read: if true;
+      allow create: if hasValidData();
+      allow update, delete: if false;
+    }
+
+    match /leagues/{leagueId}/fillins/{fillinId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /leagues/{leagueId}/fillin_requests/{requestId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Legacy league collections
     match /league_matches/{matchId} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if false;
     }
 
     match /league_registrations/{regId} {
       allow read: if true;
-      allow create: if true;
-      allow update, delete: if request.auth != null;
+      allow create: if hasValidData();
+      allow update, delete: if false;
     }
 
     match /league_teams/{teamId} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if false;
+    }
+
+    // Templates - user-specific
+    match /league_templates/{templateId} {
+      allow read: if true;
+      allow write: if false; // Only cloud functions
+    }
+
+    match /tournament_templates/{templateId} {
+      allow read: if true;
+      allow write: if false; // Only cloud functions
+    }
+
+    match /league_drafts/{draftId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /tournament_drafts/{draftId} {
+      allow read: if true;
+      allow write: if false;
     }
   }
 }

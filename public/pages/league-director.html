@@ -5,65 +5,224 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>League Director - BRDC</title>
     <link rel="icon" type="image/png" href="/images/favicon.png">
-    <link rel="stylesheet" href="/css/brdc-styles.css">
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+        :root {
+            --pink: #FF469A;
+            --teal: #91D7EB;
+            --yellow: #FDD835;
+            --black: #000000;
+            --white: #FFFFFF;
+            --bg-dark: #1a1a2e;
+            --bg-dark-end: #0f0f23;
+            --bg-panel: #16213e;
+            --bg-card: #1e2a47;
+            --text-light: #f0f0f0;
+            --text-dim: #8a8aa3;
+            --text-muted: #666;
+            --border-color: rgba(255,255,255,0.15);
+            --border-strong: #000;
+            --glow-pink: rgba(255, 70, 154, 0.3);
+            --glow-teal: rgba(145, 215, 235, 0.3);
+            --success: #22c55e;
+            --danger: #ef4444;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+        html, body { min-height: 100%; }
+
+        body {
+            background: linear-gradient(135deg, var(--bg-dark) 0%, var(--bg-dark-end) 100%);
+            min-height: 100vh;
+            color: var(--text-light);
+            line-height: 1.6;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse at 20% 20%, rgba(255, 70, 154, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(145, 215, 235, 0.06) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        /* Header Bar */
+        .header-bar {
+            background: var(--bg-panel);
+            border-bottom: 3px solid var(--pink);
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+        }
+
+        .back-btn {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border: 2px solid rgba(255,255,255,0.3);
+            padding: 10px 16px;
+            font-weight: 700;
+            cursor: pointer;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .back-btn:hover {
+            background: rgba(255,255,255,0.2);
+            border-color: var(--pink);
+        }
+
+        .header-logo {
+            width: 40px;
+            height: 40px;
+            mix-blend-mode: multiply;
+            filter: drop-shadow(0 0 8px rgba(255, 70, 154, 0.5));
+        }
+
+        .header-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 28px;
+            letter-spacing: 3px;
+            color: var(--pink);
+        }
+
+        /* Container */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Dashboard Grid */
         .dashboard-grid {
             display: grid;
-            grid-template-columns: 300px 1fr;
-            gap: 30px;
-            margin-top: 30px;
+            grid-template-columns: 320px 1fr;
+            gap: 24px;
+            margin-top: 20px;
         }
+
         @media (max-width: 1024px) {
             .dashboard-grid { grid-template-columns: 1fr; }
         }
-        .sidebar-card {
-            background: white;
-            border: 4px solid var(--black);
-            box-shadow: 8px 8px 0 rgba(0,0,0,1);
-            padding: 25px;
+
+        /* Cards */
+        .card, .sidebar-card {
+            background: var(--bg-panel);
+            border: 4px solid var(--border-strong);
+            border-radius: 16px;
+            box-shadow: 8px 8px 0 rgba(0, 0, 0, 0.5);
+            overflow: hidden;
             margin-bottom: 20px;
         }
+
+        .card-header {
+            padding: 20px 24px;
+            border-bottom: 3px solid var(--border-strong);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .card-header.pink { background: linear-gradient(135deg, var(--pink), #d63384); }
+        .card-header.teal { background: linear-gradient(135deg, var(--teal), #5ab8d4); }
+        .card-header.yellow { background: linear-gradient(135deg, var(--yellow), #f9a825); }
+
+        .card-icon {
+            width: 40px;
+            height: 40px;
+            background: rgba(0,0,0,0.2);
+            border: 2px solid rgba(0,0,0,0.3);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .card-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 24px;
+            letter-spacing: 2px;
+            color: white;
+            text-shadow: 2px 2px 0 rgba(0,0,0,0.3);
+        }
+
+        .card-body, .sidebar-card {
+            padding: 24px;
+        }
+
+        .sidebar-card h3 {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 22px;
+            letter-spacing: 2px;
+            color: var(--teal);
+            margin-bottom: 15px;
+        }
+
+        /* Stat Rows */
         .stat-row {
             display: flex;
             justify-content: space-between;
             padding: 12px 0;
-            border-bottom: 2px solid #eee;
+            border-bottom: 1px solid var(--border-color);
         }
         .stat-row:last-child { border-bottom: none; }
-        .stat-label { font-weight: 600; color: #666; }
-        .stat-value { font-weight: 800; font-size: 18px; }
+        .stat-label { font-weight: 600; color: var(--text-dim); }
+        .stat-value { font-weight: 800; font-size: 18px; color: var(--text-light); }
+
+        /* Week Selector */
         .week-selector {
             display: flex;
             gap: 8px;
             flex-wrap: wrap;
         }
+
         .week-btn {
-            background: white;
-            border: 3px solid var(--black);
+            background: var(--bg-card);
+            border: 3px solid var(--border-strong);
+            border-radius: 8px;
             width: 45px;
             height: 45px;
             font-family: 'Bebas Neue', cursive;
             font-size: 20px;
             cursor: pointer;
-            box-shadow: 3px 3px 0 rgba(0,0,0,1);
+            box-shadow: 3px 3px 0 rgba(0,0,0,0.5);
+            color: var(--text-light);
+            transition: all 0.2s;
         }
-        .week-btn:hover { transform: translateY(-2px); }
-        .week-btn.active { background: var(--pink); color: white; }
+
+        .week-btn:hover { transform: translateY(-2px); box-shadow: 5px 5px 0 rgba(0,0,0,0.5); }
+        .week-btn.active { background: linear-gradient(135deg, var(--pink), #d63384); color: white; }
+
+        /* Match Cards */
         .match-card {
-            background: white;
-            border: 4px solid var(--black);
-            box-shadow: 8px 8px 0 rgba(0,0,0,1);
+            background: var(--bg-panel);
+            border: 4px solid var(--border-strong);
+            border-radius: 16px;
+            box-shadow: 8px 8px 0 rgba(0,0,0,0.5);
             margin-bottom: 20px;
             overflow: hidden;
         }
+
         .match-header {
-            background: var(--blue-dark);
-            color: white;
+            background: linear-gradient(135deg, var(--bg-card), #243352);
+            color: var(--text-light);
             padding: 15px 20px;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            border-bottom: 2px solid var(--border-color);
         }
+
         .match-teams {
             display: grid;
             grid-template-columns: 1fr auto 1fr;
@@ -71,141 +230,435 @@
             padding: 25px;
             align-items: center;
         }
+
         .team-info { text-align: center; }
+
         .team-name {
             font-family: 'Bebas Neue', cursive;
             font-size: 24px;
+            color: var(--text-light);
             margin-bottom: 10px;
         }
-        .team-players { font-size: 13px; color: #666; line-height: 1.6; }
+
+        .team-players { font-size: 13px; color: var(--text-dim); line-height: 1.6; }
+
         .vs-circle {
             width: 50px;
             height: 50px;
-            background: var(--yellow);
-            border: 3px solid var(--black);
+            background: linear-gradient(135deg, var(--yellow), #f9a825);
+            border: 3px solid var(--border-strong);
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             font-family: 'Bebas Neue', cursive;
             font-size: 20px;
+            color: var(--black);
+            box-shadow: 3px 3px 0 rgba(0,0,0,0.5);
         }
+
         .match-score {
             display: flex;
             justify-content: center;
             gap: 40px;
-            padding: 15px;
-            background: #f8f9fa;
-            border-top: 3px solid var(--black);
+            padding: 20px;
+            background: var(--bg-card);
+            border-top: 2px solid var(--border-color);
         }
+
         .score-box { text-align: center; }
+
         .score-value {
             font-family: 'Bebas Neue', cursive;
-            font-size: 42px;
+            font-size: 48px;
             color: var(--pink);
+            text-shadow: 2px 2px 0 rgba(0,0,0,0.3);
         }
+
         .score-label {
             font-size: 11px;
             font-weight: 700;
             text-transform: uppercase;
-            color: #666;
+            color: var(--text-dim);
         }
+
         .match-actions {
             display: flex;
             gap: 10px;
-            padding: 15px;
-            border-top: 3px solid #eee;
+            padding: 15px 20px;
+            border-top: 2px solid var(--border-color);
             justify-content: center;
             flex-wrap: wrap;
+            background: rgba(0,0,0,0.2);
         }
+
         .pin-display {
-            background: var(--yellow);
-            border: 3px solid var(--black);
+            background: linear-gradient(135deg, var(--yellow), #f9a825);
+            border: 3px solid var(--border-strong);
+            border-radius: 8px;
             padding: 12px 25px;
             text-align: center;
             margin: 15px;
+            box-shadow: 4px 4px 0 rgba(0,0,0,0.4);
         }
+
         .pin-code {
             font-family: 'Bebas Neue', cursive;
             font-size: 32px;
             letter-spacing: 6px;
+            color: var(--black);
         }
+
+        /* Status Badges */
         .status-badge {
-            padding: 5px 10px;
+            padding: 6px 12px;
             font-size: 11px;
             font-weight: 800;
             text-transform: uppercase;
-            border-radius: 4px;
+            border-radius: 20px;
+            letter-spacing: 1px;
         }
-        .status-scheduled { background: #e5e7eb; color: #374151; }
+
+        .status-scheduled { background: rgba(255,255,255,0.1); color: var(--text-dim); }
         .status-in_progress { background: var(--yellow); color: var(--black); }
-        .status-completed { background: #10b981; color: white; }
+        .status-completed { background: var(--success); color: white; }
+
+        /* Tab Navigation */
         .tab-container {
             display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
+            gap: 8px;
+            margin-bottom: 24px;
             flex-wrap: wrap;
+            background: var(--bg-panel);
+            padding: 8px;
+            border-radius: 12px;
+            border: 3px solid var(--border-strong);
+            box-shadow: 5px 5px 0 rgba(0, 0, 0, 0.4);
         }
+
         .tab {
-            background: white;
-            border: 3px solid var(--black);
-            padding: 10px 20px;
-            font-family: 'Bebas Neue', cursive;
-            font-size: 16px;
+            padding: 14px 20px;
+            background: transparent;
+            color: var(--text-dim);
+            border: none;
             cursor: pointer;
-            box-shadow: 3px 3px 0 rgba(0,0,0,1);
+            font-weight: 700;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.2s;
+            font-family: 'Bebas Neue', cursive;
+            border-radius: 8px;
         }
-        .tab:hover { transform: translateY(-2px); }
-        .tab.active { background: var(--pink); color: white; }
+
+        .tab:hover {
+            background: rgba(255,255,255,0.1);
+            color: var(--text-light);
+        }
+
+        .tab.active {
+            background: linear-gradient(135deg, var(--pink), #d63384);
+            color: white;
+            box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.4);
+        }
+
         .tab-content { display: none; }
         .tab-content.active { display: block; }
+
+        /* Login Overlay */
         .login-overlay {
             position: fixed;
             inset: 0;
-            background: linear-gradient(180deg, var(--blue-light) 0%, var(--blue-dark) 100%);
+            background: linear-gradient(135deg, var(--bg-dark) 0%, var(--bg-dark-end) 100%);
             display: flex;
             align-items: center;
             justify-content: center;
             z-index: 1000;
         }
+
+        .login-overlay::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                radial-gradient(ellipse at 20% 20%, rgba(255, 70, 154, 0.15) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(145, 215, 235, 0.1) 0%, transparent 50%);
+            pointer-events: none;
+        }
+
         .login-card {
-            background: white;
-            border: 5px solid var(--black);
-            box-shadow: 12px 12px 0 rgba(0,0,0,1);
-            padding: 50px;
-            max-width: 400px;
+            background: var(--bg-panel);
+            border: 4px solid var(--border-strong);
+            box-shadow: 8px 8px 0 rgba(0, 0, 0, 0.5);
+            padding: 40px;
+            max-width: 420px;
             width: 90%;
             text-align: center;
+            position: relative;
+            border-radius: 16px;
         }
+
+        .login-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 36px;
+            letter-spacing: 3px;
+            color: var(--pink);
+            text-shadow: 3px 3px 0 rgba(0,0,0,0.5);
+            margin-bottom: 8px;
+        }
+
+        .login-subtitle {
+            color: var(--text-dim);
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
         .pin-input {
             display: flex;
-            gap: 10px;
             justify-content: center;
             margin: 30px 0;
         }
-        .pin-digit {
-            width: 55px;
-            height: 65px;
-            border: 4px solid var(--black);
-            font-size: 28px;
+
+        .pin-field {
+            width: 100%;
+            max-width: 280px;
+            height: 56px;
+            border: 3px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            font-size: 24px;
             text-align: center;
-            font-family: 'Bebas Neue', cursive;
+            font-family: 'JetBrains Mono', monospace;
+            background: rgba(0,0,0,0.3);
+            color: var(--yellow);
+            transition: all 0.2s;
+            letter-spacing: 4px;
         }
-        .pin-digit:focus {
+
+        .pin-field:focus {
             outline: none;
             border-color: var(--pink);
-            background: #fff5f9;
+            background: rgba(255,70,154,0.1);
+            box-shadow: 0 0 15px rgba(255,70,154,0.3);
         }
+
+        .pin-field::placeholder {
+            color: rgba(255,255,255,0.3);
+            font-size: 14px;
+            letter-spacing: 0;
+        }
+
+        /* Quick Actions */
         .quick-action-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 10px;
         }
+
         .quick-action {
             padding: 12px 8px;
             text-align: center;
             font-weight: 700;
             font-size: 12px;
+        }
+
+        /* Buttons */
+        .btn, .brdc-btn {
+            padding: 12px 24px;
+            border: 3px solid var(--border-strong);
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.4);
+            background: linear-gradient(135deg, var(--pink), #d63384);
+            color: white;
+        }
+
+        .btn:hover, .brdc-btn:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: 6px 6px 0 rgba(0, 0, 0, 0.4);
+        }
+
+        .btn:active, .brdc-btn:active {
+            transform: translateY(2px);
+            box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.4);
+        }
+
+        .brdc-btn-secondary {
+            background: var(--bg-card);
+            color: var(--text-light);
+        }
+
+        /* Player Management */
+        .player-card {
+            background: var(--bg-card);
+            border: 3px solid var(--border-strong);
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 4px 4px 0 rgba(0,0,0,0.4);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .player-card.on-team { border-left: 5px solid var(--success); }
+        .player-card.is-sub { border-left: 5px solid var(--yellow); }
+
+        .player-info { flex: 1; }
+        .player-name-display { font-weight: 700; font-size: 16px; color: var(--text-light); }
+        .player-meta { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
+
+        .player-actions { display: flex; gap: 8px; }
+
+        .player-actions button {
+            padding: 8px 14px;
+            border: 2px solid var(--border-strong);
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 2px 2px 0 rgba(0,0,0,0.4);
+        }
+
+        .player-actions .edit-btn { background: var(--teal); color: var(--black); }
+        .player-actions .delete-btn { background: var(--danger); color: white; }
+
+        /* Forms */
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .form-group label, .brdc-label {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 14px;
+            letter-spacing: 1px;
+            color: var(--teal);
+        }
+
+        .form-group input, .form-group select, .form-group textarea,
+        .brdc-input, .brdc-select {
+            padding: 12px 16px;
+            background: var(--bg-card);
+            border: 3px solid var(--border-strong);
+            border-radius: 8px;
+            color: var(--text-light);
+            font-size: 14px;
+            transition: all 0.2s;
+            box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.3);
+        }
+
+        .form-group input:focus, .form-group select:focus,
+        .brdc-input:focus, .brdc-select:focus {
+            outline: none;
+            border-color: var(--teal);
+            box-shadow: 0 0 0 3px var(--glow-teal);
+        }
+
+        .form-group input::placeholder { color: var(--text-muted); }
+
+        .bulk-textarea {
+            width: 100%;
+            min-height: 120px;
+            padding: 12px;
+            background: var(--bg-card);
+            border: 3px solid var(--border-strong);
+            border-radius: 8px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            color: var(--text-light);
+            resize: vertical;
+        }
+
+        .player-count-badge {
+            background: var(--pink);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: 700;
+            margin-left: 8px;
+        }
+
+        /* Filter Bar */
+        .filter-bar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .filter-bar input {
+            flex: 1;
+            min-width: 200px;
+            padding: 12px 16px;
+            background: var(--bg-card);
+            border: 3px solid var(--border-strong);
+            border-radius: 8px;
+            color: var(--text-light);
+            font-size: 14px;
+        }
+
+        .filter-bar select {
+            padding: 12px 16px;
+            background: var(--bg-card);
+            border: 3px solid var(--border-strong);
+            border-radius: 8px;
+            color: var(--text-light);
+            font-size: 14px;
+        }
+
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--bg-card);
+            border: 3px solid var(--border-strong);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        thead tr {
+            background: linear-gradient(135deg, var(--pink), #d63384);
+        }
+
+        th {
+            padding: 14px;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 14px;
+            letter-spacing: 1px;
+            color: white;
+            text-transform: uppercase;
+        }
+
+        td {
+            padding: 12px 14px;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-light);
+        }
+
+        tr:last-child td { border-bottom: none; }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container { padding: 15px; }
+            .header-title { font-size: 20px; }
+            .card-body, .sidebar-card { padding: 16px; }
+            .match-teams { grid-template-columns: 1fr; gap: 16px; }
+            .vs-circle { display: none; }
+            .tab { padding: 10px 14px; font-size: 12px; }
+            .login-card { padding: 30px 20px; }
+            .pin-field { font-size: 20px; height: 48px; }
         }
     </style>
 </head>
@@ -213,21 +666,24 @@
     <!-- Login Overlay -->
     <div id="loginOverlay" class="login-overlay">
         <div class="login-card">
-            <h1 style="font-family: 'Bebas Neue', cursive; font-size: 36px; margin-bottom: 10px;">🔒 LEAGUE DIRECTOR</h1>
-            <p style="color: #666; margin-bottom: 30px;">Enter your admin PIN to continue</p>
+            <div class="login-title">🎯 LEAGUE DIRECTOR</div>
+            <p class="login-subtitle">Enter your 8-digit PIN to access the dashboard</p>
             <div class="pin-input">
-                <input type="text" maxlength="1" class="pin-digit" id="pin1" inputmode="numeric">
-                <input type="text" maxlength="1" class="pin-digit" id="pin2" inputmode="numeric">
-                <input type="text" maxlength="1" class="pin-digit" id="pin3" inputmode="numeric">
-                <input type="text" maxlength="1" class="pin-digit" id="pin4" inputmode="numeric">
+                <input type="text" id="pinInput" maxlength="8" class="pin-field" inputmode="numeric" placeholder="Enter 8-digit PIN">
             </div>
             <button id="loginBtn" class="brdc-btn" style="width: 100%;">ENTER DASHBOARD</button>
-            <p id="loginError" style="color: #ef4444; margin-top: 20px; display: none;"></p>
+            <p id="loginError" style="color: var(--pink); margin-top: 20px; display: none; font-weight: 600;"></p>
+            <p style="margin-top: 20px; font-size: 12px; color: var(--text-dim);">Use your player PIN or the admin PIN shown when you created the league</p>
         </div>
     </div>
 
     <!-- Main Dashboard -->
     <div id="dashboard" style="display: none;">
+        <div class="header-bar">
+            <button class="back-btn" onclick="window.location.href='/pages/dashboard.html'">← BACK</button>
+            <img src="/images/white_logo.jpg" alt="BRDC" class="header-logo">
+            <span class="header-title">LEAGUE DIRECTOR</span>
+        </div>
         <div class="brdc-card" style="max-width: 1400px; margin: 20px auto;">
             <div class="brdc-card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
                 <div>
@@ -243,9 +699,11 @@
             <div style="padding: 25px;">
                 <div class="tab-container">
                     <div class="tab active" onclick="switchTab('matches')">📅 Matches</div>
+                    <div class="tab" onclick="switchTab('players')">🎯 Players<span id="playerCountBadge" class="player-count-badge">0</span></div>
                     <div class="tab" onclick="switchTab('standings')">🏆 Standings</div>
                     <div class="tab" onclick="switchTab('teams')">👥 Teams</div>
                     <div class="tab" onclick="switchTab('stats')">📈 Stats</div>
+                    <div class="tab" onclick="switchTab('contact')">📱 Contact</div>
                     <div class="tab" onclick="switchTab('settings')">⚙️ Settings</div>
                 </div>
 
@@ -286,6 +744,85 @@
                     </div>
                 </div>
 
+                <!-- Players Tab -->
+                <div id="playersTab" class="tab-content">
+                    <div class="dashboard-grid">
+                        <div>
+                            <!-- Add Single Player Form -->
+                            <div class="sidebar-card">
+                                <h3 style="font-family: 'Bebas Neue', cursive; font-size: 22px; margin-bottom: 15px;">➕ Add Player</h3>
+                                <div class="form-group" style="margin-bottom: 12px;">
+                                    <label>Name *</label>
+                                    <input type="text" id="addPlayerName" placeholder="Player name">
+                                </div>
+                                <div class="form-group" style="margin-bottom: 12px;">
+                                    <label>Email</label>
+                                    <input type="email" id="addPlayerEmail" placeholder="email@example.com">
+                                </div>
+                                <div class="form-group" style="margin-bottom: 12px;">
+                                    <label>Phone</label>
+                                    <input type="tel" id="addPlayerPhone" placeholder="555-123-4567">
+                                </div>
+                                <div class="form-group" style="margin-bottom: 12px;">
+                                    <label>501 Average</label>
+                                    <input type="number" id="addPlayerAverage" placeholder="45.0" step="0.1">
+                                </div>
+                                <div class="form-group" style="margin-bottom: 12px;">
+                                    <label>Preferred Level</label>
+                                    <select id="addPlayerLevel">
+                                        <option value="">-- Select --</option>
+                                        <option value="A">A - Advanced</option>
+                                        <option value="B">B - Intermediate</option>
+                                        <option value="C">C - Beginner</option>
+                                    </select>
+                                </div>
+                                <button class="brdc-btn" onclick="addSinglePlayer()" style="width: 100%;">ADD PLAYER</button>
+                            </div>
+
+                            <!-- Bulk Add Section -->
+                            <div class="sidebar-card">
+                                <h3 style="font-family: 'Bebas Neue', cursive; font-size: 22px; margin-bottom: 15px;">📋 Bulk Add</h3>
+                                <p style="font-size: 12px; color: #666; margin-bottom: 10px;">Paste names (one per line) or CSV format:<br><code>Name, Email, Phone, Average, Level</code></p>
+                                <textarea id="bulkPlayersText" class="bulk-textarea" placeholder="John Smith
+Jane Doe
+Bob Wilson, bob@email.com
+Alice Brown, alice@email.com, 555-1234, 42.5, B"></textarea>
+                                <button class="brdc-btn brdc-btn-secondary" onclick="bulkAddPlayers()" style="width: 100%; margin-top: 10px;">IMPORT PLAYERS</button>
+                            </div>
+
+                            <!-- Add Bot Section -->
+                            <div class="sidebar-card">
+                                <h3 style="font-family: 'Bebas Neue', cursive; font-size: 22px; margin-bottom: 15px;">🤖 Add Bot</h3>
+                                <p style="font-size: 12px; color: #666; margin-bottom: 10px;">Add bots for testing. Bots auto-play when it's their turn.</p>
+                                <select id="botSelect" style="width: 100%; padding: 10px; border-radius: 5px; border: 2px solid #333; background: #1a1a2e; color: #f0f0f0; margin-bottom: 10px;">
+                                    <option value="">-- Select a bot --</option>
+                                </select>
+                                <button class="brdc-btn" onclick="addBotToLeague()" style="width: 100%; background: var(--teal);">ADD BOT TO LEAGUE</button>
+                                <a href="/pages/bot-management.html" target="_blank" style="display: block; text-align: center; margin-top: 10px; font-size: 12px; color: var(--yellow);">Manage Bots →</a>
+                            </div>
+                        </div>
+
+                        <div>
+                            <!-- Filter Bar -->
+                            <div class="filter-bar">
+                                <input type="text" id="playerSearch" placeholder="Search players..." oninput="filterPlayers()">
+                                <select id="playerFilter" onchange="filterPlayers()">
+                                    <option value="all">All Players</option>
+                                    <option value="unassigned">Unassigned</option>
+                                    <option value="on_team">On Team</option>
+                                    <option value="subs">Subs</option>
+                                    <option value="bots">Bots</option>
+                                </select>
+                            </div>
+
+                            <!-- Players List -->
+                            <div id="playersContainer">
+                                <p style="text-align: center; padding: 40px; color: #666;">Loading players...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Standings Tab -->
                 <div id="standingsTab" class="tab-content">
                     <div id="standingsContainer"><p style="text-align: center; padding: 40px;">Loading...</p></div>
@@ -293,6 +830,11 @@
 
                 <!-- Teams Tab -->
                 <div id="teamsTab" class="tab-content">
+                    <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
+                        <button class="brdc-btn" onclick="showCreateTeamModal()">+ CREATE TEAM</button>
+                        <button class="brdc-btn brdc-btn-secondary" onclick="runAutoDraft()">🎲 AUTO DRAFT</button>
+                        <a href="" id="manageTeamsLink" class="brdc-btn brdc-btn-secondary" style="text-decoration: none;">⚙️ FULL MANAGEMENT</a>
+                    </div>
                     <div id="teamsContainer"><p style="text-align: center; padding: 40px;">Loading...</p></div>
                 </div>
 
@@ -301,27 +843,317 @@
                     <div id="statsContainer"><p style="text-align: center; padding: 40px;">Loading...</p></div>
                 </div>
 
-                <!-- Settings Tab -->
-                <div id="settingsTab" class="tab-content">
-                    <div class="sidebar-card" style="max-width: 600px;">
-                        <h3 style="font-family: 'Bebas Neue', cursive; font-size: 24px; margin-bottom: 20px;">⚙️ League Settings</h3>
-                        <div style="margin-bottom: 20px;">
-                            <label class="brdc-label">League Status</label>
-                            <select id="statusSelect" class="brdc-select">
-                                <option value="registration">Registration Open</option>
-                                <option value="draft">Draft Phase</option>
-                                <option value="active">Active</option>
-                                <option value="playoffs">Playoffs</option>
-                                <option value="completed">Completed</option>
-                            </select>
+                <!-- Contact Tab -->
+                <div id="contactTab" class="tab-content">
+                    <div class="dashboard-grid">
+                        <div>
+                            <!-- Recipient Filters -->
+                            <div class="sidebar-card">
+                                <h3 style="font-family: 'Bebas Neue', cursive; font-size: 22px; margin-bottom: 15px;">👥 Recipients</h3>
+                                <div style="margin-bottom: 15px;">
+                                    <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px; cursor: pointer;">
+                                        <input type="checkbox" id="filterCaptains" onchange="updateRecipientCount()">
+                                        <span>Captains</span>
+                                    </label>
+                                    <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px; cursor: pointer;">
+                                        <input type="checkbox" id="filterLevelA" onchange="updateRecipientCount()">
+                                        <span>Level A Players</span>
+                                    </label>
+                                    <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px; cursor: pointer;">
+                                        <input type="checkbox" id="filterLevelB" onchange="updateRecipientCount()">
+                                        <span>Level B Players</span>
+                                    </label>
+                                    <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px; cursor: pointer;">
+                                        <input type="checkbox" id="filterLevelC" onchange="updateRecipientCount()">
+                                        <span>Level C Players</span>
+                                    </label>
+                                    <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px; cursor: pointer;">
+                                        <input type="checkbox" id="filterAlternates" onchange="updateRecipientCount()">
+                                        <span>Alternates / Subs</span>
+                                    </label>
+                                </div>
+                                <hr style="border: 1px solid #333; margin: 15px 0;">
+                                <button class="brdc-btn brdc-btn-secondary" onclick="selectAllRecipients()" style="width: 100%; margin-bottom: 8px;">SELECT ALL</button>
+                                <button class="brdc-btn brdc-btn-secondary" onclick="clearAllRecipients()" style="width: 100%;">CLEAR ALL</button>
+                            </div>
+
+                            <!-- Individual Player Selection -->
+                            <div class="sidebar-card">
+                                <h3 style="font-family: 'Bebas Neue', cursive; font-size: 22px; margin-bottom: 15px;">🔍 Add Individual</h3>
+                                <input type="text" id="contactPlayerSearch" placeholder="Search by name..." oninput="searchContactPlayers()" style="width: 100%; padding: 10px; border-radius: 5px; border: 2px solid #333; background: #1a1a2e; color: #f0f0f0; margin-bottom: 10px;">
+                                <div id="contactPlayerResults" style="max-height: 200px; overflow-y: auto;"></div>
+                                <div id="selectedPlayersChips" style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px;"></div>
+                            </div>
                         </div>
-                        <button class="brdc-btn" onclick="updateStatus()">UPDATE STATUS</button>
-                        <hr style="margin: 30px 0; border: 2px solid #eee;">
-                        <h3 style="font-family: 'Bebas Neue', cursive; font-size: 24px; margin-bottom: 20px;">🔄 Generate Schedule</h3>
-                        <p style="color: #666; margin-bottom: 15px;">Create round-robin schedule for all teams.</p>
-                        <button class="brdc-btn brdc-btn-secondary" onclick="generateSchedule()">GENERATE SCHEDULE</button>
+
+                        <div>
+                            <!-- Message Composer -->
+                            <div class="sidebar-card">
+                                <h3 style="font-family: 'Bebas Neue', cursive; font-size: 22px; margin-bottom: 15px;">✍️ Compose Message</h3>
+
+                                <!-- Tag Buttons -->
+                                <div style="margin-bottom: 15px;">
+                                    <p style="font-size: 12px; color: #666; margin-bottom: 8px;">Insert variables (click to add):</p>
+                                    <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                                        <button class="brdc-btn brdc-btn-secondary" onclick="insertTag('[first_name]')" style="padding: 6px 10px; font-size: 11px;">[first_name]</button>
+                                        <button class="brdc-btn brdc-btn-secondary" onclick="insertTag('[last_name]')" style="padding: 6px 10px; font-size: 11px;">[last_name]</button>
+                                        <button class="brdc-btn brdc-btn-secondary" onclick="insertTag('[full_name]')" style="padding: 6px 10px; font-size: 11px;">[full_name]</button>
+                                        <button class="brdc-btn brdc-btn-secondary" onclick="insertTag('[pin]')" style="padding: 6px 10px; font-size: 11px;">[pin]</button>
+                                        <button class="brdc-btn brdc-btn-secondary" onclick="insertTag('[team_name]')" style="padding: 6px 10px; font-size: 11px;">[team_name]</button>
+                                        <button class="brdc-btn brdc-btn-secondary" onclick="insertTag('[dashboard_link]')" style="padding: 6px 10px; font-size: 11px;">[dashboard_link]</button>
+                                        <button class="brdc-btn brdc-btn-secondary" onclick="insertTag('[league_name]')" style="padding: 6px 10px; font-size: 11px;">[league_name]</button>
+                                        <button class="brdc-btn brdc-btn-secondary" onclick="insertTag('[next_match_date]')" style="padding: 6px 10px; font-size: 11px;">[next_match_date]</button>
+                                        <button class="brdc-btn brdc-btn-secondary" onclick="insertTag('[next_match_pin]')" style="padding: 6px 10px; font-size: 11px;">[next_match_pin]</button>
+                                    </div>
+                                </div>
+
+                                <textarea id="contactMessage" placeholder="Type your message here..." style="width: 100%; min-height: 200px; padding: 15px; border-radius: 8px; border: 2px solid #333; background: #1a1a2e; color: #f0f0f0; font-size: 14px; resize: vertical;"></textarea>
+
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 15px;">
+                                    <span id="recipientCount" style="color: #666; font-size: 13px;">0 recipients selected</span>
+                                    <span id="charCount" style="color: #666; font-size: 13px;">0 / 160 chars</span>
+                                </div>
+
+                                <button class="brdc-btn" onclick="sendCustomMessage()" style="width: 100%; margin-top: 15px; font-size: 16px;">📱 SEND MESSAGE</button>
+                                <p style="font-size: 11px; color: #666; margin-top: 8px; text-align: center;">Messages sent via SMS to players with phone numbers</p>
+                            </div>
+
+                            <!-- Message Preview -->
+                            <div class="sidebar-card">
+                                <h3 style="font-family: 'Bebas Neue', cursive; font-size: 22px; margin-bottom: 15px;">👁️ Preview</h3>
+                                <p style="font-size: 12px; color: #666; margin-bottom: 10px;">Example with sample player data:</p>
+                                <div id="messagePreview" style="background: #0a0a15; border-radius: 8px; padding: 15px; font-family: monospace; font-size: 13px; white-space: pre-wrap; min-height: 80px; color: #4ade80;">Your message will appear here...</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
+
+                <!-- Settings Tab -->
+                <div id="settingsTab" class="tab-content">
+                    <div class="dashboard-grid">
+                        <div>
+                            <!-- League Info -->
+                            <div class="sidebar-card">
+                                <h3 style="font-family: 'Bebas Neue', cursive; font-size: 24px; margin-bottom: 20px;">📋 League Information</h3>
+                                <div class="form-group" style="margin-bottom: 12px;">
+                                    <label class="brdc-label">League Name</label>
+                                    <input type="text" id="settingLeagueName" class="brdc-input">
+                                </div>
+                                <div class="form-group" style="margin-bottom: 12px;">
+                                    <label class="brdc-label">Season</label>
+                                    <input type="text" id="settingSeason" class="brdc-input" placeholder="e.g. Spring 2025">
+                                </div>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                                    <div class="form-group">
+                                        <label class="brdc-label">Start Date</label>
+                                        <input type="date" id="settingStartDate" class="brdc-input">
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="brdc-label">League Night</label>
+                                        <select id="settingLeagueNight" class="brdc-select">
+                                            <option value="monday">Monday</option>
+                                            <option value="tuesday">Tuesday</option>
+                                            <option value="wednesday">Wednesday</option>
+                                            <option value="thursday">Thursday</option>
+                                            <option value="friday">Friday</option>
+                                            <option value="saturday">Saturday</option>
+                                            <option value="sunday">Sunday</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="form-group" style="margin-bottom: 12px;">
+                                    <label class="brdc-label">Start Time</label>
+                                    <input type="time" id="settingStartTime" class="brdc-input">
+                                </div>
+                            </div>
+
+                            <!-- Venue Info -->
+                            <div class="sidebar-card">
+                                <h3 style="font-family: 'Bebas Neue', cursive; font-size: 24px; margin-bottom: 20px;">📍 Venue</h3>
+                                <div class="form-group" style="margin-bottom: 12px;">
+                                    <label class="brdc-label">Venue Name</label>
+                                    <input type="text" id="settingVenueName" class="brdc-input">
+                                </div>
+                                <div class="form-group" style="margin-bottom: 12px;">
+                                    <label class="brdc-label">Address</label>
+                                    <input type="text" id="settingVenueAddress" class="brdc-input">
+                                </div>
+                            </div>
+
+                            <!-- Status & Actions -->
+                            <div class="sidebar-card">
+                                <h3 style="font-family: 'Bebas Neue', cursive; font-size: 24px; margin-bottom: 20px;">⚙️ Status & Actions</h3>
+                                <div class="form-group" style="margin-bottom: 20px;">
+                                    <label class="brdc-label">League Status</label>
+                                    <select id="statusSelect" class="brdc-select">
+                                        <option value="registration">Registration Open</option>
+                                        <option value="draft">Draft Phase</option>
+                                        <option value="active">Active</option>
+                                        <option value="playoffs">Playoffs</option>
+                                        <option value="completed">Completed</option>
+                                    </select>
+                                </div>
+                                <button class="brdc-btn" onclick="updateStatus()" style="width: 100%; margin-bottom: 15px;">UPDATE STATUS</button>
+
+                                <hr style="margin: 20px 0; border: 1px solid #333;">
+                                <h4 style="font-family: 'Bebas Neue', cursive; font-size: 18px; margin-bottom: 15px;">📅 Blackout Dates</h4>
+                                <p style="color: #666; font-size: 12px; margin-bottom: 10px;">Weeks when league won't play</p>
+                                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                                    <input type="date" id="blackoutDateInput" class="brdc-input" style="flex: 1;">
+                                    <button class="brdc-btn brdc-btn-secondary" onclick="addBlackoutDate()">ADD</button>
+                                </div>
+                                <div id="blackoutDatesList" style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 15px;"></div>
+
+                                <hr style="margin: 20px 0; border: 1px solid #333;">
+                                <button class="brdc-btn brdc-btn-secondary" onclick="generateSchedule()" style="width: 100%;">🔄 GENERATE SCHEDULE</button>
+                                <button class="brdc-btn" onclick="notifyAllPlayers()" style="width: 100%; margin-top: 10px;">📱 TEXT ALL PLAYERS</button>
+                                <p style="font-size: 11px; color: #666; margin-top: 8px; text-align: center;">Sends PIN, team, first match & dashboard link via SMS</p>
+                            </div>
+                        </div>
+
+                        <div>
+                            <!-- Match Rules -->
+                            <div class="sidebar-card">
+                                <h3 style="font-family: 'Bebas Neue', cursive; font-size: 24px; margin-bottom: 20px;">🎯 Match Format & Rules</h3>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                                    <div class="form-group">
+                                        <label class="brdc-label">Format</label>
+                                        <select id="settingFormat" class="brdc-select">
+                                            <option value="501">501</option>
+                                            <option value="301">301</option>
+                                            <option value="701">701</option>
+                                            <option value="cricket">Cricket</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="brdc-label">Checkout</label>
+                                        <select id="settingCheckout" class="brdc-select">
+                                            <option value="double">Double Out</option>
+                                            <option value="master">Master Out</option>
+                                            <option value="straight">Straight Out</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                                    <div class="form-group">
+                                        <label class="brdc-label">Best Of (Legs)</label>
+                                        <select id="settingBestOf" class="brdc-select">
+                                            <option value="1">1 Leg</option>
+                                            <option value="3">Best of 3</option>
+                                            <option value="5">Best of 5</option>
+                                            <option value="7">Best of 7</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="brdc-label">Rounds Per Match</label>
+                                        <input type="number" id="settingRounds" class="brdc-input" min="1" max="20" value="5">
+                                    </div>
+                                </div>
+                                <div class="form-group" style="margin-bottom: 12px;">
+                                    <label class="brdc-label">Cork Option Rules (Who Gets Choice)</label>
+                                    <select id="settingCorkOption" class="brdc-select">
+                                        <option value="alternate_random_first_last">Alternate, randomize first and last</option>
+                                        <option value="random_every_leg">Randomize every leg</option>
+                                        <option value="away_team_option">Away team option</option>
+                                        <option value="home_team_option">Home team option</option>
+                                        <option value="loser_option">Loser option</option>
+                                        <option value="winner_option">Winner option</option>
+                                    </select>
+                                    <span style="font-size: 11px; color: var(--text-dim);">Cork winner decides throw order. Loser/Winner defaults to random on leg 1.</span>
+                                </div>
+                                <div id="matchFormatDisplay" style="font-size: 12px; line-height: 1.6; margin-top: 15px; padding: 12px; background: rgba(0,0,0,0.2); border-radius: 8px;"></div>
+                            </div>
+
+                            <!-- Scoring Rules -->
+                            <div class="sidebar-card">
+                                <h3 style="font-family: 'Bebas Neue', cursive; font-size: 24px; margin-bottom: 20px;">📊 Scoring & Rules</h3>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                                    <div class="form-group">
+                                        <label class="brdc-label">Point System</label>
+                                        <select id="settingPointSystem" class="brdc-select">
+                                            <option value="game_based">Game-Based</option>
+                                            <option value="match_based">Match-Based</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="brdc-label">Cork Rule</label>
+                                        <select id="settingCorkRule" class="brdc-select">
+                                            <option value="cork_first_leg">Cork First Leg</option>
+                                            <option value="cork_every_leg">Cork Every Leg</option>
+                                            <option value="home_first">Home First</option>
+                                            <option value="higher_seed">Higher Seed</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                                    <div class="form-group">
+                                        <label class="brdc-label">Level Rules</label>
+                                        <select id="settingLevelRules" class="brdc-select">
+                                            <option value="strict">Strict</option>
+                                            <option value="play_up">Play Up Allowed</option>
+                                            <option value="flexible">Flexible</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="brdc-label">Session Fee</label>
+                                        <input type="number" id="settingSessionFee" class="brdc-input" min="0" step="0.01">
+                                    </div>
+                                </div>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px;">
+                                    <div class="form-group">
+                                        <label class="brdc-label">Playoff Format</label>
+                                        <select id="settingPlayoffFormat" class="brdc-select">
+                                            <option value="none">No Playoffs</option>
+                                            <option value="top_4_single">Top 4 Single Elim</option>
+                                            <option value="top_4_double">Top 4 Double Elim</option>
+                                            <option value="top_6_single">Top 6 Single Elim</option>
+                                            <option value="top_8_single">Top 8 Single Elim</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="brdc-label">Bye Points</label>
+                                        <select id="settingByePoints" class="brdc-select">
+                                            <option value="average">Average</option>
+                                            <option value="fixed">Fixed</option>
+                                            <option value="none">None</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <button class="brdc-btn" onclick="saveLeagueSettings()" style="width: 100%;">💾 SAVE ALL SETTINGS</button>
+                            </div>
+
+                            <!-- Danger Zone -->
+                            <div class="sidebar-card" style="border: 2px solid #ef4444;">
+                                <h3 style="font-family: 'Bebas Neue', cursive; font-size: 24px; margin-bottom: 15px; color: #ef4444;">⚠️ Danger Zone</h3>
+                                <p style="color: #666; font-size: 12px; margin-bottom: 15px;">Permanently delete this league and all data. Cannot be undone.</p>
+                                <button class="brdc-btn" style="background: #ef4444; width: 100%;" onclick="deleteLeague()">DELETE LEAGUE</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Team Modal -->
+    <div id="createTeamModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center;">
+        <div style="background: var(--bg-panel); border: 4px solid #000; border-radius: 16px; padding: 30px; max-width: 450px; width: 90%; box-shadow: 8px 8px 0 rgba(0,0,0,0.5);">
+            <h3 style="font-family: 'Bebas Neue', cursive; font-size: 28px; margin-bottom: 20px; color: var(--pink);">CREATE TEAM</h3>
+            <div class="form-group" style="margin-bottom: 15px;">
+                <label class="brdc-label">Team Name</label>
+                <input type="text" id="newTeamName" class="brdc-input" placeholder="Enter team name">
+            </div>
+            <div class="form-group" style="margin-bottom: 15px;">
+                <label class="brdc-label">Captain Name</label>
+                <input type="text" id="newCaptainName" class="brdc-input" placeholder="Captain's full name">
+            </div>
+            <div class="form-group" style="margin-bottom: 15px;">
+                <label class="brdc-label">Captain Email</label>
+                <input type="email" id="newCaptainEmail" class="brdc-input" placeholder="captain@email.com">
+            </div>
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button class="brdc-btn brdc-btn-secondary" onclick="closeCreateTeamModal()" style="flex: 1;">CANCEL</button>
+                <button class="brdc-btn" onclick="createTeam()" style="flex: 1;">CREATE</button>
             </div>
         </div>
     </div>
@@ -336,35 +1168,36 @@
         let currentWeek = 1;
         let teamsData = [];
         let matchesData = [];
+        let playersData = [];
 
         // PIN input handling
-        const pinInputs = document.querySelectorAll('.pin-digit');
-        pinInputs.forEach((input, index) => {
-            input.addEventListener('input', (e) => {
-                if (e.target.value.length === 1 && index < 3) pinInputs[index + 1].focus();
-            });
-            input.addEventListener('keydown', (e) => {
-                if (e.key === 'Backspace' && !e.target.value && index > 0) pinInputs[index - 1].focus();
-            });
+        const pinInput = document.getElementById('pinInput');
+        pinInput.addEventListener('input', (e) => {
+            e.target.value = e.target.value.replace(/[^0-9]/g, '');
+        });
+        pinInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') document.getElementById('loginBtn').click();
         });
 
         document.getElementById('loginBtn').addEventListener('click', async () => {
-            const pin = Array.from(pinInputs).map(i => i.value).join('');
-            if (pin.length !== 4) { showLoginError('Enter 4 digits'); return; }
+            const pin = pinInput.value.trim();
+            if (pin.length !== 8) { showLoginError('Enter 8-digit PIN'); return; }
 
             try {
-                if (!leagueId) {
-                    const snap = await getDocs(query(collection(db, 'leagues'), where('admin_pin', '==', pin)));
-                    if (snap.empty) { showLoginError('Invalid PIN'); return; }
-                    leagueId = snap.docs[0].id;
-                    window.history.replaceState({}, '', `?league_id=${leagueId}`);
+                // Use Cloud Function to verify PIN (bypasses Firestore security rules)
+                const result = await callFunction('verifyLeaguePin', {
+                    league_id: leagueId || null,
+                    pin: pin
+                });
+
+                if (!result.success) {
+                    showLoginError(result.error || 'Invalid PIN');
+                    return;
                 }
 
-                const leagueDoc = await getDoc(doc(db, 'leagues', leagueId));
-                if (!leagueDoc.exists()) { showLoginError('League not found'); return; }
-
-                leagueData = { id: leagueId, ...leagueDoc.data() };
-                if (leagueData.admin_pin !== pin) { showLoginError('Invalid PIN'); return; }
+                leagueId = result.league_id;
+                leagueData = { id: leagueId, ...result.league };
+                window.history.replaceState({}, '', `?league_id=${leagueId}`);
 
                 adminPin = pin;
                 document.getElementById('loginOverlay').style.display = 'none';
@@ -385,16 +1218,24 @@
             document.getElementById('leagueName').textContent = leagueData.league_name;
             document.getElementById('leagueSeason').textContent = leagueData.season || '';
             document.getElementById('standingsLink').href = `/pages/league-standings.html?league_id=${leagueId}`;
+            document.getElementById('manageTeamsLink').href = `/pages/league-management.html?league_id=${leagueId}`;
             document.getElementById('leagueStatus').textContent = leagueData.status.toUpperCase();
             document.getElementById('currentWeek').textContent = leagueData.current_week || 1;
             document.getElementById('totalWeeks').textContent = leagueData.total_weeks || '-';
             document.getElementById('statusSelect').value = leagueData.status;
             currentWeek = leagueData.current_week || 1;
 
+            // Load blackout dates
+            blackoutDates = leagueData.blackout_dates || [];
+            renderBlackoutDates();
+
             await loadTeams();
             await loadMatches();
+            await loadPlayers();
+            await loadBots();
             renderWeekSelector();
             renderMatches();
+            populateSettingsForm();
         }
 
         async function loadTeams() {
@@ -566,14 +1407,33 @@
             } catch (e) { alert('Error: ' + e.message); }
         };
 
+        window.deleteLeague = async function() {
+            const leagueName = leagueData.league_name;
+            const confirmName = prompt(`This will permanently delete "${leagueName}" and all its data.\n\nType the league name to confirm:`);
+            if (confirmName !== leagueName) {
+                if (confirmName !== null) alert('League name did not match. Deletion cancelled.');
+                return;
+            }
+
+            try {
+                const result = await callFunction('deleteLeague', { league_id: leagueId, admin_pin: adminPin });
+                if (result.success) {
+                    alert('League deleted successfully.');
+                    window.location.href = '/pages/dashboard.html';
+                } else alert('Error: ' + result.error);
+            } catch (e) { alert('Error: ' + e.message); }
+        };
+
         window.switchTab = function(tabName) {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-            event.target.classList.add('active');
+            event.target.closest('.tab').classList.add('active');
             document.getElementById(tabName + 'Tab').classList.add('active');
             if (tabName === 'standings') loadStandings();
             if (tabName === 'teams') renderTeams();
             if (tabName === 'stats') loadStats();
+            if (tabName === 'players') renderPlayers();
+            if (tabName === 'settings') populateSettingsForm();
         };
 
         async function loadStandings() {
@@ -657,15 +1517,960 @@
             return html + '</div>';
         }
 
+        // ============================================================================
+        // PLAYER MANAGEMENT FUNCTIONS
+        // ============================================================================
+
+        async function loadPlayers() {
+            try {
+                const result = await callFunction('getPlayers', { league_id: leagueId });
+                if (result.success) {
+                    playersData = result.players;
+                    document.getElementById('playerCountBadge').textContent = playersData.length;
+                }
+            } catch (e) { console.error('Error loading players:', e); }
+        }
+
+        function renderPlayers() {
+            const container = document.getElementById('playersContainer');
+            const searchTerm = document.getElementById('playerSearch').value.toLowerCase();
+            const filter = document.getElementById('playerFilter').value;
+
+            let filtered = playersData.filter(p => {
+                const matchesSearch = p.name.toLowerCase().includes(searchTerm) ||
+                    (p.email && p.email.toLowerCase().includes(searchTerm));
+
+                if (!matchesSearch) return false;
+
+                if (filter === 'unassigned') return !p.team_id;
+                if (filter === 'on_team') return p.team_id;
+                if (filter === 'subs') return p.is_sub;
+                if (filter === 'bots') return p.isBot;
+                return true;
+            });
+
+            if (!filtered.length) {
+                container.innerHTML = `<div class="sidebar-card" style="text-align: center; padding: 40px;">
+                    <p style="font-size: 16px; font-weight: 600;">${playersData.length ? 'No players match filter' : 'No players yet'}</p>
+                    <p style="color: #666; margin-top: 10px;">Add players using the form on the left.</p>
+                </div>`;
+                return;
+            }
+
+            let html = '';
+            filtered.forEach(player => {
+                const teamName = player.team_id ? getTeamName(player.team_id) : null;
+                const statusClass = player.team_id ? 'on-team' : (player.is_sub ? 'is-sub' : '');
+
+                const botBadge = player.isBot ? `<span style="background: var(--teal); color: #000; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 700; margin-left: 8px;">🤖 BOT - ${player.botDifficulty || 'medium'}</span>` : '';
+                html += `
+                    <div class="player-card ${statusClass}" ${player.isBot ? 'style="border-left: 3px solid var(--teal);"' : ''}>
+                        <div class="player-info">
+                            <div class="player-name-display">${player.name} ${player.is_captain ? '👑' : ''}${botBadge}</div>
+                            <div class="player-meta">
+                                ${player.email ? `📧 ${player.email}` : ''}
+                                ${player.phone ? ` · 📱 ${player.phone}` : ''}
+                                ${player.reported_average ? ` · Avg: ${player.reported_average}` : ''}
+                                ${player.preferred_level ? ` · Level: ${player.preferred_level}` : ''}
+                            </div>
+                            <div class="player-meta" style="margin-top: 4px;">
+                                ${teamName ? `<span style="color: #10b981; font-weight: 600;">Team: ${teamName}</span>` : '<span style="color: #f59e0b;">Unassigned</span>'}
+                                ${player.is_sub ? ' · <span style="color: var(--yellow);">Sub</span>' : ''}
+                                ${player.pin ? ` · PIN: <code>${player.pin}</code>` : ''}
+                            </div>
+                        </div>
+                        <div class="player-actions">
+                            <button class="edit-btn" onclick="editPlayer('${player.id}')">Edit</button>
+                            ${!player.team_id ? `<button class="delete-btn" onclick="deletePlayer('${player.id}', '${player.name}')">Delete</button>` : ''}
+                        </div>
+                    </div>`;
+            });
+            container.innerHTML = html;
+        }
+
+        function getTeamName(teamId) {
+            const team = teamsData.find(t => t.id === teamId);
+            return team ? team.team_name : 'Unknown Team';
+        }
+
+        window.filterPlayers = function() {
+            renderPlayers();
+        };
+
+        window.addSinglePlayer = async function() {
+            const name = document.getElementById('addPlayerName').value.trim();
+            const email = document.getElementById('addPlayerEmail').value.trim();
+            const phone = document.getElementById('addPlayerPhone').value.trim();
+            const average = document.getElementById('addPlayerAverage').value;
+            const level = document.getElementById('addPlayerLevel').value;
+
+            if (!name) {
+                alert('Please enter a player name');
+                return;
+            }
+
+            try {
+                const result = await callFunction('addPlayer', {
+                    league_id: leagueId,
+                    admin_pin: adminPin,
+                    name: name,
+                    email: email || null,
+                    phone: phone || null,
+                    average: average || null,
+                    preferred_level: level || null
+                });
+
+                if (result.success) {
+                    alert(`Player added!\nPIN: ${result.player_pin}`);
+                    // Clear form
+                    document.getElementById('addPlayerName').value = '';
+                    document.getElementById('addPlayerEmail').value = '';
+                    document.getElementById('addPlayerPhone').value = '';
+                    document.getElementById('addPlayerAverage').value = '';
+                    document.getElementById('addPlayerLevel').value = '';
+                    // Reload players
+                    await loadPlayers();
+                    renderPlayers();
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (e) {
+                alert('Error: ' + e.message);
+            }
+        };
+
+        window.bulkAddPlayers = async function() {
+            const text = document.getElementById('bulkPlayersText').value.trim();
+            if (!text) {
+                alert('Please enter player names');
+                return;
+            }
+
+            const lines = text.split('\n').filter(l => l.trim());
+            const players = [];
+
+            for (const line of lines) {
+                const parts = line.split(',').map(p => p.trim());
+                const player = {
+                    name: parts[0] || ''
+                };
+                if (parts[1]) player.email = parts[1];
+                if (parts[2]) player.phone = parts[2];
+                if (parts[3]) player.average = parts[3];
+                if (parts[4]) player.preferred_level = parts[4];
+
+                if (player.name) {
+                    players.push(player);
+                }
+            }
+
+            if (!players.length) {
+                alert('No valid players found');
+                return;
+            }
+
+            if (!confirm(`Import ${players.length} players?`)) return;
+
+            try {
+                const result = await callFunction('bulkAddPlayers', {
+                    league_id: leagueId,
+                    admin_pin: adminPin,
+                    players: players
+                });
+
+                if (result.success) {
+                    let msg = `Added ${result.added_count} players`;
+                    if (result.skipped_count > 0) {
+                        msg += `\nSkipped ${result.skipped_count} (duplicates or invalid)`;
+                    }
+                    alert(msg);
+                    document.getElementById('bulkPlayersText').value = '';
+                    await loadPlayers();
+                    renderPlayers();
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (e) {
+                alert('Error: ' + e.message);
+            }
+        };
+
+        window.editPlayer = async function(playerId) {
+            const player = playersData.find(p => p.id === playerId);
+            if (!player) return;
+
+            const newName = prompt('Player name:', player.name);
+            if (newName === null) return;
+
+            const newEmail = prompt('Email:', player.email || '');
+            if (newEmail === null) return;
+
+            const newPhone = prompt('Phone:', player.phone || '');
+            if (newPhone === null) return;
+
+            const newAvg = prompt('501 Average:', player.reported_average || '');
+            if (newAvg === null) return;
+
+            const newLevel = prompt('Level (A/B/C):', player.preferred_level || '');
+            if (newLevel === null) return;
+
+            try {
+                const result = await callFunction('updatePlayer', {
+                    league_id: leagueId,
+                    admin_pin: adminPin,
+                    player_id: playerId,
+                    updates: {
+                        name: newName.trim() || player.name,
+                        email: newEmail.trim() || null,
+                        phone: newPhone.trim() || null,
+                        reported_average: newAvg || null,
+                        preferred_level: newLevel.toUpperCase() || null
+                    }
+                });
+
+                if (result.success) {
+                    alert('Player updated!');
+                    await loadPlayers();
+                    renderPlayers();
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (e) {
+                alert('Error: ' + e.message);
+            }
+        };
+
+        window.deletePlayer = async function(playerId, playerName) {
+            if (!confirm(`Delete ${playerName}? This cannot be undone.`)) return;
+
+            try {
+                const result = await callFunction('deletePlayer', {
+                    league_id: leagueId,
+                    admin_pin: adminPin,
+                    player_id: playerId
+                });
+
+                if (result.success) {
+                    alert('Player deleted');
+                    await loadPlayers();
+                    renderPlayers();
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (e) {
+                alert('Error: ' + e.message);
+            }
+        };
+
+        // ============================================================================
+        // BOT MANAGEMENT FUNCTIONS
+        // ============================================================================
+        let availableBots = [];
+
+        async function loadBots() {
+            try {
+                const result = await callFunction('getBots', {});
+                availableBots = result.bots || [];
+                updateBotSelect();
+            } catch (e) {
+                console.error('Error loading bots:', e);
+            }
+        }
+
+        function updateBotSelect() {
+            const select = document.getElementById('botSelect');
+            if (!select) return;
+
+            // Get IDs of bots already in the league
+            const leagueBotIds = playersData
+                .filter(p => p.source_bot_id)
+                .map(p => p.source_bot_id);
+
+            select.innerHTML = '<option value="">-- Select a bot --</option>';
+            availableBots.forEach(bot => {
+                const alreadyAdded = leagueBotIds.includes(bot.id);
+                select.innerHTML += `<option value="${bot.id}" ${alreadyAdded ? 'disabled' : ''}>${bot.name} (${bot.difficulty})${alreadyAdded ? ' - Already added' : ''}</option>`;
+            });
+
+            if (availableBots.length === 0) {
+                select.innerHTML = '<option value="">No bots available - Create some first</option>';
+            }
+        }
+
+        window.addBotToLeague = async function() {
+            const botId = document.getElementById('botSelect').value;
+            if (!botId) {
+                alert('Please select a bot');
+                return;
+            }
+
+            try {
+                const result = await callFunction('addBotToLeague', {
+                    league_id: leagueId,
+                    admin_pin: adminPin,
+                    bot_id: botId
+                });
+
+                if (result.success) {
+                    alert(`Bot "${result.bot_name}" added to league!`);
+                    await loadPlayers();
+                    renderPlayers();
+                    updateBotSelect();
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (e) {
+                alert('Error: ' + e.message);
+            }
+        };
+
+        // Blackout dates management
+        let blackoutDates = [];
+
+        function renderBlackoutDates() {
+            const container = document.getElementById('blackoutDatesList');
+            if (!blackoutDates || blackoutDates.length === 0) {
+                container.innerHTML = '<span style="color: #666; font-size: 14px;">No blackout dates set</span>';
+                return;
+            }
+            container.innerHTML = blackoutDates.map(date => {
+                const formatted = new Date(date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                return `
+                    <div style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: rgba(239, 68, 68, 0.15); border: 2px solid #ef4444; border-radius: 20px; font-size: 14px; color: #ef4444;">
+                        <span>${formatted}</span>
+                        <button onclick="removeBlackoutDate('${date}')" style="background: none; border: none; color: #ef4444; cursor: pointer; font-size: 16px; padding: 0;">&times;</button>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        window.addBlackoutDate = async function() {
+            const input = document.getElementById('blackoutDateInput');
+            const date = input.value;
+            if (!date) return;
+            if (blackoutDates.includes(date)) {
+                alert('This date is already added');
+                return;
+            }
+            blackoutDates.push(date);
+            blackoutDates.sort();
+
+            try {
+                await updateDoc(doc(db, 'leagues', leagueId), { blackout_dates: blackoutDates });
+                renderBlackoutDates();
+                input.value = '';
+            } catch (e) {
+                blackoutDates = blackoutDates.filter(d => d !== date);
+                alert('Error saving: ' + e.message);
+            }
+        };
+
+        window.removeBlackoutDate = async function(date) {
+            if (!confirm('Remove this blackout date?')) return;
+            const oldDates = [...blackoutDates];
+            blackoutDates = blackoutDates.filter(d => d !== date);
+
+            try {
+                await updateDoc(doc(db, 'leagues', leagueId), { blackout_dates: blackoutDates });
+                renderBlackoutDates();
+            } catch (e) {
+                blackoutDates = oldDates;
+                alert('Error removing: ' + e.message);
+            }
+        };
+
+        // ============================================================================
+        // SETTINGS TAB FUNCTIONS
+        // ============================================================================
+
+        function populateSettingsForm() {
+            // League Information
+            document.getElementById('settingLeagueName').value = leagueData.league_name || '';
+            document.getElementById('settingSeason').value = leagueData.season || '';
+            document.getElementById('settingStartDate').value = leagueData.start_date || '';
+            document.getElementById('settingLeagueNight').value = leagueData.league_night || 'tuesday';
+            document.getElementById('settingStartTime').value = leagueData.start_time || '';
+
+            // Venue
+            document.getElementById('settingVenueName').value = leagueData.venue_name || '';
+            document.getElementById('settingVenueAddress').value = leagueData.venue_address || '';
+
+            // Scoring & Rules
+            document.getElementById('settingPointSystem').value = leagueData.point_system || 'game_based';
+            document.getElementById('settingCorkRule').value = leagueData.cork_rule || 'cork_first_leg';
+            document.getElementById('settingLevelRules').value = leagueData.level_rules || 'strict';
+            document.getElementById('settingSessionFee').value = leagueData.session_fee || 0;
+            document.getElementById('settingPlayoffFormat').value = leagueData.playoff_format || 'none';
+            document.getElementById('settingByePoints').value = leagueData.bye_points || 'average';
+
+            // Match Format Settings
+            document.getElementById('settingFormat').value = leagueData.format || '501';
+            document.getElementById('settingCheckout').value = leagueData.checkout || 'double';
+            document.getElementById('settingBestOf').value = leagueData.best_of || '3';
+            document.getElementById('settingRounds').value = leagueData.rounds_per_match || 5;
+            document.getElementById('settingCorkOption').value = leagueData.cork_option || 'alternate_random_first_last';
+
+            // Render match format display
+            renderMatchFormat();
+        }
+
+        function renderMatchFormat() {
+            const container = document.getElementById('matchFormatDisplay');
+            const format = leagueData.match_format || {};
+
+            // Default 9-game format if none stored
+            const defaultFormat = [
+                { game: 1, type: 'singles', format: '501', checkout: 'double', bestOf: 3 },
+                { game: 2, type: 'singles', format: 'cricket', checkout: null, bestOf: 3 },
+                { game: 3, type: 'singles', format: '501', checkout: 'double', bestOf: 3 },
+                { game: 4, type: 'doubles', format: 'cricket', checkout: null, bestOf: 3 },
+                { game: 5, type: 'doubles', format: '501', checkout: 'double', bestOf: 3 },
+                { game: 6, type: 'singles', format: 'cricket', checkout: null, bestOf: 3 },
+                { game: 7, type: 'singles', format: '501', checkout: 'double', bestOf: 3 },
+                { game: 8, type: 'singles', format: 'cricket', checkout: null, bestOf: 3 },
+                { game: 9, type: 'singles', format: '501', checkout: 'double', bestOf: 3 }
+            ];
+
+            const games = format.games || defaultFormat;
+
+            let html = `
+                <p style="color: var(--text-dim); margin-bottom: 15px;">
+                    ${games.length}-game format • ${games.filter(g => g.type === 'singles').length} singles, ${games.filter(g => g.type === 'doubles').length} doubles
+                </p>
+                <div style="background: var(--bg-card); border-radius: 8px; overflow: hidden; border: 2px solid var(--border-strong);">
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="background: linear-gradient(135deg, var(--pink), #d63384);">
+                                <th style="padding: 10px; text-align: center; color: white; font-size: 12px;">Game</th>
+                                <th style="padding: 10px; text-align: left; color: white; font-size: 12px;">Type</th>
+                                <th style="padding: 10px; text-align: left; color: white; font-size: 12px;">Format</th>
+                                <th style="padding: 10px; text-align: center; color: white; font-size: 12px;">Best Of</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            games.forEach((game, i) => {
+                const typeIcon = game.type === 'doubles' ? '👥' : '👤';
+                const formatLabel = game.format === '501' ? `501 (${game.checkout || 'double'} out)` : 'Cricket';
+                const bgColor = i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.03)';
+
+                html += `
+                    <tr style="background: ${bgColor}; border-bottom: 1px solid var(--border-color);">
+                        <td style="padding: 10px; text-align: center; font-weight: 700; color: var(--yellow);">${game.game || i + 1}</td>
+                        <td style="padding: 10px; text-transform: capitalize;">${typeIcon} ${game.type}</td>
+                        <td style="padding: 10px;">${formatLabel}</td>
+                        <td style="padding: 10px; text-align: center;">${game.bestOf || 3}</td>
+                    </tr>
+                `;
+            });
+
+            html += `
+                        </tbody>
+                    </table>
+                </div>
+                <p style="color: var(--text-dim); margin-top: 15px; font-size: 12px;">
+                    <strong>Cork Rule:</strong> ${formatCorkRule(leagueData.cork_rule || 'cork_first_leg')}<br>
+                    <strong>Point System:</strong> ${formatPointSystem(leagueData.point_system || 'game_based')}
+                </p>
+            `;
+
+            container.innerHTML = html;
+        }
+
+        function formatCorkRule(rule) {
+            const rules = {
+                'cork_first_leg': 'Cork first leg only',
+                'cork_every_leg': 'Cork every leg',
+                'home_first': 'Home team throws first',
+                'higher_seed': 'Higher seed throws first'
+            };
+            return rules[rule] || rule;
+        }
+
+        function formatPointSystem(system) {
+            const systems = {
+                'game_based': 'Points awarded per game won',
+                'match_based': 'Points awarded for match win only'
+            };
+            return systems[system] || system;
+        }
+
+        window.saveLeagueSettings = async function() {
+            const updates = {
+                league_name: document.getElementById('settingLeagueName').value.trim(),
+                season: document.getElementById('settingSeason').value.trim(),
+                start_date: document.getElementById('settingStartDate').value,
+                league_night: document.getElementById('settingLeagueNight').value,
+                start_time: document.getElementById('settingStartTime').value,
+                venue_name: document.getElementById('settingVenueName').value.trim(),
+                venue_address: document.getElementById('settingVenueAddress').value.trim(),
+                point_system: document.getElementById('settingPointSystem').value,
+                cork_rule: document.getElementById('settingCorkRule').value,
+                level_rules: document.getElementById('settingLevelRules').value,
+                session_fee: parseFloat(document.getElementById('settingSessionFee').value) || 0,
+                playoff_format: document.getElementById('settingPlayoffFormat').value,
+                bye_points: document.getElementById('settingByePoints').value,
+                // Match format settings
+                format: document.getElementById('settingFormat').value,
+                checkout: document.getElementById('settingCheckout').value,
+                best_of: parseInt(document.getElementById('settingBestOf').value),
+                rounds_per_match: parseInt(document.getElementById('settingRounds').value) || 5,
+                cork_option: document.getElementById('settingCorkOption').value
+            };
+
+            if (!updates.league_name) {
+                alert('League name is required');
+                return;
+            }
+
+            try {
+                const result = await callFunction('updateLeagueSettings', {
+                    league_id: leagueId,
+                    admin_pin: adminPin,
+                    settings: updates
+                });
+
+                if (result.success) {
+                    // Update local data
+                    Object.assign(leagueData, updates);
+                    document.getElementById('leagueName').textContent = updates.league_name;
+                    document.getElementById('leagueSeason').textContent = updates.season;
+                    renderMatchFormat();
+                    alert('Settings saved successfully!');
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (e) {
+                alert('Error saving settings: ' + e.message);
+            }
+        };
+
         window.logout = function() {
             adminPin = null;
             document.getElementById('dashboard').style.display = 'none';
             document.getElementById('loginOverlay').style.display = 'flex';
-            pinInputs.forEach(i => i.value = '');
-            pinInputs[0].focus();
+            pinInput.value = '';
+            pinInput.focus();
         };
 
-        pinInputs[0].focus();
+        // ============================================================================
+        // TEAM CREATION FUNCTIONS
+        // ============================================================================
+
+        window.showCreateTeamModal = function() {
+            document.getElementById('createTeamModal').style.display = 'flex';
+            document.getElementById('newTeamName').value = '';
+            document.getElementById('newCaptainName').value = '';
+            document.getElementById('newCaptainEmail').value = '';
+            document.getElementById('newTeamName').focus();
+        };
+
+        window.closeCreateTeamModal = function() {
+            document.getElementById('createTeamModal').style.display = 'none';
+        };
+
+        window.createTeam = async function() {
+            const teamName = document.getElementById('newTeamName').value.trim();
+            const captainName = document.getElementById('newCaptainName').value.trim();
+            const captainEmail = document.getElementById('newCaptainEmail').value.trim();
+
+            if (!teamName) {
+                alert('Please enter a team name');
+                return;
+            }
+            if (!captainName) {
+                alert('Please enter a captain name');
+                return;
+            }
+            if (!captainEmail) {
+                alert('Please enter a captain email');
+                return;
+            }
+
+            try {
+                const result = await callFunction('createTeamManual', {
+                    league_id: leagueId,
+                    pin: adminPin,
+                    team_name: teamName,
+                    captain_name: captainName,
+                    captain_email: captainEmail
+                });
+
+                if (result.success) {
+                    alert('Team created! Captain: ' + captainName);
+                    closeCreateTeamModal();
+                    await loadTeams();
+                    await loadPlayers();
+                    renderTeams();
+                    renderPlayers();
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (e) {
+                alert('Error: ' + e.message);
+            }
+        };
+
+        window.notifyAllPlayers = async function() {
+            const playerCount = playersData.filter(p => p.phone && !p.isBot).length;
+
+            if (playerCount === 0) {
+                alert('No players with phone numbers to notify.');
+                return;
+            }
+
+            if (!confirm(`Send SMS to ${playerCount} player(s)?\n\nThis will text each player:\n• Their PIN\n• Team assignment\n• First match info\n• Dashboard link\n\nTwilio charges apply.`)) {
+                return;
+            }
+
+            try {
+                const btn = event.target;
+                btn.disabled = true;
+                btn.textContent = '📱 SENDING...';
+
+                const result = await callFunction('notifyLeaguePlayers', {
+                    league_id: leagueId,
+                    admin_pin: adminPin
+                });
+
+                btn.disabled = false;
+                btn.textContent = '📱 TEXT ALL PLAYERS';
+
+                if (result.success) {
+                    alert(`✅ Notifications sent!\n\nSent: ${result.results.sent}\nFailed: ${result.results.failed}\nSkipped (no phone): ${result.results.skipped}`);
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (e) {
+                alert('Error: ' + e.message);
+                event.target.disabled = false;
+                event.target.textContent = '📱 TEXT ALL PLAYERS';
+            }
+        };
+
+        window.runAutoDraft = async function() {
+            // Include bots in draft
+            const unassigned = playersData.filter(p => !p.team_id);
+            const playersPerTeam = leagueData.min_players || leagueData.players_per_team || 4;
+            const possibleTeams = Math.floor(unassigned.length / playersPerTeam);
+
+            const botCount = unassigned.filter(p => p.isBot).length;
+            const humanCount = unassigned.length - botCount;
+
+            if (possibleTeams < 2) {
+                alert(`Not enough unassigned players for auto-draft.\n\nYou have ${unassigned.length} players (${humanCount} humans, ${botCount} bots).\nNeed at least ${playersPerTeam * 2} for 2 teams (${playersPerTeam} per team).`);
+                return;
+            }
+
+            if (!confirm(`Auto Draft will:\n\n• Create ${possibleTeams} teams\n• Randomly assign ${possibleTeams * playersPerTeam} players\n  (${humanCount} humans + ${botCount} bots available)\n• ${unassigned.length - (possibleTeams * playersPerTeam)} player(s) will remain unassigned\n\nContinue?`)) {
+                return;
+            }
+
+            try {
+                const result = await callFunction('conductLeagueDraft', {
+                    league_id: leagueId,
+                    admin_pin: adminPin
+                });
+
+                if (result.success) {
+                    alert(`Draft complete!\n\n${result.teams_created} teams created.`);
+                    await loadTeams();
+                    await loadPlayers();
+                    renderTeams();
+                    renderPlayers();
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (e) {
+                alert('Error: ' + e.message);
+            }
+        };
+
+        // ============================================================================
+        // CONTACT TAB FUNCTIONS
+        // ============================================================================
+        let selectedIndividualPlayers = [];
+
+        // Update recipient count based on filters
+        window.updateRecipientCount = function() {
+            let count = 0;
+            const captains = document.getElementById('filterCaptains').checked;
+            const levelA = document.getElementById('filterLevelA').checked;
+            const levelB = document.getElementById('filterLevelB').checked;
+            const levelC = document.getElementById('filterLevelC').checked;
+            const alternates = document.getElementById('filterAlternates').checked;
+
+            playersData.forEach(p => {
+                if (p.isBot || !p.phone) return; // Skip bots and players without phones
+
+                let matches = false;
+                if (captains && p.is_captain) matches = true;
+                if (levelA && p.preferred_level === 'A') matches = true;
+                if (levelB && p.preferred_level === 'B') matches = true;
+                if (levelC && p.preferred_level === 'C') matches = true;
+                if (alternates && p.is_sub) matches = true;
+
+                if (matches) count++;
+            });
+
+            // Add individually selected players (not already counted)
+            selectedIndividualPlayers.forEach(sp => {
+                const player = playersData.find(p => p.id === sp.id);
+                if (player && player.phone && !player.isBot) {
+                    // Check if not already counted by filters
+                    let alreadyCounted = false;
+                    if (captains && player.is_captain) alreadyCounted = true;
+                    if (levelA && player.preferred_level === 'A') alreadyCounted = true;
+                    if (levelB && player.preferred_level === 'B') alreadyCounted = true;
+                    if (levelC && player.preferred_level === 'C') alreadyCounted = true;
+                    if (alternates && player.is_sub) alreadyCounted = true;
+
+                    if (!alreadyCounted) count++;
+                }
+            });
+
+            document.getElementById('recipientCount').textContent = `${count} recipient${count !== 1 ? 's' : ''} selected`;
+            updateMessagePreview();
+        };
+
+        window.selectAllRecipients = function() {
+            document.getElementById('filterCaptains').checked = true;
+            document.getElementById('filterLevelA').checked = true;
+            document.getElementById('filterLevelB').checked = true;
+            document.getElementById('filterLevelC').checked = true;
+            document.getElementById('filterAlternates').checked = true;
+            updateRecipientCount();
+        };
+
+        window.clearAllRecipients = function() {
+            document.getElementById('filterCaptains').checked = false;
+            document.getElementById('filterLevelA').checked = false;
+            document.getElementById('filterLevelB').checked = false;
+            document.getElementById('filterLevelC').checked = false;
+            document.getElementById('filterAlternates').checked = false;
+            selectedIndividualPlayers = [];
+            renderSelectedPlayersChips();
+            updateRecipientCount();
+        };
+
+        // Search for individual players
+        window.searchContactPlayers = function() {
+            const searchTerm = document.getElementById('contactPlayerSearch').value.toLowerCase().trim();
+            const resultsDiv = document.getElementById('contactPlayerResults');
+
+            if (searchTerm.length < 2) {
+                resultsDiv.innerHTML = '';
+                return;
+            }
+
+            const matches = playersData
+                .filter(p => !p.isBot && p.phone && p.name.toLowerCase().includes(searchTerm))
+                .slice(0, 10);
+
+            if (matches.length === 0) {
+                resultsDiv.innerHTML = '<p style="color: #666; font-size: 12px; padding: 8px;">No players found</p>';
+                return;
+            }
+
+            resultsDiv.innerHTML = matches.map(p => {
+                const isSelected = selectedIndividualPlayers.some(sp => sp.id === p.id);
+                return `
+                    <div style="padding: 8px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <span style="font-weight: 600;">${p.name}</span>
+                            <span style="color: #666; font-size: 11px; margin-left: 8px;">${p.preferred_level || ''} ${p.is_captain ? '👑' : ''}</span>
+                        </div>
+                        ${isSelected
+                            ? '<span style="color: #4ade80; font-size: 12px;">✓ Added</span>'
+                            : `<button class="brdc-btn brdc-btn-secondary" onclick="addIndividualPlayer('${p.id}', '${p.name.replace(/'/g, "\\'")}')" style="padding: 4px 10px; font-size: 11px;">Add</button>`
+                        }
+                    </div>
+                `;
+            }).join('');
+        };
+
+        window.addIndividualPlayer = function(id, name) {
+            if (!selectedIndividualPlayers.some(p => p.id === id)) {
+                selectedIndividualPlayers.push({ id, name });
+                renderSelectedPlayersChips();
+                updateRecipientCount();
+                searchContactPlayers(); // Refresh search results
+            }
+        };
+
+        window.removeIndividualPlayer = function(id) {
+            selectedIndividualPlayers = selectedIndividualPlayers.filter(p => p.id !== id);
+            renderSelectedPlayersChips();
+            updateRecipientCount();
+            searchContactPlayers(); // Refresh search results
+        };
+
+        function renderSelectedPlayersChips() {
+            const container = document.getElementById('selectedPlayersChips');
+            if (selectedIndividualPlayers.length === 0) {
+                container.innerHTML = '';
+                return;
+            }
+            container.innerHTML = selectedIndividualPlayers.map(p => `
+                <div style="display: flex; align-items: center; gap: 6px; padding: 4px 10px; background: var(--pink); border-radius: 20px; font-size: 12px; color: white;">
+                    <span>${p.name}</span>
+                    <button onclick="removeIndividualPlayer('${p.id}')" style="background: none; border: none; color: white; cursor: pointer; font-size: 14px; padding: 0;">&times;</button>
+                </div>
+            `).join('');
+        }
+
+        // Insert tag into message
+        window.insertTag = function(tag) {
+            const textarea = document.getElementById('contactMessage');
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const text = textarea.value;
+
+            textarea.value = text.substring(0, start) + tag + text.substring(end);
+            textarea.selectionStart = textarea.selectionEnd = start + tag.length;
+            textarea.focus();
+
+            updateCharCount();
+            updateMessagePreview();
+        };
+
+        // Character count
+        const contactMessageInput = document.getElementById('contactMessage');
+        if (contactMessageInput) {
+            contactMessageInput.addEventListener('input', function() {
+                updateCharCount();
+                updateMessagePreview();
+            });
+        }
+
+        function updateCharCount() {
+            const text = document.getElementById('contactMessage').value;
+            const count = text.length;
+            const charCountEl = document.getElementById('charCount');
+            charCountEl.textContent = `${count} / 160 chars`;
+            charCountEl.style.color = count > 160 ? '#ef4444' : '#666';
+        }
+
+        // Message preview with sample data
+        function updateMessagePreview() {
+            const template = document.getElementById('contactMessage').value;
+            const previewDiv = document.getElementById('messagePreview');
+
+            if (!template.trim()) {
+                previewDiv.textContent = 'Your message will appear here...';
+                previewDiv.style.color = '#666';
+                return;
+            }
+
+            // Sample player data for preview
+            const samplePlayer = {
+                first_name: 'John',
+                last_name: 'Smith',
+                full_name: 'John Smith',
+                pin: '12345678',
+                team_name: 'The Darters',
+                dashboard_link: 'brdc.app/dashboard',
+                league_name: leagueData?.league_name || 'My League',
+                next_match_date: 'Next Tuesday',
+                next_match_pin: 'A7X3K'
+            };
+
+            let preview = template
+                .replace(/\[first_name\]/gi, samplePlayer.first_name)
+                .replace(/\[last_name\]/gi, samplePlayer.last_name)
+                .replace(/\[full_name\]/gi, samplePlayer.full_name)
+                .replace(/\[pin\]/gi, samplePlayer.pin)
+                .replace(/\[team_name\]/gi, samplePlayer.team_name)
+                .replace(/\[dashboard_link\]/gi, samplePlayer.dashboard_link)
+                .replace(/\[league_name\]/gi, samplePlayer.league_name)
+                .replace(/\[next_match_date\]/gi, samplePlayer.next_match_date)
+                .replace(/\[next_match_pin\]/gi, samplePlayer.next_match_pin);
+
+            previewDiv.textContent = preview;
+            previewDiv.style.color = '#4ade80';
+        }
+
+        // Send custom message
+        window.sendCustomMessage = async function() {
+            const message = document.getElementById('contactMessage').value.trim();
+
+            if (!message) {
+                alert('Please enter a message');
+                return;
+            }
+
+            // Get selected filters
+            const filters = {
+                captains: document.getElementById('filterCaptains').checked,
+                levelA: document.getElementById('filterLevelA').checked,
+                levelB: document.getElementById('filterLevelB').checked,
+                levelC: document.getElementById('filterLevelC').checked,
+                alternates: document.getElementById('filterAlternates').checked,
+                individual_player_ids: selectedIndividualPlayers.map(p => p.id)
+            };
+
+            // Check if any recipients selected
+            const hasFilters = filters.captains || filters.levelA || filters.levelB || filters.levelC || filters.alternates;
+            const hasIndividuals = filters.individual_player_ids.length > 0;
+
+            if (!hasFilters && !hasIndividuals) {
+                alert('Please select at least one recipient filter or add individual players');
+                return;
+            }
+
+            // Count recipients
+            let recipientCount = 0;
+            playersData.forEach(p => {
+                if (p.isBot || !p.phone) return;
+                let matches = false;
+                if (filters.captains && p.is_captain) matches = true;
+                if (filters.levelA && p.preferred_level === 'A') matches = true;
+                if (filters.levelB && p.preferred_level === 'B') matches = true;
+                if (filters.levelC && p.preferred_level === 'C') matches = true;
+                if (filters.alternates && p.is_sub) matches = true;
+                if (filters.individual_player_ids.includes(p.id)) matches = true;
+                if (matches) recipientCount++;
+            });
+
+            if (recipientCount === 0) {
+                alert('No players match the selected filters or have phone numbers');
+                return;
+            }
+
+            if (!confirm(`Send SMS to ${recipientCount} player(s)?\n\nMessage preview:\n"${message.substring(0, 100)}${message.length > 100 ? '...' : ''}"\n\nTwilio charges apply.`)) {
+                return;
+            }
+
+            try {
+                const btn = event.target;
+                btn.disabled = true;
+                btn.textContent = '📱 SENDING...';
+
+                const result = await callFunction('sendCustomLeagueMessage', {
+                    league_id: leagueId,
+                    admin_pin: adminPin,
+                    message: message,
+                    filters: filters
+                });
+
+                btn.disabled = false;
+                btn.textContent = '📱 SEND MESSAGE';
+
+                if (result.success) {
+                    alert(`✅ Messages sent!\n\nSent: ${result.results.sent}\nFailed: ${result.results.failed}\nSkipped (no phone): ${result.results.skipped}`);
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (e) {
+                alert('Error: ' + e.message);
+                event.target.disabled = false;
+                event.target.textContent = '📱 SEND MESSAGE';
+            }
+        };
+
+        pinInput.focus();
     </script>
+    <script src="/js/nav-menu.js"></script>
 </body>
 </html>

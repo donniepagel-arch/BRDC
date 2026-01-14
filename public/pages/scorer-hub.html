@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>BRDC Dart Scorer</title>
+    <link rel="icon" type="image/png" href="/images/favicon.png">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="BRDC">
+    <link rel="apple-touch-icon" href="/images/white_logo.jpg">
+    <meta name="theme-color" content="#FF469A">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700;800;900&display=swap');
+
+        :root {
+            --pink: #FF469A;
+            --teal: #91D7EB;
+            --yellow: #FDD835;
+            --bg-dark: #1a1a2e;
+            --bg-panel: #16213e;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        html, body { height: 100%; }
+        body {
+            background: linear-gradient(135deg, var(--bg-dark) 0%, #0f0f23 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse at 20% 20%, rgba(255, 70, 154, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(145, 215, 235, 0.06) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .header-bar {
+            background: var(--bg-panel);
+            border-bottom: 3px solid var(--pink);
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+            width: 100%;
+        }
+        .header-logo {
+            width: 40px;
+            height: 40px;
+            mix-blend-mode: multiply;
+            filter: drop-shadow(0 0 8px rgba(255, 70, 154, 0.5));
+        }
+        .header-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 28px;
+            letter-spacing: 3px;
+            color: var(--pink);
+        }
+        .back-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid var(--pink);
+            color: var(--pink);
+            padding: 8px 16px;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 16px;
+            letter-spacing: 1px;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+        .back-btn:hover {
+            background: var(--pink);
+            color: white;
+        }
+
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .hub-container {
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .hub-card {
+            background: var(--bg-panel);
+            border: 4px solid #000;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 8px 8px 0 rgba(0,0,0,0.5);
+        }
+
+        .card-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 28px;
+            color: white;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+
+        .card-desc {
+            color: rgba(255,255,255,0.7);
+            font-size: 14px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .play-btn {
+            width: 100%;
+            background: linear-gradient(180deg, var(--pink) 0%, #d63384 100%);
+            color: white;
+            border: 3px solid #000;
+            padding: 18px;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 28px;
+            letter-spacing: 3px;
+            cursor: pointer;
+            border-radius: 8px;
+            box-shadow: 4px 4px 0 rgba(0,0,0,0.5);
+            transition: all 0.2s;
+        }
+
+        .play-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 6px 6px 0 rgba(0,0,0,0.5);
+        }
+
+        .play-btn:active {
+            transform: translateY(2px);
+            box-shadow: 2px 2px 0 rgba(0,0,0,0.5);
+        }
+
+        .divider {
+            display: flex;
+            align-items: center;
+            margin: 30px 0;
+            color: rgba(255,255,255,0.5);
+        }
+
+        .divider::before, .divider::after {
+            content: '';
+            flex: 1;
+            height: 2px;
+            background: rgba(255,255,255,0.2);
+        }
+
+        .divider span {
+            padding: 0 15px;
+            font-weight: 700;
+            font-size: 14px;
+            letter-spacing: 2px;
+        }
+
+        .pin-section {
+            background: var(--bg-panel);
+            border: 4px solid #000;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 8px 8px 0 rgba(0,0,0,0.5);
+        }
+
+        .pin-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 24px;
+            color: var(--yellow);
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        .pin-desc {
+            color: rgba(255,255,255,0.7);
+            font-size: 13px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .pin-input-container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .pin-input {
+            flex: 1;
+            background: rgba(255,255,255,0.1);
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 8px;
+            padding: 15px;
+            font-size: 24px;
+            font-weight: 800;
+            color: white;
+            text-align: center;
+            letter-spacing: 8px;
+            text-transform: uppercase;
+        }
+
+        .pin-input::placeholder {
+            color: rgba(255,255,255,0.3);
+            letter-spacing: 4px;
+        }
+
+        .pin-input:focus {
+            outline: none;
+            border-color: var(--yellow);
+        }
+
+        .pin-btn {
+            width: 100%;
+            background: linear-gradient(180deg, var(--yellow) 0%, #f59e0b 100%);
+            color: #000;
+            border: 3px solid #000;
+            padding: 15px 25px;
+            font-family: 'Bebas Neue', cursive;
+            font-weight: 800;
+            font-size: 22px;
+            letter-spacing: 2px;
+            cursor: pointer;
+            border-radius: 8px;
+            box-shadow: 4px 4px 0 rgba(0,0,0,0.5);
+        }
+
+        .pin-btn:hover {
+            transform: translateY(-1px);
+        }
+
+        .pin-btn:active {
+            transform: translateY(1px);
+            box-shadow: 1px 1px 0 rgba(0,0,0,0.5);
+        }
+
+        .pin-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .error-msg {
+            background: #ef4444;
+            color: white;
+            padding: 10px;
+            border-radius: 6px;
+            margin-top: 15px;
+            font-size: 13px;
+            font-weight: 600;
+            text-align: center;
+            display: none;
+        }
+
+        .error-msg.show {
+            display: block;
+        }
+
+        .footer-links {
+            margin-top: 30px;
+            text-align: center;
+        }
+
+        .footer-links a {
+            color: rgba(255,255,255,0.5);
+            text-decoration: none;
+            font-size: 13px;
+            margin: 0 15px;
+        }
+
+        .footer-links a:hover {
+            color: var(--teal);
+        }
+
+        .loading {
+            display: none;
+        }
+
+        .loading.show {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(0,0,0,0.2);
+            border-top-color: #000;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="header-bar">
+        <button class="back-btn" onclick="window.location.href='/'">← BACK</button>
+        <img src="/images/white_logo.jpg" alt="BRDC" class="header-logo">
+        <span class="header-title">SCORER HUB</span>
+    </div>
+
+    <div class="main-content">
+    <div class="hub-container">
+        <div class="hub-card">
+            <h2 class="card-title">PLAY NOW</h2>
+            <p class="card-desc">Quick game with friends. Set up your own match with custom settings.</p>
+            <button class="play-btn" onclick="goToGameSetup()">START GAME</button>
+        </div>
+
+        <div class="divider">
+            <span>OR</span>
+        </div>
+
+        <div class="pin-section">
+            <h3 class="pin-title">LEAGUE / TOURNAMENT MATCH</h3>
+            <p class="pin-desc">Enter your match PIN to join an official match</p>
+            <div class="pin-input-container">
+                <input type="text"
+                       class="pin-input"
+                       id="matchPin"
+                       placeholder="MATCH PIN"
+                       maxlength="6"
+                       autocomplete="off"
+                       onkeyup="handlePinInput(event)">
+                <button class="pin-btn" id="joinBtn" onclick="joinMatch()">
+                    <span id="joinText">JOIN</span>
+                    <span class="loading" id="joinLoading"></span>
+                </button>
+            </div>
+            <div class="error-msg" id="errorMsg"></div>
+        </div>
+    </div>
+
+    <div class="footer-links">
+        <a href="/pages/league-standings.html">League Standings</a>
+        <a href="/">BRDC Home</a>
+    </div>
+    </div>
+
+<script type="module">
+import { callFunction } from '/js/firebase-config.js';
+
+// Go to casual game setup
+window.goToGameSetup = function() {
+    window.location.href = '/pages/game-setup.html';
+};
+
+// Handle PIN input
+window.handlePinInput = function(e) {
+    const input = e.target;
+    input.value = input.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+
+    if (e.key === 'Enter' && input.value.length >= 4) {
+        joinMatch();
+    }
+};
+
+// Join match with PIN
+window.joinMatch = async function() {
+    const pin = document.getElementById('matchPin').value.trim().toUpperCase();
+    const errorMsg = document.getElementById('errorMsg');
+    const joinBtn = document.getElementById('joinBtn');
+    const joinText = document.getElementById('joinText');
+    const joinLoading = document.getElementById('joinLoading');
+
+    if (!pin || pin.length < 4) {
+        errorMsg.textContent = 'Please enter a valid match PIN';
+        errorMsg.classList.add('show');
+        return;
+    }
+
+    errorMsg.classList.remove('show');
+    joinBtn.disabled = true;
+    joinText.style.display = 'none';
+    joinLoading.classList.add('show');
+
+    try {
+        const result = await callFunction('getMatchByPin', { pin });
+
+        if (result.success && result.match) {
+            const match = result.match;
+            const games = match.games || [];
+
+            // Find first pending or in_progress game
+            let gameToPlay = games.find(g => g.status === 'pending' || g.status === 'in_progress');
+            if (!gameToPlay && games.length > 0) gameToPlay = games[0];
+
+            if (!gameToPlay) {
+                throw new Error('No games available in this match');
+            }
+
+            const gameIndex = games.indexOf(gameToPlay);
+            const format = gameToPlay.format || '501';
+
+            // Determine which scorer to use
+            const isCricket = format.toLowerCase() === 'cricket';
+            const scorerPage = isCricket ? 'league-cricket.html' : 'league-501.html';
+
+            // Build URL params
+            const params = new URLSearchParams({
+                league_id: match.league_id,
+                match_id: match.match_id,
+                game_index: gameIndex,
+                game_number: gameToPlay.game_number || gameIndex + 1,
+                format: format,
+                type: gameToPlay.type || 'singles',
+                checkout: gameToPlay.checkout || 'double',
+                best_of: gameToPlay.best_of || 3
+            });
+
+            // Add player info
+            if (gameToPlay.home_players) {
+                params.set('home_players', JSON.stringify(gameToPlay.home_players));
+            }
+            if (gameToPlay.away_players) {
+                params.set('away_players', JSON.stringify(gameToPlay.away_players));
+            }
+
+            window.location.href = `/pages/${scorerPage}?${params.toString()}`;
+        } else {
+            throw new Error(result.error || 'Match not found');
+        }
+    } catch (error) {
+        console.error('Error joining match:', error);
+        errorMsg.textContent = error.message || 'Invalid PIN or match not found';
+        errorMsg.classList.add('show');
+    } finally {
+        joinBtn.disabled = false;
+        joinText.style.display = 'inline';
+        joinLoading.classList.remove('show');
+    }
+};
+
+// Register service worker
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js')
+        .then(() => {})
+        .catch(err => console.error('[SW] Registration failed:', err));
+}
+</script>
+<script src="/js/nav-menu.js"></script>
+</body>
+</html>

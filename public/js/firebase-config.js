@@ -22,9 +22,6 @@ async function callFunction(functionName, data) {
     const PROJECT_ID = 'brdc-v2';
     const url = `https://${REGION}-${PROJECT_ID}.cloudfunctions.net/${functionName}`;
 
-    console.log('Calling function:', url);
-    console.log('With data:', data);
-
     try {
         const response = await fetch(url, {
             method: 'POST',
@@ -34,14 +31,11 @@ async function callFunction(functionName, data) {
             body: JSON.stringify(data)
         });
 
-        console.log('Response status:', response.status);
-
         let responseData;
         const contentType = response.headers.get('content-type');
 
         if (contentType && contentType.includes('application/json')) {
             responseData = await response.json();
-            console.log('Response data:', responseData);
         } else {
             const text = await response.text();
             console.error('Non-JSON response:', text);

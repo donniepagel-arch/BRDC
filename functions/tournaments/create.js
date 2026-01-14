@@ -49,8 +49,8 @@ exports.createTournament = functions.https.onRequest(async (req, res) => {
             });
         }
 
-        // Generate director PIN (4 digits)
-        const pin = Math.floor(1000 + Math.random() * 9000).toString();
+        // Use provided director_pin (player's 8-digit PIN) or generate 8-digit admin PIN
+        const pin = data.director_pin || Math.floor(10000000 + Math.random() * 90000000).toString();
 
         // Normalize format (always use underscore internally)
         const normalizeFormat = (format) => {
@@ -159,5 +159,208 @@ exports.createTournament = functions.https.onRequest(async (req, res) => {
             success: false,
             error: error.message
         });
+    }
+});
+
+/**
+ * Add a bot to a tournament
+ */
+exports.addBotToTournament = functions.https.onRequest(async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+    if (req.method === 'OPTIONS') {
+        return res.status(204).send('');
+    }
+
+    try {
+        const { tournament_id, director_pin, bot_id } = req.body;
+
+        if (!tournament_id || !bot_id) {
+            return res.status(400).json({
+                success: false,
+                error: 'Missing required fields: tournament_id, bot_id'
+            });
+        }
+
+        // Verify director PIN
+        const tournamentRef = admin.firestore().collection('tournaments').doc(tournament_id);
+        const tournamentDoc = await tournamentRef.get();
+
+        if (!tournamentDoc.exists) {
+            return res.status(404).json({ success: false, error: 'Tournament not found' });
+        }
+
+        const tournament = tournamentDoc.data();
+        if (tournament.director_pin !== director_pin) {
+            return res.status(403).json({ success: false, error: 'Invalid PIN' });
+        }
+
+        // Get bot from global bots collection
+        const botDoc = await admin.firestore().collection('bots').doc(bot_id).get();
+        if (!botDoc.exists) {
+            return res.status(404).json({ success: false, error: 'Bot not found' });
+        }
+
+        const bot = botDoc.data();
+
+        // Check if bot is already registered
+        const players = tournament.players || {};
+        const existingBot = Object.values(players).find(p => p.source_bot_id === bot_id);
+        if (existingBot) {
+            return res.status(400).json({ success: false, error: 'Bot already registered for this tournament' });
+        }
+
+        // Generate unique ID for this bot player
+        const botPlayerId = `bot_${bot_id}_${Date.now()}`;
+
+        // Add bot to tournament players
+        const botPlayer = {
+            name: bot.name,
+            email: '',
+            phone: '',
+            isBot: true,
+            botDifficulty: bot.difficulty,
+            source_bot_id: bot_id,
+            checkedIn: true, // Auto check-in bots
+            registered_at: admin.firestore.Timestamp.now()
+        };
+
+        await tournamentRef.update({
+            [`players.${botPlayerId}`]: botPlayer
+        });
+
+        res.json({
+            success: true,
+            player_id: botPlayerId,
+            bot_name: bot.name,
+            message: 'Bot added to tournament successfully'
+        });
+
+    } catch (error) {
+        console.error('Error adding bot to tournament:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * Update tournament settings
+ */
+exports.updateTournamentSettings = functions.https.onRequest(async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+    if (req.method === 'OPTIONS') {
+        return res.status(204).send('');
+    }
+
+    try {
+        const { tournament_id, director_pin, settings } = req.body;
+
+        if (!tournament_id || !settings) {
+            return res.status(400).json({ success: false, error: 'Missing tournament_id or settings' });
+        }
+
+        const tournamentRef = admin.firestore().collection('tournaments').doc(tournament_id);
+        const tournamentDoc = await tournamentRef.get();
+
+        if (!tournamentDoc.exists) {
+            return res.status(404).json({ success: false, error: 'Tournament not found' });
+        }
+
+        const tournament = tournamentDoc.data();
+        if (tournament.director_pin !== director_pin) {
+            return res.status(403).json({ success: false, error: 'Invalid PIN' });
+        }
+
+        // Allowed fields that can be updated
+        const allowedFields = [
+            'tournament_name', 'tournament_date', 'tournament_time', 'tournament_details',
+            'venue_name', 'venue_address', 'format', 'max_players', 'game_type',
+            'entry_fee', 'status'
+        ];
+
+        // Build update object with only allowed fields
+        const updates = {};
+        for (const field of allowedFields) {
+            if (settings[field] !== undefined) {
+                updates[field] = settings[field];
+            }
+        }
+
+        if (Object.keys(updates).length === 0) {
+            return res.status(400).json({ success: false, error: 'No valid fields to update' });
+        }
+
+        updates.updated_at = admin.firestore.FieldValue.serverTimestamp();
+
+        await tournamentRef.update(updates);
+
+        res.json({
+            success: true,
+            message: 'Tournament settings updated',
+            updated_fields: Object.keys(updates).filter(k => k !== 'updated_at')
+        });
+
+    } catch (error) {
+        console.error('Error updating tournament settings:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * Delete a tournament
+ */
+exports.deleteTournament = functions.https.onRequest(async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+    if (req.method === 'OPTIONS') {
+        return res.status(204).send('');
+    }
+
+    try {
+        const { tournament_id, director_pin } = req.body;
+
+        if (!tournament_id) {
+            return res.status(400).json({ success: false, error: 'Missing tournament_id' });
+        }
+
+        const tournamentRef = admin.firestore().collection('tournaments').doc(tournament_id);
+        const tournamentDoc = await tournamentRef.get();
+
+        if (!tournamentDoc.exists) {
+            return res.status(404).json({ success: false, error: 'Tournament not found' });
+        }
+
+        const tournament = tournamentDoc.data();
+        if (tournament.director_pin !== director_pin) {
+            return res.status(403).json({ success: false, error: 'Invalid PIN' });
+        }
+
+        // Delete all events subcollection
+        const eventsSnapshot = await tournamentRef.collection('events').get();
+        const batch = admin.firestore().batch();
+
+        eventsSnapshot.docs.forEach(doc => {
+            batch.delete(doc.ref);
+        });
+
+        // Delete tournament document
+        batch.delete(tournamentRef);
+
+        await batch.commit();
+
+        res.json({
+            success: true,
+            message: 'Tournament deleted successfully'
+        });
+
+    } catch (error) {
+        console.error('Error deleting tournament:', error);
+        res.status(500).json({ success: false, error: error.message });
     }
 });

@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Bot Players - BRDC</title>
+    <link rel="icon" type="image/png" href="/images/favicon.png">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700;800&display=swap');
+
+        :root {
+            --pink: #FF469A;
+            --teal: #91D7EB;
+            --yellow: #FDD835;
+            --bg-dark: #1a1a2e;
+            --bg-panel: #16213e;
+            --bg-card: #1e2a47;
+            --text-light: #f0f0f0;
+            --text-dim: #8a8aa3;
+            --border-color: rgba(255,255,255,0.15);
+            --success: #22c55e;
+            --danger: #ef4444;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+        html, body { min-height: 100%; }
+        body {
+            background: linear-gradient(135deg, var(--bg-dark) 0%, #0f0f23 100%);
+            color: var(--text-light);
+            padding-bottom: 100px;
+        }
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse at 20% 20%, rgba(255, 70, 154, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(145, 215, 235, 0.06) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .header-bar {
+            background: var(--bg-panel);
+            border-bottom: 3px solid var(--pink);
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+        }
+        .header-logo {
+            width: 40px;
+            height: 40px;
+            mix-blend-mode: multiply;
+            filter: drop-shadow(0 0 8px rgba(255, 70, 154, 0.5));
+        }
+        .header-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 28px;
+            letter-spacing: 3px;
+            color: var(--pink);
+        }
+
+        .back-btn {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border: 2px solid rgba(255,255,255,0.3);
+            padding: 10px 16px;
+            font-weight: 700;
+            cursor: pointer;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .back-btn:hover {
+            background: rgba(255,255,255,0.2);
+            border-color: var(--pink);
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .section {
+            background: var(--bg-panel);
+            border: 3px solid #000;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 6px 6px 0 rgba(0,0,0,0.4);
+        }
+
+        .section-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 24px;
+            color: var(--teal);
+            margin-bottom: 16px;
+            letter-spacing: 2px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Add Bot Form */
+        .add-bot-form {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            align-items: flex-end;
+        }
+
+        .form-group {
+            flex: 1;
+            min-width: 150px;
+        }
+
+        .form-label {
+            display: block;
+            font-weight: 700;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-dim);
+            margin-bottom: 6px;
+        }
+
+        .input-field {
+            width: 100%;
+            padding: 12px 14px;
+            background: rgba(255,255,255,0.08);
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-light);
+            transition: all 0.2s;
+        }
+
+        .input-field:focus {
+            outline: none;
+            border-color: var(--pink);
+            background: rgba(255,255,255,0.12);
+        }
+
+        .input-field option {
+            background: var(--bg-dark);
+        }
+
+        .btn-add {
+            background: linear-gradient(180deg, var(--teal) 0%, #6bc0d4 100%);
+            color: #000;
+            padding: 12px 24px;
+            border: 3px solid #000;
+            border-radius: 8px;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 18px;
+            letter-spacing: 2px;
+            cursor: pointer;
+            box-shadow: 3px 3px 0 rgba(0,0,0,0.4);
+            transition: all 0.15s;
+            white-space: nowrap;
+        }
+
+        .btn-add:hover {
+            transform: translateY(-2px);
+            box-shadow: 5px 5px 0 rgba(0,0,0,0.4);
+        }
+
+        .btn-add:active {
+            transform: translateY(2px);
+            box-shadow: 1px 1px 0 rgba(0,0,0,0.4);
+        }
+
+        .btn-add:disabled {
+            background: #4a5568;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Bot List */
+        .bot-list {
+            display: grid;
+            gap: 12px;
+        }
+
+        .bot-card {
+            background: var(--bg-card);
+            border: 2px solid var(--border-color);
+            border-radius: 10px;
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            transition: all 0.2s;
+        }
+
+        .bot-card:hover {
+            border-color: var(--pink);
+        }
+
+        .bot-avatar {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, var(--pink), var(--teal));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            flex-shrink: 0;
+        }
+
+        .bot-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .bot-name {
+            font-weight: 700;
+            font-size: 16px;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .difficulty-badge {
+            font-size: 10px;
+            font-weight: 700;
+            padding: 3px 8px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .difficulty-easy { background: #22c55e; color: #000; }
+        .difficulty-medium { background: var(--yellow); color: #000; }
+        .difficulty-league { background: var(--teal); color: #000; }
+        .difficulty-hard { background: #f97316; color: #000; }
+        .difficulty-pro { background: var(--pink); color: #fff; }
+
+        .bot-stats {
+            font-size: 13px;
+            color: var(--text-dim);
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .stat-value {
+            color: var(--teal);
+            font-weight: 700;
+        }
+
+        .bot-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-delete {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+            border: 2px solid #ef4444;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .btn-delete:hover {
+            background: #ef4444;
+            color: white;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-dim);
+        }
+
+        .empty-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .empty-state h3 {
+            font-size: 18px;
+            color: var(--text-light);
+            margin-bottom: 8px;
+        }
+
+        /* Loading */
+        .loading {
+            text-align: center;
+            padding: 40px;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(145, 215, 235, 0.2);
+            border-top-color: var(--teal);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 12px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Info Box */
+        .info-box {
+            background: rgba(145, 215, 235, 0.1);
+            border: 2px solid rgba(145, 215, 235, 0.3);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .info-box strong {
+            color: var(--teal);
+        }
+
+        /* Quick Add Presets */
+        .preset-section {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .preset-title {
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            margin-bottom: 12px;
+            letter-spacing: 1px;
+        }
+
+        .preset-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 10px;
+        }
+
+        .preset-btn {
+            background: rgba(255,255,255,0.05);
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .preset-btn:hover {
+            border-color: var(--pink);
+            background: rgba(255,255,255,0.08);
+        }
+
+        .preset-name {
+            font-weight: 700;
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        .preset-diff {
+            font-size: 11px;
+            color: var(--text-dim);
+        }
+
+        /* PIN Input Styles */
+        .pin-input-wrapper {
+            display: flex;
+            align-items: center;
+            background: rgba(255,255,255,0.08);
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            overflow: hidden;
+            transition: all 0.2s;
+        }
+
+        .pin-input-wrapper:focus-within {
+            border-color: var(--pink);
+            background: rgba(255,255,255,0.12);
+        }
+
+        .pin-prefix {
+            padding: 12px 8px 12px 14px;
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--text-dim);
+            background: rgba(0,0,0,0.2);
+            letter-spacing: 2px;
+        }
+
+        .pin-input {
+            border: none !important;
+            background: transparent !important;
+            padding-left: 8px !important;
+            letter-spacing: 3px;
+            font-family: monospace;
+        }
+
+        .pin-input:focus {
+            border: none !important;
+            outline: none !important;
+        }
+
+        .bot-pin {
+            font-family: monospace;
+            font-size: 12px;
+            color: var(--text-dim);
+            background: rgba(0,0,0,0.3);
+            padding: 2px 8px;
+            border-radius: 4px;
+            letter-spacing: 1px;
+        }
+
+        @media (max-width: 600px) {
+            .add-bot-form {
+                flex-direction: column;
+            }
+
+            .form-group {
+                width: 100%;
+            }
+
+            .bot-card {
+                flex-wrap: wrap;
+            }
+
+            .bot-actions {
+                width: 100%;
+                margin-top: 8px;
+            }
+
+            .btn-delete {
+                flex: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header-bar">
+        <button class="back-btn" onclick="window.location.href='/pages/dashboard.html'">← BACK</button>
+        <img src="/images/white_logo.jpg" alt="BRDC" class="header-logo">
+        <span class="header-title">BOT MANAGEMENT</span>
+    </div>
+
+    <div class="container">
+        <div class="info-box">
+            <strong>Bot Players</strong> are computer-controlled opponents that can be added to tournaments, leagues, and practice matches.
+            Once registered, they appear as selectable players and their stats are tracked like real players.
+        </div>
+
+        <!-- Add Bot Section -->
+        <div class="section">
+            <div class="section-title">
+                <span>+</span> ADD NEW BOT
+            </div>
+
+            <div class="add-bot-form">
+                <div class="form-group">
+                    <label class="form-label">Bot Name</label>
+                    <input type="text" id="botName" class="input-field" placeholder="Enter bot name">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">PIN (4 digits after 0000)</label>
+                    <div class="pin-input-wrapper">
+                        <span class="pin-prefix">0000</span>
+                        <input type="text" id="botPin" class="input-field pin-input" placeholder="1234" maxlength="4" inputmode="numeric" pattern="[0-9]*">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Difficulty</label>
+                    <select id="botDifficulty" class="input-field">
+                        <option value="easy">Easy (~40 avg / 1.5 MPR)</option>
+                        <option value="medium">Medium (~55 avg / 2.0 MPR)</option>
+                        <option value="league" selected>League (~65 avg / 2.5 MPR)</option>
+                        <option value="hard">Hard (~75 avg / 3.0 MPR)</option>
+                        <option value="pro">Pro (~90 avg / 3.5 MPR)</option>
+                    </select>
+                </div>
+                <button class="btn-add" id="addBotBtn" onclick="addBot()">ADD BOT</button>
+            </div>
+
+            <div class="preset-section">
+                <div class="preset-title">Quick Add Presets</div>
+                <div class="preset-grid">
+                    <div class="preset-btn" onclick="quickAdd('Sparky', 'easy')">
+                        <div class="preset-name">Sparky</div>
+                        <div class="preset-diff">Easy</div>
+                    </div>
+                    <div class="preset-btn" onclick="quickAdd('Circuit', 'medium')">
+                        <div class="preset-name">Circuit</div>
+                        <div class="preset-diff">Medium</div>
+                    </div>
+                    <div class="preset-btn" onclick="quickAdd('Bolt', 'league')">
+                        <div class="preset-name">Bolt</div>
+                        <div class="preset-diff">League</div>
+                    </div>
+                    <div class="preset-btn" onclick="quickAdd('Titanium', 'hard')">
+                        <div class="preset-name">Titanium</div>
+                        <div class="preset-diff">Hard</div>
+                    </div>
+                    <div class="preset-btn" onclick="quickAdd('Apex', 'pro')">
+                        <div class="preset-name">Apex</div>
+                        <div class="preset-diff">Pro</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bot List Section -->
+        <div class="section">
+            <div class="section-title">
+                <span>&#129302;</span> REGISTERED BOTS
+            </div>
+            <div id="botList">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <div>Loading bots...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { callFunction } from '/js/firebase-config.js';
+
+        // HTML escape helper to prevent XSS
+        function escapeHtml(text) {
+            if (text == null) return '';
+            const div = document.createElement('div');
+            div.textContent = String(text);
+            return div.innerHTML;
+        }
+
+        let bots = [];
+
+        window.onload = function() {
+            loadBots();
+        };
+
+        async function loadBots() {
+            try {
+                const result = await callFunction('getBots', {});
+                bots = result.bots || [];
+                renderBotList();
+            } catch (error) {
+                console.error('Error loading bots:', error);
+                document.getElementById('botList').innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">&#9888;</div>
+                        <h3>Error Loading Bots</h3>
+                        <p>${escapeHtml(error.message)}</p>
+                    </div>
+                `;
+            }
+        }
+
+        function renderBotList() {
+            const container = document.getElementById('botList');
+
+            if (bots.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">&#129302;</div>
+                        <h3>No Bots Registered</h3>
+                        <p>Add a bot above to get started</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = `
+                <div class="bot-list">
+                    ${bots.map(bot => renderBotCard(bot)).join('')}
+                </div>
+            `;
+        }
+
+        function renderBotCard(bot) {
+            const stats = bot.stats || {};
+            const x01Stats = stats.x01 || {};
+            const cricketStats = stats.cricket || {};
+
+            const x01Avg = x01Stats.total_darts > 0
+                ? (x01Stats.total_points / x01Stats.total_darts * 3).toFixed(1)
+                : bot.x01_avg || '-';
+
+            const mpr = cricketStats.total_rounds > 0
+                ? (cricketStats.total_marks / cricketStats.total_rounds).toFixed(2)
+                : bot.cricket_mpr || '-';
+
+            // Display 8-digit PIN (format: 0000XXXX)
+            const displayPin = bot.pin ? bot.pin.toString().padStart(8, '0') : '--------';
+
+            return `
+                <div class="bot-card">
+                    <div class="bot-avatar">&#129302;</div>
+                    <div class="bot-info">
+                        <div class="bot-name">
+                            ${escapeHtml(bot.name)}
+                            <span class="difficulty-badge difficulty-${escapeHtml(bot.difficulty)}">${escapeHtml(bot.difficulty_label || bot.difficulty)}</span>
+                            <span class="bot-pin">PIN: ${escapeHtml(displayPin)}</span>
+                        </div>
+                        <div class="bot-stats">
+                            <span class="stat-item">X01 Avg: <span class="stat-value">${escapeHtml(x01Avg)}</span></span>
+                            <span class="stat-item">MPR: <span class="stat-value">${escapeHtml(mpr)}</span></span>
+                            <span class="stat-item">Matches: <span class="stat-value">${stats.matches_played || 0}</span></span>
+                            <span class="stat-item">Wins: <span class="stat-value">${stats.matches_won || 0}</span></span>
+                        </div>
+                    </div>
+                    <div class="bot-actions">
+                        <button class="btn-delete" onclick="deleteBot('${escapeHtml(bot.id)}', '${escapeHtml(bot.name)}')">DELETE</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        window.addBot = async function() {
+            const name = document.getElementById('botName').value.trim();
+            const pinSuffix = document.getElementById('botPin').value.trim();
+            const difficulty = document.getElementById('botDifficulty').value;
+            const btn = document.getElementById('addBotBtn');
+
+            if (!name) {
+                alert('Please enter a bot name');
+                return;
+            }
+
+            // Validate PIN: must be exactly 4 digits
+            if (!pinSuffix || !/^\d{4}$/.test(pinSuffix)) {
+                alert('Please enter exactly 4 digits for the PIN (will become 0000XXXX)');
+                return;
+            }
+
+            // Create full 8-digit PIN (0000 + 4 chosen digits)
+            const fullPin = '0000' + pinSuffix;
+
+            btn.disabled = true;
+            btn.textContent = 'ADDING...';
+
+            try {
+                const result = await callFunction('registerBot', {
+                    name: name,
+                    pin: fullPin,
+                    difficulty: difficulty
+                });
+
+                if (result.success) {
+                    document.getElementById('botName').value = '';
+                    document.getElementById('botPin').value = '';
+                    bots.unshift(result.bot);
+                    renderBotList();
+                } else {
+                    alert(result.error || 'Failed to add bot');
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'ADD BOT';
+            }
+        };
+
+        window.quickAdd = async function(name, difficulty) {
+            document.getElementById('botName').value = name;
+            // Generate random 4-digit suffix for quick add
+            const randomSuffix = String(Math.floor(Math.random() * 10000)).padStart(4, '0');
+            document.getElementById('botPin').value = randomSuffix;
+            document.getElementById('botDifficulty').value = difficulty;
+            await window.addBot();
+        };
+
+        window.deleteBot = async function(botId, botName) {
+            if (!confirm(`Delete bot "${botName}"? This cannot be undone.`)) {
+                return;
+            }
+
+            try {
+                const result = await callFunction('deleteBot', { bot_id: botId });
+
+                if (result.success) {
+                    bots = bots.filter(b => b.id !== botId);
+                    renderBotList();
+                } else {
+                    alert(result.error || 'Failed to delete bot');
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        };
+
+        // Allow Enter key to add bot
+        document.getElementById('botName').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') window.addBot();
+        });
+
+        document.getElementById('botPin').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') window.addBot();
+        });
+
+        // Only allow numeric input for PIN field
+        document.getElementById('botPin').addEventListener('input', (e) => {
+            e.target.value = e.target.value.replace(/[^0-9]/g, '');
+        });
+    </script>
+    <script src="/js/nav-menu.js"></script>
+</body>
+</html>

@@ -17,7 +17,7 @@ exports.submitMatchResult = functions.https.onRequest(async (req, res) => {
     }
 
     try {
-        const { tournament_id, match_id, player1_score, player2_score } = req.body;
+        const { tournament_id, match_id, player1_score, player2_score, game_stats } = req.body;
 
         if (!tournament_id) {
             return res.status(400).json({ error: 'Missing tournament_id' });
@@ -58,7 +58,7 @@ exports.submitMatchResult = functions.https.onRequest(async (req, res) => {
         // Determine winner
         const winner = player1_score > player2_score ? match.player1 : match.player2;
 
-        // Update match
+        // Update match with comprehensive stats (DartConnect compatible)
         bracket.matches[matchIndex] = {
             ...match,
             score: {
@@ -67,7 +67,9 @@ exports.submitMatchResult = functions.https.onRequest(async (req, res) => {
             },
             winner: winner,
             status: 'completed',
-            completedAt: admin.firestore.Timestamp.now()
+            completedAt: admin.firestore.Timestamp.now(),
+            // Store comprehensive game stats if provided
+            ...(game_stats && { stats: game_stats })
         };
 
         // Advance winner to next round if applicable

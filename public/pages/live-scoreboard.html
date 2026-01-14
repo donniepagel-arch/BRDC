@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BRDC Live Scoreboard</title>
+    <link rel="icon" type="image/png" href="/images/favicon.png">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700;800;900&family=Orbitron:wght@400;500;600;700;800;900&display=swap');
+
+        :root {
+            --pink: #FF469A;
+            --teal: #91D7EB;
+            --yellow: #FDD835;
+            --black: #000000;
+            --white: #FFFFFF;
+            --bg-dark: #0a0a1a;
+            --bg-card: #12122a;
+            --bg-card-alt: #1a1a3a;
+            --border-glow: rgba(145, 215, 235, 0.3);
+            --text-dim: #8a8aa3;
+            --success: #22c55e;
+            --danger: #ef4444;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-dark);
+            min-height: 100vh;
+            color: var(--white);
+            overflow-x: hidden;
+        }
+
+        /* Animated background */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse at 10% 10%, rgba(255, 70, 154, 0.1) 0%, transparent 40%),
+                radial-gradient(ellipse at 90% 90%, rgba(145, 215, 235, 0.08) 0%, transparent 40%),
+                radial-gradient(ellipse at 50% 50%, rgba(253, 216, 53, 0.05) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+            animation: pulseBackground 10s ease-in-out infinite alternate;
+        }
+
+        @keyframes pulseBackground {
+            0% { opacity: 0.6; }
+            100% { opacity: 1; }
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, var(--pink) 0%, #d63384 100%);
+            padding: 20px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 30px rgba(255, 70, 154, 0.4);
+            position: relative;
+            z-index: 10;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .logo {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 2.5rem;
+            letter-spacing: 4px;
+            color: var(--white);
+            text-shadow: 2px 2px 0 var(--black);
+        }
+
+        .live-badge {
+            background: var(--danger);
+            color: white;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-weight: 800;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            animation: pulseLive 1.5s ease-in-out infinite;
+            box-shadow: 0 0 20px rgba(239, 68, 68, 0.6);
+        }
+
+        .live-dot {
+            width: 10px;
+            height: 10px;
+            background: white;
+            border-radius: 50%;
+            animation: blink 1s ease-in-out infinite;
+        }
+
+        @keyframes pulseLive {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .clock {
+            font-family: 'Orbitron', monospace;
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--yellow);
+            text-shadow: 0 0 10px rgba(253, 216, 53, 0.5);
+        }
+
+        .filter-btn {
+            background: rgba(0,0,0,0.3);
+            border: 2px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .filter-btn:hover, .filter-btn.active {
+            background: var(--yellow);
+            color: var(--black);
+            border-color: var(--yellow);
+        }
+
+        /* Main content */
+        .main-content {
+            padding: 30px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .section-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 2rem;
+            letter-spacing: 3px;
+            color: var(--teal);
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .section-title::after {
+            content: '';
+            flex: 1;
+            height: 2px;
+            background: linear-gradient(90deg, var(--teal), transparent);
+        }
+
+        .matches-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(450px, 1fr));
+            gap: 25px;
+            margin-bottom: 40px;
+        }
+
+        /* Match Card */
+        .match-card {
+            background: linear-gradient(145deg, var(--bg-card) 0%, var(--bg-card-alt) 100%);
+            border-radius: 16px;
+            border: 1px solid rgba(145, 215, 235, 0.2);
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .match-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 40px rgba(145, 215, 235, 0.2);
+            border-color: var(--teal);
+        }
+
+        .match-card.live {
+            border-color: var(--pink);
+            box-shadow: 0 8px 32px rgba(255, 70, 154, 0.3);
+        }
+
+        .match-card.live::before {
+            content: '';
+            position: absolute;
+            inset: -2px;
+            background: linear-gradient(45deg, var(--pink), var(--teal), var(--yellow), var(--pink));
+            background-size: 300% 300%;
+            border-radius: 18px;
+            z-index: -1;
+            animation: borderGlow 3s ease infinite;
+        }
+
+        @keyframes borderGlow {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .match-header {
+            background: rgba(0,0,0,0.3);
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .match-type {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--teal);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .match-status {
+            font-size: 0.8rem;
+            font-weight: 700;
+            padding: 4px 12px;
+            border-radius: 12px;
+            text-transform: uppercase;
+        }
+
+        .match-status.live {
+            background: var(--danger);
+            color: white;
+            animation: pulseLive 1.5s ease-in-out infinite;
+        }
+
+        .match-status.scheduled {
+            background: rgba(253, 216, 53, 0.2);
+            color: var(--yellow);
+        }
+
+        .match-status.completed {
+            background: rgba(34, 197, 94, 0.2);
+            color: var(--success);
+        }
+
+        .match-body {
+            padding: 25px 20px;
+        }
+
+        .teams-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .team {
+            flex: 1;
+            text-align: center;
+        }
+
+        .team-name {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 1.4rem;
+            letter-spacing: 2px;
+            color: var(--white);
+            margin-bottom: 8px;
+            line-height: 1.2;
+        }
+
+        .team-players {
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            line-height: 1.4;
+        }
+
+        .score-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 0 10px;
+        }
+
+        .score {
+            font-family: 'Orbitron', monospace;
+            font-size: 3.5rem;
+            font-weight: 900;
+            min-width: 70px;
+            text-align: center;
+        }
+
+        .score.home {
+            color: var(--pink);
+            text-shadow: 0 0 20px rgba(255, 70, 154, 0.5);
+        }
+
+        .score.away {
+            color: var(--teal);
+            text-shadow: 0 0 20px rgba(145, 215, 235, 0.5);
+        }
+
+        .score-divider {
+            font-family: 'Orbitron', monospace;
+            font-size: 2rem;
+            color: var(--yellow);
+        }
+
+        .match-footer {
+            background: rgba(0,0,0,0.2);
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .game-info {
+            font-size: 0.85rem;
+            color: var(--text-dim);
+        }
+
+        .game-info strong {
+            color: var(--yellow);
+        }
+
+        .venue-info {
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* Tournament bracket mini view */
+        .bracket-mini {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .bracket-round {
+            flex: 1;
+            text-align: center;
+            font-size: 0.7rem;
+            color: var(--text-dim);
+        }
+
+        .bracket-round.current {
+            color: var(--yellow);
+            font-weight: 700;
+        }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-dim);
+        }
+
+        .empty-state svg {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        .empty-state h3 {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 1.8rem;
+            letter-spacing: 2px;
+            color: var(--white);
+            margin-bottom: 10px;
+        }
+
+        /* Auto-scroll indicator */
+        .scroll-indicator {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: var(--bg-card);
+            border: 1px solid var(--teal);
+            padding: 10px 20px;
+            border-radius: 30px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            z-index: 100;
+            transition: all 0.2s;
+        }
+
+        .scroll-indicator:hover {
+            background: var(--teal);
+            color: var(--black);
+        }
+
+        .scroll-indicator.active {
+            background: var(--yellow);
+            color: var(--black);
+            border-color: var(--yellow);
+        }
+
+        /* TV Mode */
+        body.tv-mode .header {
+            padding: 30px 50px;
+        }
+
+        body.tv-mode .logo {
+            font-size: 3.5rem;
+        }
+
+        body.tv-mode .clock {
+            font-size: 2.5rem;
+        }
+
+        body.tv-mode .matches-grid {
+            grid-template-columns: repeat(auto-fill, minmax(500px, 1fr));
+            gap: 35px;
+        }
+
+        body.tv-mode .match-card {
+            border-radius: 20px;
+        }
+
+        body.tv-mode .team-name {
+            font-size: 1.8rem;
+        }
+
+        body.tv-mode .score {
+            font-size: 5rem;
+        }
+
+        body.tv-mode .section-title {
+            font-size: 2.5rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                gap: 15px;
+                padding: 15px;
+            }
+
+            .matches-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .score {
+                font-size: 2.5rem;
+            }
+
+            .team-name {
+                font-size: 1.1rem;
+            }
+        }
+
+        /* Loading animation */
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 60px;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(145, 215, 235, 0.2);
+            border-top-color: var(--teal);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Score change animation */
+        .score.changed {
+            animation: scoreFlash 0.5s ease;
+        }
+
+        @keyframes scoreFlash {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.2); color: var(--yellow); }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <div class="logo">BRDC LIVE</div>
+            <div class="live-badge">
+                <span class="live-dot"></span>
+                LIVE
+            </div>
+        </div>
+        <div class="header-right">
+            <button class="filter-btn active" data-filter="all">All</button>
+            <button class="filter-btn" data-filter="leagues">Leagues</button>
+            <button class="filter-btn" data-filter="tournaments">Tournaments</button>
+            <div class="clock" id="clock">00:00:00</div>
+        </div>
+    </header>
+
+    <main class="main-content">
+        <div id="leaguesSection">
+            <h2 class="section-title">League Matches</h2>
+            <div class="matches-grid" id="leagueMatches">
+                <div class="loading"><div class="loading-spinner"></div></div>
+            </div>
+        </div>
+
+        <div id="tournamentsSection">
+            <h2 class="section-title">Tournament Matches</h2>
+            <div class="matches-grid" id="tournamentMatches">
+                <div class="loading"><div class="loading-spinner"></div></div>
+            </div>
+        </div>
+    </main>
+
+    <div class="scroll-indicator" id="scrollToggle">
+        <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+            <path d="M8 3a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 3zm4 8a4 4 0 0 1-8 0V5a4 4 0 1 1 8 0v6zM8 0a5 5 0 0 0-5 5v6a5 5 0 0 0 10 0V5a5 5 0 0 0-5-5z"/>
+        </svg>
+        <span>Auto-Scroll: OFF</span>
+    </div>
+
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="/js/firebase-config.js"></script>
+
+    <script>
+        // HTML escape helper to prevent XSS
+        function escapeHtml(text) {
+            if (text == null) return '';
+            const div = document.createElement('div');
+            div.textContent = String(text);
+            return div.innerHTML;
+        }
+
+        // State
+        let leagueMatches = [];
+        let tournamentMatches = [];
+        let autoScroll = false;
+        let scrollInterval = null;
+        let currentFilter = 'all';
+        let unsubscribers = [];
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            updateClock();
+            setInterval(updateClock, 1000);
+
+            initializeFirestore();
+            setupFilters();
+            setupAutoScroll();
+            setupTVMode();
+        });
+
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('clock').textContent = now.toLocaleTimeString('en-US', {
+                hour12: false,
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+        }
+
+        async function initializeFirestore() {
+            try {
+                // Listen to active leagues
+                const leaguesRef = firebase.firestore().collection('leagues')
+                    .where('status', 'in', ['active', 'playoffs']);
+
+                const leagueUnsubscribe = leaguesRef.onSnapshot(async (snapshot) => {
+                    const leagues = [];
+                    snapshot.forEach(doc => {
+                        leagues.push({ id: doc.id, ...doc.data() });
+                    });
+
+                    // Get matches for each league
+                    leagueMatches = [];
+                    for (const league of leagues) {
+                        const matchesSnap = await firebase.firestore()
+                            .collection('leagues').doc(league.id)
+                            .collection('matches')
+                            .where('status', 'in', ['scheduled', 'in_progress'])
+                            .orderBy('week', 'asc')
+                            .limit(10)
+                            .get();
+
+                        matchesSnap.forEach(doc => {
+                            leagueMatches.push({
+                                id: doc.id,
+                                leagueId: league.id,
+                                leagueName: league.league_name,
+                                venueName: league.venue_name,
+                                ...doc.data()
+                            });
+                        });
+                    }
+
+                    renderLeagueMatches();
+                });
+                unsubscribers.push(leagueUnsubscribe);
+
+                // Listen to active tournaments
+                const tournamentsRef = firebase.firestore().collection('tournaments')
+                    .where('status', 'in', ['active', 'in_progress', 'started']);
+
+                const tournamentUnsubscribe = tournamentsRef.onSnapshot(async (snapshot) => {
+                    tournamentMatches = [];
+
+                    for (const doc of snapshot.docs) {
+                        const tournament = { id: doc.id, ...doc.data() };
+
+                        // Get events with active matches
+                        const eventsSnap = await firebase.firestore()
+                            .collection('tournaments').doc(tournament.id)
+                            .collection('events')
+                            .get();
+
+                        for (const eventDoc of eventsSnap.docs) {
+                            const event = eventDoc.data();
+                            if (event.bracket && event.bracket.matches) {
+                                const activeMatches = event.bracket.matches.filter(m =>
+                                    m.status === 'in_progress' || m.status === 'ready'
+                                );
+
+                                activeMatches.forEach(match => {
+                                    tournamentMatches.push({
+                                        id: `${eventDoc.id}_${match.match_id}`,
+                                        tournamentId: tournament.id,
+                                        tournamentName: tournament.tournament_name,
+                                        eventName: event.event_name,
+                                        venueName: tournament.venue_name,
+                                        round: match.round,
+                                        ...match
+                                    });
+                                });
+                            }
+                        }
+                    }
+
+                    renderTournamentMatches();
+                });
+                unsubscribers.push(tournamentUnsubscribe);
+
+            } catch (error) {
+                console.error('Error initializing Firestore:', error);
+            }
+        }
+
+        function renderLeagueMatches() {
+            const container = document.getElementById('leagueMatches');
+
+            if (leagueMatches.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M12 6v6l4 2"/>
+                        </svg>
+                        <h3>No Active League Matches</h3>
+                        <p>Check back when league night begins!</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = leagueMatches.map(match => `
+                <div class="match-card ${match.status === 'in_progress' ? 'live' : ''}">
+                    <div class="match-header">
+                        <span class="match-type">${escapeHtml(match.leagueName || 'League Match')}</span>
+                        <span class="match-status ${match.status === 'in_progress' ? 'live' : escapeHtml(match.status)}">
+                            ${match.status === 'in_progress' ? 'LIVE' : escapeHtml((match.status || '').toUpperCase())}
+                        </span>
+                    </div>
+                    <div class="match-body">
+                        <div class="teams-container">
+                            <div class="team">
+                                <div class="team-name">${escapeHtml(match.home_team_name || 'Home')}</div>
+                                <div class="team-players">${escapeHtml(getTeamPlayers(match, 'home'))}</div>
+                            </div>
+                            <div class="score-container">
+                                <span class="score home" data-match="${escapeHtml(match.id)}" data-side="home">${match.home_score || 0}</span>
+                                <span class="score-divider">:</span>
+                                <span class="score away" data-match="${escapeHtml(match.id)}" data-side="away">${match.away_score || 0}</span>
+                            </div>
+                            <div class="team">
+                                <div class="team-name">${escapeHtml(match.away_team_name || 'Away')}</div>
+                                <div class="team-players">${escapeHtml(getTeamPlayers(match, 'away'))}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="match-footer">
+                        <span class="game-info">Week <strong>${match.week || 1}</strong> ${match.current_game ? `| Game ${match.current_game}` : ''}</span>
+                        <span class="venue-info">
+                            <svg width="12" height="12" fill="currentColor" viewBox="0 0 16 16">
+                                <path d="M8 16s6-5.686 6-10A6 6 0 0 0 2 6c0 4.314 6 10 6 10zm0-7a3 3 0 1 1 0-6 3 3 0 0 1 0 6z"/>
+                            </svg>
+                            ${escapeHtml(match.venueName || 'TBD')}
+                        </span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderTournamentMatches() {
+            const container = document.getElementById('tournamentMatches');
+
+            if (tournamentMatches.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/>
+                            <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/>
+                            <path d="M4 22h16"/>
+                            <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/>
+                            <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/>
+                            <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>
+                        </svg>
+                        <h3>No Active Tournament Matches</h3>
+                        <p>Tournament action will appear here when matches begin!</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = tournamentMatches.map(match => `
+                <div class="match-card ${match.status === 'in_progress' ? 'live' : ''}">
+                    <div class="match-header">
+                        <span class="match-type">${escapeHtml(match.tournamentName || 'Tournament')} - ${escapeHtml(match.eventName || '')}</span>
+                        <span class="match-status ${match.status === 'in_progress' ? 'live' : 'scheduled'}">
+                            ${match.status === 'in_progress' ? 'LIVE' : 'READY'}
+                        </span>
+                    </div>
+                    <div class="match-body">
+                        <div class="teams-container">
+                            <div class="team">
+                                <div class="team-name">${escapeHtml(match.player1?.name || match.player1 || 'TBD')}</div>
+                            </div>
+                            <div class="score-container">
+                                <span class="score home">${match.score1 || 0}</span>
+                                <span class="score-divider">:</span>
+                                <span class="score away">${match.score2 || 0}</span>
+                            </div>
+                            <div class="team">
+                                <div class="team-name">${escapeHtml(match.player2?.name || match.player2 || 'TBD')}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="match-footer">
+                        <span class="game-info">Round <strong>${match.round || 1}</strong> ${match.board ? `| Board ${escapeHtml(match.board)}` : ''}</span>
+                        <span class="venue-info">
+                            <svg width="12" height="12" fill="currentColor" viewBox="0 0 16 16">
+                                <path d="M8 16s6-5.686 6-10A6 6 0 0 0 2 6c0 4.314 6 10 6 10zm0-7a3 3 0 1 1 0-6 3 3 0 0 1 0 6z"/>
+                            </svg>
+                            ${escapeHtml(match.venueName || 'TBD')}
+                        </span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function getTeamPlayers(match, side) {
+            // Try to get player names from match data
+            if (side === 'home' && match.home_players) {
+                return match.home_players.map(p => p.name || p).join(', ');
+            }
+            if (side === 'away' && match.away_players) {
+                return match.away_players.map(p => p.name || p).join(', ');
+            }
+            return '';
+        }
+
+        function setupFilters() {
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    currentFilter = btn.dataset.filter;
+                    applyFilter();
+                });
+            });
+        }
+
+        function applyFilter() {
+            const leaguesSection = document.getElementById('leaguesSection');
+            const tournamentsSection = document.getElementById('tournamentsSection');
+
+            switch (currentFilter) {
+                case 'leagues':
+                    leaguesSection.style.display = 'block';
+                    tournamentsSection.style.display = 'none';
+                    break;
+                case 'tournaments':
+                    leaguesSection.style.display = 'none';
+                    tournamentsSection.style.display = 'block';
+                    break;
+                default:
+                    leaguesSection.style.display = 'block';
+                    tournamentsSection.style.display = 'block';
+            }
+        }
+
+        function setupAutoScroll() {
+            const toggle = document.getElementById('scrollToggle');
+            toggle.addEventListener('click', () => {
+                autoScroll = !autoScroll;
+                toggle.classList.toggle('active', autoScroll);
+                toggle.querySelector('span').textContent = `Auto-Scroll: ${autoScroll ? 'ON' : 'OFF'}`;
+
+                if (autoScroll) {
+                    startAutoScroll();
+                } else {
+                    stopAutoScroll();
+                }
+            });
+        }
+
+        function startAutoScroll() {
+            let direction = 1;
+            scrollInterval = setInterval(() => {
+                const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+                const currentScroll = window.scrollY;
+
+                if (currentScroll >= maxScroll) direction = -1;
+                if (currentScroll <= 0) direction = 1;
+
+                window.scrollBy({ top: direction * 2, behavior: 'smooth' });
+            }, 50);
+        }
+
+        function stopAutoScroll() {
+            if (scrollInterval) {
+                clearInterval(scrollInterval);
+                scrollInterval = null;
+            }
+        }
+
+        function setupTVMode() {
+            // Enable TV mode via URL param or keyboard shortcut
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('tv') === '1') {
+                document.body.classList.add('tv-mode');
+            }
+
+            // Press 'T' for TV mode
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 't' || e.key === 'T') {
+                    document.body.classList.toggle('tv-mode');
+                }
+                // Press 'F' for fullscreen
+                if (e.key === 'f' || e.key === 'F') {
+                    if (document.fullscreenElement) {
+                        document.exitFullscreen();
+                    } else {
+                        document.documentElement.requestFullscreen();
+                    }
+                }
+            });
+        }
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            unsubscribers.forEach(unsub => unsub());
+        });
+    </script>
+    <script src="/js/nav-menu.js"></script>
+</body>
+</html>

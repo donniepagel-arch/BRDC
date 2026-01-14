@@ -1,0 +1,1578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Dashboard - BRDC</title>
+    <link rel="icon" type="image/png" href="/images/favicon.png">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#FF469A">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700;800&display=swap');
+
+        :root {
+            --pink: #FF469A;
+            --teal: #91D7EB;
+            --yellow: #FDD835;
+            --bg-dark: #1a1a2e;
+            --bg-panel: #16213e;
+            --bg-card: #1e2a47;
+            --text-light: #f0f0f0;
+            --text-dim: #8a8aa3;
+            --border-color: rgba(255,255,255,0.15);
+            --success: #22c55e;
+            --danger: #ef4444;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+        html, body { min-height: 100%; }
+        body {
+            background: linear-gradient(135deg, var(--bg-dark) 0%, #0f0f23 100%);
+            color: var(--text-light);
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse at 20% 20%, rgba(255, 70, 154, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(145, 215, 235, 0.06) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        /* Header Bar */
+        .header-bar {
+            background: var(--bg-panel);
+            border-bottom: 3px solid var(--pink);
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+        }
+
+        .back-btn, .logout-btn {
+            background: rgba(255,255,255,0.1);
+            border: 2px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .back-btn:hover, .logout-btn:hover {
+            background: rgba(255,255,255,0.2);
+            border-color: var(--pink);
+        }
+
+        .logout-btn { margin-left: auto; }
+
+        .header-logo {
+            width: 40px;
+            height: 40px;
+            mix-blend-mode: multiply;
+            filter: drop-shadow(0 0 8px rgba(255, 70, 154, 0.5));
+        }
+
+        .header-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 28px;
+            letter-spacing: 3px;
+            color: var(--pink);
+        }
+
+        /* Container */
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Login Page */
+        .login-page {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .login-logo {
+            width: 100px;
+            height: 100px;
+            margin-bottom: 20px;
+            filter: drop-shadow(0 0 20px rgba(255, 70, 154, 0.4));
+            mix-blend-mode: screen;
+        }
+
+        .login-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 36px;
+            color: var(--pink);
+            letter-spacing: 3px;
+            margin-bottom: 30px;
+        }
+
+        .login-box {
+            background: var(--bg-panel);
+            border: 3px solid #000;
+            border-radius: 16px;
+            padding: 30px;
+            width: 100%;
+            max-width: 380px;
+            box-shadow: 8px 8px 0 rgba(0,0,0,0.4);
+        }
+
+        .login-form-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 22px;
+            color: var(--teal);
+            letter-spacing: 2px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .form-group { margin-bottom: 16px; }
+
+        .form-label {
+            display: block;
+            font-weight: 700;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-dim);
+            margin-bottom: 6px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 14px;
+            background: rgba(255,255,255,0.08);
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: 700;
+            color: white;
+            text-align: center;
+            letter-spacing: 4px;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--pink);
+            background: rgba(255,255,255,0.12);
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(180deg, var(--pink) 0%, #d63384 100%);
+            border: 3px solid #000;
+            border-radius: 10px;
+            color: white;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 22px;
+            letter-spacing: 2px;
+            cursor: pointer;
+            transition: all 0.15s;
+            box-shadow: 4px 4px 0 rgba(0,0,0,0.4);
+        }
+
+        .login-btn:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: 6px 6px 0 rgba(0,0,0,0.4);
+        }
+
+        .login-btn:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .login-error {
+            background: rgba(239, 68, 68, 0.2);
+            border: 2px solid var(--danger);
+            border-radius: 8px;
+            padding: 12px;
+            color: #fca5a5;
+            font-size: 13px;
+            text-align: center;
+            margin-bottom: 16px;
+        }
+
+        .login-links {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 13px;
+        }
+
+        .login-links a {
+            color: var(--teal);
+            text-decoration: none;
+        }
+
+        .login-links a:hover { text-decoration: underline; }
+
+        .dashboard-content { display: none; }
+
+        /* Welcome Section */
+        .welcome-section {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 25px;
+            padding: 20px;
+            background: var(--bg-card);
+            border-radius: 12px;
+            border: 2px solid var(--border-color);
+        }
+
+        .player-avatar {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--pink), var(--teal));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            border: 3px solid #000;
+        }
+
+        .welcome-info h2 {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 28px;
+            letter-spacing: 1px;
+        }
+
+        .welcome-info p {
+            color: var(--text-dim);
+            font-size: 14px;
+        }
+
+        /* Director Link */
+        .director-link {
+            display: none;
+            margin-left: auto;
+        }
+
+        .director-btn {
+            background: linear-gradient(180deg, var(--yellow) 0%, #f59e0b 100%);
+            border: 3px solid #000;
+            border-radius: 10px;
+            padding: 12px 24px;
+            color: #000;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 16px;
+            letter-spacing: 1px;
+            cursor: pointer;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 4px 4px 0 rgba(0,0,0,0.3);
+            transition: all 0.15s;
+        }
+
+        .director-btn:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: 6px 6px 0 rgba(0,0,0,0.4);
+        }
+
+        /* Tabs */
+        .tab-container {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            border-bottom: 3px solid var(--border-color);
+            padding-bottom: 5px;
+        }
+
+        .tab {
+            background: rgba(0,0,0,0.3);
+            border: 2px solid transparent;
+            padding: 12px 20px;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 16px;
+            letter-spacing: 1px;
+            color: var(--text-dim);
+            cursor: pointer;
+            transition: all 0.2s;
+            border-radius: 8px 8px 0 0;
+        }
+
+        .tab:hover {
+            color: white;
+            background: rgba(255,255,255,0.1);
+        }
+
+        .tab.active {
+            background: var(--pink);
+            color: white;
+            border-color: var(--pink);
+        }
+
+        .tab.captain-tab {
+            display: none;
+        }
+
+        .tab.captain-tab.show {
+            display: block;
+            background: rgba(145, 215, 235, 0.2);
+        }
+
+        .tab.captain-tab.show.active {
+            background: var(--teal);
+            color: #000;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 36px;
+            color: var(--yellow);
+        }
+
+        .stat-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-dim);
+        }
+
+        /* Team Selector */
+        .team-selector {
+            background: var(--bg-card);
+            border: 2px solid var(--border-color);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .team-selector label {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-dim);
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .team-selector select {
+            width: 100%;
+            padding: 12px;
+            background: var(--bg-dark);
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        /* Schedule Table */
+        .schedule-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--bg-card);
+            border-radius: 12px;
+            overflow: hidden;
+            border: 2px solid var(--border-color);
+        }
+
+        .schedule-table th {
+            background: var(--bg-panel);
+            padding: 15px;
+            text-align: left;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 14px;
+            letter-spacing: 1px;
+            color: var(--teal);
+        }
+
+        .schedule-table td {
+            padding: 15px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .schedule-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .availability-btns {
+            display: flex;
+            gap: 8px;
+        }
+
+        .avail-btn {
+            padding: 8px 16px;
+            border: 2px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.15s;
+            background: transparent;
+            color: white;
+        }
+
+        .avail-btn.confirm {
+            border-color: var(--success);
+            color: var(--success);
+        }
+
+        .avail-btn.confirm:hover, .avail-btn.confirm.selected {
+            background: var(--success);
+            color: #000;
+        }
+
+        .avail-btn.cant {
+            border-color: var(--danger);
+            color: var(--danger);
+        }
+
+        .avail-btn.cant:hover, .avail-btn.cant.selected {
+            background: var(--danger);
+            color: white;
+        }
+
+        .match-status {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .match-status.upcoming { background: var(--yellow); color: #000; }
+        .match-status.completed { background: var(--success); color: #000; }
+        .match-status.in-progress { background: var(--pink); color: white; }
+
+        /* Roster Cards */
+        .roster-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 15px;
+        }
+
+        .roster-card {
+            background: var(--bg-card);
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .roster-card.captain-card {
+            border-color: var(--teal);
+        }
+
+        .player-position {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--teal);
+            margin-bottom: 5px;
+        }
+
+        .player-name-roster {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+
+        .player-stats-mini {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .stat-mini {
+            background: rgba(0,0,0,0.3);
+            padding: 8px;
+            border-radius: 6px;
+            text-align: center;
+        }
+
+        .stat-mini-label {
+            font-size: 10px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+        }
+
+        .stat-mini-value {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 18px;
+            color: var(--yellow);
+        }
+
+        /* Contact Section */
+        .contact-section {
+            background: var(--bg-card);
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .contact-section h3 {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 20px;
+            color: var(--teal);
+            margin-bottom: 15px;
+        }
+
+        .contact-textarea {
+            width: 100%;
+            min-height: 120px;
+            padding: 15px;
+            background: var(--bg-dark);
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            color: white;
+            font-size: 14px;
+            resize: vertical;
+            margin-bottom: 15px;
+        }
+
+        .contact-textarea:focus {
+            outline: none;
+            border-color: var(--teal);
+        }
+
+        .recipient-checkboxes {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .recipient-checkboxes label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .send-btn {
+            background: linear-gradient(180deg, var(--teal) 0%, #5ba3b5 100%);
+            border: 3px solid #000;
+            border-radius: 10px;
+            padding: 14px 30px;
+            color: #000;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 18px;
+            letter-spacing: 1px;
+            cursor: pointer;
+            box-shadow: 4px 4px 0 rgba(0,0,0,0.3);
+        }
+
+        .send-btn:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: 6px 6px 0 rgba(0,0,0,0.4);
+        }
+
+        /* Captain Sub-tabs */
+        .captain-subtabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .captain-subtab {
+            background: rgba(0,0,0,0.3);
+            border: 2px solid var(--border-color);
+            padding: 10px 18px;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 14px;
+            color: white;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+
+        .captain-subtab:hover {
+            background: rgba(255,255,255,0.1);
+        }
+
+        .captain-subtab.active {
+            background: var(--teal);
+            color: #000;
+            border-color: var(--teal);
+        }
+
+        .captain-subcontent {
+            display: none;
+        }
+
+        .captain-subcontent.active {
+            display: block;
+        }
+
+        /* Lineup Builder */
+        .lineup-row {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px;
+            background: var(--bg-card);
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+
+        .lineup-game {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 18px;
+            color: var(--pink);
+            min-width: 80px;
+        }
+
+        .lineup-select {
+            flex: 1;
+            padding: 10px;
+            background: var(--bg-dark);
+            border: 2px solid var(--border-color);
+            border-radius: 6px;
+            color: white;
+            font-size: 14px;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-dim);
+        }
+
+        .empty-state .icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+            opacity: 0.5;
+        }
+
+        /* Action Buttons */
+        .action-buttons {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+
+        .action-btn {
+            flex: 1;
+            min-width: 150px;
+            padding: 14px 20px;
+            background: rgba(255,255,255,0.08);
+            border: 2px solid var(--border-color);
+            border-radius: 10px;
+            color: white;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.15s;
+            text-align: center;
+            text-decoration: none;
+        }
+
+        .action-btn:hover {
+            background: rgba(255,255,255,0.15);
+            border-color: var(--pink);
+        }
+
+        .action-btn.primary {
+            background: linear-gradient(180deg, var(--pink) 0%, #d63384 100%);
+            border-color: #000;
+        }
+
+        /* Subs List */
+        .subs-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 15px;
+        }
+
+        .sub-card {
+            background: var(--bg-card);
+            border: 2px solid var(--border-color);
+            border-radius: 10px;
+            padding: 15px;
+        }
+
+        .sub-name {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 20px;
+            margin-bottom: 5px;
+        }
+
+        .sub-info {
+            font-size: 13px;
+            color: var(--text-dim);
+            margin-bottom: 10px;
+        }
+
+        .sub-btn {
+            padding: 8px 16px;
+            background: var(--teal);
+            border: 2px solid #000;
+            border-radius: 6px;
+            color: #000;
+            font-weight: 700;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        @media (max-width: 600px) {
+            .welcome-section {
+                flex-direction: column;
+                text-align: center;
+            }
+            .director-link {
+                margin: 15px auto 0;
+            }
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .tab {
+                padding: 10px 14px;
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Page -->
+    <div class="login-page" id="loginPage">
+        <img src="/images/white_logo.jpg" alt="BRDC" class="login-logo">
+        <h1 class="login-title">BRDC DASHBOARD</h1>
+
+        <div class="login-box">
+            <div class="login-form-title">LOGIN</div>
+
+            <div class="login-error" id="loginError" style="display: none;"></div>
+
+            <div class="form-group">
+                <label class="form-label">Your 8-Digit PIN</label>
+                <input type="text" class="form-input" id="pinInput" placeholder="12345678" maxlength="8" inputmode="numeric">
+            </div>
+
+            <button class="login-btn" id="loginBtn" onclick="login()">LOGIN</button>
+
+            <div class="login-links">
+                <a href="#" onclick="showForgotPin()">Forgot PIN?</a>
+                <span style="color: var(--text-dim); margin: 0 10px;">|</span>
+                <a href="/pages/register.html">New Player? Register</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dashboard Content -->
+    <div class="dashboard-content" id="dashboardContent">
+        <div class="header-bar">
+            <button class="back-btn" onclick="window.location.href='/'">← BACK</button>
+            <img src="/images/white_logo.jpg" alt="BRDC" class="header-logo">
+            <span class="header-title">DASHBOARD</span>
+            <button class="logout-btn" onclick="logout()">LOGOUT</button>
+        </div>
+
+        <div class="container">
+            <!-- Welcome Section with Director Link -->
+            <div class="welcome-section">
+                <div class="player-avatar" id="playerAvatar">👤</div>
+                <div class="welcome-info">
+                    <h2 id="welcomeName">Welcome!</h2>
+                    <p id="welcomeSubtext">Ready to throw some darts?</p>
+                </div>
+                <div class="director-link" id="directorLink">
+                    <a href="#" id="directorBtn" class="director-btn" onclick="openDirectorDashboard()">
+                        👑 DIRECTOR PANEL
+                    </a>
+                </div>
+            </div>
+
+            <!-- Main Tabs -->
+            <div class="tab-container">
+                <div class="tab active" onclick="switchTab('stats')">📊 MY STATS</div>
+                <div class="tab" onclick="switchTab('teams')">🎯 MY TEAMS</div>
+                <div class="tab captain-tab" id="captainTab" onclick="switchTab('captain')">🚢 CAPTAIN</div>
+            </div>
+
+            <!-- MY STATS Tab -->
+            <div id="statsTab" class="tab-content active">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value" id="statAvg">-</div>
+                        <div class="stat-label">X01 Average</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="statMpr">-</div>
+                        <div class="stat-label">Cricket MPR</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="stat180s">0</div>
+                        <div class="stat-label">180s</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="statHighOut">-</div>
+                        <div class="stat-label">High Checkout</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="statMatches">0</div>
+                        <div class="stat-label">Matches</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="statWins">0</div>
+                        <div class="stat-label">Wins</div>
+                    </div>
+                </div>
+
+                <div class="action-buttons">
+                    <a href="/pages/game-setup.html" class="action-btn primary">🎯 PLAY DARTS</a>
+                    <a href="/pages/player-profile.html" class="action-btn" id="fullStatsLink">📈 FULL STATS</a>
+                    <a href="/pages/browse-events.html" class="action-btn">🔍 BROWSE EVENTS</a>
+                </div>
+            </div>
+
+            <!-- MY TEAMS Tab -->
+            <div id="teamsTab" class="tab-content">
+                <div class="team-selector" id="teamSelector" style="display: none;">
+                    <label>SELECT TEAM</label>
+                    <select id="teamSelect" onchange="loadTeamSchedule()"></select>
+                </div>
+
+                <div id="teamScheduleContainer">
+                    <div class="empty-state">
+                        <div class="icon">🎯</div>
+                        <p>You're not on any teams yet.<br>Join a league to see your schedule!</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CAPTAIN Tab -->
+            <div id="captainTab" class="tab-content">
+                <div class="team-selector" id="captainTeamSelector">
+                    <label>SELECT TEAM TO MANAGE</label>
+                    <select id="captainTeamSelect" onchange="loadCaptainTeam()"></select>
+                </div>
+
+                <!-- Captain Sub-tabs -->
+                <div class="captain-subtabs">
+                    <div class="captain-subtab active" onclick="switchCaptainSubtab('roster')">ROSTER</div>
+                    <div class="captain-subtab" onclick="switchCaptainSubtab('schedule')">SCHEDULE</div>
+                    <div class="captain-subtab" onclick="switchCaptainSubtab('lineup')">SET LINEUP</div>
+                    <div class="captain-subtab" onclick="switchCaptainSubtab('subs')">SUBS</div>
+                    <div class="captain-subtab" onclick="switchCaptainSubtab('contact')">📱 CONTACT</div>
+                </div>
+
+                <!-- Roster Sub-content -->
+                <div id="captainRoster" class="captain-subcontent active">
+                    <div class="roster-grid" id="rosterGrid">
+                        <div class="empty-state">Loading roster...</div>
+                    </div>
+                </div>
+
+                <!-- Schedule Sub-content -->
+                <div id="captainSchedule" class="captain-subcontent">
+                    <div id="captainScheduleTable">
+                        <div class="empty-state">Loading schedule...</div>
+                    </div>
+                </div>
+
+                <!-- Lineup Sub-content -->
+                <div id="captainLineup" class="captain-subcontent">
+                    <div class="team-selector">
+                        <label>SELECT MATCH</label>
+                        <select id="lineupMatchSelect" onchange="loadLineupForMatch()">
+                            <option value="">-- Select upcoming match --</option>
+                        </select>
+                    </div>
+                    <div id="lineupBuilder" style="display: none;"></div>
+                    <button class="send-btn" onclick="saveLineup()" style="margin-top: 15px; display: none;" id="saveLineupBtn">💾 SAVE LINEUP</button>
+                </div>
+
+                <!-- Subs Sub-content -->
+                <div id="captainSubs" class="captain-subcontent">
+                    <div class="subs-list" id="subsList">
+                        <div class="empty-state">Loading subs...</div>
+                    </div>
+                </div>
+
+                <!-- Contact Sub-content -->
+                <div id="captainContact" class="captain-subcontent">
+                    <div class="contact-section">
+                        <h3>📱 MESSAGE YOUR TEAM</h3>
+                        <div class="recipient-checkboxes">
+                            <label><input type="checkbox" id="contactAllPlayers" checked> All Players</label>
+                            <label><input type="checkbox" id="contactSubs"> Subs Only</label>
+                        </div>
+                        <p style="font-size: 12px; color: var(--text-dim); margin-bottom: 10px;">Insert:
+                            <span style="color: var(--teal); cursor: pointer;" onclick="insertCaptainTag('[first_name]')">[first_name]</span>
+                            <span style="color: var(--teal); cursor: pointer;" onclick="insertCaptainTag('[next_match_date]')">[next_match_date]</span>
+                        </p>
+                        <textarea id="captainMessage" class="contact-textarea" placeholder="Type your message to the team..."></textarea>
+                        <button class="send-btn" onclick="sendTeamMessage()">📱 SEND MESSAGE</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Director Selector Modal -->
+    <div id="directorModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center;">
+        <div style="background: var(--bg-panel); border: 4px solid #000; border-radius: 16px; padding: 30px; max-width: 450px; width: 90%; box-shadow: 8px 8px 0 rgba(0,0,0,0.5);">
+            <h3 style="font-family: 'Bebas Neue', cursive; font-size: 28px; margin-bottom: 20px; color: var(--yellow);">👑 SELECT LEAGUE</h3>
+            <select id="directorLeagueSelect" style="width: 100%; padding: 14px; background: var(--bg-dark); border: 2px solid var(--border-color); border-radius: 8px; color: white; font-size: 16px; margin-bottom: 20px;"></select>
+            <div style="display: flex; gap: 10px;">
+                <button class="action-btn" onclick="closeDirectorModal()" style="flex: 1;">CANCEL</button>
+                <button class="action-btn primary" onclick="goToDirectorDashboard()" style="flex: 1;">OPEN</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { callFunction } from '/js/firebase-config.js';
+
+        let currentPlayer = null;
+        let dashboardData = null;
+        let selectedTeamId = null;
+        let selectedCaptainTeamId = null;
+        let captainTeamData = null;
+
+        // Check for saved session
+        window.onload = function() {
+            const savedSession = localStorage.getItem('brdc_session');
+            if (savedSession) {
+                try {
+                    const session = JSON.parse(savedSession);
+                    if (session.player_id) {
+                        loadDashboard(session.player_id);
+                        return;
+                    }
+                } catch (e) {
+                    localStorage.removeItem('brdc_session');
+                }
+            }
+            showLoginPage();
+        };
+
+        function showLoginPage() {
+            document.getElementById('loginPage').style.display = 'flex';
+            document.getElementById('dashboardContent').style.display = 'none';
+        }
+
+        function showDashboard() {
+            document.getElementById('loginPage').style.display = 'none';
+            document.getElementById('dashboardContent').style.display = 'block';
+        }
+
+        window.login = async function() {
+            const pin = document.getElementById('pinInput').value.trim();
+            const errorDiv = document.getElementById('loginError');
+            const btn = document.getElementById('loginBtn');
+
+            errorDiv.style.display = 'none';
+
+            if (pin.length !== 8) {
+                errorDiv.textContent = 'Please enter your 8-digit PIN';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'LOGGING IN...';
+
+            try {
+                const result = await callFunction('globalLogin', { pin: pin });
+
+                if (result.success) {
+                    currentPlayer = result.player;
+                    localStorage.setItem('brdc_session', JSON.stringify({
+                        player_id: currentPlayer.id,
+                        name: currentPlayer.name,
+                        logged_in_at: Date.now()
+                    }));
+                    loadDashboard(currentPlayer.id);
+                } else {
+                    errorDiv.textContent = result.error || 'Login failed';
+                    errorDiv.style.display = 'block';
+                }
+            } catch (error) {
+                errorDiv.textContent = error.message || 'Login failed. Please try again.';
+                errorDiv.style.display = 'block';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'LOGIN';
+            }
+        };
+
+        async function loadDashboard(playerId) {
+            try {
+                const result = await callFunction('getDashboardData', { player_id: playerId });
+
+                if (result.success) {
+                    dashboardData = result.dashboard;
+                    currentPlayer = dashboardData.player;
+                    renderDashboard();
+                    showDashboard();
+                } else {
+                    localStorage.removeItem('brdc_session');
+                    showLoginPage();
+                }
+            } catch (error) {
+                console.error('Load dashboard error:', error);
+                localStorage.removeItem('brdc_session');
+                showLoginPage();
+            }
+        }
+
+        function renderDashboard() {
+            const player = dashboardData.player;
+            const roles = dashboardData.roles;
+
+            // Welcome section
+            document.getElementById('welcomeName').textContent = `Welcome, ${player.name}!`;
+            document.getElementById('welcomeSubtext').textContent = player.isBot ? 'Bot Player' : 'Ready to throw some darts?';
+            document.getElementById('playerAvatar').textContent = player.isBot ? '🤖' : '👤';
+
+            // Stats
+            const stats = player.stats || {};
+            const x01 = stats.x01 || {};
+            const cricket = stats.cricket || {};
+
+            const x01Avg = x01.total_darts > 0 ? (x01.total_points / x01.total_darts * 3).toFixed(1) : '-';
+            const mpr = cricket.total_rounds > 0 ? (cricket.total_marks / cricket.total_rounds).toFixed(2) : '-';
+
+            document.getElementById('statAvg').textContent = x01Avg;
+            document.getElementById('statMpr').textContent = mpr;
+            document.getElementById('stat180s').textContent = x01.ton_eighties || 0;
+            document.getElementById('statHighOut').textContent = x01.high_checkout || '-';
+            document.getElementById('statMatches').textContent = stats.matches_played || 0;
+            document.getElementById('statWins').textContent = stats.matches_won || 0;
+
+            // Full stats link
+            document.getElementById('fullStatsLink').href = `/pages/player-profile.html?player_id=${player.id}`;
+
+            // Director link (show if directing any leagues)
+            if (roles.directing && roles.directing.length > 0) {
+                document.getElementById('directorLink').style.display = 'block';
+            }
+
+            // Captain tab (show if captain of any teams)
+            if (roles.captaining && roles.captaining.length > 0) {
+                document.getElementById('captainTab').classList.add('show');
+                populateCaptainTeamSelect(roles.captaining);
+            }
+
+            // Teams tab - populate team selector
+            if (roles.playing && roles.playing.length > 0) {
+                populateTeamSelect(roles.playing);
+            }
+        }
+
+        function populateTeamSelect(teams) {
+            const selector = document.getElementById('teamSelector');
+            const select = document.getElementById('teamSelect');
+
+            if (teams.length === 0) return;
+
+            selector.style.display = 'block';
+            select.innerHTML = teams.map(t =>
+                `<option value="${t.league_id}|${t.team_id}">${t.team_name} - ${t.name}</option>`
+            ).join('');
+
+            // Auto-select first team
+            selectedTeamId = teams[0].team_id;
+            loadTeamSchedule();
+        }
+
+        function populateCaptainTeamSelect(teams) {
+            const select = document.getElementById('captainTeamSelect');
+            select.innerHTML = teams.map(t =>
+                `<option value="${t.league_id}|${t.team_id}">${t.team_name} - ${t.league_name}</option>`
+            ).join('');
+
+            // Auto-select first team
+            if (teams.length > 0) {
+                selectedCaptainTeamId = teams[0].team_id;
+                loadCaptainTeam();
+            }
+        }
+
+        window.loadTeamSchedule = async function() {
+            const select = document.getElementById('teamSelect');
+            const [leagueId, teamId] = select.value.split('|');
+            selectedTeamId = teamId;
+
+            const container = document.getElementById('teamScheduleContainer');
+            container.innerHTML = '<div class="empty-state">Loading schedule...</div>';
+
+            try {
+                const result = await callFunction('getTeamSchedule', {
+                    league_id: leagueId,
+                    team_id: teamId,
+                    player_id: currentPlayer.id
+                });
+
+                if (result.success) {
+                    renderTeamSchedule(result.schedule, result.league_id);
+                } else {
+                    container.innerHTML = '<div class="empty-state">Could not load schedule</div>';
+                }
+            } catch (error) {
+                container.innerHTML = '<div class="empty-state">Error loading schedule</div>';
+            }
+        };
+
+        function renderTeamSchedule(schedule, leagueId) {
+            const container = document.getElementById('teamScheduleContainer');
+
+            if (!schedule || schedule.length === 0) {
+                container.innerHTML = '<div class="empty-state"><div class="icon">📅</div><p>No matches scheduled yet.</p></div>';
+                return;
+            }
+
+            let html = `<table class="schedule-table">
+                <thead><tr>
+                    <th>Week</th><th>Date</th><th>Opponent</th><th>Status</th><th>Your Availability</th>
+                </tr></thead><tbody>`;
+
+            schedule.forEach(match => {
+                const dateStr = match.match_date ? new Date(match.match_date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : 'TBD';
+                const statusClass = match.completed ? 'completed' : (match.in_progress ? 'in-progress' : 'upcoming');
+                const statusText = match.completed ? 'DONE' : (match.in_progress ? 'LIVE' : 'UPCOMING');
+
+                const myAvailability = match.player_availability || 'unknown';
+                const confirmClass = myAvailability === 'confirmed' ? 'selected' : '';
+                const cantClass = myAvailability === 'unavailable' ? 'selected' : '';
+
+                html += `<tr>
+                    <td>Week ${match.week}</td>
+                    <td>${dateStr}</td>
+                    <td><strong>${match.opponent_name || 'TBD'}</strong></td>
+                    <td><span class="match-status ${statusClass}">${statusText}</span></td>
+                    <td>
+                        ${!match.completed ? `
+                        <div class="availability-btns">
+                            <button class="avail-btn confirm ${confirmClass}" onclick="updateAvailability('${leagueId}', '${match.id}', 'confirmed')">✓ I'M IN</button>
+                            <button class="avail-btn cant ${cantClass}" onclick="updateAvailability('${leagueId}', '${match.id}', 'unavailable')">✗ CAN'T MAKE IT</button>
+                        </div>` : '-'}
+                    </td>
+                </tr>`;
+            });
+
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        window.updateAvailability = async function(leagueId, matchId, status) {
+            try {
+                const result = await callFunction('updatePlayerAvailability', {
+                    league_id: leagueId,
+                    match_id: matchId,
+                    player_id: currentPlayer.id,
+                    status: status
+                });
+
+                if (result.success) {
+                    // Reload schedule to show updated status
+                    loadTeamSchedule();
+                    if (status === 'unavailable') {
+                        alert('Your captain has been notified to find a substitute.');
+                    }
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                alert('Error updating availability: ' + error.message);
+            }
+        };
+
+        // ============================================================================
+        // CAPTAIN FUNCTIONS
+        // ============================================================================
+
+        window.loadCaptainTeam = async function() {
+            const select = document.getElementById('captainTeamSelect');
+            const [leagueId, teamId] = select.value.split('|');
+            selectedCaptainTeamId = teamId;
+
+            try {
+                const result = await callFunction('getCaptainTeamData', {
+                    league_id: leagueId,
+                    team_id: teamId,
+                    captain_id: currentPlayer.id
+                });
+
+                if (result.success) {
+                    captainTeamData = result;
+                    renderCaptainRoster(result.roster);
+                    renderCaptainSchedule(result.schedule, leagueId);
+                    renderSubsList(result.subs);
+                    populateLineupMatchSelect(result.schedule);
+                }
+            } catch (error) {
+                console.error('Error loading captain team:', error);
+            }
+        };
+
+        function renderCaptainRoster(roster) {
+            const grid = document.getElementById('rosterGrid');
+
+            if (!roster || roster.length === 0) {
+                grid.innerHTML = '<div class="empty-state">No players on roster</div>';
+                return;
+            }
+
+            grid.innerHTML = roster.map(p => `
+                <div class="roster-card ${p.is_captain ? 'captain-card' : ''}">
+                    <div class="player-position">P${p.position} ${p.is_captain ? '- CAPTAIN' : ''}</div>
+                    <div class="player-name-roster">${p.name}</div>
+                    <div class="player-stats-mini">
+                        <div class="stat-mini">
+                            <div class="stat-mini-label">X01 Avg</div>
+                            <div class="stat-mini-value">${p.x01_avg || '-'}</div>
+                        </div>
+                        <div class="stat-mini">
+                            <div class="stat-mini-label">MPR</div>
+                            <div class="stat-mini-value">${p.mpr || '-'}</div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderCaptainSchedule(schedule, leagueId) {
+            const container = document.getElementById('captainScheduleTable');
+
+            if (!schedule || schedule.length === 0) {
+                container.innerHTML = '<div class="empty-state">No matches scheduled</div>';
+                return;
+            }
+
+            let html = `<table class="schedule-table">
+                <thead><tr>
+                    <th>Week</th><th>Date</th><th>Opponent</th><th>Status</th><th>Availability</th>
+                </tr></thead><tbody>`;
+
+            schedule.forEach(match => {
+                const dateStr = match.match_date ? new Date(match.match_date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : 'TBD';
+                const statusClass = match.completed ? 'completed' : (match.in_progress ? 'in-progress' : 'upcoming');
+                const statusText = match.completed ? 'DONE' : (match.in_progress ? 'LIVE' : 'UPCOMING');
+
+                // Show player availability summary
+                const availSummary = match.availability_summary || { confirmed: 0, unavailable: 0, unknown: 0 };
+
+                html += `<tr>
+                    <td>Week ${match.week}</td>
+                    <td>${dateStr}</td>
+                    <td><strong>${match.opponent_name || 'TBD'}</strong></td>
+                    <td><span class="match-status ${statusClass}">${statusText}</span></td>
+                    <td>
+                        <span style="color: var(--success);">✓${availSummary.confirmed}</span>
+                        <span style="color: var(--danger); margin-left: 10px;">✗${availSummary.unavailable}</span>
+                        <span style="color: var(--text-dim); margin-left: 10px;">?${availSummary.unknown}</span>
+                    </td>
+                </tr>`;
+            });
+
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        function renderSubsList(subs) {
+            const container = document.getElementById('subsList');
+
+            if (!subs || subs.length === 0) {
+                container.innerHTML = '<div class="empty-state"><div class="icon">👥</div><p>No substitute players available</p></div>';
+                return;
+            }
+
+            container.innerHTML = subs.map(s => `
+                <div class="sub-card">
+                    <div class="sub-name">${s.name}</div>
+                    <div class="sub-info">${s.phone || 'No phone'} • ${s.preferred_level || 'Any level'}</div>
+                    <button class="sub-btn" onclick="contactSub('${s.id}', '${s.name}', '${s.phone || ''}')">📱 CONTACT</button>
+                </div>
+            `).join('');
+        }
+
+        function populateLineupMatchSelect(schedule) {
+            const select = document.getElementById('lineupMatchSelect');
+            const upcoming = schedule.filter(m => !m.completed);
+
+            select.innerHTML = '<option value="">-- Select upcoming match --</option>' +
+                upcoming.map(m => {
+                    const dateStr = m.match_date ? new Date(m.match_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'TBD';
+                    return `<option value="${m.id}">Week ${m.week} vs ${m.opponent_name} (${dateStr})</option>`;
+                }).join('');
+        }
+
+        window.loadLineupForMatch = async function() {
+            const matchId = document.getElementById('lineupMatchSelect').value;
+            const builder = document.getElementById('lineupBuilder');
+            const saveBtn = document.getElementById('saveLineupBtn');
+
+            if (!matchId) {
+                builder.style.display = 'none';
+                saveBtn.style.display = 'none';
+                return;
+            }
+
+            // Get match format and current lineup
+            const roster = captainTeamData.roster || [];
+            const match = captainTeamData.schedule.find(m => m.id === matchId);
+            const format = match?.format || captainTeamData.match_format || [];
+
+            let html = '';
+            format.forEach((game, i) => {
+                const gameNum = i + 1;
+                const gameType = game.type === 'doubles' ? 'DOUBLES' : 'SINGLES';
+                const gameFormat = game.format?.toUpperCase() || '501';
+
+                html += `<div class="lineup-row">
+                    <div class="lineup-game">G${gameNum} - ${gameType}<br><span style="font-size: 12px; color: var(--text-dim);">${gameFormat}</span></div>
+                    <select class="lineup-select" id="lineup_g${gameNum}_p1">
+                        <option value="">Select Player</option>
+                        ${roster.map(p => `<option value="${p.id}">${p.name}</option>`).join('')}
+                    </select>
+                    ${game.type === 'doubles' ? `
+                    <select class="lineup-select" id="lineup_g${gameNum}_p2">
+                        <option value="">Select Partner</option>
+                        ${roster.map(p => `<option value="${p.id}">${p.name}</option>`).join('')}
+                    </select>` : ''}
+                </div>`;
+            });
+
+            builder.innerHTML = html;
+            builder.style.display = 'block';
+            saveBtn.style.display = 'block';
+        };
+
+        window.saveLineup = async function() {
+            const matchId = document.getElementById('lineupMatchSelect').value;
+            if (!matchId) return;
+
+            const format = captainTeamData.match_format || [];
+            const lineup = [];
+
+            format.forEach((game, i) => {
+                const gameNum = i + 1;
+                const p1 = document.getElementById(`lineup_g${gameNum}_p1`)?.value;
+                const p2 = document.getElementById(`lineup_g${gameNum}_p2`)?.value;
+
+                lineup.push({
+                    game: gameNum,
+                    player1_id: p1 || null,
+                    player2_id: game.type === 'doubles' ? (p2 || null) : null
+                });
+            });
+
+            try {
+                const [leagueId, teamId] = document.getElementById('captainTeamSelect').value.split('|');
+                const result = await callFunction('setMatchLineup', {
+                    league_id: leagueId,
+                    match_id: matchId,
+                    team_id: teamId,
+                    captain_id: currentPlayer.id,
+                    lineup: lineup
+                });
+
+                if (result.success) {
+                    alert('Lineup saved!');
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                alert('Error saving lineup: ' + error.message);
+            }
+        };
+
+        window.contactSub = function(subId, subName, phone) {
+            if (!phone) {
+                alert(`${subName} does not have a phone number on file.`);
+                return;
+            }
+            // Switch to contact tab and pre-fill
+            switchCaptainSubtab('contact');
+            document.getElementById('contactAllPlayers').checked = false;
+            document.getElementById('contactSubs').checked = false;
+            document.getElementById('captainMessage').value = `Hi ${subName.split(' ')[0]}, are you available to sub this week?`;
+        };
+
+        window.insertCaptainTag = function(tag) {
+            const textarea = document.getElementById('captainMessage');
+            const start = textarea.selectionStart;
+            const text = textarea.value;
+            textarea.value = text.substring(0, start) + tag + text.substring(textarea.selectionEnd);
+            textarea.focus();
+        };
+
+        window.sendTeamMessage = async function() {
+            const message = document.getElementById('captainMessage').value.trim();
+            if (!message) {
+                alert('Please enter a message');
+                return;
+            }
+
+            const allPlayers = document.getElementById('contactAllPlayers').checked;
+            const subsOnly = document.getElementById('contactSubs').checked;
+
+            if (!allPlayers && !subsOnly) {
+                alert('Please select recipients');
+                return;
+            }
+
+            try {
+                const [leagueId, teamId] = document.getElementById('captainTeamSelect').value.split('|');
+                const result = await callFunction('sendCaptainMessage', {
+                    league_id: leagueId,
+                    team_id: teamId,
+                    captain_id: currentPlayer.id,
+                    message: message,
+                    recipients: {
+                        all_players: allPlayers,
+                        subs_only: subsOnly
+                    }
+                });
+
+                if (result.success) {
+                    alert(`Message sent to ${result.sent} player(s)!`);
+                    document.getElementById('captainMessage').value = '';
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                alert('Error sending message: ' + error.message);
+            }
+        };
+
+        // ============================================================================
+        // DIRECTOR FUNCTIONS
+        // ============================================================================
+
+        window.openDirectorDashboard = function() {
+            const leagues = dashboardData.roles.directing || [];
+
+            if (leagues.length === 1) {
+                // Go directly to that league
+                const league = leagues[0];
+                const url = league.type === 'tournament'
+                    ? `/pages/director-dashboard.html?tournament=${league.id}`
+                    : `/pages/league-director.html?league_id=${league.id}`;
+                window.location.href = url;
+            } else {
+                // Show selector modal
+                const select = document.getElementById('directorLeagueSelect');
+                select.innerHTML = leagues.map(l =>
+                    `<option value="${l.type}|${l.id}">${l.name} (${l.type})</option>`
+                ).join('');
+                document.getElementById('directorModal').style.display = 'flex';
+            }
+        };
+
+        window.closeDirectorModal = function() {
+            document.getElementById('directorModal').style.display = 'none';
+        };
+
+        window.goToDirectorDashboard = function() {
+            const [type, id] = document.getElementById('directorLeagueSelect').value.split('|');
+            const url = type === 'tournament'
+                ? `/pages/director-dashboard.html?tournament=${id}`
+                : `/pages/league-director.html?league_id=${id}`;
+            window.location.href = url;
+        };
+
+        // ============================================================================
+        // TAB SWITCHING
+        // ============================================================================
+
+        window.switchTab = function(tabName) {
+            document.querySelectorAll('.tab-container .tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+            event.target.classList.add('active');
+            document.getElementById(tabName + 'Tab').classList.add('active');
+        };
+
+        window.switchCaptainSubtab = function(subtabName) {
+            document.querySelectorAll('.captain-subtab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.captain-subcontent').forEach(c => c.classList.remove('active'));
+
+            event.target.classList.add('active');
+            document.getElementById('captain' + subtabName.charAt(0).toUpperCase() + subtabName.slice(1)).classList.add('active');
+        };
+
+        // ============================================================================
+        // UTILITY FUNCTIONS
+        // ============================================================================
+
+        window.logout = function() {
+            localStorage.removeItem('brdc_session');
+            currentPlayer = null;
+            document.getElementById('pinInput').value = '';
+            showLoginPage();
+        };
+
+        window.showForgotPin = function() {
+            const email = prompt('Enter your email address to recover your PIN:');
+            if (email) {
+                callFunction('recoverPin', { email: email })
+                    .then(result => {
+                        alert(result.message || 'If an account exists, your PIN has been sent to your email.');
+                    })
+                    .catch(error => {
+                        alert('Error: ' + error.message);
+                    });
+            }
+            return false;
+        };
+
+        // Handle Enter key
+        document.getElementById('pinInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') login();
+        });
+
+        // Register service worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js')
+                .then(() => {})
+                .catch(err => console.error('[SW] Registration failed:', err));
+        }
+    </script>
+    <script src="/js/nav-menu.js"></script>
+</body>
+</html>

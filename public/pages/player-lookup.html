@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Player Stats - BRDC Dart League</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Bebas+Neue&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --pink: #FF469A;
+            --teal: #91D7EB;
+            --yellow: #FDD835;
+            --dark-bg: #0a1628;
+            --darker-bg: #060d18;
+            --card-bg: rgba(20, 40, 70, 0.6);
+            --bg-panel: rgba(20, 40, 70, 0.95);
+            --text: #ffffff;
+            --text-muted: rgba(255, 255, 255, 0.6);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: linear-gradient(135deg, var(--darker-bg) 0%, var(--dark-bg) 50%, #0d1f35 100%);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse at 20% 20%, rgba(255, 70, 154, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(145, 215, 235, 0.06) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .header-bar {
+            background: var(--bg-panel);
+            border-bottom: 3px solid var(--pink);
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+        }
+        .header-logo {
+            width: 40px;
+            height: 40px;
+            mix-blend-mode: multiply;
+            filter: drop-shadow(0 0 8px rgba(255, 70, 154, 0.5));
+        }
+        .header-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 28px;
+            letter-spacing: 3px;
+            color: var(--pink);
+        }
+        .back-btn {
+            background: transparent;
+            border: 2px solid var(--pink);
+            color: var(--pink);
+            padding: 8px 16px;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 14px;
+            letter-spacing: 2px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .back-btn:hover {
+            background: var(--pink);
+            color: white;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+
+        /* Search Section */
+        .search-section {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 30px;
+            border: 1px solid rgba(145, 215, 235, 0.2);
+        }
+
+        .search-box {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .search-input {
+            flex: 1;
+            min-width: 250px;
+            padding: 15px 20px;
+            font-size: 1.1rem;
+            border: 2px solid rgba(145, 215, 235, 0.3);
+            border-radius: 12px;
+            background: rgba(0, 0, 0, 0.3);
+            color: var(--text);
+            font-family: inherit;
+            transition: all 0.3s;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--teal);
+            box-shadow: 0 0 20px rgba(145, 215, 235, 0.2);
+        }
+
+        .search-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .search-btn {
+            padding: 15px 40px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border: none;
+            border-radius: 12px;
+            background: linear-gradient(135deg, var(--pink), #d63384);
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-family: inherit;
+        }
+
+        .search-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(255, 70, 154, 0.4);
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+        }
+
+        .tab {
+            padding: 12px 25px;
+            font-size: 1rem;
+            font-weight: 600;
+            border: 2px solid rgba(145, 215, 235, 0.3);
+            border-radius: 30px;
+            background: transparent;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.3s;
+            font-family: inherit;
+        }
+
+        .tab:hover {
+            border-color: var(--teal);
+            color: var(--teal);
+        }
+
+        .tab.active {
+            background: linear-gradient(135deg, var(--teal), #5bc0de);
+            border-color: var(--teal);
+            color: var(--dark-bg);
+        }
+
+        /* Results Section */
+        .results-section {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 25px;
+            border: 1px solid rgba(145, 215, 235, 0.2);
+            min-height: 400px;
+        }
+
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .results-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+        }
+
+        .results-count {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+
+        /* Player Cards */
+        .player-list {
+            display: grid;
+            gap: 15px;
+        }
+
+        .player-card {
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            gap: 20px;
+            align-items: center;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .player-card:hover {
+            border-color: var(--pink);
+            transform: translateX(5px);
+            box-shadow: -4px 0 20px rgba(255, 70, 154, 0.2);
+        }
+
+        .player-avatar {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--pink), var(--teal));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: white;
+            overflow: hidden;
+        }
+
+        .player-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .player-info h3 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .player-meta {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        .player-stats {
+            display: flex;
+            gap: 25px;
+            text-align: center;
+        }
+
+        .stat-item {
+            padding: 8px 15px;
+            background: rgba(145, 215, 235, 0.1);
+            border-radius: 8px;
+        }
+
+        .stat-value {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--teal);
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Leaderboard */
+        .leaderboard {
+            display: grid;
+            gap: 12px;
+        }
+
+        .leaderboard-item {
+            display: grid;
+            grid-template-columns: 50px 1fr auto;
+            gap: 15px;
+            align-items: center;
+            padding: 15px 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s;
+        }
+
+        .leaderboard-item:nth-child(1) {
+            background: linear-gradient(135deg, rgba(253, 216, 53, 0.2), rgba(255, 70, 154, 0.1));
+            border-color: rgba(253, 216, 53, 0.4);
+        }
+
+        .leaderboard-item:nth-child(2) {
+            background: linear-gradient(135deg, rgba(192, 192, 192, 0.15), rgba(145, 215, 235, 0.1));
+            border-color: rgba(192, 192, 192, 0.3);
+        }
+
+        .leaderboard-item:nth-child(3) {
+            background: linear-gradient(135deg, rgba(205, 127, 50, 0.15), rgba(255, 70, 154, 0.1));
+            border-color: rgba(205, 127, 50, 0.3);
+        }
+
+        .rank {
+            font-size: 1.5rem;
+            font-weight: 800;
+            text-align: center;
+        }
+
+        .leaderboard-item:nth-child(1) .rank { color: var(--yellow); }
+        .leaderboard-item:nth-child(2) .rank { color: #c0c0c0; }
+        .leaderboard-item:nth-child(3) .rank { color: #cd7f32; }
+
+        .lb-player-name {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .lb-player-team {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .lb-stat {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--pink);
+        }
+
+        /* League Filter */
+        .filter-row {
+            display: flex;
+            gap: 15px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        .filter-select {
+            padding: 10px 15px;
+            font-size: 0.95rem;
+            border: 2px solid rgba(145, 215, 235, 0.3);
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            color: var(--text);
+            font-family: inherit;
+            cursor: pointer;
+        }
+
+        .filter-select:focus {
+            outline: none;
+            border-color: var(--teal);
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-muted);
+        }
+
+        .empty-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        .empty-state h3 {
+            font-size: 1.3rem;
+            margin-bottom: 10px;
+            color: var(--text);
+        }
+
+        /* Loading */
+        .loading {
+            text-align: center;
+            padding: 40px;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(145, 215, 235, 0.2);
+            border-top-color: var(--teal);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            h1 { font-size: 1.8rem; }
+
+            .player-card {
+                grid-template-columns: 1fr;
+                text-align: center;
+            }
+
+            .player-avatar {
+                margin: 0 auto;
+            }
+
+            .player-stats {
+                justify-content: center;
+            }
+
+            .leaderboard-item {
+                grid-template-columns: 40px 1fr auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header-bar">
+        <button class="back-btn" onclick="history.back()">← BACK</button>
+        <img src="/images/white_logo.jpg" alt="BRDC" class="header-logo">
+        <span class="header-title">PLAYER LOOKUP</span>
+    </div>
+
+    <div class="container">
+        <!-- Search Section -->
+        <div class="search-section">
+            <div class="search-box">
+                <input type="text" id="searchInput" class="search-input" placeholder="Search by player name..." autocomplete="off">
+                <button class="search-btn" onclick="searchPlayers()">Search</button>
+            </div>
+            <div class="filter-row">
+                <select id="leagueFilter" class="filter-select">
+                    <option value="">All Leagues</option>
+                </select>
+                <select id="seasonFilter" class="filter-select">
+                    <option value="">All Seasons</option>
+                    <option value="2025">2025</option>
+                    <option value="2024">2024</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab active" data-tab="search" onclick="switchTab('search')">Search Results</button>
+            <button class="tab" data-tab="501-avg" onclick="switchTab('501-avg')">501 Average</button>
+            <button class="tab" data-tab="501-checkout" onclick="switchTab('501-checkout')">High Checkout</button>
+            <button class="tab" data-tab="cricket-mpr" onclick="switchTab('cricket-mpr')">Cricket MPR</button>
+            <button class="tab" data-tab="wins" onclick="switchTab('wins')">Most Wins</button>
+        </div>
+
+        <!-- Results Section -->
+        <div class="results-section">
+            <div id="searchResults" class="tab-content active">
+                <div class="results-header">
+                    <h2 class="results-title">Search Results</h2>
+                    <span class="results-count" id="resultCount">Enter a name to search</span>
+                </div>
+                <div id="playerList" class="player-list">
+                    <div class="empty-state">
+                        <div class="empty-icon">&#127919;</div>
+                        <h3>Find Any Player</h3>
+                        <p>Search by name to view detailed stats across all leagues</p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="501AvgLeaderboard" class="tab-content" style="display: none;">
+                <div class="results-header">
+                    <h2 class="results-title">501 Average Leaderboard</h2>
+                    <span class="results-count">Top performers</span>
+                </div>
+                <div id="avgLeaderboard" class="leaderboard"></div>
+            </div>
+
+            <div id="501CheckoutLeaderboard" class="tab-content" style="display: none;">
+                <div class="results-header">
+                    <h2 class="results-title">Highest Checkout</h2>
+                    <span class="results-count">Best single checkouts</span>
+                </div>
+                <div id="checkoutLeaderboard" class="leaderboard"></div>
+            </div>
+
+            <div id="cricketMprLeaderboard" class="tab-content" style="display: none;">
+                <div class="results-header">
+                    <h2 class="results-title">Cricket MPR Leaderboard</h2>
+                    <span class="results-count">Marks Per Round</span>
+                </div>
+                <div id="mprLeaderboard" class="leaderboard"></div>
+            </div>
+
+            <div id="winsLeaderboard" class="tab-content" style="display: none;">
+                <div class="results-header">
+                    <h2 class="results-title">Most Wins</h2>
+                    <span class="results-count">Total game wins</span>
+                </div>
+                <div id="winsBoard" class="leaderboard"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'https://us-central1-brdc-v2.cloudfunctions.net';
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadLeagues();
+
+            // Enter key to search
+            document.getElementById('searchInput').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') searchPlayers();
+            });
+        });
+
+        async function callFunction(name, data) {
+            const response = await fetch(`${API_BASE}/${name}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            return response.json();
+        }
+
+        async function loadLeagues() {
+            try {
+                const response = await fetch(`${API_BASE}/getLeagues`);
+                const leagues = await response.json();
+
+                const select = document.getElementById('leagueFilter');
+                leagues.forEach(league => {
+                    const option = document.createElement('option');
+                    option.value = league.id;
+                    option.textContent = league.name;
+                    select.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error loading leagues:', error);
+            }
+        }
+
+        async function searchPlayers() {
+            const query = document.getElementById('searchInput').value.trim();
+            const leagueId = document.getElementById('leagueFilter').value;
+
+            if (!query) {
+                alert('Please enter a player name to search');
+                return;
+            }
+
+            const playerList = document.getElementById('playerList');
+            playerList.innerHTML = '<div class="loading"><div class="spinner"></div><p>Searching...</p></div>';
+
+            try {
+                const result = await callFunction('searchPlayers', {
+                    query,
+                    league_id: leagueId || undefined
+                });
+
+                if (result.error) throw new Error(result.error);
+
+                displaySearchResults(result.players || []);
+            } catch (error) {
+                console.error('Search error:', error);
+                playerList.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">&#9888;</div>
+                        <h3>Search Error</h3>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        function displaySearchResults(players) {
+            const playerList = document.getElementById('playerList');
+            const resultCount = document.getElementById('resultCount');
+
+            resultCount.textContent = `${players.length} player${players.length !== 1 ? 's' : ''} found`;
+
+            if (players.length === 0) {
+                playerList.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">&#128269;</div>
+                        <h3>No Players Found</h3>
+                        <p>Try a different search term</p>
+                    </div>
+                `;
+                return;
+            }
+
+            playerList.innerHTML = players.map(player => {
+                const initials = player.name.split(' ').map(n => n[0]).join('').toUpperCase();
+                const avatar = player.photo
+                    ? `<img src="${player.photo}" alt="${player.name}">`
+                    : initials;
+
+                return `
+                    <div class="player-card" onclick="viewPlayer('${player.id}', '${player.league_id}')">
+                        <div class="player-avatar">${avatar}</div>
+                        <div class="player-info">
+                            <h3>${player.name}</h3>
+                            <p class="player-meta">${player.team_name || 'Free Agent'} &bull; ${player.league_name || 'N/A'}</p>
+                        </div>
+                        <div class="player-stats">
+                            ${player.stats?.['501']?.avg ? `
+                                <div class="stat-item">
+                                    <div class="stat-value">${player.stats['501'].avg.toFixed(1)}</div>
+                                    <div class="stat-label">501 Avg</div>
+                                </div>
+                            ` : ''}
+                            ${player.stats?.cricket?.mpr ? `
+                                <div class="stat-item">
+                                    <div class="stat-value">${player.stats.cricket.mpr.toFixed(2)}</div>
+                                    <div class="stat-label">MPR</div>
+                                </div>
+                            ` : ''}
+                            <div class="stat-item">
+                                <div class="stat-value">${player.stats?.wins || 0}</div>
+                                <div class="stat-label">Wins</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function viewPlayer(playerId, leagueId) {
+            window.location.href = `player-profile.html?id=${playerId}&league=${leagueId}`;
+        }
+
+        function switchTab(tabName) {
+            // Update tab buttons
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.toggle('active', tab.dataset.tab === tabName);
+            });
+
+            // Hide all content
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.style.display = 'none';
+            });
+
+            // Show selected content
+            if (tabName === 'search') {
+                document.getElementById('searchResults').style.display = 'block';
+            } else if (tabName === '501-avg') {
+                document.getElementById('501AvgLeaderboard').style.display = 'block';
+                loadLeaderboard('avg');
+            } else if (tabName === '501-checkout') {
+                document.getElementById('501CheckoutLeaderboard').style.display = 'block';
+                loadLeaderboard('checkout');
+            } else if (tabName === 'cricket-mpr') {
+                document.getElementById('cricketMprLeaderboard').style.display = 'block';
+                loadLeaderboard('mpr');
+            } else if (tabName === 'wins') {
+                document.getElementById('winsLeaderboard').style.display = 'block';
+                loadLeaderboard('wins');
+            }
+        }
+
+        async function loadLeaderboard(type) {
+            const containerId = {
+                'avg': 'avgLeaderboard',
+                'checkout': 'checkoutLeaderboard',
+                'mpr': 'mprLeaderboard',
+                'wins': 'winsBoard'
+            }[type];
+
+            const container = document.getElementById(containerId);
+            container.innerHTML = '<div class="loading"><div class="spinner"></div><p>Loading...</p></div>';
+
+            try {
+                const leagueId = document.getElementById('leagueFilter').value;
+                const result = await callFunction('getGlobalLeaderboards', {
+                    type,
+                    league_id: leagueId || undefined,
+                    limit: 25
+                });
+
+                if (result.error) throw new Error(result.error);
+
+                displayLeaderboard(container, result.leaderboard || [], type);
+            } catch (error) {
+                console.error('Leaderboard error:', error);
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">&#9888;</div>
+                        <h3>Error Loading Leaderboard</h3>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        function displayLeaderboard(container, players, type) {
+            if (players.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">&#127942;</div>
+                        <h3>No Data Yet</h3>
+                        <p>Leaderboards populate as matches are played</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const formatValue = (player) => {
+                switch(type) {
+                    case 'avg': return player.value?.toFixed(1) || '0.0';
+                    case 'checkout': return player.value || 0;
+                    case 'mpr': return player.value?.toFixed(2) || '0.00';
+                    case 'wins': return player.value || 0;
+                    default: return player.value || 0;
+                }
+            };
+
+            container.innerHTML = players.map((player, index) => `
+                <div class="leaderboard-item" onclick="viewPlayer('${player.id}', '${player.league_id}')">
+                    <div class="rank">#${index + 1}</div>
+                    <div>
+                        <div class="lb-player-name">${player.name}</div>
+                        <div class="lb-player-team">${player.team_name || ''} ${player.league_name ? '&bull; ' + player.league_name : ''}</div>
+                    </div>
+                    <div class="lb-stat">${formatValue(player)}</div>
+                </div>
+            `).join('');
+        }
+    </script>
+</body>
+</html>

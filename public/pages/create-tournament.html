@@ -2,679 +2,1928 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Create Tournament - BRDC</title>
     <link rel="icon" type="image/png" href="/images/favicon.png">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#FF469A">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800;900&display=swap');
-        
+        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
         :root {
             --pink: #FF469A;
-            --blue-light: #1F85AF;
-            --blue-dark: #001F4D;
             --teal: #91D7EB;
             --yellow: #FDD835;
-            --black: #000000;
-            --white: #FFFFFF;
+            --bg-dark: #1a1a2e;
+            --bg-panel: #16213e;
+            --bg-card: #1e2a47;
+            --text-light: #f0f0f0;
+            --text-dim: #8a8aa3;
+            --text-muted: #666;
+            --border-color: rgba(255,255,255,0.15);
+            --border-strong: #000;
+            --glow-pink: rgba(255, 70, 154, 0.3);
+            --glow-teal: rgba(145, 215, 235, 0.3);
+            --success: #22c55e;
+            --danger: #ef4444;
         }
-        
-        * { font-family: 'Inter', sans-serif; margin: 0; padding: 0; box-sizing: border-box; }
-        
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+        html, body { min-height: 100%; }
         body {
-            background: linear-gradient(180deg, var(--blue-light) 0%, var(--blue-dark) 100%);
-            min-height: 100vh;
-            padding: 20px;
+            background: linear-gradient(135deg, var(--bg-dark) 0%, #0f0f23 100%);
+            color: var(--text-light);
+            line-height: 1.6;
         }
-        
+
+        /* Background Pattern */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse at 20% 20%, rgba(255, 70, 154, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(145, 215, 235, 0.06) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        /* Container */
         .container {
             max-width: 900px;
             margin: 0 auto;
-            background: var(--white);
-            box-shadow: 12px 12px 0 rgba(0, 0, 0, 1);
-            border: 4px solid var(--black);
+            padding: 40px 20px;
+            padding-bottom: 120px;
         }
-        
-        .header {
-            background: var(--pink);
-            padding: 40px 30px;
-            text-align: center;
-            border-bottom: 4px solid var(--black);
-            box-shadow: 0 6px 0 rgba(0, 0, 0, 1);
+
+        /* Header Bar */
+        .header-bar {
+            background: var(--bg-panel);
+            border-bottom: 3px solid var(--pink);
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
         }
-        
+
+        .back-btn {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border: 2px solid rgba(255,255,255,0.3);
+            padding: 10px 16px;
+            font-weight: 700;
+            cursor: pointer;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .back-btn:hover {
+            background: rgba(255,255,255,0.2);
+            border-color: var(--pink);
+        }
+
+        .header-logo {
+            width: 40px;
+            height: 40px;
+            mix-blend-mode: multiply;
+            filter: drop-shadow(0 0 8px rgba(255, 70, 154, 0.5));
+        }
+
         .header-title {
             font-family: 'Bebas Neue', cursive;
-            font-size: 48px;
-            color: var(--white);
-            letter-spacing: 4px;
-            text-shadow: 6px 6px 0 rgba(0, 0, 0, 1);
+            font-size: 28px;
+            letter-spacing: 3px;
+            color: var(--pink);
         }
-        
-        .header-subtitle {
-            color: var(--white);
-            font-size: 16px;
-            font-weight: 700;
-            text-transform: uppercase;
+
+        /* Sign In Button */
+        .signin-btn {
+            width: 100%;
+            padding: 16px 24px;
+            background: rgba(253, 216, 53, 0.15);
+            border: 2px solid var(--yellow);
+            border-radius: 8px;
+            color: var(--yellow);
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            transition: all 0.2s;
+        }
+
+        .signin-btn:hover {
+            background: rgba(253, 216, 53, 0.25);
+            box-shadow: 0 0 15px rgba(253, 216, 53, 0.3);
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 20px;
+        }
+
+        .modal-card {
+            background: var(--bg-panel);
+            border: 3px solid var(--border-strong);
+            border-radius: 16px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 8px 8px 0 rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, var(--yellow), #f9a825);
+            padding: 20px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h3 {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 24px;
             letter-spacing: 2px;
-            text-shadow: 4px 4px 8px rgba(0, 0, 0, 1);
+            color: #000;
+            margin: 0;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: #000;
+            font-size: 28px;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .modal-body {
+            padding: 24px;
+        }
+
+        .modal-body .form-group {
+            margin-bottom: 16px;
+        }
+
+        .modal-body .btn-submit {
+            width: 100%;
             margin-top: 8px;
         }
-        
-        .form-container { padding: 40px 30px; }
-        
+
+        /* Form Card */
+        .form-card {
+            background: var(--bg-panel);
+            border: 4px solid var(--border-strong);
+            border-radius: 16px;
+            box-shadow: 8px 8px 0 rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+        }
+
+        /* Section */
+        .section {
+            padding: 30px;
+            border-bottom: 3px solid var(--border-strong);
+        }
+
+        .section:last-child {
+            border-bottom: none;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 25px;
+        }
+
+        .section-icon {
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(135deg, var(--pink), #d63384);
+            border: 3px solid var(--border-strong);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.5);
+        }
+
+        .section-icon.teal {
+            background: linear-gradient(135deg, var(--teal), #5ab8d4);
+        }
+
+        .section-icon.yellow {
+            background: linear-gradient(135deg, var(--yellow), #f9a825);
+        }
+
         .section-title {
             font-family: 'Bebas Neue', cursive;
-            font-size: 32px;
-            color: var(--black);
-            margin-bottom: 20px;
+            font-size: 26px;
             letter-spacing: 2px;
-            text-shadow: 4px 4px 8px rgba(0, 0, 0, 0.3);
+            color: var(--pink);
         }
-        
-        .form-label {
-            display: block;
-            font-weight: 800;
-            color: var(--black);
-            margin-bottom: 8px;
-            font-size: 13px;
-            text-transform: uppercase;
+
+        .section-subtitle {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        /* Form Elements */
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .form-group.full-width {
+            grid-column: 1 / -1;
+        }
+
+        label, .form-label {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 16px;
             letter-spacing: 1px;
+            color: var(--teal);
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
-        
-        .input-field {
-            width: 100%;
-            padding: 14px 16px;
-            border: 3px solid var(--black);
-            font-size: 15px;
-            font-weight: 600;
-            background: var(--white);
-            box-shadow: 4px 4px 0 rgba(0, 0, 0, 1);
-            margin-bottom: 20px;
+
+        label .required, .form-label .required {
+            color: var(--pink);
         }
-        
-        .input-field:focus {
+
+        .form-label.required::after {
+            content: ' *';
+            color: var(--pink);
+        }
+
+        input, select, textarea, .input-field {
+            padding: 12px 16px;
+            background: var(--bg-card);
+            border: 3px solid var(--border-strong);
+            border-radius: 8px;
+            color: var(--text-light);
+            font-family: inherit;
+            font-size: 0.95rem;
+            transition: all 0.2s;
+            box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.3);
+        }
+
+        input:focus, select:focus, textarea:focus, .input-field:focus {
             outline: none;
-            border-color: var(--pink);
-            box-shadow: 0 0 0 3px rgba(255, 70, 154, 0.3), 6px 6px 0 rgba(0, 0, 0, 1);
+            border-color: var(--teal);
+            box-shadow: 0 0 0 3px var(--glow-teal);
         }
-        
-        textarea.input-field {
+
+        input::placeholder, .input-field::placeholder {
+            color: var(--text-muted);
+        }
+
+        select {
+            cursor: pointer;
+        }
+
+        textarea, textarea.input-field {
             resize: vertical;
+            min-height: 80px;
             line-height: 1.5;
         }
-        
-        .btn-primary {
-            background: var(--pink);
-            color: var(--white);
-            padding: 16px 32px;
-            border: 4px solid var(--black);
-            font-weight: 900;
-            font-size: 16px;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            cursor: pointer;
-            font-family: 'Bebas Neue', cursive;
-            box-shadow: 6px 6px 0 rgba(0, 0, 0, 1);
-            text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.8);
+
+        .helper-text {
+            font-size: 0.8rem;
+            color: var(--text-muted);
         }
-        
-        .btn-primary:hover {
-            background: #E03786;
-            transform: translateY(-4px);
-            box-shadow: 10px 10px 0 rgba(0, 0, 0, 1);
+
+        /* Grid Layouts */
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
         }
-        
-        .btn-secondary {
-            background: var(--teal);
-            color: var(--black);
-            padding: 12px 24px;
-            border: 3px solid var(--black);
-            font-weight: 800;
-            font-size: 14px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            cursor: pointer;
-            box-shadow: 4px 4px 0 rgba(0, 0, 0, 1);
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 20px;
         }
-        
-        .btn-secondary:hover {
-            background: #7DC8E0;
-            transform: translateY(-3px);
-            box-shadow: 6px 6px 0 rgba(0, 0, 0, 1);
+
+        .full-width {
+            grid-column: 1 / -1;
         }
-        
-        .btn-danger {
-            background: #E03786;
-            color: var(--white);
-            padding: 10px 20px;
-            border: 3px solid var(--black);
-            font-weight: 800;
-            font-size: 13px;
-            text-transform: uppercase;
-            cursor: pointer;
-            box-shadow: 3px 3px 0 rgba(0, 0, 0, 1);
-        }
-        
+
+        /* Event Card */
         .event-card {
-            border: 4px solid var(--black);
-            padding: 24px;
+            background: var(--bg-card);
+            border: 3px solid #000;
+            border-radius: 12px;
+            padding: 20px;
             margin-bottom: 16px;
-            background: #f9fafb;
-            box-shadow: 6px 6px 0 rgba(0, 0, 0, 1);
+            box-shadow: 5px 5px 0 rgba(0,0,0,0.4);
+            position: relative;
         }
-        
+
         .event-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 20px;
             padding-bottom: 16px;
-            border-bottom: 3px solid var(--black);
+            border-bottom: 2px solid var(--border-color);
         }
-        
+
         .event-number {
             font-family: 'Bebas Neue', cursive;
-            font-size: 28px;
-            color: var(--black);
+            font-size: 26px;
+            color: var(--yellow);
             letter-spacing: 2px;
         }
-        
-        .grid-2 {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 16px;
+
+        .btn-remove {
+            background: linear-gradient(180deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+            padding: 8px 16px;
+            border: 2px solid #000;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            box-shadow: 2px 2px 0 rgba(0,0,0,0.4);
         }
-        
-        .grid-3 {
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            gap: 16px;
+
+        .btn-remove:active {
+            transform: translateY(2px);
+            box-shadow: none;
         }
-        
-        .form-group { margin-bottom: 20px; }
-        
-        .footer-actions {
-            padding: 30px;
-            border-top: 4px solid var(--black);
+
+        /* Config Row (from game-setup) */
+        .config-row {
             display: flex;
-            gap: 16px;
-            justify-content: flex-end;
-            background: #f9fafb;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border-color);
         }
-        
-        .in-out-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
+
+        .config-row:last-child {
+            border-bottom: none;
         }
-        
-        .leg-selector {
-            background: var(--white);
-            border: 3px solid var(--black);
-            padding: 16px;
+
+        .config-label {
+            color: rgba(255,255,255,0.8);
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .config-select {
+            background: rgba(255,255,255,0.1);
+            border: 2px solid var(--border-color);
+            border-radius: 6px;
+            padding: 10px 14px;
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+            min-width: 150px;
+            cursor: pointer;
+        }
+
+        .config-select:focus {
+            outline: none;
+            border-color: var(--pink);
+        }
+
+        .config-select option {
+            background: var(--bg-dark);
+        }
+
+        .config-select.mini {
+            min-width: 60px;
+            padding: 10px 8px;
+        }
+
+        .config-input {
+            background: rgba(255,255,255,0.1);
+            border: 2px solid var(--border-color);
+            border-radius: 6px;
+            padding: 10px 14px;
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+            width: 80px;
+            text-align: center;
+        }
+
+        .config-input:focus {
+            outline: none;
+            border-color: var(--pink);
+        }
+
+        /* Toggle Group (from game-setup) */
+        .toggle-group {
+            display: flex;
+            background: rgba(0,0,0,0.3);
+            border-radius: 6px;
+            padding: 3px;
+        }
+
+        .toggle-btn {
+            flex: 1;
+            padding: 10px 16px;
+            border: none;
+            background: transparent;
+            color: rgba(255,255,255,0.5);
+            font-weight: 700;
+            font-size: 13px;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.15s;
+        }
+
+        .toggle-btn.active {
+            background: var(--pink);
+            color: white;
+        }
+
+        /* Subsection */
+        .subsection {
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+            padding: 14px;
+            margin-top: 12px;
+        }
+
+        .subsection-title {
+            font-weight: 700;
+            font-size: 13px;
+            color: var(--yellow);
+            text-transform: uppercase;
+            letter-spacing: 1px;
             margin-bottom: 12px;
-            box-shadow: 3px 3px 0 rgba(0, 0, 0, 1);
         }
-        
-        .leg-title {
+
+        /* Mixed Config */
+        .mixed-config {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .mixed-leg-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px;
+            background: rgba(0,0,0,0.25);
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+
+        .leg-label {
+            font-weight: 700;
+            color: var(--yellow);
+            min-width: 45px;
+            font-size: 13px;
+        }
+
+        .mixed-leg-row .config-select.game-type-select {
+            width: 100px;
+            min-width: 100px;
+            flex-shrink: 0;
+        }
+
+        .x01-inline {
+            display: flex;
+            gap: 6px;
+            flex: 1;
+        }
+
+        .x01-inline .config-input {
+            width: 70px;
+            min-width: 70px;
+        }
+
+        /* Starter Row */
+        .starter-row {
+            margin-top: 12px;
+            padding: 12px;
+            background: rgba(253,216,53,0.1);
+            border-radius: 8px;
+            border: 1px solid rgba(253,216,53,0.3);
+        }
+
+        .starter-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .starter-btn {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid var(--border-color);
+            border-radius: 6px;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .starter-btn.active {
+            border-color: var(--yellow);
+            background: rgba(253,216,53,0.2);
+            color: var(--yellow);
+        }
+
+        /* In/Out Grid */
+        .in-out-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        /* Buttons */
+        .btn-add-event {
+            background: linear-gradient(180deg, var(--teal) 0%, #6bc0d4 100%);
+            color: #000;
+            padding: 14px 24px;
+            border: 3px solid #000;
+            border-radius: 8px;
             font-family: 'Bebas Neue', cursive;
             font-size: 20px;
-            color: var(--black);
-            margin-bottom: 12px;
+            letter-spacing: 2px;
+            cursor: pointer;
+            box-shadow: 4px 4px 0 rgba(0,0,0,0.4);
+            transition: all 0.2s;
         }
-        
+
+        .btn-add-event:hover {
+            transform: translateY(-2px);
+            box-shadow: 6px 6px 0 rgba(0,0,0,0.4);
+        }
+
+        .btn-add-event:active {
+            transform: translateY(2px);
+            box-shadow: 2px 2px 0 rgba(0,0,0,0.4);
+        }
+
+        /* Footer */
+        .footer-actions {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 20px;
+            background: linear-gradient(to top, var(--bg-dark) 80%, transparent);
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+        }
+
+        .btn-cancel {
+            padding: 18px 30px;
+            background: var(--bg-card);
+            border: 3px solid var(--border-strong);
+            border-radius: 10px;
+            color: var(--text-light);
+            font-family: 'Bebas Neue', cursive;
+            font-size: 18px;
+            letter-spacing: 1px;
+            cursor: pointer;
+            box-shadow: 4px 4px 0 rgba(0,0,0,0.5);
+            transition: all 0.2s;
+        }
+
+        .btn-cancel:hover {
+            border-color: var(--teal);
+            transform: translate(-2px, -2px);
+            box-shadow: 6px 6px 0 rgba(0,0,0,0.5);
+        }
+
+        .btn-submit {
+            padding: 18px 40px;
+            background: linear-gradient(135deg, var(--pink), #d63384);
+            border: 4px solid var(--border-strong);
+            border-radius: 12px;
+            color: white;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 22px;
+            letter-spacing: 2px;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 6px 6px 0 rgba(0, 0, 0, 0.5);
+        }
+
+        .btn-submit:hover {
+            transform: translate(-3px, -3px);
+            box-shadow: 9px 9px 0 rgba(0, 0, 0, 0.5);
+        }
+
+        .btn-submit:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Template & Draft Buttons */
+        .template-draft-section {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .secondary-btn {
+            padding: 12px 20px;
+            background: var(--bg-card);
+            border: 3px solid var(--border-strong);
+            border-radius: 10px;
+            color: var(--text-primary);
+            font-family: 'Bebas Neue', cursive;
+            font-size: 14px;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.4);
+        }
+
+        .secondary-btn:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: 6px 6px 0 rgba(0, 0, 0, 0.4);
+        }
+
+        .secondary-btn.template-btn {
+            border-color: var(--teal);
+            color: var(--teal);
+        }
+
+        .secondary-btn.draft-btn {
+            border-color: var(--yellow);
+            color: var(--yellow);
+        }
+
+        /* Template Modal */
+        .template-list {
+            max-height: 300px;
+            overflow-y: auto;
+            margin: 16px 0;
+        }
+
+        .template-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            background: var(--bg-card);
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .template-item:hover {
+            border-color: var(--teal);
+            background: rgba(145, 215, 235, 0.1);
+        }
+
+        .template-item .template-name {
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .template-item .template-meta {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .template-item .template-delete {
+            background: rgba(239, 68, 68, 0.2);
+            border: none;
+            color: #ef4444;
+            padding: 6px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .no-templates {
+            text-align: center;
+            padding: 30px;
+            color: var(--text-muted);
+            font-style: italic;
+        }
+
+        /* Responsive */
         @media (max-width: 768px) {
-            .grid-2, .grid-3, .in-out-grid { grid-template-columns: 1fr; }
-            .header-title { font-size: 32px; }
+            .grid-2, .grid-3 {
+                grid-template-columns: 1fr;
+            }
+
+            .config-row {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+            }
+
+            .config-select, .toggle-group {
+                width: 100%;
+            }
+
+            .mixed-leg-row {
+                flex-wrap: wrap;
+            }
+
+            .footer-actions {
+                flex-direction: column;
+            }
+
+            .btn-cancel, .btn-submit {
+                width: 100%;
+                max-width: 400px;
+                margin: 0 auto;
+            }
+        }
+
+        /* Success Page */
+        .success-page {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .success-card {
+            background: var(--bg-panel);
+            border: 4px solid var(--pink);
+            border-radius: 16px;
+            padding: 40px;
+            max-width: 500px;
+            text-align: center;
+            box-shadow: 10px 10px 0 rgba(0,0,0,0.5);
+        }
+
+        .success-icon {
+            font-size: 80px;
+            margin-bottom: 20px;
+        }
+
+        .success-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 42px;
+            color: var(--pink);
+            letter-spacing: 3px;
+            margin-bottom: 20px;
+        }
+
+        .pin-display {
+            background: var(--yellow);
+            border: 4px solid #000;
+            border-radius: 12px;
+            padding: 24px;
+            margin: 24px 0;
+            box-shadow: 6px 6px 0 rgba(0,0,0,0.4);
+        }
+
+        .pin-label {
+            font-size: 14px;
+            font-weight: 800;
+            text-transform: uppercase;
+            color: #000;
+            margin-bottom: 8px;
+        }
+
+        .pin-value {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 64px;
+            color: #000;
+        }
+
+        .pin-hint {
+            font-size: 12px;
+            color: #666;
+            margin-top: 8px;
+        }
+
+        .success-link {
+            display: inline-block;
+            background: linear-gradient(180deg, var(--success) 0%, #16a34a 100%);
+            color: white;
+            padding: 18px 36px;
+            border: 3px solid #000;
+            border-radius: 10px;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 24px;
+            letter-spacing: 2px;
+            text-decoration: none;
+            box-shadow: 5px 5px 0 rgba(0,0,0,0.4);
+            margin-top: 20px;
         }
     </style>
 </head>
 <body>
+    <div class="header-bar">
+        <button class="back-btn" onclick="window.location.href='/'">BACK</button>
+        <img src="/images/white_logo.jpg" alt="BRDC" class="header-logo">
+        <h1 class="header-title">CREATE TOURNAMENT</h1>
+    </div>
+
     <div class="container">
-        <div class="header">
-            <div class="header-title">🎯 CREATE TOURNAMENT</div>
-            <div class="header-subtitle">Burning River Dart Club</div>
-        </div>
-        
-        <form id="tournamentForm" class="form-container">
+        <form id="tournamentForm" class="form-card">
+            <!-- Director Information (FIRST) -->
+            <div class="section">
+                <div class="section-header">
+                    <div class="section-icon">&#128100;</div>
+                    <div>
+                        <div class="section-title">TOURNAMENT DIRECTOR</div>
+                        <div class="section-subtitle">Your info for managing the tournament</div>
+                    </div>
+                </div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>First Name <span class="required">*</span></label>
+                        <input type="text" name="director_first" id="directorFirstName" required placeholder="First Name">
+                    </div>
+                    <div class="form-group">
+                        <label>Last Name <span class="required">*</span></label>
+                        <input type="text" name="director_last" id="directorLastName" required placeholder="Last Name">
+                    </div>
+                    <div class="form-group">
+                        <label>Director Email <span class="required">*</span></label>
+                        <input type="email" name="director_email" id="directorEmail" required placeholder="you@email.com">
+                        <span class="helper-text">Used for PIN recovery & notifications</span>
+                    </div>
+                    <div class="form-group">
+                        <label>Director Phone <span class="required">*</span></label>
+                        <input type="tel" name="director_phone" id="directorPhone" required placeholder="(555) 123-4567">
+                    </div>
+                    <div class="form-group full-width" style="margin-top: 16px;">
+                        <button type="button" class="signin-btn" onclick="openSignInModal()">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="7" r="4"/><path d="M5.5 21a8.5 8.5 0 0 1 13 0"/>
+                            </svg>
+                            Already a member? Enter your PIN
+                        </button>
+                    </div>
+                </div>
+                <input type="hidden" name="director_player_id" id="directorPlayerId" value="">
+            </div>
+
             <!-- Tournament Details -->
-            <div style="margin-bottom: 40px;">
-                <h2 class="section-title">Tournament Details</h2>
-                <div class="grid-2">
-                    <div class="form-group" style="grid-column: 1 / -1;">
-                        <label class="form-label">Tournament Name *</label>
-                        <input type="text" name="tournament_name" required class="input-field" placeholder="Weekly Tournament">
+            <div class="section">
+                <div class="section-header">
+                    <div class="section-icon teal">&#127919;</div>
+                    <div>
+                        <div class="section-title">TOURNAMENT INFORMATION</div>
+                        <div class="section-subtitle">Basic details about your tournament</div>
+                    </div>
+                </div>
+                <div class="form-grid">
+                    <div class="form-group full-width">
+                        <label>Tournament Name <span class="required">*</span></label>
+                        <input type="text" name="tournament_name" required placeholder="Weekly Tournament">
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Date *</label>
-                        <input type="date" name="tournament_date" required class="input-field">
+                        <label>Venue / Location <span class="required">*</span></label>
+                        <input type="text" name="venue_name" required placeholder="Rookies Sports Bar">
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Time</label>
-                        <input type="time" name="tournament_time" class="input-field">
+                        <label>Venue Address</label>
+                        <input type="text" name="venue_address" placeholder="123 Main St, City, State">
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Venue Name *</label>
-                        <input type="text" name="venue_name" required class="input-field" placeholder="Rookies">
+                        <label>Date <span class="required">*</span></label>
+                        <input type="date" name="tournament_date" required>
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Venue Address</label>
-                        <input type="text" name="venue_address" class="input-field" placeholder="123 Main St, City, State">
+                        <label>Time</label>
+                        <input type="time" name="tournament_time">
                     </div>
-                    <div class="form-group" style="grid-column: 1 / -1;">
-                        <label class="form-label">Tournament Details / Special Info</label>
-                        <textarea name="tournament_details" class="input-field" rows="3" placeholder="Any special rules or info..."></textarea>
+                    <div class="form-group full-width">
+                        <label>Tournament Details / Special Info</label>
+                        <textarea name="tournament_details" rows="3" placeholder="Any special rules or info..."></textarea>
                     </div>
                 </div>
             </div>
-            
-            <!-- Director Info -->
-            <div style="margin-bottom: 40px;">
-                <h2 class="section-title">Director Information</h2>
-                <div class="grid-2">
-                    <div class="form-group">
-                        <label class="form-label">First Name *</label>
-                        <input type="text" name="director_first" required class="input-field">
+
+            <!-- Events Section -->
+            <div class="section">
+                <div class="section-header">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div class="section-icon yellow">&#127942;</div>
+                        <div>
+                            <div class="section-title">EVENTS</div>
+                            <div class="section-subtitle">Configure tournament events</div>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label class="form-label">Last Name *</label>
-                        <input type="text" name="director_last" required class="input-field">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Email *</label>
-                        <input type="email" name="director_email" required class="input-field">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Phone</label>
-                        <input type="tel" name="director_phone" class="input-field">
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Events -->
-            <div>
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                    <h2 class="section-title" style="margin: 0;">Events</h2>
-                    <button type="button" class="btn-secondary" onclick="addEvent()">+ Add Event</button>
                 </div>
                 <div id="eventsContainer"></div>
+                <button type="button" class="btn-add-event" onclick="addEvent()" style="margin-top: 16px; width: 100%;">+ ADD EVENT</button>
             </div>
         </form>
-        
-        <div class="footer-actions">
-            <button type="button" class="btn-secondary" onclick="window.location.href='/'">Cancel</button>
-            <button type="button" class="btn-primary" onclick="submitTournament()">Create Tournament</button>
+    </div>
+
+    <div class="footer-actions">
+        <!-- Template & Draft Options (only visible when signed in) -->
+        <div id="templateDraftSection" class="template-draft-section">
+            <button type="button" class="secondary-btn template-btn" onclick="saveAsTemplate()">
+                📋 SAVE AS TEMPLATE
+            </button>
+            <button type="button" class="secondary-btn template-btn" onclick="openTemplateModal()">
+                📂 LOAD TEMPLATE
+            </button>
+            <button type="button" class="secondary-btn draft-btn" onclick="saveAsDraft()">
+                💾 SAVE AS DRAFT
+            </button>
+        </div>
+        <button type="button" class="btn-cancel" onclick="window.location.href='/'">CANCEL</button>
+        <button type="button" class="btn-submit" id="submitBtn" onclick="submitTournament()">CREATE TOURNAMENT</button>
+    </div>
+
+    <!-- Template Modal -->
+    <div id="templateModal" class="modal-overlay" style="display: none;">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>MY TEMPLATES</h3>
+                <button type="button" class="modal-close" onclick="closeTemplateModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom: 16px; color: var(--text-dim);">Select a template to load its settings</p>
+                <div id="templateList" class="template-list">
+                    <div class="no-templates">Loading templates...</div>
+                </div>
+            </div>
         </div>
     </div>
-    
-    <script type="module">
-        import { callFunction } from '/js/firebase-config.js';
-        
-        let eventCounter = 0;
-        
-        window.onload = function() {
-            addEvent();
-        };
-        
-        window.addEvent = function() {
-            eventCounter++;
-            const container = document.getElementById('eventsContainer');
-            
-            const html = `
-                <div class="event-card" id="event-${eventCounter}">
-                    <div class="event-header">
-                        <h3 class="event-number">Event ${eventCounter}</h3>
-                        ${eventCounter > 1 ? `<button type="button" class="btn-danger" onclick="removeEvent(${eventCounter})">Remove</button>` : ''}
+
+    <!-- Sign In Modal -->
+    <div id="signInModal" class="modal-overlay" style="display: none;">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>SIGN IN</h3>
+                <button type="button" class="modal-close" onclick="closeSignInModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom: 20px; color: var(--text-dim);">Enter your 8-digit PIN to load your information</p>
+                <div class="form-group">
+                    <label>Your PIN</label>
+                    <input type="text" id="signInPin" placeholder="12345678" maxlength="8" pattern="[0-9]{8}" style="text-align: center; font-size: 24px; letter-spacing: 4px;">
+                </div>
+                <div id="signInStatus" style="display: none; padding: 12px; border-radius: 8px; margin-bottom: 16px;"></div>
+                <button type="button" class="btn-submit" onclick="lookupDirector()" style="width: 100%;">SIGN IN</button>
+            </div>
+        </div>
+    </div>
+
+<script type="module">
+import { callFunction } from '/js/firebase-config.js';
+
+let eventCounter = 0;
+
+// State for each event's leg configuration
+const eventConfigs = {};
+
+// Modal functions
+window.openSignInModal = function() {
+    document.getElementById('signInModal').style.display = 'flex';
+    document.getElementById('signInPin').value = '';
+    document.getElementById('signInStatus').style.display = 'none';
+    document.getElementById('signInPin').focus();
+};
+
+window.closeSignInModal = function() {
+    document.getElementById('signInModal').style.display = 'none';
+};
+
+// Handle Enter key on PIN input
+document.getElementById('signInPin').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        lookupDirector();
+    }
+});
+
+// Director PIN lookup
+window.lookupDirector = async function() {
+    const pin = document.getElementById('signInPin').value;
+    const statusEl = document.getElementById('signInStatus');
+
+    if (!pin || pin.length !== 8) {
+        statusEl.textContent = 'Please enter an 8-digit PIN';
+        statusEl.style.background = 'rgba(239, 68, 68, 0.2)';
+        statusEl.style.color = '#ef4444';
+        statusEl.style.display = 'block';
+        return;
+    }
+
+    try {
+        statusEl.textContent = 'Looking up...';
+        statusEl.style.background = 'rgba(145, 215, 235, 0.2)';
+        statusEl.style.color = 'var(--teal)';
+        statusEl.style.display = 'block';
+
+        const result = await callFunction('playerLogin', { pin: pin });
+
+        if (result.success && result.player) {
+            const player = result.player;
+
+            // Handle first/last name - split if only name is available
+            if (player.first_name && player.last_name) {
+                document.getElementById('directorFirstName').value = player.first_name;
+                document.getElementById('directorLastName').value = player.last_name;
+            } else if (player.name) {
+                const nameParts = player.name.trim().split(/\s+/);
+                if (nameParts.length >= 2) {
+                    document.getElementById('directorFirstName').value = nameParts[0];
+                    document.getElementById('directorLastName').value = nameParts.slice(1).join(' ');
+                } else {
+                    document.getElementById('directorFirstName').value = player.name;
+                    document.getElementById('directorLastName').value = '';
+                }
+            }
+
+            document.getElementById('directorEmail').value = player.email || '';
+            document.getElementById('directorPhone').value = player.phone || '';
+            document.getElementById('directorPlayerId').value = player.player_id || '';
+
+            statusEl.textContent = `Found: ${player.first_name || player.name}`;
+            statusEl.style.background = 'rgba(16, 185, 129, 0.2)';
+            statusEl.style.color = '#10b981';
+
+            // Store director PIN for template/draft functions
+            window.directorPin = pin;
+
+            // Show template/draft section
+            document.getElementById('templateDraftSection').style.display = 'flex';
+
+            // Check for existing draft
+            checkForDraft();
+
+            // Close modal after short delay on success
+            setTimeout(() => {
+                closeSignInModal();
+            }, 800);
+        } else {
+            statusEl.textContent = 'PIN not found. Please check and try again.';
+            statusEl.style.background = 'rgba(239, 68, 68, 0.2)';
+            statusEl.style.color = '#ef4444';
+        }
+    } catch (error) {
+        statusEl.textContent = 'Lookup failed. Please try again.';
+        statusEl.style.background = 'rgba(239, 68, 68, 0.2)';
+        statusEl.style.color = '#ef4444';
+    }
+};
+
+window.onload = function() {
+    addEvent();
+};
+
+window.addEvent = function() {
+    eventCounter++;
+    const eventId = eventCounter;
+    const container = document.getElementById('eventsContainer');
+
+    // Initialize config for this event
+    eventConfigs[eventId] = {
+        legMode: 'best-of',
+        numLegs: 3,
+        mixedLegs: [],
+        selectedStarter: 'home'
+    };
+
+    const html = `
+        <div class="event-card" id="event-${eventId}">
+            <div class="event-header">
+                <h3 class="event-number">EVENT ${eventId}</h3>
+                ${eventId > 1 ? `<button type="button" class="btn-remove" onclick="removeEvent(${eventId})">REMOVE</button>` : ''}
+            </div>
+
+            <!-- Event Basics -->
+            <div class="grid-2">
+                <div class="form-group full-width">
+                    <label class="form-label required">Event Name</label>
+                    <input type="text" name="events[${eventId}][event_name]" required class="input-field" placeholder="Open Singles">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Start Time</label>
+                    <input type="time" name="events[${eventId}][start_time]" class="input-field">
+                </div>
+                <div class="form-group">
+                    <label class="form-label required">Entry Fee ($)</label>
+                    <input type="number" name="events[${eventId}][entry_fee]" required min="0" value="10" step="0.01" class="input-field">
+                </div>
+            </div>
+
+            <!-- Event Type & Format -->
+            <div class="grid-2">
+                <div class="form-group">
+                    <label class="form-label required">Event Type</label>
+                    <select name="events[${eventId}][event_type]" required class="input-field">
+                        <option value="">Select type...</option>
+                        <option value="individual">Singles (1v1)</option>
+                        <option value="doubles">Doubles (2v2)</option>
+                        <option value="triples">Triples (3v3)</option>
+                        <option value="blind_draw">Blind Draw</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label required">Bracket Format</label>
+                    <select name="events[${eventId}][format]" required class="input-field">
+                        <option value="single_elim">Single Elimination</option>
+                        <option value="double_elim">Double Elimination</option>
+                        <option value="round_robin">Round Robin</option>
+                        <option value="swiss">Swiss System</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Game Configuration (from game-setup) -->
+            <div class="subsection">
+                <div class="subsection-title">Game Configuration</div>
+
+                <div class="config-row">
+                    <span class="config-label">Number of Legs</span>
+                    <select class="config-select" id="numLegs_${eventId}" onchange="handleLegsChange(${eventId})">
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="3" selected>3</option>
+                        <option value="4">4</option>
+                        <option value="5">5</option>
+                        <option value="6">6</option>
+                        <option value="7">7</option>
+                        <option value="8">8</option>
+                        <option value="9">9</option>
+                    </select>
+                </div>
+
+                <div class="config-row">
+                    <span class="config-label">Leg Mode</span>
+                    <div class="toggle-group" id="legModeToggle_${eventId}">
+                        <button type="button" class="toggle-btn active" data-value="best-of" onclick="setLegMode(${eventId}, 'best-of')">Best Of</button>
+                        <button type="button" class="toggle-btn" data-value="play-all" onclick="setLegMode(${eventId}, 'play-all')">Play All</button>
                     </div>
-                    
-                    <!-- EVENT BASICS -->
-                    <div class="grid-3">
-                        <div class="form-group" style="grid-column: 1 / -1;">
-                            <label class="form-label">Event Name *</label>
-                            <input type="text" name="events[${eventCounter}][event_name]" required class="input-field" placeholder="Open Singles">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label class="form-label">Start Time</label>
-                            <input type="time" name="events[${eventCounter}][start_time]" class="input-field">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label class="form-label">Entry Fee ($) *</label>
-                            <input type="number" name="events[${eventCounter}][entry_fee]" required min="0" value="10" step="0.01" class="input-field">
-                        </div>
+                </div>
+
+                <div class="config-row" id="setsRow_${eventId}" style="display: none;">
+                    <span class="config-label">Number of Sets</span>
+                    <select class="config-select" id="numSets_${eventId}">
+                        <option value="0" selected>No Sets</option>
+                        <option value="1">1 Set</option>
+                        <option value="2">2 Sets</option>
+                        <option value="3">3 Sets</option>
+                    </select>
+                </div>
+
+                <div class="config-row" id="startRulesRow_${eventId}">
+                    <span class="config-label">Start Rules</span>
+                    <select class="config-select" id="startRules_${eventId}" onchange="handleStartRulesChange(${eventId})">
+                        <option value="cork-every">Cork every leg</option>
+                        <option value="alternate-cork">Alternate, cork first/deciding</option>
+                        <option value="loser-cork">Loser starts, cork first/deciding</option>
+                        <option value="winner-cork">Winner starts, cork first/deciding</option>
+                        <option value="select-starter">Select starter</option>
+                    </select>
+                </div>
+
+                <div class="starter-row" id="starterRow_${eventId}" style="display: none;">
+                    <span class="config-label">Who starts first?</span>
+                    <div class="starter-buttons">
+                        <button type="button" class="starter-btn active" data-team="home" onclick="setStarter(${eventId}, 'home')">Home / Higher Seed</button>
+                        <button type="button" class="starter-btn" data-team="away" onclick="setStarter(${eventId}, 'away')">Away / Lower Seed</button>
                     </div>
-                    
-                    <!-- EVENT TYPE & FORMAT -->
-                    <div class="grid-2">
-                        <div class="form-group">
-                            <label class="form-label">Event Type *</label>
-                            <select name="events[${eventCounter}][event_type]" required class="input-field">
-                                <option value="">Select type...</option>
-                                <option value="individual">👤 Singles (1v1)</option>
-                                <option value="doubles">👥 Doubles (2v2)</option>
-                                <option value="triples">👥 Triples (3v3)</option>
-                                <option value="blind_draw">🎲 Blind Draw</option>
-                            </select>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label class="form-label">Format *</label>
-                            <select id="format_${eventCounter}" name="events[${eventCounter}][format]" required class="input-field" onchange="handleFormatChange(${eventCounter})">
-                                <option value="single_elim">Single Elimination</option>
-                                <option value="double_elim">Double Elimination</option>
-                                <option value="round_robin">Round Robin</option>
-                                <option value="swiss">Swiss System</option>
-                            </select>
-                        </div>
-                    </div>
-                    
-                    <!-- GAME & LEGS -->
-                    <div class="grid-2">
-                        <div class="form-group">
-                            <label class="form-label">Game *</label>
-                            <select id="game_${eventCounter}" name="events[${eventCounter}][game]" required class="input-field" onchange="handleGameChange(${eventCounter})">
-                                <option value="">Select game...</option>
-                                <option value="501">501</option>
-                                <option value="301">301</option>
-                                <option value="701">701</option>
-                                <option value="cricket">Cricket</option>
-                                <option value="mixed">🎲 Mixed Format</option>
-                            </select>
-                        </div>
-                        
-                        <div class="form-group" id="best_of_container_${eventCounter}">
-                            <label class="form-label">Best Of (Legs) *</label>
-                            <input type="number" id="best_of_${eventCounter}" name="events[${eventCounter}][best_of]" min="1" value="3" required class="input-field" onchange="handleBestOfChange(${eventCounter})">
-                        </div>
-                        
-                        <div class="form-group" id="total_legs_container_${eventCounter}" style="display: none;">
-                            <label class="form-label">Total Legs *</label>
-                            <input type="number" id="total_legs_${eventCounter}" name="events[${eventCounter}][total_legs]" min="1" value="5" class="input-field" onchange="handleBestOfChange(${eventCounter})">
-                        </div>
-                    </div>
-                    
-                    <!-- IN/OUT OPTIONS (Show for X01 games) -->
-                    <div id="in_out_section_${eventCounter}" style="display: none; margin-bottom: 20px;">
-                        <label class="form-label">IN / OUT</label>
-                        <div class="in-out-grid">
-                            <div class="form-group" style="margin-bottom: 0;">
-                                <select name="events[${eventCounter}][in_option]" class="input-field" style="margin-bottom: 0;">
-                                    <option value="free">Free In</option>
-                                    <option value="double">Double In</option>
-                                </select>
-                            </div>
-                            <div class="form-group" style="margin-bottom: 0;">
-                                <select name="events[${eventCounter}][out_option]" class="input-field" style="margin-bottom: 0;">
-                                    <option value="free">Free Out</option>
-                                    <option value="double" selected>Double Out</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- CORK RULES -->
-                    <div class="form-group">
-                        <label class="form-label">Cork Rules *</label>
-                        <select name="events[${eventCounter}][cork_rules]" required class="input-field">
-                            <option value="alternate_cork_first_last">Alternate Start, Cork First & Last Leg</option>
-                            <option value="cork_every_leg">Cork Every Leg</option>
-                            <option value="loser_starts_cork_first">Loser Starts, Cork First Leg</option>
-                            <option value="choose_no_cork">Choose Starter, No Cork</option>
+                </div>
+
+                <!-- Cork Order (for Corks Choice games) -->
+                <div class="config-row" id="corkOrderRow_${eventId}" style="display: none;">
+                    <span class="config-label">Cork Order</span>
+                    <select class="config-select" id="corkOrder_${eventId}">
+                        <option value="alternate-random">Alternate, random first/deciding</option>
+                        <option value="random-every">Random every leg</option>
+                        <option value="loser-random">Loser throws first, random first/deciding</option>
+                        <option value="winner-random">Winner throws first, random first/deciding</option>
+                    </select>
+                </div>
+
+                <!-- Cork Winner Gets (for Corks Choice games) -->
+                <div class="config-row" id="corkWinnerRow_${eventId}" style="display: none;">
+                    <span class="config-label">Cork Winner Gets</span>
+                    <select class="config-select" id="corkWinnerGets_${eventId}">
+                        <option value="choose-and-start">Choose game AND start</option>
+                        <option value="choose-only">Choose game only (other starts)</option>
+                    </select>
+                </div>
+
+                <div class="config-row">
+                    <span class="config-label">Game Type</span>
+                    <select class="config-select" id="gameType_${eventId}" onchange="handleGameTypeChange(${eventId})">
+                        <option value="501" selected>All 501</option>
+                        <option value="301">All 301</option>
+                        <option value="701">All 701</option>
+                        <option value="cricket">All Cricket</option>
+                        <option value="x01">All X01 (Custom)</option>
+                        <option value="corks_choice">All Corks Choice</option>
+                        <option value="mixed">Mixed</option>
+                    </select>
+                </div>
+
+                <!-- X01 Options -->
+                <div class="config-row" id="x01Options_${eventId}" style="display: none;">
+                    <span class="config-label">X01 Settings</span>
+                    <div class="in-out-row">
+                        <input type="number" class="config-input" id="x01Score_${eventId}" value="501" min="101" max="1001" step="100">
+                        <select class="config-select mini" id="inRule_${eventId}">
+                            <option value="straight">SI</option>
+                            <option value="double">DI</option>
+                        </select>
+                        <select class="config-select mini" id="outRule_${eventId}">
+                            <option value="double" selected>DO</option>
+                            <option value="straight">SO</option>
+                            <option value="master">MO</option>
                         </select>
                     </div>
-                    
-                    <!-- MIXED FORMAT LEG-BY-LEG SELECTOR -->
-                    <div id="mixed_section_${eventCounter}" style="display: none; margin-top: 20px;">
-                        <h4 class="form-label" style="font-size: 16px; margin-bottom: 16px;">🎯 Select Game for Each Leg</h4>
-                        <div id="leg_selectors_${eventCounter}"></div>
+                </div>
+
+                <!-- Standard X01 DI/DO -->
+                <div class="config-row" id="standardX01Options_${eventId}">
+                    <span class="config-label">In/Out Rules</span>
+                    <div class="in-out-row">
+                        <select class="config-select mini" id="standardInRule_${eventId}">
+                            <option value="straight" selected>SI</option>
+                            <option value="double">DI</option>
+                        </select>
+                        <select class="config-select mini" id="standardOutRule_${eventId}">
+                            <option value="double" selected>DO</option>
+                            <option value="straight">SO</option>
+                            <option value="master">MO</option>
+                        </select>
                     </div>
-                    
-                    <!-- EVENT DETAILS -->
-                    <div class="form-group">
-                        <label class="form-label">Event Details / Special Rules</label>
-                        <textarea name="events[${eventCounter}][event_details]" class="input-field" rows="3" placeholder="Any special rules or handicaps..."></textarea>
+                </div>
+
+                <!-- Mixed Config (per-leg) -->
+                <div class="mixed-config" id="mixedConfig_${eventId}" style="display: none;"></div>
+            </div>
+
+            <!-- Event Details -->
+            <div class="form-group" style="margin-top: 16px;">
+                <label class="form-label">Event Details / Special Rules</label>
+                <textarea name="events[${eventId}][event_details]" class="input-field" placeholder="Any special rules or handicaps..."></textarea>
+            </div>
+        </div>
+    `;
+
+    container.insertAdjacentHTML('beforeend', html);
+
+    // Initialize game type change handler
+    handleGameTypeChange(eventId);
+};
+
+window.removeEvent = function(id) {
+    document.getElementById(`event-${id}`).remove();
+    delete eventConfigs[id];
+};
+
+// Set leg mode
+window.setLegMode = function(eventId, mode) {
+    eventConfigs[eventId].legMode = mode;
+    const toggleGroup = document.getElementById(`legModeToggle_${eventId}`);
+    toggleGroup.querySelectorAll('.toggle-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.value === mode);
+    });
+};
+
+// Set starter
+window.setStarter = function(eventId, team) {
+    eventConfigs[eventId].selectedStarter = team;
+    const starterRow = document.getElementById(`starterRow_${eventId}`);
+    starterRow.querySelectorAll('.starter-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.team === team);
+    });
+};
+
+// Handle start rules change
+window.handleStartRulesChange = function(eventId) {
+    const startRules = document.getElementById(`startRules_${eventId}`).value;
+    const starterRow = document.getElementById(`starterRow_${eventId}`);
+    starterRow.style.display = startRules === 'select-starter' ? 'block' : 'none';
+};
+
+// Handle game type change
+window.handleGameTypeChange = function(eventId) {
+    const gameType = document.getElementById(`gameType_${eventId}`).value;
+    const x01Options = document.getElementById(`x01Options_${eventId}`);
+    const standardX01Options = document.getElementById(`standardX01Options_${eventId}`);
+    const mixedConfig = document.getElementById(`mixedConfig_${eventId}`);
+    const startRulesRow = document.getElementById(`startRulesRow_${eventId}`);
+    const corkOrderRow = document.getElementById(`corkOrderRow_${eventId}`);
+    const corkWinnerRow = document.getElementById(`corkWinnerRow_${eventId}`);
+
+    // Hide all first
+    x01Options.style.display = 'none';
+    standardX01Options.style.display = 'none';
+    mixedConfig.style.display = 'none';
+
+    // Show appropriate options
+    if (gameType === 'x01') {
+        x01Options.style.display = 'flex';
+    } else if (['501', '301', '701'].includes(gameType)) {
+        standardX01Options.style.display = 'flex';
+    } else if (gameType === 'mixed') {
+        mixedConfig.style.display = 'block';
+        renderMixedConfig(eventId);
+    }
+
+    // Toggle between Start Rules (regular games) and Cork Order (corks choice)
+    if (gameType === 'corks_choice') {
+        startRulesRow.style.display = 'none';
+        document.getElementById(`starterRow_${eventId}`).style.display = 'none';
+        corkOrderRow.style.display = 'flex';
+        corkWinnerRow.style.display = 'flex';
+    } else {
+        startRulesRow.style.display = 'flex';
+        corkOrderRow.style.display = 'none';
+        corkWinnerRow.style.display = 'none';
+        handleStartRulesChange(eventId); // Update starter row visibility
+    }
+};
+
+// Handle legs change
+window.handleLegsChange = function(eventId) {
+    const numLegs = parseInt(document.getElementById(`numLegs_${eventId}`).value);
+    eventConfigs[eventId].numLegs = numLegs;
+
+    const gameType = document.getElementById(`gameType_${eventId}`).value;
+    if (gameType === 'mixed') {
+        renderMixedConfig(eventId);
+    }
+};
+
+// Render mixed config
+function renderMixedConfig(eventId) {
+    const numLegs = parseInt(document.getElementById(`numLegs_${eventId}`).value);
+    const container = document.getElementById(`mixedConfig_${eventId}`);
+    const config = eventConfigs[eventId];
+
+    // Initialize/resize mixedLegs array
+    while (config.mixedLegs.length < numLegs) {
+        config.mixedLegs.push({ type: '501', score: 501, inRule: 'straight', outRule: 'double' });
+    }
+    config.mixedLegs = config.mixedLegs.slice(0, numLegs);
+
+    let html = '<div style="font-size: 13px; color: var(--yellow); margin-bottom: 12px;">Configure each leg:</div>';
+
+    for (let i = 0; i < numLegs; i++) {
+        const leg = config.mixedLegs[i];
+        const isX01 = ['301', '501', '701', 'x01'].includes(leg.type);
+
+        html += `
+            <div class="mixed-leg-row">
+                <span class="leg-label">Leg ${i + 1}</span>
+                <select class="config-select game-type-select" onchange="updateMixedLeg(${eventId}, ${i}, 'type', this.value)">
+                    <option value="501" ${leg.type === '501' ? 'selected' : ''}>501</option>
+                    <option value="301" ${leg.type === '301' ? 'selected' : ''}>301</option>
+                    <option value="701" ${leg.type === '701' ? 'selected' : ''}>701</option>
+                    <option value="cricket" ${leg.type === 'cricket' ? 'selected' : ''}>Cricket</option>
+                    <option value="x01" ${leg.type === 'x01' ? 'selected' : ''}>X01</option>
+                    <option value="corks_choice" ${leg.type === 'corks_choice' ? 'selected' : ''}>Corks Choice</option>
+                </select>
+                ${isX01 ? `
+                    <div class="x01-inline">
+                        ${leg.type === 'x01' ? `
+                            <input type="number" class="config-input" value="${leg.score}"
+                                   onchange="updateMixedLeg(${eventId}, ${i}, 'score', this.value)" min="101" max="1001" step="100">
+                        ` : ''}
+                        <select class="config-select mini" onchange="updateMixedLeg(${eventId}, ${i}, 'inRule', this.value)">
+                            <option value="straight" ${leg.inRule === 'straight' ? 'selected' : ''}>SI</option>
+                            <option value="double" ${leg.inRule === 'double' ? 'selected' : ''}>DI</option>
+                        </select>
+                        <select class="config-select mini" onchange="updateMixedLeg(${eventId}, ${i}, 'outRule', this.value)">
+                            <option value="double" ${leg.outRule === 'double' ? 'selected' : ''}>DO</option>
+                            <option value="straight" ${leg.outRule === 'straight' ? 'selected' : ''}>SO</option>
+                            <option value="master" ${leg.outRule === 'master' ? 'selected' : ''}>MO</option>
+                        </select>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    }
+
+    container.innerHTML = html;
+}
+
+// Update mixed leg config
+window.updateMixedLeg = function(eventId, legIndex, property, value) {
+    const config = eventConfigs[eventId];
+
+    if (property === 'score') {
+        config.mixedLegs[legIndex].score = parseInt(value);
+    } else {
+        config.mixedLegs[legIndex][property] = value;
+    }
+
+    if (property === 'type') {
+        if (value === '301') config.mixedLegs[legIndex].score = 301;
+        if (value === '501') config.mixedLegs[legIndex].score = 501;
+        if (value === '701') config.mixedLegs[legIndex].score = 701;
+        renderMixedConfig(eventId);
+    }
+};
+
+// Submit tournament
+window.submitTournament = async function() {
+    const form = document.getElementById('tournamentForm');
+    if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+    }
+
+    const formData = new FormData(form);
+
+    const data = {
+        tournament_name: formData.get('tournament_name'),
+        tournament_date: formData.get('tournament_date'),
+        tournament_time: formData.get('tournament_time') || '',
+        venue_name: formData.get('venue_name'),
+        venue_address: formData.get('venue_address') || '',
+        tournament_details: formData.get('tournament_details') || '',
+        full_name: formData.get('director_first') + ' ' + formData.get('director_last'),
+        email: formData.get('director_email'),
+        phone: formData.get('director_phone') || '',
+        director_pin: window.directorPin || null, // 8-digit player PIN for dashboard access
+        events: []
+    };
+
+    // Process each event
+    for (let i = 1; i <= eventCounter; i++) {
+        if (!document.getElementById(`event-${i}`)) continue;
+
+        const config = eventConfigs[i];
+        const gameType = document.getElementById(`gameType_${i}`).value;
+        const numLegs = parseInt(document.getElementById(`numLegs_${i}`).value);
+        const startRules = document.getElementById(`startRules_${i}`).value;
+        const numSets = parseInt(document.getElementById(`numSets_${i}`)?.value || '0');
+
+        // Map start rules to cork rules
+        let corkRules;
+        let useCork = true;
+
+        if (gameType === 'corks_choice') {
+            corkRules = 'cork_every_leg'; // Always cork in corks choice
+        } else {
+            switch(startRules) {
+                case 'cork-every': corkRules = 'cork_every_leg'; break;
+                case 'alternate-cork': corkRules = 'alternate_cork_first_deciding'; break;
+                case 'loser-cork': corkRules = 'loser_starts_cork_first_deciding'; break;
+                case 'winner-cork': corkRules = 'winner_starts_cork_first_deciding'; break;
+                case 'select-starter': corkRules = 'choose_no_cork'; useCork = false; break;
+                default: corkRules = 'cork_every_leg';
+            }
+        }
+
+        const event = {
+            event_name: formData.get(`events[${i}][event_name]`),
+            entry_type: formData.get(`events[${i}][event_type]`),
+            format: formData.get(`events[${i}][format]`),
+            game: gameType,
+            cork_rules: corkRules,
+            use_cork: useCork,
+            entry_fee: parseFloat(formData.get(`events[${i}][entry_fee]`)) || 0,
+            start_time: formData.get(`events[${i}][start_time]`) || '',
+            event_details: formData.get(`events[${i}][event_details]`) || '',
+            num_legs: numLegs,
+            leg_mode: config.legMode,
+            num_sets: numSets
+        };
+
+        // Add corks choice specific params if applicable
+        if (gameType === 'corks_choice') {
+            event.cork_order = document.getElementById(`corkOrder_${i}`).value;
+            event.cork_winner_gets = document.getElementById(`corkWinnerGets_${i}`).value;
+        }
+
+        // Calculate best_of or total_legs based on leg mode
+        if (config.legMode === 'best-of') {
+            event.best_of = numLegs;
+            event.legs_to_win = Math.ceil(numLegs / 2);
+        } else {
+            event.total_legs = numLegs;
+        }
+
+        // Add starter selection if applicable
+        if (startRules === 'select-starter') {
+            event.default_starter = config.selectedStarter;
+        }
+
+        // Add X01/game specific settings
+        if (gameType === 'x01') {
+            event.x01_value = parseInt(document.getElementById(`x01Score_${i}`).value) || 501;
+            event.in_option = document.getElementById(`inRule_${i}`).value;
+            event.out_option = document.getElementById(`outRule_${i}`).value;
+        } else if (['501', '301', '701'].includes(gameType)) {
+            event.in_option = document.getElementById(`standardInRule_${i}`).value;
+            event.out_option = document.getElementById(`standardOutRule_${i}`).value;
+        }
+
+        // Handle mixed format
+        if (gameType === 'mixed') {
+            event.legs = config.mixedLegs.map((leg, idx) => ({
+                leg_number: idx + 1,
+                game: leg.type,
+                x01_value: leg.type === 'x01' ? leg.score : (leg.type === '301' ? 301 : (leg.type === '701' ? 701 : 501)),
+                in_option: leg.inRule || 'straight',
+                out_option: leg.outRule || 'double'
+            }));
+        }
+
+        data.events.push(event);
+    }
+
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true;
+    btn.textContent = 'CREATING...';
+
+    try {
+        const result = await callFunction('createTournament', data);
+
+        if (result.success) {
+            // Show success page
+            document.body.innerHTML = `
+                <div class="success-page">
+                    <div class="success-card">
+                        <div class="success-icon">&#9989;</div>
+                        <h1 class="success-title">TOURNAMENT CREATED!</h1>
+
+                        <div class="pin-display">
+                            <div class="pin-label">Your Director PIN</div>
+                            <div class="pin-value">${result.pin}</div>
+                            <div class="pin-hint">Save this 8-digit PIN - you'll need it to manage your tournament!</div>
+                        </div>
+
+                        <div style="margin: 20px 0; font-size: 16px; font-weight: 600;">
+                            ${result.events_created} event${result.events_created > 1 ? 's' : ''} created
+                        </div>
+
+                        <a href="/pages/director-dashboard.html?pin=${result.pin}" class="success-link">
+                            GO TO DASHBOARD
+                        </a>
                     </div>
                 </div>
             `;
-            
-            container.insertAdjacentHTML('beforeend', html);
-        };
-        
-        window.removeEvent = function(id) {
-            document.getElementById(`event-${id}`).remove();
-        };
-        
-        window.handleFormatChange = function(eventId) {
-            const formatSelect = document.getElementById(`format_${eventId}`);
-            const format = formatSelect.value;
-            const bestOfContainer = document.getElementById(`best_of_container_${eventId}`);
-            const totalLegsContainer = document.getElementById(`total_legs_container_${eventId}`);
-            
-            if (format === 'round_robin') {
-                bestOfContainer.style.display = 'none';
-                totalLegsContainer.style.display = 'block';
-            } else {
-                bestOfContainer.style.display = 'block';
-                totalLegsContainer.style.display = 'none';
-            }
-        };
-        
-        window.handleGameChange = function(eventId) {
-            const gameSelect = document.getElementById(`game_${eventId}`);
-            const game = gameSelect.value;
-            const inOutSection = document.getElementById(`in_out_section_${eventId}`);
-            const mixedSection = document.getElementById(`mixed_section_${eventId}`);
-            
-            inOutSection.style.display = 'none';
-            mixedSection.style.display = 'none';
-            
-            if (game === '501' || game === '301' || game === '701') {
-                inOutSection.style.display = 'block';
-            }
-            
-            if (game === 'mixed') {
-                mixedSection.style.display = 'block';
-                generateLegSelectors(eventId);
-            }
-        };
-        
-        window.handleBestOfChange = function(eventId) {
-            const gameSelect = document.getElementById(`game_${eventId}`);
-            if (gameSelect && gameSelect.value === 'mixed') {
-                generateLegSelectors(eventId);
-            }
-        };
-        
-        function generateLegSelectors(eventId) {
-            const formatSelect = document.getElementById(`format_${eventId}`);
-            const format = formatSelect.value;
-            
-            let numLegs;
-            if (format === 'round_robin') {
-                const totalLegsInput = document.getElementById(`total_legs_${eventId}`);
-                numLegs = parseInt(totalLegsInput.value) || 5;
-            } else {
-                const bestOfInput = document.getElementById(`best_of_${eventId}`);
-                numLegs = parseInt(bestOfInput.value) || 3;
-            }
-            
-            const container = document.getElementById(`leg_selectors_${eventId}`);
-            let html = '';
-            
-            for (let leg = 1; leg <= numLegs; leg++) {
-                html += `
-                    <div class="leg-selector">
-                        <div class="leg-title">Leg ${leg}</div>
-                        <div class="form-group" style="margin-bottom: 0;">
-                            <label class="form-label">Game Type</label>
-                            <select id="leg_${eventId}_${leg}_game" name="events[${eventId}][legs][${leg}][game]" required class="input-field" onchange="handleLegGameChange(${eventId}, ${leg})">
-                                <option value="">Select game...</option>
-                                <option value="501">501</option>
-                                <option value="301">301</option>
-                                <option value="cricket">Cricket</option>
-                                <option value="choice">Player's Choice</option>
-                            </select>
-                        </div>
-                        
-                        <div id="leg_${eventId}_${leg}_in_out" style="display: none; margin-top: 12px;">
-                            <div class="in-out-grid">
-                                <div class="form-group" style="margin-bottom: 0;">
-                                    <select name="events[${eventId}][legs][${leg}][in_option]" class="input-field" style="margin-bottom: 0;">
-                                        <option value="free">Free In</option>
-                                        <option value="double">Double In</option>
-                                    </select>
-                                </div>
-                                <div class="form-group" style="margin-bottom: 0;">
-                                    <select name="events[${eventId}][legs][${leg}][out_option]" class="input-field" style="margin-bottom: 0;">
-                                        <option value="free">Free Out</option>
-                                        <option value="double">Double Out</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }
-            
-            container.innerHTML = html;
+        } else {
+            throw new Error(result.error || 'Unknown error');
         }
-        
-        window.handleLegGameChange = function(eventId, legNum) {
-            const gameSelect = document.getElementById(`leg_${eventId}_${legNum}_game`);
-            const game = gameSelect.value;
-            const inOutSection = document.getElementById(`leg_${eventId}_${legNum}_in_out`);
-            
-            if (game === '501' || game === '301') {
-                inOutSection.style.display = 'block';
-            } else {
-                inOutSection.style.display = 'none';
-            }
+
+    } catch (error) {
+        alert('Error creating tournament: ' + error.message);
+        console.error('Error:', error);
+        btn.disabled = false;
+        btn.textContent = 'CREATE TOURNAMENT';
+    }
+};
+
+// ===== TEMPLATE & DRAFT FUNCTIONS =====
+
+// Collect all form data into an object
+function collectFormData() {
+    const form = document.getElementById('tournamentForm');
+    const formData = new FormData(form);
+
+    const data = {
+        tournament_name: formData.get('tournament_name') || '',
+        tournament_date: formData.get('tournament_date') || '',
+        tournament_time: formData.get('tournament_time') || '',
+        venue_name: formData.get('venue_name') || '',
+        venue_address: formData.get('venue_address') || '',
+        tournament_details: formData.get('tournament_details') || '',
+        events: []
+    };
+
+    // Collect each event's data
+    for (let i = 1; i <= eventCounter; i++) {
+        if (!document.getElementById(`event-${i}`)) continue;
+
+        const config = eventConfigs[i];
+        const event = {
+            event_name: formData.get(`events[${i}][event_name]`) || '',
+            event_type: formData.get(`events[${i}][event_type]`) || '',
+            format: formData.get(`events[${i}][format]`) || 'single_elim',
+            entry_fee: formData.get(`events[${i}][entry_fee]`) || '10',
+            start_time: formData.get(`events[${i}][start_time]`) || '',
+            event_details: formData.get(`events[${i}][event_details]`) || '',
+            numLegs: document.getElementById(`numLegs_${i}`).value,
+            legMode: config.legMode,
+            numSets: document.getElementById(`numSets_${i}`)?.value || '0',
+            startRules: document.getElementById(`startRules_${i}`).value,
+            selectedStarter: config.selectedStarter,
+            gameType: document.getElementById(`gameType_${i}`).value,
+            x01Score: document.getElementById(`x01Score_${i}`)?.value || '501',
+            inRule: document.getElementById(`inRule_${i}`)?.value || 'straight',
+            outRule: document.getElementById(`outRule_${i}`)?.value || 'double',
+            standardInRule: document.getElementById(`standardInRule_${i}`)?.value || 'straight',
+            standardOutRule: document.getElementById(`standardOutRule_${i}`)?.value || 'double',
+            mixedLegs: config.mixedLegs || []
         };
-        
-        window.submitTournament = async function() {
-            const form = document.getElementById('tournamentForm');
-            if (!form.checkValidity()) {
-                form.reportValidity();
-                return;
+
+        data.events.push(event);
+    }
+
+    return data;
+}
+
+// Apply template data to the form
+function applyTemplateData(template) {
+    // Clear existing events except the first one
+    const container = document.getElementById('eventsContainer');
+    container.innerHTML = '';
+    eventCounter = 0;
+
+    // Apply tournament-level fields (NOT name/date/time for templates)
+    if (template.venue_name) {
+        document.querySelector('[name="venue_name"]').value = template.venue_name;
+    }
+    if (template.venue_address) {
+        document.querySelector('[name="venue_address"]').value = template.venue_address;
+    }
+    if (template.tournament_details) {
+        document.querySelector('[name="tournament_details"]').value = template.tournament_details;
+    }
+
+    // Recreate events from template
+    if (template.events && template.events.length > 0) {
+        template.events.forEach((eventData, index) => {
+            addEvent();
+            const eventId = eventCounter;
+
+            // Basic event fields
+            const eventNameInput = document.querySelector(`[name="events[${eventId}][event_name]"]`);
+            if (eventNameInput) eventNameInput.value = eventData.event_name || '';
+
+            const eventTypeSelect = document.querySelector(`[name="events[${eventId}][event_type]"]`);
+            if (eventTypeSelect) eventTypeSelect.value = eventData.event_type || '';
+
+            const formatSelect = document.querySelector(`[name="events[${eventId}][format]"]`);
+            if (formatSelect) formatSelect.value = eventData.format || 'single_elim';
+
+            const entryFeeInput = document.querySelector(`[name="events[${eventId}][entry_fee]"]`);
+            if (entryFeeInput) entryFeeInput.value = eventData.entry_fee || '10';
+
+            const startTimeInput = document.querySelector(`[name="events[${eventId}][start_time]"]`);
+            if (startTimeInput) startTimeInput.value = eventData.start_time || '';
+
+            const eventDetailsInput = document.querySelector(`[name="events[${eventId}][event_details]"]`);
+            if (eventDetailsInput) eventDetailsInput.value = eventData.event_details || '';
+
+            // Game configuration
+            document.getElementById(`numLegs_${eventId}`).value = eventData.numLegs || '3';
+            eventConfigs[eventId].numLegs = parseInt(eventData.numLegs) || 3;
+
+            setLegMode(eventId, eventData.legMode || 'best-of');
+
+            if (document.getElementById(`numSets_${eventId}`)) {
+                document.getElementById(`numSets_${eventId}`).value = eventData.numSets || '0';
             }
-            
-            const formData = new FormData(form);
-            
-            const data = {
-                tournament_name: formData.get('tournament_name'),
-                tournament_date: formData.get('tournament_date'),
-                tournament_time: formData.get('tournament_time') || '',
-                venue_name: formData.get('venue_name'),
-                venue_address: formData.get('venue_address') || '',
-                tournament_details: formData.get('tournament_details') || '',
-                full_name: formData.get('director_first') + ' ' + formData.get('director_last'),
-                email: formData.get('director_email'),
-                phone: formData.get('director_phone') || '',
-                events: []
-            };
-            
-            // Process each event
-            for (let i = 1; i <= eventCounter; i++) {
-                if (!document.getElementById(`event-${i}`)) continue;
-                
-                const gameValue = formData.get(`events[${i}][game]`);
-                const formatValue = formData.get(`events[${i}][format]`);
-                
-                const event = {
-                    event_name: formData.get(`events[${i}][event_name]`),
-                    entry_type: formData.get(`events[${i}][event_type]`),
-                    format: formatValue,
-                    game: gameValue,
-                    cork_rules: formData.get(`events[${i}][cork_rules]`),
-                    entry_fee: parseFloat(formData.get(`events[${i}][entry_fee]`)),
-                    start_time: formData.get(`events[${i}][start_time]`) || '',
-                    event_details: formData.get(`events[${i}][event_details]`) || ''
-                };
-                
-                // Best of or total legs
-                if (formatValue === 'round_robin') {
-                    event.total_legs = parseInt(formData.get(`events[${i}][total_legs]`)) || 5;
-                } else {
-                    event.best_of = parseInt(formData.get(`events[${i}][best_of]`)) || 3;
-                }
-                
-                // Add IN/OUT for X01 games
-                if (gameValue === '501' || gameValue === '301' || gameValue === '701') {
-                    event.in_option = formData.get(`events[${i}][in_option]`) || 'free';
-                    event.out_option = formData.get(`events[${i}][out_option]`) || 'double';
-                }
-                
-                // Handle mixed format legs
-                if (gameValue === 'mixed') {
-                    event.legs = [];
-                    const numLegs = event.best_of || event.total_legs || 3;
-                    for (let leg = 1; leg <= numLegs; leg++) {
-                        const legGame = formData.get(`events[${i}][legs][${leg}][game]`);
-                        const legData = { game: legGame };
-                        
-                        if (legGame === '501' || legGame === '301') {
-                            const inOpt = formData.get(`events[${i}][legs][${leg}][in_option]`) || 'free';
-                            const outOpt = formData.get(`events[${i}][legs][${leg}][out_option]`) || 'double';
-                            legData.in_option = inOpt;
-                            legData.out_option = outOpt;
-                        }
-                        
-                        event.legs.push(legData);
-                    }
-                }
-                
-                data.events.push(event);
+
+            document.getElementById(`startRules_${eventId}`).value = eventData.startRules || 'cork-every';
+            handleStartRulesChange(eventId);
+
+            if (eventData.selectedStarter) {
+                setStarter(eventId, eventData.selectedStarter);
             }
-            
-            console.log('Submitting:', data);
-            
-            const btn = document.querySelector('.footer-actions .btn-primary');
-            btn.disabled = true;
-            btn.textContent = 'Creating...';
-            
-            try {
-                const result = await callFunction('createTournament', data);
-                
-                if (result.success) {
-                    // Show success page
-                    document.body.innerHTML = `
-                        <div style="background: linear-gradient(180deg, #1F85AF 0%, #001F4D 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px;">
-                            <div style="max-width: 600px; background: white; padding: 60px 40px; text-align: center; border: 4px solid black; box-shadow: 12px 12px 0 rgba(0, 0, 0, 1);">
-                                <div style="font-size: 80px;">✅</div>
-                                <h1 style="font-family: 'Bebas Neue', cursive; font-size: 48px; color: #FF469A; text-shadow: 4px 4px 0 rgba(0, 0, 0, 1); margin: 20px 0;">
-                                    TOURNAMENT CREATED!
-                                </h1>
-                                
-                                <div style="background: #FDD835; border: 4px solid black; padding: 30px; margin: 30px 0; box-shadow: 6px 6px 0 rgba(0, 0, 0, 1);">
-                                    <div style="font-size: 14px; font-weight: 800; margin-bottom: 10px; text-transform: uppercase;">Your Director PIN</div>
-                                    <div style="font-family: 'Bebas Neue', cursive; font-size: 64px; color: black; text-shadow: 3px 3px 0 rgba(255, 70, 154, 0.3);">
-                                        ${result.pin}
-                                    </div>
-                                    <div style="font-size: 12px; font-weight: 600; margin-top: 10px; color: #666;">Save this PIN - you'll need it to manage your tournament!</div>
-                                </div>
-                                
-                                <div style="margin: 20px 0; font-size: 16px;">
-                                    <strong>${result.events_created} events created</strong>
-                                </div>
-                                
-                                <a href="/director-dashboard.html?pin=${result.pin}" style="display: inline-block; background: #FF469A; color: white; padding: 20px 40px; font-family: 'Bebas Neue', cursive; font-size: 24px; text-decoration: none; border: 4px solid black; box-shadow: 6px 6px 0 rgba(0, 0, 0, 1); margin-top: 20px;">
-                                    GO TO DASHBOARD
-                                </a>
-                            </div>
-                        </div>
-                    `;
-                } else {
-                    throw new Error(result.error || 'Unknown error');
-                }
-                
-            } catch (error) {
-                alert('Error creating tournament: ' + error.message);
-                console.error('Error:', error);
-                btn.disabled = false;
-                btn.textContent = 'CREATE TOURNAMENT';
+
+            document.getElementById(`gameType_${eventId}`).value = eventData.gameType || '501';
+            handleGameTypeChange(eventId);
+
+            // X01 settings
+            if (document.getElementById(`x01Score_${eventId}`)) {
+                document.getElementById(`x01Score_${eventId}`).value = eventData.x01Score || '501';
             }
-        };
-    </script>
+            if (document.getElementById(`inRule_${eventId}`)) {
+                document.getElementById(`inRule_${eventId}`).value = eventData.inRule || 'straight';
+            }
+            if (document.getElementById(`outRule_${eventId}`)) {
+                document.getElementById(`outRule_${eventId}`).value = eventData.outRule || 'double';
+            }
+            if (document.getElementById(`standardInRule_${eventId}`)) {
+                document.getElementById(`standardInRule_${eventId}`).value = eventData.standardInRule || 'straight';
+            }
+            if (document.getElementById(`standardOutRule_${eventId}`)) {
+                document.getElementById(`standardOutRule_${eventId}`).value = eventData.standardOutRule || 'double';
+            }
+
+            // Mixed legs
+            if (eventData.mixedLegs && eventData.mixedLegs.length > 0) {
+                eventConfigs[eventId].mixedLegs = eventData.mixedLegs;
+                if (eventData.gameType === 'mixed') {
+                    renderMixedConfig(eventId);
+                }
+            }
+        });
+    } else {
+        // Add at least one event
+        addEvent();
+    }
+}
+
+// Save current form as template
+window.saveAsTemplate = async function() {
+    if (!window.directorPin) {
+        alert('Please sign in first to save templates');
+        return;
+    }
+
+    const templateName = prompt('Enter a name for this template:');
+    if (!templateName || !templateName.trim()) return;
+
+    const formData = collectFormData();
+
+    try {
+        const result = await callFunction('saveTournamentTemplate', {
+            pin: window.directorPin,
+            template_name: templateName.trim(),
+            template_data: formData
+        });
+
+        if (result.success) {
+            alert('Template saved successfully!');
+        } else {
+            throw new Error(result.error || 'Failed to save template');
+        }
+    } catch (error) {
+        console.error('Error saving template:', error);
+        alert('Error saving template: ' + error.message);
+    }
+};
+
+// Open template modal
+window.openTemplateModal = async function() {
+    if (!window.directorPin) {
+        alert('Please sign in first to load templates');
+        return;
+    }
+
+    document.getElementById('templateModal').style.display = 'flex';
+    await loadTemplates();
+};
+
+// Close template modal
+window.closeTemplateModal = function() {
+    document.getElementById('templateModal').style.display = 'none';
+};
+
+// Load templates from server
+async function loadTemplates() {
+    const templateList = document.getElementById('templateList');
+    templateList.innerHTML = '<div class="no-templates">Loading templates...</div>';
+
+    try {
+        const result = await callFunction('getTournamentTemplates', {
+            pin: window.directorPin
+        });
+
+        if (result.success && result.templates && result.templates.length > 0) {
+            templateList.innerHTML = result.templates.map(t => `
+                <div class="template-item" onclick="loadTemplate('${t.id}')">
+                    <div>
+                        <div class="template-name">${t.name}</div>
+                        <div class="template-meta">${t.events_count || 0} event(s)</div>
+                    </div>
+                    <button type="button" class="template-delete" onclick="event.stopPropagation(); deleteTemplate('${t.id}')">Delete</button>
+                </div>
+            `).join('');
+        } else {
+            templateList.innerHTML = '<div class="no-templates">No templates saved yet</div>';
+        }
+    } catch (error) {
+        console.error('Error loading templates:', error);
+        templateList.innerHTML = '<div class="no-templates">Error loading templates</div>';
+    }
+}
+
+// Load a specific template
+window.loadTemplate = async function(templateId) {
+    try {
+        const result = await callFunction('getTournamentTemplate', {
+            pin: window.directorPin,
+            template_id: templateId
+        });
+
+        if (result.success && result.template) {
+            applyTemplateData(result.template.data);
+            closeTemplateModal();
+            alert('Template loaded!');
+        } else {
+            throw new Error(result.error || 'Failed to load template');
+        }
+    } catch (error) {
+        console.error('Error loading template:', error);
+        alert('Error loading template: ' + error.message);
+    }
+};
+
+// Delete a template
+window.deleteTemplate = async function(templateId) {
+    if (!confirm('Are you sure you want to delete this template?')) return;
+
+    try {
+        const result = await callFunction('deleteTournamentTemplate', {
+            pin: window.directorPin,
+            template_id: templateId
+        });
+
+        if (result.success) {
+            await loadTemplates();
+        } else {
+            throw new Error(result.error || 'Failed to delete template');
+        }
+    } catch (error) {
+        console.error('Error deleting template:', error);
+        alert('Error deleting template: ' + error.message);
+    }
+};
+
+// Save as draft
+window.saveAsDraft = async function() {
+    if (!window.directorPin) {
+        alert('Please sign in first to save drafts');
+        return;
+    }
+
+    const formData = collectFormData();
+
+    try {
+        const result = await callFunction('saveTournamentDraft', {
+            pin: window.directorPin,
+            draft_data: formData
+        });
+
+        if (result.success) {
+            alert('Draft saved! You can continue editing later by signing in with your PIN.');
+        } else {
+            throw new Error(result.error || 'Failed to save draft');
+        }
+    } catch (error) {
+        console.error('Error saving draft:', error);
+        alert('Error saving draft: ' + error.message);
+    }
+};
+
+// Check for existing draft and prompt to load
+async function checkForDraft() {
+    if (!window.directorPin) return;
+
+    try {
+        const result = await callFunction('getTournamentDraft', {
+            pin: window.directorPin
+        });
+
+        if (result.success && result.draft) {
+            const loadDraft = confirm('You have a saved draft. Would you like to continue where you left off?');
+            if (loadDraft) {
+                applyTemplateData(result.draft.data);
+
+                // Also apply tournament-specific fields for drafts
+                if (result.draft.data.tournament_name) {
+                    document.querySelector('[name="tournament_name"]').value = result.draft.data.tournament_name;
+                }
+                if (result.draft.data.tournament_date) {
+                    document.querySelector('[name="tournament_date"]').value = result.draft.data.tournament_date;
+                }
+                if (result.draft.data.tournament_time) {
+                    document.querySelector('[name="tournament_time"]').value = result.draft.data.tournament_time;
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Error checking for draft:', error);
+    }
+}
+</script>
+<script src="/js/nav-menu.js"></script>
 </body>
 </html>

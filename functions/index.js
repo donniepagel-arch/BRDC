@@ -12,18 +12,41 @@ admin.initializeApp();
 const db = admin.firestore();
 
 // Tournament Functions
-const { createTournament } = require('./tournaments/create');
+const { createTournament, addBotToTournament, updateTournamentSettings, deleteTournament } = require('./tournaments/create');
 const { generateBracket } = require('./tournaments/brackets');
 const { submitMatchResult } = require('./tournaments/matches');
 
 // Export tournament functions
 exports.createTournament = createTournament;
+exports.addBotToTournament = addBotToTournament;
+exports.updateTournamentSettings = updateTournamentSettings;
+exports.deleteTournament = deleteTournament;
 exports.generateBracket = generateBracket;
 exports.submitMatchResult = submitMatchResult;
 
 // League Functions (NEW - Triples Draft League System)
 const leagueFunctions = require('./leagues/index');
 Object.assign(exports, leagueFunctions);
+
+// Player Profile & Captain Functions
+const playerFunctions = require('./player-profile');
+Object.assign(exports, playerFunctions);
+
+// Bot Player Management Functions (legacy - keeping for backwards compatibility)
+const botFunctions = require('./bots');
+Object.assign(exports, botFunctions);
+
+// Global Player Authentication & Registration
+const globalAuthFunctions = require('./global-auth');
+Object.assign(exports, globalAuthFunctions);
+
+// Notification Functions (scheduled reminders, SMS/email)
+const notificationFunctions = require('./notifications');
+Object.assign(exports, notificationFunctions);
+
+// Admin Functions
+const adminFunctions = require('./admin-functions');
+Object.assign(exports, adminFunctions);
 
 // Phase functions (legacy - keeping for backwards compatibility)
 const phase12 = require('./phase-1-2');
@@ -367,6 +390,494 @@ exports.addEventToTournament = functions.https.onRequest((req, res) => {
         success: false,
         error: error.message
       });
+    }
+  });
+});
+
+// ===================================================================
+// TEMPLATE & DRAFT FUNCTIONS
+// ===================================================================
+
+// Helper to remove undefined values from an object (recursive)
+function cleanUndefined(obj) {
+  if (obj === null || obj === undefined) return null;
+  if (Array.isArray(obj)) {
+    return obj.map(item => cleanUndefined(item)).filter(item => item !== undefined);
+  }
+  if (typeof obj === 'object') {
+    const cleaned = {};
+    for (const [key, value] of Object.entries(obj)) {
+      if (value !== undefined) {
+        cleaned[key] = cleanUndefined(value);
+      }
+    }
+    return cleaned;
+  }
+  return obj;
+}
+
+// Helper to verify director PIN and get player ID
+async function verifyDirectorPin(pin) {
+  const playersSnapshot = await db.collection('players')
+    .where('pin', '==', pin)
+    .limit(1)
+    .get();
+
+  if (playersSnapshot.empty) {
+    return null;
+  }
+
+  return playersSnapshot.docs[0].id;
+}
+
+// ===== LEAGUE TEMPLATES =====
+
+exports.saveLeagueTemplate = functions.https.onRequest((req, res) => {
+  cors(req, res, async () => {
+    try {
+      const { pin, director_pin, template_name, template_data } = req.body;
+      const authPin = pin || director_pin;
+
+      const playerId = await verifyDirectorPin(authPin);
+      if (!playerId) {
+        return res.status(401).json({ success: false, error: 'Invalid PIN' });
+      }
+
+      await db.collection('league_templates').add({
+        player_id: playerId,
+        name: template_name,
+        data: cleanUndefined(template_data),
+        events_count: template_data?.events?.length || 0,
+        created_at: admin.firestore.FieldValue.serverTimestamp(),
+        updated_at: admin.firestore.FieldValue.serverTimestamp()
+      });
+
+      res.json({ success: true, message: 'Template saved' });
+    } catch (error) {
+      console.error('Error saving league template:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+});
+
+exports.getLeagueTemplates = functions.https.onRequest((req, res) => {
+  cors(req, res, async () => {
+    try {
+      const { pin, director_pin } = req.body;
+      const authPin = pin || director_pin;
+
+      const playerId = await verifyDirectorPin(authPin);
+      if (!playerId) {
+        return res.status(401).json({ success: false, error: 'Invalid PIN' });
+      }
+
+      const templatesSnapshot = await db.collection('league_templates')
+        .where('player_id', '==', playerId)
+        .orderBy('created_at', 'desc')
+        .get();
+
+      const templates = templatesSnapshot.docs.map(doc => ({
+        id: doc.id,
+        name: doc.data().name,
+        events_count: doc.data().events_count || 0,
+        created_at: doc.data().created_at?.toDate?.() || doc.data().created_at || new Date()
+      }));
+
+      res.json({ success: true, templates });
+    } catch (error) {
+      console.error('Error getting league templates:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+});
+
+exports.getLeagueTemplate = functions.https.onRequest((req, res) => {
+  cors(req, res, async () => {
+    try {
+      const { pin, director_pin, template_id } = req.body;
+      const authPin = pin || director_pin;
+
+      const playerId = await verifyDirectorPin(authPin);
+      if (!playerId) {
+        return res.status(401).json({ success: false, error: 'Invalid PIN' });
+      }
+
+      const templateDoc = await db.collection('league_templates').doc(template_id).get();
+      if (!templateDoc.exists) {
+        return res.status(404).json({ success: false, error: 'Template not found' });
+      }
+
+      const template = templateDoc.data();
+      if (template.player_id !== playerId) {
+        return res.status(403).json({ success: false, error: 'Access denied' });
+      }
+
+      res.json({ success: true, template: { id: templateDoc.id, ...template } });
+    } catch (error) {
+      console.error('Error getting league template:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+});
+
+exports.deleteLeagueTemplate = functions.https.onRequest((req, res) => {
+  cors(req, res, async () => {
+    try {
+      const { pin, director_pin, template_id } = req.body;
+      const authPin = pin || director_pin;
+
+      const playerId = await verifyDirectorPin(authPin);
+      if (!playerId) {
+        return res.status(401).json({ success: false, error: 'Invalid PIN' });
+      }
+
+      const templateDoc = await db.collection('league_templates').doc(template_id).get();
+      if (!templateDoc.exists) {
+        return res.status(404).json({ success: false, error: 'Template not found' });
+      }
+
+      if (templateDoc.data().player_id !== playerId) {
+        return res.status(403).json({ success: false, error: 'Access denied' });
+      }
+
+      await db.collection('league_templates').doc(template_id).delete();
+      res.json({ success: true, message: 'Template deleted' });
+    } catch (error) {
+      console.error('Error deleting league template:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+});
+
+// ===== LEAGUE DRAFTS =====
+
+exports.saveLeagueDraft = functions.https.onRequest((req, res) => {
+  cors(req, res, async () => {
+    try {
+      const { pin, director_pin, draft_data } = req.body;
+      const authPin = pin || director_pin;
+
+      const playerId = await verifyDirectorPin(authPin);
+      if (!playerId) {
+        return res.status(401).json({ success: false, error: 'Invalid PIN' });
+      }
+
+      // Check for existing draft
+      const existingDrafts = await db.collection('league_drafts')
+        .where('player_id', '==', playerId)
+        .limit(1)
+        .get();
+
+      if (!existingDrafts.empty) {
+        // Update existing draft
+        await db.collection('league_drafts').doc(existingDrafts.docs[0].id).update({
+          data: cleanUndefined(draft_data),
+          updated_at: admin.firestore.FieldValue.serverTimestamp()
+        });
+      } else {
+        // Create new draft
+        await db.collection('league_drafts').add({
+          player_id: playerId,
+          data: cleanUndefined(draft_data),
+          created_at: admin.firestore.FieldValue.serverTimestamp(),
+          updated_at: admin.firestore.FieldValue.serverTimestamp()
+        });
+      }
+
+      res.json({ success: true, message: 'Draft saved' });
+    } catch (error) {
+      console.error('Error saving league draft:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+});
+
+exports.getLeagueDraft = functions.https.onRequest((req, res) => {
+  cors(req, res, async () => {
+    try {
+      const { pin, director_pin } = req.body;
+      const authPin = pin || director_pin;
+
+      const playerId = await verifyDirectorPin(authPin);
+      if (!playerId) {
+        return res.status(401).json({ success: false, error: 'Invalid PIN' });
+      }
+
+      const draftsSnapshot = await db.collection('league_drafts')
+        .where('player_id', '==', playerId)
+        .limit(1)
+        .get();
+
+      if (draftsSnapshot.empty) {
+        return res.json({ success: true, draft: null });
+      }
+
+      const draftDoc = draftsSnapshot.docs[0];
+      res.json({
+        success: true,
+        draft: {
+          id: draftDoc.id,
+          ...draftDoc.data(),
+          updated_at: draftDoc.data().updated_at?.toDate?.()?.toISOString() || null
+        }
+      });
+    } catch (error) {
+      console.error('Error getting league draft:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+});
+
+exports.deleteLeagueDraft = functions.https.onRequest((req, res) => {
+  cors(req, res, async () => {
+    try {
+      const { pin, director_pin } = req.body;
+      const authPin = pin || director_pin;
+
+      const playerId = await verifyDirectorPin(authPin);
+      if (!playerId) {
+        return res.status(401).json({ success: false, error: 'Invalid PIN' });
+      }
+
+      const draftsSnapshot = await db.collection('league_drafts')
+        .where('player_id', '==', playerId)
+        .limit(1)
+        .get();
+
+      if (!draftsSnapshot.empty) {
+        await db.collection('league_drafts').doc(draftsSnapshot.docs[0].id).delete();
+      }
+
+      res.json({ success: true, message: 'Draft deleted' });
+    } catch (error) {
+      console.error('Error deleting league draft:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+});
+
+// ===== TOURNAMENT TEMPLATES =====
+
+exports.saveTournamentTemplate = functions.https.onRequest((req, res) => {
+  cors(req, res, async () => {
+    try {
+      const { pin, director_pin, template_name, template_data } = req.body;
+      const authPin = pin || director_pin;
+
+      const playerId = await verifyDirectorPin(authPin);
+      if (!playerId) {
+        return res.status(401).json({ success: false, error: 'Invalid PIN' });
+      }
+
+      await db.collection('tournament_templates').add({
+        player_id: playerId,
+        name: template_name,
+        data: cleanUndefined(template_data),
+        events_count: template_data?.events?.length || 0,
+        created_at: admin.firestore.FieldValue.serverTimestamp(),
+        updated_at: admin.firestore.FieldValue.serverTimestamp()
+      });
+
+      res.json({ success: true, message: 'Template saved' });
+    } catch (error) {
+      console.error('Error saving tournament template:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+});
+
+exports.getTournamentTemplates = functions.https.onRequest((req, res) => {
+  cors(req, res, async () => {
+    try {
+      const { pin, director_pin } = req.body;
+      const authPin = pin || director_pin;
+
+      const playerId = await verifyDirectorPin(authPin);
+      if (!playerId) {
+        return res.status(401).json({ success: false, error: 'Invalid PIN' });
+      }
+
+      const templatesSnapshot = await db.collection('tournament_templates')
+        .where('player_id', '==', playerId)
+        .orderBy('created_at', 'desc')
+        .get();
+
+      const templates = templatesSnapshot.docs.map(doc => ({
+        id: doc.id,
+        name: doc.data().name,
+        events_count: doc.data().events_count || 0,
+        created_at: doc.data().created_at?.toDate?.() || doc.data().created_at || new Date()
+      }));
+
+      res.json({ success: true, templates });
+    } catch (error) {
+      console.error('Error getting tournament templates:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+});
+
+exports.getTournamentTemplate = functions.https.onRequest((req, res) => {
+  cors(req, res, async () => {
+    try {
+      const { pin, director_pin, template_id } = req.body;
+      const authPin = pin || director_pin;
+
+      const playerId = await verifyDirectorPin(authPin);
+      if (!playerId) {
+        return res.status(401).json({ success: false, error: 'Invalid PIN' });
+      }
+
+      const templateDoc = await db.collection('tournament_templates').doc(template_id).get();
+      if (!templateDoc.exists) {
+        return res.status(404).json({ success: false, error: 'Template not found' });
+      }
+
+      const template = templateDoc.data();
+      if (template.player_id !== playerId) {
+        return res.status(403).json({ success: false, error: 'Access denied' });
+      }
+
+      res.json({ success: true, template: { id: templateDoc.id, ...template } });
+    } catch (error) {
+      console.error('Error getting tournament template:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+});
+
+exports.deleteTournamentTemplate = functions.https.onRequest((req, res) => {
+  cors(req, res, async () => {
+    try {
+      const { pin, director_pin, template_id } = req.body;
+      const authPin = pin || director_pin;
+
+      const playerId = await verifyDirectorPin(authPin);
+      if (!playerId) {
+        return res.status(401).json({ success: false, error: 'Invalid PIN' });
+      }
+
+      const templateDoc = await db.collection('tournament_templates').doc(template_id).get();
+      if (!templateDoc.exists) {
+        return res.status(404).json({ success: false, error: 'Template not found' });
+      }
+
+      if (templateDoc.data().player_id !== playerId) {
+        return res.status(403).json({ success: false, error: 'Access denied' });
+      }
+
+      await db.collection('tournament_templates').doc(template_id).delete();
+      res.json({ success: true, message: 'Template deleted' });
+    } catch (error) {
+      console.error('Error deleting tournament template:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+});
+
+// ===== TOURNAMENT DRAFTS =====
+
+exports.saveTournamentDraft = functions.https.onRequest((req, res) => {
+  cors(req, res, async () => {
+    try {
+      const { pin, director_pin, draft_data } = req.body;
+      const authPin = pin || director_pin;
+
+      const playerId = await verifyDirectorPin(authPin);
+      if (!playerId) {
+        return res.status(401).json({ success: false, error: 'Invalid PIN' });
+      }
+
+      // Check for existing draft
+      const existingDrafts = await db.collection('tournament_drafts')
+        .where('player_id', '==', playerId)
+        .limit(1)
+        .get();
+
+      if (!existingDrafts.empty) {
+        // Update existing draft
+        await db.collection('tournament_drafts').doc(existingDrafts.docs[0].id).update({
+          data: cleanUndefined(draft_data),
+          updated_at: admin.firestore.FieldValue.serverTimestamp()
+        });
+      } else {
+        // Create new draft
+        await db.collection('tournament_drafts').add({
+          player_id: playerId,
+          data: cleanUndefined(draft_data),
+          created_at: admin.firestore.FieldValue.serverTimestamp(),
+          updated_at: admin.firestore.FieldValue.serverTimestamp()
+        });
+      }
+
+      res.json({ success: true, message: 'Draft saved' });
+    } catch (error) {
+      console.error('Error saving tournament draft:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+});
+
+exports.getTournamentDraft = functions.https.onRequest((req, res) => {
+  cors(req, res, async () => {
+    try {
+      const { pin, director_pin } = req.body;
+      const authPin = pin || director_pin;
+
+      const playerId = await verifyDirectorPin(authPin);
+      if (!playerId) {
+        return res.status(401).json({ success: false, error: 'Invalid PIN' });
+      }
+
+      const draftsSnapshot = await db.collection('tournament_drafts')
+        .where('player_id', '==', playerId)
+        .limit(1)
+        .get();
+
+      if (draftsSnapshot.empty) {
+        return res.json({ success: true, draft: null });
+      }
+
+      const draftDoc = draftsSnapshot.docs[0];
+      res.json({
+        success: true,
+        draft: {
+          id: draftDoc.id,
+          ...draftDoc.data(),
+          updated_at: draftDoc.data().updated_at?.toDate?.()?.toISOString() || null
+        }
+      });
+    } catch (error) {
+      console.error('Error getting tournament draft:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+});
+
+exports.deleteTournamentDraft = functions.https.onRequest((req, res) => {
+  cors(req, res, async () => {
+    try {
+      const { pin, director_pin } = req.body;
+      const authPin = pin || director_pin;
+
+      const playerId = await verifyDirectorPin(authPin);
+      if (!playerId) {
+        return res.status(401).json({ success: false, error: 'Invalid PIN' });
+      }
+
+      const draftsSnapshot = await db.collection('tournament_drafts')
+        .where('player_id', '==', playerId)
+        .limit(1)
+        .get();
+
+      if (!draftsSnapshot.empty) {
+        await db.collection('tournament_drafts').doc(draftsSnapshot.docs[0].id).delete();
+      }
+
+      res.json({ success: true, message: 'Draft deleted' });
+    } catch (error) {
+      console.error('Error deleting tournament draft:', error);
+      res.status(500).json({ success: false, error: error.message });
     }
   });
 });

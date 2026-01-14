@@ -109,11 +109,15 @@ function generateSingleElimination(players, tournament_id) {
             position: i,
             player1: player1 ? {
                 id: player1.id,
-                name: player1.name
+                name: player1.name,
+                isBot: player1.isBot || false,
+                botDifficulty: player1.botDifficulty || null
             } : null,
             player2: player2 ? {
                 id: player2.id,
-                name: player2.name
+                name: player2.name,
+                isBot: player2.isBot || false,
+                botDifficulty: player2.botDifficulty || null
             } : null,
             score: { player1: null, player2: null },
             winner: null,

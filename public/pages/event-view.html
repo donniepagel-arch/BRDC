@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Event - BRDC</title>
+    <link rel="icon" type="image/png" href="/images/favicon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --pink: #FF469A;
+            --teal: #91D7EB;
+            --yellow: #FDD835;
+            --black: #1a1a2e;
+            --blue-dark: #0f0f1a;
+            --blue-light: #1a1a2e;
+            --text-light: #ffffff;
+            --text-dim: #a0a0b0;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(180deg, var(--blue-light) 0%, var(--blue-dark) 100%);
+            min-height: 100vh;
+            color: var(--text-light);
+        }
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse at 20% 20%, rgba(255, 70, 154, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(145, 215, 235, 0.06) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: -1;
+        }
+        .header-bar {
+            background: rgba(26, 26, 46, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 4px solid var(--pink);
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .back-btn {
+            background: transparent;
+            border: 2px solid var(--pink);
+            color: var(--pink);
+            padding: 8px 16px;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 16px;
+            letter-spacing: 2px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .back-btn:hover { background: var(--pink); color: white; }
+        .header-logo { width: 45px; height: 45px; }
+        .header-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 28px;
+            letter-spacing: 3px;
+            color: var(--pink);
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+
+        /* Event Header */
+        .event-header {
+            background: rgba(26, 26, 46, 0.9);
+            border: 4px solid var(--black);
+            box-shadow: 10px 10px 0 rgba(0,0,0,0.5);
+            margin-bottom: 25px;
+            overflow: hidden;
+        }
+        .event-banner {
+            background: linear-gradient(135deg, var(--pink) 0%, #cc3879 100%);
+            padding: 30px;
+        }
+        .event-banner.singles { background: linear-gradient(135deg, var(--pink), #cc3879); }
+        .event-banner.doubles { background: linear-gradient(135deg, var(--teal), #5ab8d4); color: var(--black); }
+        .event-banner.triples { background: linear-gradient(135deg, var(--yellow), #e6c200); color: var(--black); }
+        .event-name {
+            font-family: 'Archivo Black', sans-serif;
+            font-size: 36px;
+            text-transform: uppercase;
+        }
+        .event-tournament {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 18px;
+            letter-spacing: 2px;
+            opacity: 0.9;
+            margin-top: 5px;
+        }
+        .event-stats {
+            display: flex;
+            gap: 30px;
+            padding: 20px 30px;
+            background: rgba(0,0,0,0.2);
+        }
+        .event-stat {
+            text-align: center;
+        }
+        .event-stat-value {
+            font-family: 'Archivo Black', sans-serif;
+            font-size: 28px;
+        }
+        .event-stat-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            opacity: 0.8;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .tab {
+            padding: 12px 24px;
+            background: rgba(255,255,255,0.05);
+            border: 3px solid var(--black);
+            font-family: 'Bebas Neue', cursive;
+            font-size: 18px;
+            letter-spacing: 2px;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: var(--text-light);
+        }
+        .tab:hover { background: rgba(255,255,255,0.1); }
+        .tab.active {
+            background: var(--pink);
+            color: white;
+        }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* Bracket Section */
+        .bracket-container {
+            background: rgba(26, 26, 46, 0.9);
+            border: 4px solid var(--black);
+            padding: 20px;
+            overflow-x: auto;
+        }
+        .bracket-round {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-around;
+            min-width: 220px;
+        }
+        .bracket-rounds {
+            display: flex;
+            gap: 40px;
+            min-height: 400px;
+        }
+        .round-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 16px;
+            letter-spacing: 2px;
+            text-align: center;
+            margin-bottom: 15px;
+            color: var(--teal);
+        }
+        .bracket-match {
+            background: rgba(255,255,255,0.05);
+            border: 2px solid var(--black);
+            margin: 10px 0;
+            overflow: hidden;
+        }
+        .bracket-player {
+            padding: 10px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .bracket-player:last-child { border-bottom: none; }
+        .bracket-player.winner { background: rgba(16, 185, 129, 0.2); }
+        .bracket-player.loser { opacity: 0.5; }
+        .bracket-player-name { font-weight: 600; font-size: 14px; }
+        .bracket-player-score {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 18px;
+            color: var(--yellow);
+        }
+        .bracket-match-info {
+            background: rgba(0,0,0,0.3);
+            padding: 5px 10px;
+            font-size: 11px;
+            color: var(--text-dim);
+            text-align: center;
+        }
+        .bracket-empty {
+            text-align: center;
+            padding: 60px;
+            color: var(--text-dim);
+        }
+
+        /* Matches Section */
+        .matches-grid {
+            display: grid;
+            gap: 15px;
+        }
+        .match-card {
+            background: rgba(26, 26, 46, 0.9);
+            border: 3px solid var(--black);
+            box-shadow: 6px 6px 0 rgba(0,0,0,0.4);
+            overflow: hidden;
+        }
+        .match-header {
+            background: var(--black);
+            padding: 12px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .match-round {
+            font-family: 'Bebas Neue', cursive;
+            letter-spacing: 1px;
+        }
+        .match-status {
+            font-size: 11px;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 10px;
+        }
+        .match-status.scheduled { background: #666; }
+        .match-status.in_progress { background: var(--yellow); color: var(--black); }
+        .match-status.completed { background: #10b981; }
+        .match-body {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            align-items: center;
+            padding: 20px;
+            gap: 15px;
+        }
+        .match-team {
+            text-align: center;
+        }
+        .match-team-name {
+            font-weight: 700;
+            font-size: 16px;
+            margin-bottom: 5px;
+        }
+        .match-team-score {
+            font-family: 'Archivo Black', sans-serif;
+            font-size: 32px;
+        }
+        .match-team.winner .match-team-score { color: var(--teal); }
+        .match-vs {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 20px;
+            color: var(--text-dim);
+        }
+        .match-details {
+            background: rgba(0,0,0,0.2);
+            padding: 10px 15px;
+            font-size: 12px;
+            color: var(--text-dim);
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        /* Stats Section */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        .stats-card {
+            background: rgba(26, 26, 46, 0.9);
+            border: 3px solid var(--black);
+            box-shadow: 6px 6px 0 rgba(0,0,0,0.4);
+        }
+        .stats-card-header {
+            background: var(--black);
+            padding: 15px;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 18px;
+            letter-spacing: 2px;
+        }
+        .stats-card-body { padding: 15px; }
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .stat-row:last-child { border-bottom: none; }
+        .stat-player { font-weight: 600; }
+        .stat-value {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 20px;
+            color: var(--yellow);
+        }
+        .leaderboard-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .leaderboard-item:last-child { border-bottom: none; }
+        .leaderboard-rank {
+            width: 30px;
+            height: 30px;
+            background: var(--pink);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 16px;
+        }
+        .leaderboard-rank.gold { background: var(--yellow); color: var(--black); }
+        .leaderboard-rank.silver { background: #c0c0c0; color: var(--black); }
+        .leaderboard-rank.bronze { background: #cd7f32; }
+        .leaderboard-name { flex: 1; font-weight: 600; }
+        .leaderboard-stat {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 20px;
+            color: var(--teal);
+        }
+
+        /* Players Section */
+        .players-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        .player-card {
+            background: rgba(26, 26, 46, 0.9);
+            border: 3px solid var(--black);
+            padding: 20px;
+            text-align: center;
+        }
+        .player-name {
+            font-weight: 700;
+            font-size: 16px;
+            margin-bottom: 8px;
+        }
+        .player-status {
+            font-size: 12px;
+            padding: 4px 10px;
+            border-radius: 10px;
+            display: inline-block;
+        }
+        .player-status.active { background: #10b981; }
+        .player-status.eliminated { background: #ef4444; }
+        .player-status.pending { background: var(--yellow); color: var(--black); }
+        .player-seed {
+            font-size: 11px;
+            color: var(--text-dim);
+            margin-top: 8px;
+        }
+
+        .loading { text-align: center; padding: 60px; color: var(--text-dim); }
+        .empty-state {
+            text-align: center;
+            padding: 60px;
+            color: var(--text-dim);
+        }
+        .empty-state-icon { font-size: 60px; margin-bottom: 15px; }
+    </style>
+</head>
+<body>
+    <div class="header-bar">
+        <button class="back-btn" onclick="history.back()">BACK</button>
+        <img src="/images/white_logo.jpg" alt="BRDC" class="header-logo">
+        <span class="header-title">EVENT</span>
+    </div>
+
+    <div class="container" id="mainContent">
+        <div class="loading">Loading event...</div>
+    </div>
+
+    <script type="module">
+        import { db, doc, getDoc, collection, getDocs, query, orderBy } from '/js/firebase-config.js';
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const tournamentId = urlParams.get('tournament_id');
+        const eventId = urlParams.get('event_id');
+
+        let tournamentData = null;
+        let eventData = null;
+        let matches = [];
+        let players = [];
+
+        window.onload = async function() {
+            if (!tournamentId || !eventId) {
+                showError('Missing tournament_id or event_id');
+                return;
+            }
+            await loadEventData();
+        };
+
+        async function loadEventData() {
+            try {
+                // Load tournament
+                const tournamentDoc = await getDoc(doc(db, 'tournaments', tournamentId));
+                if (!tournamentDoc.exists()) throw new Error('Tournament not found');
+                tournamentData = { id: tournamentId, ...tournamentDoc.data() };
+
+                // Load event
+                const eventDoc = await getDoc(doc(db, 'tournaments', tournamentId, 'events', eventId));
+                if (eventDoc.exists()) {
+                    eventData = { id: eventId, ...eventDoc.data() };
+                } else if (tournamentData.events) {
+                    // Check events array
+                    const idx = parseInt(eventId.replace('event_', ''));
+                    eventData = { id: eventId, ...tournamentData.events[idx] };
+                }
+
+                if (!eventData) throw new Error('Event not found');
+
+                // Load matches
+                try {
+                    const matchesSnap = await getDocs(
+                        query(collection(db, 'tournaments', tournamentId, 'events', eventId, 'matches'), orderBy('round'))
+                    );
+                    matches = matchesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+                } catch (e) {
+                    // Try loading from tournament matches filtered by event
+                    const allMatchesSnap = await getDocs(collection(db, 'tournaments', tournamentId, 'matches'));
+                    matches = allMatchesSnap.docs
+                        .map(d => ({ id: d.id, ...d.data() }))
+                        .filter(m => m.event_id === eventId);
+                }
+
+                // Load players/registrations
+                try {
+                    const playersSnap = await getDocs(collection(db, 'tournaments', tournamentId, 'events', eventId, 'registrations'));
+                    players = playersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+                } catch (e) {
+                    players = [];
+                }
+
+                renderPage();
+
+            } catch (error) {
+                console.error('Error loading event:', error);
+                showError(error.message);
+            }
+        }
+
+        function renderPage() {
+            const eventType = getEventType(eventData.name || eventData.event_name);
+            const completedMatches = matches.filter(m => m.status === 'completed').length;
+            const totalMatches = matches.length;
+
+            const html = `
+                <div class="event-header">
+                    <div class="event-banner ${eventType}">
+                        <div class="event-name">${eventData.name || eventData.event_name}</div>
+                        <div class="event-tournament">${tournamentData.name || tournamentData.tournament_name}</div>
+                    </div>
+                    <div class="event-stats">
+                        <div class="event-stat">
+                            <div class="event-stat-value">${players.length}</div>
+                            <div class="event-stat-label">Players</div>
+                        </div>
+                        <div class="event-stat">
+                            <div class="event-stat-value">${completedMatches}/${totalMatches}</div>
+                            <div class="event-stat-label">Matches</div>
+                        </div>
+                        <div class="event-stat">
+                            <div class="event-stat-value">${eventData.format || '501'}</div>
+                            <div class="event-stat-label">Format</div>
+                        </div>
+                        <div class="event-stat">
+                            <div class="event-stat-value">${eventData.bracket_type || 'Double Elim'}</div>
+                            <div class="event-stat-label">Bracket</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tabs">
+                    <div class="tab active" onclick="switchTab('bracket')">BRACKET</div>
+                    <div class="tab" onclick="switchTab('matches')">MATCHES</div>
+                    <div class="tab" onclick="switchTab('stats')">STATS</div>
+                    <div class="tab" onclick="switchTab('players')">PLAYERS</div>
+                </div>
+
+                <div id="bracketTab" class="tab-content active">
+                    ${renderBracket()}
+                </div>
+
+                <div id="matchesTab" class="tab-content">
+                    ${renderMatches()}
+                </div>
+
+                <div id="statsTab" class="tab-content">
+                    ${renderStats()}
+                </div>
+
+                <div id="playersTab" class="tab-content">
+                    ${renderPlayers()}
+                </div>
+            `;
+
+            document.getElementById('mainContent').innerHTML = html;
+        }
+
+        function getEventType(name) {
+            const lower = (name || '').toLowerCase();
+            if (lower.includes('single')) return 'singles';
+            if (lower.includes('double')) return 'doubles';
+            if (lower.includes('triple') || lower.includes('team')) return 'triples';
+            return 'singles';
+        }
+
+        function renderBracket() {
+            if (matches.length === 0) {
+                return `<div class="bracket-empty">
+                    <div style="font-size: 60px; margin-bottom: 15px;">🎯</div>
+                    <div style="font-size: 18px; font-weight: 600;">Bracket Not Generated Yet</div>
+                    <div style="margin-top: 10px;">Check back once the event starts</div>
+                </div>`;
+            }
+
+            // Group matches by round
+            const rounds = {};
+            matches.forEach(m => {
+                const round = m.round || 1;
+                if (!rounds[round]) rounds[round] = [];
+                rounds[round].push(m);
+            });
+
+            const roundNames = ['', 'Round 1', 'Round 2', 'Quarters', 'Semis', 'Finals'];
+            const maxRound = Math.max(...Object.keys(rounds).map(Number));
+
+            let html = '<div class="bracket-container"><div class="bracket-rounds">';
+
+            for (let r = 1; r <= maxRound; r++) {
+                const roundMatches = rounds[r] || [];
+                const roundName = r === maxRound ? 'Finals' : r === maxRound - 1 ? 'Semis' : `Round ${r}`;
+
+                html += `<div class="bracket-round">
+                    <div class="round-title">${roundName}</div>`;
+
+                roundMatches.forEach(match => {
+                    const p1Winner = match.winner_id === match.player1_id;
+                    const p2Winner = match.winner_id === match.player2_id;
+
+                    html += `
+                        <div class="bracket-match">
+                            <div class="bracket-player ${p1Winner ? 'winner' : p2Winner ? 'loser' : ''}">
+                                <span class="bracket-player-name">${match.player1_name || 'TBD'}</span>
+                                <span class="bracket-player-score">${match.player1_score ?? '-'}</span>
+                            </div>
+                            <div class="bracket-player ${p2Winner ? 'winner' : p1Winner ? 'loser' : ''}">
+                                <span class="bracket-player-name">${match.player2_name || 'TBD'}</span>
+                                <span class="bracket-player-score">${match.player2_score ?? '-'}</span>
+                            </div>
+                            ${match.board ? `<div class="bracket-match-info">Board ${match.board}</div>` : ''}
+                        </div>`;
+                });
+
+                html += '</div>';
+            }
+
+            html += '</div></div>';
+            return html;
+        }
+
+        function renderMatches() {
+            if (matches.length === 0) {
+                return `<div class="empty-state">
+                    <div class="empty-state-icon">📋</div>
+                    <div>No matches scheduled yet</div>
+                </div>`;
+            }
+
+            let html = '<div class="matches-grid">';
+
+            // Sort by round descending (show latest first)
+            const sortedMatches = [...matches].sort((a, b) => (b.round || 1) - (a.round || 1));
+
+            sortedMatches.forEach(match => {
+                const roundName = match.round_name || `Round ${match.round || 1}`;
+                const status = match.status || 'scheduled';
+                const p1Winner = match.winner_id === match.player1_id;
+                const p2Winner = match.winner_id === match.player2_id;
+
+                html += `
+                    <div class="match-card">
+                        <div class="match-header">
+                            <span class="match-round">${roundName}</span>
+                            <span class="match-status ${status}">${status.replace('_', ' ').toUpperCase()}</span>
+                        </div>
+                        <div class="match-body">
+                            <div class="match-team ${p1Winner ? 'winner' : ''}">
+                                <div class="match-team-name">${match.player1_name || 'TBD'}</div>
+                                <div class="match-team-score">${match.player1_score ?? '-'}</div>
+                            </div>
+                            <div class="match-vs">VS</div>
+                            <div class="match-team ${p2Winner ? 'winner' : ''}">
+                                <div class="match-team-name">${match.player2_name || 'TBD'}</div>
+                                <div class="match-team-score">${match.player2_score ?? '-'}</div>
+                            </div>
+                        </div>
+                        <div class="match-details">
+                            ${match.board ? `<span>Board ${match.board}</span>` : ''}
+                            ${match.started_at ? `<span>Started: ${new Date(match.started_at).toLocaleTimeString()}</span>` : ''}
+                            ${match.completed_at ? `<span>Completed: ${new Date(match.completed_at).toLocaleTimeString()}</span>` : ''}
+                        </div>
+                    </div>`;
+            });
+
+            html += '</div>';
+            return html;
+        }
+
+        function renderStats() {
+            // Calculate stats from matches
+            const playerStats = {};
+
+            matches.forEach(match => {
+                if (match.status !== 'completed') return;
+
+                // Get match stats if available
+                const matchStats = match.stats || {};
+
+                [
+                    { id: match.player1_id, name: match.player1_name, score: match.player1_score, won: match.winner_id === match.player1_id, stats: matchStats.player1 || matchStats.home_stats },
+                    { id: match.player2_id, name: match.player2_name, score: match.player2_score, won: match.winner_id === match.player2_id, stats: matchStats.player2 || matchStats.away_stats }
+                ].forEach(p => {
+                    if (!p.id || !p.name) return;
+                    if (!playerStats[p.id]) {
+                        playerStats[p.id] = {
+                            name: p.name,
+                            wins: 0,
+                            losses: 0,
+                            legsWon: 0,
+                            legsLost: 0,
+                            totalDarts: 0,
+                            totalPoints: 0,
+                            t80: 0,
+                            t60: 0,
+                            highCheckout: 0,
+                            first9Darts: 0,
+                            first9Points: 0
+                        };
+                    }
+                    if (p.won) playerStats[p.id].wins++;
+                    else playerStats[p.id].losses++;
+                    playerStats[p.id].legsWon += p.score || 0;
+
+                    // Aggregate detailed stats if available
+                    if (p.stats) {
+                        playerStats[p.id].totalDarts += p.stats.darts || 0;
+                        playerStats[p.id].totalPoints += p.stats.points || 0;
+                        playerStats[p.id].t80 += p.stats.ton_80 || p.stats.ton80 || 0;
+                        playerStats[p.id].t60 += p.stats.ton_60 || p.stats.ton60 || 0;
+                        if ((p.stats.high_checkout || 0) > playerStats[p.id].highCheckout) {
+                            playerStats[p.id].highCheckout = p.stats.high_checkout;
+                        }
+                        playerStats[p.id].first9Darts += p.stats.first9_darts || 0;
+                        playerStats[p.id].first9Points += p.stats.first9_points || 0;
+                    }
+                });
+            });
+
+            const statsList = Object.values(playerStats);
+
+            if (statsList.length === 0) {
+                return `<div class="empty-state">
+                    <div class="empty-state-icon">📊</div>
+                    <div>Stats will appear once matches are played</div>
+                </div>`;
+            }
+
+            // Sort by wins
+            const byWins = [...statsList].sort((a, b) => b.wins - a.wins).slice(0, 10);
+            const byLegs = [...statsList].sort((a, b) => b.legsWon - a.legsWon).slice(0, 10);
+
+            // PPR (3-dart average) - only for players with enough darts
+            const byPPR = [...statsList]
+                .filter(p => p.totalDarts >= 12)
+                .map(p => ({ ...p, ppr: (p.totalPoints / p.totalDarts * 3).toFixed(1) }))
+                .sort((a, b) => parseFloat(b.ppr) - parseFloat(a.ppr))
+                .slice(0, 10);
+
+            // 180s
+            const by180 = [...statsList]
+                .filter(p => p.t80 > 0)
+                .sort((a, b) => b.t80 - a.t80)
+                .slice(0, 10);
+
+            // High checkout
+            const byHighCO = [...statsList]
+                .filter(p => p.highCheckout > 0)
+                .sort((a, b) => b.highCheckout - a.highCheckout)
+                .slice(0, 10);
+
+            // First 9 average
+            const byFirst9 = [...statsList]
+                .filter(p => p.first9Darts >= 9)
+                .map(p => ({ ...p, first9Avg: (p.first9Points / p.first9Darts * 3).toFixed(1) }))
+                .sort((a, b) => parseFloat(b.first9Avg) - parseFloat(a.first9Avg))
+                .slice(0, 10);
+
+            return `
+                <div class="stats-grid">
+                    <div class="stats-card">
+                        <div class="stats-card-header">MOST MATCH WINS</div>
+                        <div class="stats-card-body">
+                            ${byWins.map((p, i) => `
+                                <div class="leaderboard-item">
+                                    <div class="leaderboard-rank ${i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : ''}">${i + 1}</div>
+                                    <div class="leaderboard-name">${p.name}</div>
+                                    <div class="leaderboard-stat">${p.wins}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+
+                    <div class="stats-card">
+                        <div class="stats-card-header">MOST LEGS WON</div>
+                        <div class="stats-card-body">
+                            ${byLegs.map((p, i) => `
+                                <div class="leaderboard-item">
+                                    <div class="leaderboard-rank ${i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : ''}">${i + 1}</div>
+                                    <div class="leaderboard-name">${p.name}</div>
+                                    <div class="leaderboard-stat">${p.legsWon}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+
+                    ${byPPR.length > 0 ? `
+                    <div class="stats-card">
+                        <div class="stats-card-header">PPR LEADERS (3-DART AVG)</div>
+                        <div class="stats-card-body">
+                            ${byPPR.map((p, i) => `
+                                <div class="leaderboard-item">
+                                    <div class="leaderboard-rank ${i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : ''}">${i + 1}</div>
+                                    <div class="leaderboard-name">${p.name}</div>
+                                    <div class="leaderboard-stat">${p.ppr}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    ` : ''}
+
+                    ${by180.length > 0 ? `
+                    <div class="stats-card">
+                        <div class="stats-card-header">MOST 180s</div>
+                        <div class="stats-card-body">
+                            ${by180.map((p, i) => `
+                                <div class="leaderboard-item">
+                                    <div class="leaderboard-rank ${i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : ''}">${i + 1}</div>
+                                    <div class="leaderboard-name">${p.name}</div>
+                                    <div class="leaderboard-stat">${p.t80}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    ` : ''}
+
+                    ${byHighCO.length > 0 ? `
+                    <div class="stats-card">
+                        <div class="stats-card-header">HIGHEST CHECKOUT</div>
+                        <div class="stats-card-body">
+                            ${byHighCO.map((p, i) => `
+                                <div class="leaderboard-item">
+                                    <div class="leaderboard-rank ${i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : ''}">${i + 1}</div>
+                                    <div class="leaderboard-name">${p.name}</div>
+                                    <div class="leaderboard-stat">${p.highCheckout}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    ` : ''}
+
+                    ${byFirst9.length > 0 ? `
+                    <div class="stats-card">
+                        <div class="stats-card-header">FIRST 9 AVERAGE</div>
+                        <div class="stats-card-body">
+                            ${byFirst9.map((p, i) => `
+                                <div class="leaderboard-item">
+                                    <div class="leaderboard-rank ${i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : ''}">${i + 1}</div>
+                                    <div class="leaderboard-name">${p.name}</div>
+                                    <div class="leaderboard-stat">${p.first9Avg}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    ` : ''}
+
+                    <div class="stats-card">
+                        <div class="stats-card-header">WIN/LOSS RECORDS</div>
+                        <div class="stats-card-body">
+                            ${statsList.slice(0, 10).map(p => `
+                                <div class="stat-row">
+                                    <span class="stat-player">${p.name}</span>
+                                    <span class="stat-value">${p.wins}-${p.losses}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderPlayers() {
+            if (players.length === 0) {
+                return `<div class="empty-state">
+                    <div class="empty-state-icon">👥</div>
+                    <div>No players registered yet</div>
+                </div>`;
+            }
+
+            let html = '<div class="players-grid">';
+
+            players.forEach((player, i) => {
+                const status = player.eliminated ? 'eliminated' : player.status === 'active' ? 'active' : 'pending';
+
+                html += `
+                    <div class="player-card">
+                        <div class="player-name">${player.full_name || player.name}</div>
+                        <span class="player-status ${status}">${status.charAt(0).toUpperCase() + status.slice(1)}</span>
+                        ${player.seed ? `<div class="player-seed">Seed #${player.seed}</div>` : ''}
+                    </div>`;
+            });
+
+            html += '</div>';
+            return html;
+        }
+
+        window.switchTab = function(tabName) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById(tabName + 'Tab').classList.add('active');
+        };
+
+        function showError(message) {
+            document.getElementById('mainContent').innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-icon">❌</div>
+                    <div>${message}</div>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>

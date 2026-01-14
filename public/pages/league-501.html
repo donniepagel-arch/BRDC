@@ -5,463 +5,3244 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>501 Scorer - BRDC League</title>
     <link rel="icon" type="image/png" href="/images/favicon.png">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="BRDC">
+    <link rel="apple-touch-icon" href="/images/white_logo.jpg">
+    <meta name="theme-color" content="#FF469A">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700;800;900&display=swap');
-        :root { --pink: #FF469A; --blue-dark: #001F4D; --blue-light: #1F85AF; --teal: #91D7EB; --yellow: #FDD835; --black: #000; }
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; user-select: none; }
-        body { background: var(--blue-dark); min-height: 100vh; }
-        .header { background: var(--pink); padding: 12px 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 4px solid var(--black); }
-        .back-btn { background: white; border: 3px solid var(--black); padding: 8px 15px; font-weight: 800; cursor: pointer; box-shadow: 3px 3px 0 rgba(0,0,0,1); }
-        .game-info { color: white; font-family: 'Bebas Neue', cursive; font-size: 20px; }
-        .leg-info { background: var(--yellow); border: 3px solid var(--black); padding: 8px 15px; font-family: 'Bebas Neue', cursive; font-size: 18px; }
-        .scorer-container { display: grid; grid-template-columns: 1fr 1fr; }
-        .player-panel { display: flex; flex-direction: column; border-right: 3px solid var(--black); }
-        .player-panel:last-child { border-right: none; }
-        .player-panel.active .player-header { background: var(--yellow); }
-        .player-header { background: white; padding: 15px; text-align: center; border-bottom: 4px solid var(--black); }
-        .player-name { font-family: 'Bebas Neue', cursive; font-size: 22px; margin-bottom: 5px; }
-        .player-label { font-size: 11px; font-weight: 700; color: #666; text-transform: uppercase; }
-        .score-display { background: linear-gradient(180deg, #1a1a1a 0%, #000 100%); padding: 15px; text-align: center; }
-        .current-score { font-family: 'Bebas Neue', cursive; font-size: 64px; color: #0f0; text-shadow: 0 0 20px rgba(0,255,0,0.5); line-height: 1; }
-        .player-panel.active .current-score { color: var(--yellow); text-shadow: 0 0 20px rgba(253,216,53,0.5); }
-        .last-throw { font-size: 13px; color: #888; margin-top: 5px; }
-        .last-throw span { color: #0f0; font-weight: 700; }
-        .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); background: #111; border-bottom: 3px solid var(--black); }
-        .stat-box { padding: 8px 5px; text-align: center; border-right: 1px solid #333; }
-        .stat-box:last-child { border-right: none; }
-        .stat-label { font-size: 9px; color: #666; text-transform: uppercase; }
-        .stat-value { font-family: 'Bebas Neue', cursive; font-size: 20px; color: white; }
-        .throw-history { background: #1a1a1a; flex: 1; overflow-y: auto; padding: 8px; max-height: 120px; }
-        .throw-entry { display: flex; justify-content: space-between; padding: 4px 8px; border-bottom: 1px solid #333; font-size: 12px; color: #aaa; }
-        .throw-entry .score { font-weight: 700; color: white; }
-        .throw-entry.ton { color: var(--yellow); }
-        .throw-entry.ton-forty { color: var(--pink); }
-        .throw-entry.ton-eighty { color: #0f0; }
-        .keypad-container { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 5px solid var(--black); padding: 10px; }
-        .input-display { background: #f3f4f6; border: 3px solid var(--black); padding: 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
-        .input-value { font-family: 'Bebas Neue', cursive; font-size: 32px; }
-        .input-hint { font-size: 11px; color: #666; }
-        .quick-scores { display: flex; gap: 6px; margin-bottom: 8px; overflow-x: auto; }
-        .quick-btn { background: var(--blue-light); color: white; border: 2px solid var(--black); padding: 8px 12px; font-weight: 800; font-size: 13px; cursor: pointer; box-shadow: 2px 2px 0 rgba(0,0,0,1); }
-        .keypad { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
-        .key { background: white; border: 3px solid var(--black); padding: 12px 8px; font-size: 18px; font-weight: 800; cursor: pointer; box-shadow: 3px 3px 0 rgba(0,0,0,1); }
-        .key:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 rgba(0,0,0,1); }
-        .key.enter { background: var(--pink); color: white; }
-        .key.clear { background: #ef4444; color: white; }
-        .key.undo { background: var(--yellow); }
-        .key.special { background: var(--teal); font-size: 12px; }
-        .checkout-hint { background: var(--yellow); border: 3px solid var(--black); padding: 6px 10px; margin-bottom: 8px; font-weight: 700; font-size: 13px; text-align: center; }
-        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 1000; align-items: center; justify-content: center; padding: 20px; }
+        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rowdies:wght@700&family=Inter:wght@400;600;700;800;900&display=swap');
+
+        :root {
+            --pink: #FF469A;
+            --teal: #91D7EB;
+            --yellow: #FDD835;
+            --bg-dark: #0a0a1a;
+            --bg-panel: #12122a;
+            --text-light: #f0f0f0;
+            --text-dim: #7a7a9a;
+            --home-color: #FF469A;
+            --away-color: #91D7EB;
+            --border-color: #2a2a4a;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; user-select: none; touch-action: manipulation; -ms-touch-action: manipulation; }
+        button, .calc-key, .side-btn, .action-btn, .modal-btn, .score-value, .score-input-value, .player-chip, .throw-item { touch-action: manipulation; -ms-touch-action: manipulation; }
+        html { height: 100%; height: 100dvh; }
+        body {
+            height: 100%;
+            height: 100dvh;
+            overflow: hidden;
+            background: linear-gradient(180deg, var(--bg-dark) 0%, #050510 100%);
+            color: var(--text-light);
+            padding-bottom: env(safe-area-inset-bottom, 0);
+        }
+
+        .container { display: flex; flex-direction: column; height: 100%; max-height: 100dvh; }
+
+        /* Header */
+        .header {
+            background: var(--bg-panel);
+            padding: 8px 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 3px solid var(--pink);
+            flex-shrink: 0;
+        }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .back-btn {
+            background: rgba(255,255,255,0.1);
+            border: 2px solid rgba(255,255,255,0.3);
+            color: var(--text-light);
+            padding: 6px 12px;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 14px;
+            letter-spacing: 1px;
+            cursor: pointer;
+            border-radius: 6px;
+        }
+        .game-title { font-family: 'Rowdies', cursive; font-size: 20px; text-shadow: 2px 2px 0 rgba(0,0,0,0.5); }
+        .game-format {
+            background: var(--yellow);
+            color: #000;
+            padding: 4px 10px;
+            font-size: 10px;
+            font-weight: 800;
+            border-radius: 4px;
+            letter-spacing: 1px;
+        }
+        .leg-indicator {
+            background: rgba(0,0,0,0.4);
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 14px;
+            letter-spacing: 2px;
+            border: 2px solid rgba(255,255,255,0.1);
+        }
+
+        /* Score Display */
+        .score-display {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            flex: 0 0 auto;
+            overflow: hidden;
+        }
+
+        .team-panel {
+            display: flex;
+            flex-direction: column;
+            padding: 8px;
+            position: relative;
+        }
+        .team-panel.home {
+            background: linear-gradient(180deg, rgba(255,70,154,0.12) 0%, transparent 100%);
+            border-right: 2px solid var(--border-color);
+        }
+        .team-panel.away {
+            background: linear-gradient(180deg, rgba(145,215,235,0.12) 0%, transparent 100%);
+        }
+        .team-panel.active {
+            box-shadow: inset 0 0 40px rgba(253,216,53,0.15);
+        }
+        .team-panel.active::before {
+            content: 'THROWING';
+            position: absolute;
+            top: 6px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--yellow);
+            color: #000;
+            padding: 3px 12px;
+            font-size: 9px;
+            font-weight: 800;
+            border-radius: 10px;
+            letter-spacing: 1px;
+            z-index: 10;
+        }
+
+        .team-header { text-align: center; padding-top: 8px; }
+        .team-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            opacity: 0.7;
+            font-weight: 700;
+        }
+        .team-label.home { color: var(--pink); }
+        .team-label.away { color: var(--teal); }
+
+        .player-names {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 16px;
+            letter-spacing: 1px;
+            min-height: 36px;
+            margin-top: 4px;
+        }
+        .player-name { display: block; line-height: 1.2; }
+        .player-name.throwing { color: var(--yellow); }
+
+        .score-value {
+            font-family: 'Rowdies', cursive;
+            font-size: 100px;
+            line-height: 1;
+            text-align: center;
+            margin: 4px 0;
+            text-shadow: 4px 4px 0 rgba(0,0,0,0.5);
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+        .score-value:active {
+            transform: scale(0.95);
+        }
+        .team-panel.home .score-value { color: var(--pink); }
+        .team-panel.away .score-value { color: var(--teal); }
+
+        /* Checkout Hint */
+        .checkout-hint {
+            text-align: center;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 14px;
+            font-weight: 400;
+            color: var(--yellow);
+            background: rgba(253,216,53,0.15);
+            padding: 4px 10px;
+            border-radius: 4px;
+            margin: 0 auto 4px;
+            max-width: 180px;
+            border: 1px solid rgba(253,216,53,0.3);
+            min-height: 22px;
+            letter-spacing: 1px;
+        }
+
+        .legs-display {
+            text-align: center;
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+        .legs-display span {
+            background: rgba(0,0,0,0.4);
+            padding: 3px 10px;
+            border-radius: 4px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 4px;
+            margin-top: 4px;
+        }
+        .stat-box {
+            background: rgba(0,0,0,0.4);
+            padding: 4px;
+            border-radius: 4px;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        .stat-box .value {
+            font-family: 'Rowdies', cursive;
+            font-size: 14px;
+            color: var(--yellow);
+        }
+        .stat-box .label {
+            font-size: 7px;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            letter-spacing: 1px;
+            font-weight: 700;
+        }
+
+        /* Input Section - Calculator Style */
+        .input-section {
+            background: var(--bg-panel);
+            border-top: 3px solid var(--pink);
+            padding: 10px 0;
+            padding-bottom: calc(10px + env(safe-area-inset-bottom, 0));
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        .input-layout {
+            display: flex;
+            flex-direction: row;
+            align-items: stretch;
+            width: 100%;
+            height: 100%;
+        }
+
+        .keypad-area {
+            flex: 1;
+            min-width: 0;
+            padding: 0 10px;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+
+        .score-input-display {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+
+        .score-input-value {
+            background: rgba(0,0,0,0.6);
+            border: 3px solid var(--yellow);
+            border-radius: 10px;
+            padding: 10px 20px;
+            width: 100%;
+            text-align: center;
+            font-family: 'Rowdies', cursive;
+            font-size: 48px;
+            color: var(--yellow);
+            box-shadow: 0 0 20px rgba(253,216,53,0.2);
+            cursor: pointer;
+            min-height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .score-input-value.invalid {
+            border-color: #ef4444;
+            color: #ef4444;
+            box-shadow: 0 0 20px rgba(239,68,68,0.3);
+        }
+
+        .score-input-value.checkout-hint-mode {
+            font-size: 28px;
+            font-family: 'Bebas Neue', cursive;
+            color: rgba(253,216,53,0.5);
+            letter-spacing: 3px;
+        }
+
+        /* Calculator Keypad with Side Quick Buttons - DartConnect Style */
+        .keypad-container {
+            display: grid;
+            grid-template-columns: 58px 1fr 58px;
+            gap: 5px;
+            margin-bottom: 6px;
+        }
+
+        .side-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .side-btn {
+            flex: 1;
+            background: linear-gradient(180deg, rgba(253,216,53,0.3) 0%, rgba(253,216,53,0.15) 100%);
+            border: 2px solid var(--yellow);
+            color: var(--yellow);
+            font-family: 'Bebas Neue', cursive;
+            font-size: 24px;
+            font-weight: 400;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.1s;
+            padding: 8px 2px;
+            min-height: 60px;
+        }
+        .side-btn:active {
+            background: var(--yellow);
+            color: #000;
+            transform: scale(0.95);
+        }
+
+        .calc-keypad {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 5px;
+        }
+
+        .calc-key {
+            background: linear-gradient(180deg, #2a2a4a 0%, #1a1a35 100%);
+            border: 3px solid rgba(255,255,255,0.25);
+            color: var(--text-light);
+            padding: 20px 10px;
+            font-size: 36px;
+            font-weight: 800;
+            cursor: pointer;
+            border-radius: 10px;
+            transition: all 0.1s;
+            font-family: 'Bebas Neue', cursive;
+            box-shadow: 0 3px 0 rgba(0,0,0,0.4);
+            min-height: 68px;
+        }
+
+        .calc-key:active {
+            background: var(--yellow);
+            color: #000;
+            transform: translateY(2px);
+            box-shadow: 0 1px 0 rgba(0,0,0,0.4);
+            border-color: var(--yellow);
+        }
+
+        /* Bottom row - 5 columns */
+        .calc-bottom-row {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 5px;
+            margin-bottom: 8px;
+        }
+
+        .calc-bottom-row .calc-key {
+            padding: 16px 6px;
+            font-size: 26px;
+            min-height: 58px;
+        }
+
+        .calc-key.operator {
+            background: linear-gradient(180deg, rgba(145,215,235,0.4) 0%, rgba(145,215,235,0.2) 100%);
+            border-color: var(--teal);
+            color: var(--teal);
+        }
+        .calc-key.operator:active {
+            background: var(--teal);
+            color: #000;
+        }
+
+        .calc-key.shortcut {
+            background: linear-gradient(180deg, rgba(255,70,154,0.4) 0%, rgba(255,70,154,0.2) 100%);
+            border-color: var(--pink);
+            color: var(--pink);
+        }
+        .calc-key.shortcut:active {
+            background: var(--pink);
+            color: #fff;
+        }
+
+        /* Action Buttons */
+        .action-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 2fr;
+            gap: 8px;
+        }
+
+        .action-btn {
+            padding: 18px;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 20px;
+            letter-spacing: 2px;
+            cursor: pointer;
+            border-radius: 8px;
+            border: none;
+            box-shadow: 0 4px 0 rgba(0,0,0,0.4);
+            transition: all 0.1s;
+        }
+        .action-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(0,0,0,0.4); }
+        .action-btn.undo { background: linear-gradient(180deg, #6b7280 0%, #4b5563 100%); color: white; }
+        .action-btn.miss { background: linear-gradient(180deg, #ef4444 0%, #dc2626 100%); color: white; }
+        .action-btn.enter { background: linear-gradient(180deg, #22c55e 0%, #16a34a 100%); color: white; font-size: 24px; }
+
+        /* Modals */
+        .modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(5,5,16,0.95);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
         .modal.active { display: flex; }
-        .modal-content { background: white; border: 5px solid var(--black); box-shadow: 12px 12px 0 rgba(0,0,0,1); padding: 30px; max-width: 450px; width: 100%; text-align: center; }
-        .modal-title { font-family: 'Bebas Neue', cursive; font-size: 32px; margin-bottom: 15px; }
-        .modal-btn { background: var(--pink); color: white; border: 3px solid var(--black); padding: 12px 24px; font-size: 16px; font-weight: 800; cursor: pointer; box-shadow: 4px 4px 0 rgba(0,0,0,1); margin: 8px; }
-        .modal-btn.secondary { background: white; color: var(--black); }
-        .winner-display { font-family: 'Bebas Neue', cursive; font-size: 36px; color: var(--pink); margin: 15px 0; }
-        .final-stats { text-align: left; background: #f3f4f6; padding: 15px; margin: 15px 0; border: 3px solid var(--black); font-size: 14px; }
-        .final-stats div { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #ddd; }
-        @media (max-width: 600px) { .current-score { font-size: 50px; } .player-name { font-size: 16px; } }
+        .modal-content {
+            background: var(--bg-panel);
+            border: 4px solid var(--pink);
+            border-radius: 16px;
+            padding: 25px;
+            max-width: 400px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 0 60px rgba(255,70,154,0.3), 8px 8px 0 rgba(0,0,0,0.5);
+        }
+        .modal-title {
+            font-family: 'Rowdies', cursive;
+            font-size: 28px;
+            color: var(--yellow);
+            text-shadow: 3px 3px 0 rgba(0,0,0,0.5);
+            margin-bottom: 8px;
+        }
+        .winner-name {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 22px;
+            margin: 12px 0;
+            letter-spacing: 2px;
+        }
+        .modal-stats {
+            background: rgba(0,0,0,0.4);
+            padding: 14px;
+            border-radius: 10px;
+            margin: 12px 0;
+            text-align: left;
+            border: 2px solid rgba(255,255,255,0.1);
+        }
+        .modal-stats .row {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            font-weight: 600;
+            font-size: 14px;
+        }
+        .modal-stats .row:last-child { border-bottom: none; }
+        .modal-stats .row .val { color: var(--yellow); }
+        .modal-btn {
+            background: linear-gradient(180deg, var(--yellow) 0%, #f59e0b 100%);
+            color: #000;
+            border: 3px solid #000;
+            padding: 12px 24px;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 16px;
+            letter-spacing: 2px;
+            cursor: pointer;
+            border-radius: 8px;
+            margin: 6px;
+            box-shadow: 4px 4px 0 rgba(0,0,0,0.5);
+        }
+        .modal-btn:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 rgba(0,0,0,0.5); }
+        .modal-btn.secondary { background: linear-gradient(180deg, #6b7280 0%, #4b5563 100%); color: white; }
+
+        /* Game Select Buttons */
+        .game-select-btn {
+            padding: 14px 20px;
+            background: linear-gradient(180deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 8px;
+            color: white;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 20px;
+            letter-spacing: 2px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .game-select-btn:hover, .game-select-btn:active {
+            background: linear-gradient(180deg, var(--teal) 0%, #6bc0d4 100%);
+            border-color: var(--teal);
+            color: #000;
+        }
+
+        /* Wrong Game Button - inline with header */
+        .wrong-game-btn {
+            padding: 4px 8px;
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid rgba(239, 68, 68, 0.5);
+            border-radius: 4px;
+            color: #f87171;
+            font-size: 10px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-left: 8px;
+        }
+        .wrong-game-btn:hover {
+            background: rgba(239, 68, 68, 0.4);
+        }
+        .wrong-game-btn.hidden {
+            display: none;
+        }
+
+        /* Double Out Selection Modal */
+        .darts-select {
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+            margin: 20px 0;
+        }
+        .dart-count-btn {
+            background: linear-gradient(180deg, rgba(253,216,53,0.3) 0%, rgba(253,216,53,0.1) 100%);
+            border: 4px solid var(--yellow);
+            color: var(--yellow);
+            width: 85px;
+            height: 85px;
+            border-radius: 50%;
+            font-family: 'Rowdies', cursive;
+            font-size: 36px;
+            cursor: pointer;
+            touch-action: manipulation;
+            transition: all 0.15s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .dart-count-btn:active, .dart-count-btn.selected {
+            background: var(--yellow);
+            border-color: var(--yellow);
+            color: #000;
+            transform: scale(0.95);
+        }
+        .dart-count-btn:disabled {
+            background: rgba(0,0,0,0.2);
+            border-color: rgba(255,255,255,0.15);
+            color: rgba(255,255,255,0.2);
+            cursor: not-allowed;
+        }
+
+        /* Quick Out Selector */
+        .quick-out-container {
+            background: rgba(253, 216, 53, 0.1);
+            border: 2px solid var(--yellow);
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 12px;
+        }
+        .quick-out-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+        }
+        .quick-out-btn {
+            background: rgba(255,255,255,0.1);
+            border: 2px solid var(--yellow);
+            color: var(--yellow);
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-family: 'Rowdies', cursive;
+            font-size: 18px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .quick-out-btn:active {
+            background: var(--yellow);
+            color: #000;
+        }
+
+        /* Throw History - Side Layout */
+        .side-history {
+            width: 90px;
+            flex-shrink: 0;
+            background: rgba(0,0,0,0.4);
+            display: flex;
+            flex-direction: column;
+            padding: 6px 4px;
+            border-radius: 0;
+            max-height: 100%;
+        }
+        .side-history.home {
+            border-right: 3px solid var(--pink);
+        }
+        .side-history.away {
+            border-left: 3px solid var(--teal);
+        }
+        .history-label {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            opacity: 0.8;
+            margin-bottom: 6px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+        .side-history.home .history-label { color: var(--pink); }
+        .side-history.away .history-label { color: var(--teal); }
+        .history-throws {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            overflow-y: auto;
+            flex: 1;
+            min-height: 0;
+        }
+        .throw-item {
+            background: rgba(255,255,255,0.08);
+            padding: 8px 4px;
+            border-radius: 6px;
+            font-size: 28px;
+            font-weight: 700;
+            font-family: 'Bebas Neue', cursive;
+            text-align: center;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: background 0.15s;
+            flex-shrink: 0;
+            min-height: 44px;
+        }
+        .throw-item:active {
+            background: rgba(255,255,255,0.2);
+        }
+        .throw-item.home { border-left: 3px solid var(--pink); }
+        .throw-item.away { border-right: 3px solid var(--teal); }
+        .throw-item.ton { color: var(--yellow); }
+        .throw-item.ton80 { color: var(--yellow); background: rgba(253,216,53,0.2); }
+        .throw-item.bust { color: #ef4444; text-decoration: line-through; opacity: 0.6; }
+
+        @media (max-width: 500px) {
+            .score-value { font-size: 72px; }
+            .score-input-value { font-size: 36px; padding: 8px 12px; min-height: 70px; }
+            .calc-key { padding: 16px 8px; font-size: 30px; min-height: 58px; }
+            .calc-bottom-row .calc-key { padding: 12px 4px; font-size: 22px; min-height: 50px; }
+            .side-btn { font-size: 20px; padding: 6px 2px; min-height: 50px; }
+            .action-btn { padding: 12px; font-size: 16px; }
+            .action-btn.enter { font-size: 18px; }
+            .side-history { width: 70px; padding: 4px 3px; }
+            .throw-item { font-size: 24px; padding: 6px 3px; min-height: 40px; }
+            .history-label { font-size: 9px; }
+            .keypad-area { padding: 0 4px; }
+            .keypad-container { grid-template-columns: 50px 1fr 50px; gap: 4px; }
+        }
+
+        /* Game Shot Quick Select */
+        .game-shot-select {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            padding: 10px;
+        }
+        .game-shot-select.active {
+            display: flex;
+        }
+        .game-shot-title {
+            font-family: 'Rowdies', cursive;
+            font-size: 28px;
+            color: var(--yellow);
+            text-shadow: 2px 2px 0 rgba(0,0,0,0.5);
+        }
+        .game-shot-score {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 22px;
+            color: var(--teal);
+            letter-spacing: 2px;
+        }
+        .dart-select-row {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+        .dart-select-btn {
+            width: 90px;
+            height: 90px;
+            border-radius: 50%;
+            border: 4px solid var(--yellow);
+            background: linear-gradient(180deg, rgba(253,216,53,0.3) 0%, rgba(253,216,53,0.1) 100%);
+            color: var(--yellow);
+            font-family: 'Rowdies', cursive;
+            font-size: 36px;
+            cursor: pointer;
+            transition: all 0.15s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .dart-select-btn:active {
+            background: var(--yellow);
+            color: #000;
+            transform: scale(0.95);
+        }
+        .dart-select-btn .dart-label {
+            font-size: 12px;
+            font-family: 'Inter', sans-serif;
+            font-weight: 700;
+            margin-top: -4px;
+        }
+        .dart-select-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+        .game-shot-cancel {
+            margin-top: 8px;
+            padding: 10px 30px;
+            background: rgba(255,255,255,0.1);
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 8px;
+            color: white;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 16px;
+            letter-spacing: 2px;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
-    <div class="header">
-        <div style="display: flex; align-items: center; gap: 12px;">
-            <button class="back-btn" onclick="goBack()">←</button>
-            <div class="game-info" id="gameTitle">Game 1 • 501</div>
+    <div class="container">
+        <div class="header">
+            <div class="header-left">
+                <button class="back-btn" onclick="exitGame()">EXIT</button>
+                <span class="game-title" id="gameTitle">GAME 1</span>
+                <span class="game-format" id="gameFormat">501 DO</span>
+                <button class="wrong-game-btn" id="wrongGameBtn" onclick="showGameSelector('current')">WRONG GAME?</button>
+            </div>
+            <div class="leg-indicator" id="legIndicator">LEG 1</div>
         </div>
-        <div class="leg-info" id="legInfo">LEG 1/3</div>
+
+        <div class="score-display">
+            <!-- Home Team -->
+            <div class="team-panel home active" id="homePanel">
+                <div class="team-header">
+                    <div class="team-label home">HOME</div>
+                    <div class="player-names" id="homeNames">
+                        <span class="player-name" id="homeName1">Player A</span>
+                        <span class="player-name" id="homeName2"></span>
+                    </div>
+                </div>
+                <div class="score-value" id="homeScore" onclick="submitRemainingScore(0)">501</div>
+                <div class="checkout-hint" id="homeCheckout"></div>
+                <div class="legs-display"><span id="homeLegs">0</span> LEGS</div>
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <div class="value" id="homeLegAvg">0.0</div>
+                        <div class="label">Leg Avg</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="value" id="homeAvg">0.0</div>
+                        <div class="label">Match Avg</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="value" id="homeDarts">0</div>
+                        <div class="label">Darts</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="value" id="home180s">0</div>
+                        <div class="label">180s</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Away Team -->
+            <div class="team-panel away" id="awayPanel">
+                <div class="team-header">
+                    <div class="team-label away">AWAY</div>
+                    <div class="player-names" id="awayNames">
+                        <span class="player-name" id="awayName1">Player B</span>
+                        <span class="player-name" id="awayName2"></span>
+                    </div>
+                </div>
+                <div class="score-value" id="awayScore" onclick="submitRemainingScore(1)">501</div>
+                <div class="checkout-hint" id="awayCheckout"></div>
+                <div class="legs-display"><span id="awayLegs">0</span> LEGS</div>
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <div class="value" id="awayLegAvg">0.0</div>
+                        <div class="label">Leg Avg</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="value" id="awayAvg">0.0</div>
+                        <div class="label">Match Avg</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="value" id="awayDarts">0</div>
+                        <div class="label">Darts</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="value" id="away180s">0</div>
+                        <div class="label">180s</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="input-section">
+            <div class="input-layout">
+                <!-- Home Throws - Left Side -->
+                <div class="side-history home">
+                    <div class="history-label">HOME</div>
+                    <div class="history-throws" id="homeThrows"></div>
+                </div>
+
+                <!-- Center Keypad Area -->
+                <div class="keypad-area">
+                    <div class="score-input-display">
+                        <div class="score-input-value" id="scoreInput" onclick="clearInput()">0</div>
+                    </div>
+
+                    <!-- Game Shot Quick Select (shown when checkout score entered) -->
+                    <div class="game-shot-select" id="gameShotSelect">
+                        <div class="game-shot-title">GAME SHOT!</div>
+                        <div class="game-shot-score" id="gameShotScore">141 checkout</div>
+                        <div style="font-size: 12px; opacity: 0.7; margin-bottom: 8px;">Which dart hit the out?</div>
+                        <div class="dart-select-row">
+                            <button class="dart-select-btn" id="dart1Btn" onclick="completeCheckoutQuick(1)">
+                                1st<span class="dart-label">DART</span>
+                            </button>
+                            <button class="dart-select-btn" id="dart2Btn" onclick="completeCheckoutQuick(2)">
+                                2nd<span class="dart-label">DART</span>
+                            </button>
+                            <button class="dart-select-btn" id="dart3Btn" onclick="completeCheckoutQuick(3)">
+                                3rd<span class="dart-label">DART</span>
+                            </button>
+                        </div>
+                        <button class="game-shot-cancel" onclick="cancelGameShot()">CANCEL</button>
+                    </div>
+
+                    <!-- Quick Checkout Buttons (shown when on checkout) -->
+                    <div class="quick-out-container" id="quickOutContainer" style="display: none;">
+                        <div style="font-size: 11px; color: var(--yellow); letter-spacing: 2px; margin-bottom: 8px;">QUICK OUTS</div>
+                        <div class="quick-out-grid" id="quickOutGrid">
+                            <!-- Populated dynamically based on remaining score -->
+                        </div>
+                    </div>
+
+                    <div class="keypad-container" id="keypadContainer">
+                        <div class="side-buttons">
+                            <button class="side-btn" onclick="quickScore(26)">26</button>
+                            <button class="side-btn" onclick="quickScore(41)">41</button>
+                            <button class="side-btn" onclick="quickScore(45)">45</button>
+                            <button class="side-btn" onclick="quickScore(60)">60</button>
+                        </div>
+                        <div class="calc-keypad">
+                            <button class="calc-key" onclick="appendDigit('1')">1</button>
+                            <button class="calc-key" onclick="appendDigit('2')">2</button>
+                            <button class="calc-key" onclick="appendDigit('3')">3</button>
+                            <button class="calc-key" onclick="appendDigit('4')">4</button>
+                            <button class="calc-key" onclick="appendDigit('5')">5</button>
+                            <button class="calc-key" onclick="appendDigit('6')">6</button>
+                            <button class="calc-key" onclick="appendDigit('7')">7</button>
+                            <button class="calc-key" onclick="appendDigit('8')">8</button>
+                            <button class="calc-key" onclick="appendDigit('9')">9</button>
+                        </div>
+                        <div class="side-buttons">
+                            <button class="side-btn" onclick="quickScore(81)">81</button>
+                            <button class="side-btn" onclick="quickScore(85)">85</button>
+                            <button class="side-btn" onclick="quickScore(121)">121</button>
+                            <button class="side-btn" onclick="quickScore(180)">180</button>
+                        </div>
+                    </div>
+
+                    <div class="calc-bottom-row">
+                        <button class="calc-key shortcut" onclick="quickScore(100)">100</button>
+                        <button class="calc-key operator" onclick="multiply()">x</button>
+                        <button class="calc-key" onclick="appendDigit('0')">0</button>
+                        <button class="calc-key operator" onclick="add()">+</button>
+                        <button class="calc-key shortcut" onclick="quickScore(140)">140</button>
+                    </div>
+
+                    <div class="action-row">
+                        <button class="action-btn undo" onclick="undoScore()">UNDO</button>
+                        <button class="action-btn miss" onclick="submitScore(0)">MISS</button>
+                        <button class="action-btn enter" onclick="submitCurrentScore()">ENTER</button>
+                    </div>
+                </div>
+
+                <!-- Away Throws - Right Side -->
+                <div class="side-history away">
+                    <div class="history-label">AWAY</div>
+                    <div class="history-throws" id="awayThrows"></div>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <div class="scorer-container" id="scorerContainer">
-        <div class="player-panel active" id="player1Panel" onclick="setActivePlayer(0)">
-            <div class="player-header">
-                <div class="player-label">HOME</div>
-                <div class="player-name" id="player1Name">Player 1</div>
-            </div>
-            <div class="score-display">
-                <div class="current-score" id="player1Score">501</div>
-                <div class="last-throw">Last: <span id="player1Last">-</span></div>
-            </div>
-            <div class="stats-row">
-                <div class="stat-box"><div class="stat-label">3DA</div><div class="stat-value" id="player1Avg">0.0</div></div>
-                <div class="stat-box"><div class="stat-label">Darts</div><div class="stat-value" id="player1Darts">0</div></div>
-                <div class="stat-box"><div class="stat-label">Legs</div><div class="stat-value" id="player1Legs">0</div></div>
-            </div>
-            <div class="throw-history" id="player1History"></div>
-        </div>
-        <div class="player-panel" id="player2Panel" onclick="setActivePlayer(1)">
-            <div class="player-header">
-                <div class="player-label">AWAY</div>
-                <div class="player-name" id="player2Name">Player 2</div>
-            </div>
-            <div class="score-display">
-                <div class="current-score" id="player2Score">501</div>
-                <div class="last-throw">Last: <span id="player2Last">-</span></div>
-            </div>
-            <div class="stats-row">
-                <div class="stat-box"><div class="stat-label">3DA</div><div class="stat-value" id="player2Avg">0.0</div></div>
-                <div class="stat-box"><div class="stat-label">Darts</div><div class="stat-value" id="player2Darts">0</div></div>
-                <div class="stat-box"><div class="stat-label">Legs</div><div class="stat-value" id="player2Legs">0</div></div>
-            </div>
-            <div class="throw-history" id="player2History"></div>
-        </div>
-    </div>
-
-    <div class="keypad-container">
-        <div id="checkoutHint" class="checkout-hint" style="display: none;"></div>
-        <div class="quick-scores">
-            <button class="quick-btn" onclick="enterScore(26)">26</button>
-            <button class="quick-btn" onclick="enterScore(45)">45</button>
-            <button class="quick-btn" onclick="enterScore(60)">60</button>
-            <button class="quick-btn" onclick="enterScore(100)">T</button>
-            <button class="quick-btn" onclick="enterScore(140)">140</button>
-            <button class="quick-btn" onclick="enterScore(180)">180</button>
-        </div>
-        <div class="input-display">
-            <span class="input-value" id="inputDisplay">0</span>
-            <span class="input-hint" id="inputHint">Enter 0-180</span>
-        </div>
-        <div class="keypad">
-            <button class="key" onclick="appendDigit(1)">1</button>
-            <button class="key" onclick="appendDigit(2)">2</button>
-            <button class="key" onclick="appendDigit(3)">3</button>
-            <button class="key undo" onclick="undoLast()">↩</button>
-            <button class="key" onclick="appendDigit(4)">4</button>
-            <button class="key" onclick="appendDigit(5)">5</button>
-            <button class="key" onclick="appendDigit(6)">6</button>
-            <button class="key clear" onclick="clearInput()">C</button>
-            <button class="key" onclick="appendDigit(7)">7</button>
-            <button class="key" onclick="appendDigit(8)">8</button>
-            <button class="key" onclick="appendDigit(9)">9</button>
-            <button class="key special" onclick="enterScore(0)">MISS</button>
-            <button class="key special" onclick="bust()">BUST</button>
-            <button class="key" onclick="appendDigit(0)">0</button>
-            <button class="key special" onclick="promptCheckout()">OUT</button>
-            <button class="key enter" onclick="submitScore()">OK</button>
-        </div>
-    </div>
-
+    <!-- Leg Complete Modal -->
     <div class="modal" id="legModal">
         <div class="modal-content">
-            <div class="modal-title">🎯 LEG WINNER!</div>
-            <div class="winner-display" id="legWinner">Player</div>
-            <div id="legStats" class="final-stats"></div>
+            <div class="modal-title">LEG COMPLETE!</div>
+            <div class="winner-name" id="legWinnerName">Player Wins</div>
+            <div class="modal-stats" id="legStats"></div>
+            <div id="nextGameInfo" style="display: none; margin: 16px 0; padding: 12px; background: rgba(0,0,0,0.3); border-radius: 8px;">
+                <div style="font-size: 13px; color: var(--text-dim); margin-bottom: 6px;">NEXT GAME</div>
+                <div style="display: flex; align-items: center; justify-content: center; gap: 12px;">
+                    <span id="nextGameLabel" style="font-family: 'Bebas Neue', cursive; font-size: 24px; color: var(--teal);"></span>
+                    <button onclick="showGameSelector()" style="background: var(--yellow); color: #000; border: 2px solid #000; padding: 6px 12px; font-weight: 700; font-size: 12px; border-radius: 4px; cursor: pointer;">CHANGE</button>
+                </div>
+            </div>
             <button class="modal-btn" onclick="nextLeg()">NEXT LEG</button>
         </div>
     </div>
 
-    <div class="modal" id="gameModal">
-        <div class="modal-content">
-            <div class="modal-title">🏆 GAME OVER!</div>
-            <div class="winner-display" id="gameWinner">Player</div>
-            <div id="gameStats" class="final-stats"></div>
-            <button class="modal-btn" onclick="saveAndExit()">SAVE & EXIT</button>
+    <!-- Game Selector Modal -->
+    <div class="modal" id="gameSelectorModal">
+        <div class="modal-content" style="max-width: 340px;">
+            <div class="modal-title" style="font-size: 24px;">SELECT GAME</div>
+            <div style="display: flex; flex-direction: column; gap: 8px; margin: 16px 0;">
+                <button class="game-select-btn" onclick="selectNextGame('501')">501</button>
+                <button class="game-select-btn" onclick="selectNextGame('301')">301</button>
+                <button class="game-select-btn" onclick="selectNextGame('cricket')">CRICKET</button>
+                <button class="game-select-btn" onclick="selectNextGame('x01')">X01 (CUSTOM)</button>
+            </div>
+            <div id="x01CustomOptions" style="display: none; margin: 12px 0; padding: 12px; background: rgba(0,0,0,0.3); border-radius: 8px;">
+                <div style="display: flex; gap: 8px; align-items: center; justify-content: center;">
+                    <input type="number" id="x01CustomScore" value="501" min="101" max="1001" step="100" style="width: 80px; padding: 8px; background: rgba(255,255,255,0.1); border: 2px solid var(--teal); border-radius: 4px; color: white; font-weight: 700; text-align: center;">
+                    <select id="x01CustomIn" style="padding: 8px; background: var(--bg-dark); border: 2px solid var(--teal); border-radius: 4px; color: white; font-weight: 600;">
+                        <option value="straight">SI</option>
+                        <option value="double">DI</option>
+                    </select>
+                    <select id="x01CustomOut" style="padding: 8px; background: var(--bg-dark); border: 2px solid var(--teal); border-radius: 4px; color: white; font-weight: 600;">
+                        <option value="double" selected>DO</option>
+                        <option value="straight">SO</option>
+                        <option value="master">MO</option>
+                    </select>
+                </div>
+                <button onclick="confirmX01Selection()" style="margin-top: 10px; width: 100%; padding: 10px; background: var(--teal); color: #000; border: 2px solid #000; font-weight: 700; border-radius: 4px; cursor: pointer;">CONFIRM</button>
+            </div>
+            <button class="modal-btn secondary" onclick="closeGameSelector()" style="margin-top: 8px;">CANCEL</button>
         </div>
     </div>
 
-    <div class="modal" id="checkoutModal">
+    <!-- Game Complete Modal -->
+    <div class="modal" id="gameModal">
         <div class="modal-content">
-            <div class="modal-title">CHECKOUT!</div>
-            <p style="margin-bottom:15px">Darts used?</p>
-            <button class="modal-btn secondary" onclick="recordCheckout(1)">1</button>
-            <button class="modal-btn secondary" onclick="recordCheckout(2)">2</button>
-            <button class="modal-btn secondary" onclick="recordCheckout(3)">3</button>
+            <div class="modal-title">GAME OVER!</div>
+            <div class="winner-name" id="gameWinnerName">Player Wins</div>
+            <div class="modal-stats" id="gameStats"></div>
+            <button class="modal-btn" onclick="saveGame()">SAVE RESULT</button>
+            <button class="modal-btn secondary" onclick="exitWithoutSave()">EXIT</button>
+        </div>
+    </div>
+
+    <!-- Checkout Darts Modal (for double out) -->
+    <div class="modal" id="dartsModal">
+        <div class="modal-content" style="max-width: 360px;">
+            <div class="modal-title" style="color: var(--yellow); font-size: 36px;">GAME SHOT!</div>
+            <div id="checkoutScoreDisplay" style="font-family: 'Rowdies', cursive; font-size: 48px; color: var(--teal); margin: 10px 0;"></div>
+            <div class="winner-name" style="font-size: 16px; opacity: 0.8; margin-bottom: 16px;">Which dart hit the out?</div>
+            <div class="darts-select" style="gap: 12px;">
+                <button class="dart-count-btn" id="dartBtn1" onclick="confirmCheckout(1)" style="flex-direction: column; padding: 16px 20px;">
+                    <span style="font-size: 28px;">1st</span>
+                    <span style="font-size: 11px; opacity: 0.7; margin-top: 4px;">DART</span>
+                </button>
+                <button class="dart-count-btn" id="dartBtn2" onclick="confirmCheckout(2)" style="flex-direction: column; padding: 16px 20px;">
+                    <span style="font-size: 28px;">2nd</span>
+                    <span style="font-size: 11px; opacity: 0.7; margin-top: 4px;">DART</span>
+                </button>
+                <button class="dart-count-btn" id="dartBtn3" onclick="confirmCheckout(3)" style="flex-direction: column; padding: 16px 20px;">
+                    <span style="font-size: 28px;">3rd</span>
+                    <span style="font-size: 11px; opacity: 0.7; margin-top: 4px;">DART</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game Shot Confirmation Modal -->
+    <div class="modal" id="confirmGameModal">
+        <div class="modal-content">
+            <div class="modal-title" style="color: var(--yellow);">GAME SHOT!</div>
+            <div class="winner-name" id="confirmWinnerName">Player wins the game!</div>
+            <div style="font-size: 28px; font-family: 'Rowdies', cursive; color: var(--teal); margin: 15px 0;" id="confirmCheckoutScore">141 checkout</div>
+            <div style="font-size: 14px; opacity: 0.7; margin-bottom: 20px;">Confirm this is correct?</div>
+            <div style="display: flex; gap: 12px;">
+                <button class="modal-btn" onclick="confirmGameWin()" style="flex: 1;">CONFIRM</button>
+                <button class="modal-btn secondary" onclick="undoGameWin()" style="flex: 1;">UNDO</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PIN Entry Screen -->
+    <div class="modal" id="pinEntryScreen" style="display: none;">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-title" style="font-size: 28px;">ENTER MATCH PIN</div>
+            <div style="margin: 20px 0; font-size: 14px; opacity: 0.8;">Enter the 6-character match PIN to start scoring</div>
+            <div style="display: flex; justify-content: center; gap: 8px; margin: 20px 0;" id="pinInputContainer">
+                <input type="text" maxlength="1" class="pin-char" style="width: 45px; height: 55px; text-align: center; font-size: 24px; font-family: 'Bebas Neue', cursive; background: rgba(255,255,255,0.1); border: 2px solid var(--pink); border-radius: 8px; color: #fff; text-transform: uppercase;">
+                <input type="text" maxlength="1" class="pin-char" style="width: 45px; height: 55px; text-align: center; font-size: 24px; font-family: 'Bebas Neue', cursive; background: rgba(255,255,255,0.1); border: 2px solid var(--pink); border-radius: 8px; color: #fff; text-transform: uppercase;">
+                <input type="text" maxlength="1" class="pin-char" style="width: 45px; height: 55px; text-align: center; font-size: 24px; font-family: 'Bebas Neue', cursive; background: rgba(255,255,255,0.1); border: 2px solid var(--pink); border-radius: 8px; color: #fff; text-transform: uppercase;">
+                <input type="text" maxlength="1" class="pin-char" style="width: 45px; height: 55px; text-align: center; font-size: 24px; font-family: 'Bebas Neue', cursive; background: rgba(255,255,255,0.1); border: 2px solid var(--pink); border-radius: 8px; color: #fff; text-transform: uppercase;">
+                <input type="text" maxlength="1" class="pin-char" style="width: 45px; height: 55px; text-align: center; font-size: 24px; font-family: 'Bebas Neue', cursive; background: rgba(255,255,255,0.1); border: 2px solid var(--pink); border-radius: 8px; color: #fff; text-transform: uppercase;">
+                <input type="text" maxlength="1" class="pin-char" style="width: 45px; height: 55px; text-align: center; font-size: 24px; font-family: 'Bebas Neue', cursive; background: rgba(255,255,255,0.1); border: 2px solid var(--pink); border-radius: 8px; color: #fff; text-transform: uppercase;">
+            </div>
+            <div id="pinError" style="color: var(--pink); font-size: 14px; margin-bottom: 15px; display: none;"></div>
+            <button class="modal-btn" onclick="loadMatchByPin()" id="loadMatchBtn">LOAD MATCH</button>
+        </div>
+    </div>
+
+    <!-- Pre-Leg Popup (Always shows before each leg) -->
+    <div class="modal" id="starterModal">
+        <div class="modal-content" style="max-width: 420px;">
+            <!-- Leg Info Header -->
+            <div id="preLegHeader" style="margin-bottom: 20px;">
+                <div id="starterLegInfo" style="font-size: 16px; opacity: 0.7; letter-spacing: 2px; margin-bottom: 8px;">LEG 1</div>
+                <div id="preLegGame" style="font-size: 28px; font-family: 'Bebas Neue', cursive; color: var(--yellow); letter-spacing: 2px;">501 DOUBLE OUT</div>
+            </div>
+
+            <!-- Teams Display -->
+            <div id="preLegTeams" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding: 16px; background: rgba(0,0,0,0.3); border-radius: 8px;">
+                <div style="text-align: center; flex: 1;">
+                    <div style="font-size: 12px; color: var(--pink); letter-spacing: 1px; margin-bottom: 4px;">HOME</div>
+                    <div id="preLegHomeName" style="font-size: 18px; font-weight: 700;">Team 1</div>
+                </div>
+                <div style="font-size: 16px; color: var(--text-dim); padding: 0 16px;">VS</div>
+                <div style="text-align: center; flex: 1;">
+                    <div style="font-size: 12px; color: var(--teal); letter-spacing: 1px; margin-bottom: 4px;">AWAY</div>
+                    <div id="preLegAwayName" style="font-size: 18px; font-weight: 700;">Team 2</div>
+                </div>
+            </div>
+
+            <!-- Cork Section (when cork is needed) -->
+            <div id="corkSection" style="display: none;">
+                <!-- Cork Ready Phase -->
+                <div id="corkReadyPhase">
+                    <div style="font-size: 14px; opacity: 0.7; margin-bottom: 12px;">DETERMINE STARTER</div>
+                    <button class="modal-btn" onclick="startCorkShuffle()" style="width: 100%; font-size: 18px; padding: 16px; background: linear-gradient(180deg, var(--yellow) 0%, #d4a600 100%); color: #000;">
+                        &#127919; CORK IT
+                    </button>
+                </div>
+
+                <!-- Cork Shuffle Phase -->
+                <div id="corkShufflePhase" style="display: none;">
+                    <div style="font-size: 14px; opacity: 0.7; margin-bottom: 8px;">THROWS AT BULL FIRST...</div>
+                    <div id="shuffleName" style="font-size: 48px; font-family: 'Archivo Black', sans-serif; color: var(--yellow); padding: 20px 0;"></div>
+                </div>
+
+                <!-- Throws First Phase -->
+                <div id="throwsFirstPhase" style="display: none;">
+                    <div id="throwsFirstName" style="font-size: 36px; font-family: 'Archivo Black', sans-serif; margin-bottom: 4px;"></div>
+                    <div style="font-size: 16px; opacity: 0.8; margin-bottom: 20px;">THROWS AT BULL FIRST</div>
+                    <button class="modal-btn primary" onclick="showWhoGotIt()" style="width: 100%; font-size: 18px; padding: 16px;">CONTINUE</button>
+                </div>
+
+                <!-- Who Got It Phase -->
+                <div id="whoGotItPhase" style="display: none;">
+                    <div style="font-size: 16px; margin-bottom: 16px;">WHO GOT CLOSEST?</div>
+                    <div style="display: flex; gap: 12px;">
+                        <button class="modal-btn" onclick="corkWinner(0)" id="corkHomeBtn" style="flex: 1; background: linear-gradient(180deg, var(--pink) 0%, #cc3879 100%); font-size: 16px; padding: 18px 12px;"></button>
+                        <button class="modal-btn" onclick="corkWinner(1)" id="corkAwayBtn" style="flex: 1; background: linear-gradient(180deg, var(--teal) 0%, #5cb8d3 100%); color: #000; font-size: 16px; padding: 18px 12px;"></button>
+                    </div>
+                </div>
+
+                <!-- Choose First or Second Phase (after cork winner) -->
+                <div id="chooseOrderPhase" style="display: none;">
+                    <div style="font-size: 14px; opacity: 0.7; margin-bottom: 8px;">CORK WINNER</div>
+                    <div id="chooseOrderWinner" style="font-size: 28px; font-family: 'Archivo Black', sans-serif; color: var(--yellow); margin-bottom: 16px;"></div>
+                    <div style="font-size: 16px; margin-bottom: 16px;">CHOOSE YOUR OPTION</div>
+                    <div style="display: flex; gap: 12px;">
+                        <button class="modal-btn primary" onclick="chooseThrowOrder('first')" style="flex: 1; padding: 18px 12px; font-size: 16px;">
+                            THROW FIRST
+                        </button>
+                        <button class="modal-btn" onclick="chooseThrowOrder('second')" style="flex: 1; padding: 18px 12px; font-size: 16px; background: rgba(255,255,255,0.1);">
+                            THROW SECOND
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- No Cork Section (starter already determined) -->
+            <div id="noCorkSection" style="display: none;">
+                <div style="font-size: 14px; opacity: 0.7; margin-bottom: 8px;">STARTING</div>
+                <div id="starterName" style="font-size: 36px; font-family: 'Archivo Black', sans-serif; color: var(--yellow); margin-bottom: 20px;"></div>
+                <button class="modal-btn primary" onclick="confirmStarter()" style="width: 100%; font-size: 18px; padding: 16px;">READY</button>
+            </div>
+
+            <!-- Starter Ready Phase (after cork winner selected) -->
+            <div id="starterReadyPhase" style="display: none;">
+                <div style="font-size: 14px; opacity: 0.7; margin-bottom: 8px;">STARTING</div>
+                <div id="starterReadyName" style="font-size: 36px; font-family: 'Archivo Black', sans-serif; color: var(--yellow); margin-bottom: 20px;"></div>
+                <button class="modal-btn primary" onclick="confirmStarter()" style="width: 100%; font-size: 18px; padding: 16px;">READY</button>
+            </div>
+
+            <!-- Corks Choice Game Selector (shows after cork winner for corks_choice mode) -->
+            <div id="corksChoicePhase" style="display: none;">
+                <div style="font-size: 14px; opacity: 0.7; margin-bottom: 8px;">CORK WINNER CHOOSES</div>
+                <div id="corksChoiceWinner" style="font-size: 28px; font-family: 'Archivo Black', sans-serif; color: var(--yellow); margin-bottom: 16px;"></div>
+                <div style="font-size: 14px; margin-bottom: 16px;">SELECT GAME TYPE</div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <button class="modal-btn" onclick="selectCorksChoiceGame('501')" style="padding: 14px; font-size: 16px;">501</button>
+                    <button class="modal-btn" onclick="selectCorksChoiceGame('301')" style="padding: 14px; font-size: 16px;">301</button>
+                    <button class="modal-btn" onclick="selectCorksChoiceGame('701')" style="padding: 14px; font-size: 16px;">701</button>
+                    <button class="modal-btn" onclick="selectCorksChoiceGame('cricket')" style="padding: 14px; font-size: 16px;">CRICKET</button>
+                </div>
+            </div>
         </div>
     </div>
 
 <script type="module">
 import { callFunction } from '/js/firebase-config.js';
 
+// Checkout table
+const CHECKOUTS = {
+    170: 'T20 T20 Bull', 167: 'T20 T19 Bull', 164: 'T20 T18 Bull', 161: 'T20 T17 Bull',
+    160: 'T20 T20 D20', 158: 'T20 T20 D19', 157: 'T20 T19 D20', 156: 'T20 T20 D18',
+    155: 'T20 T19 D19', 154: 'T20 T18 D20', 153: 'T20 T19 D18', 152: 'T20 T20 D16',
+    151: 'T20 T17 D20', 150: 'T20 T18 D18', 149: 'T20 T19 D16', 148: 'T20 T20 D14',
+    147: 'T20 T17 D18', 146: 'T20 T18 D16', 145: 'T20 T15 D20', 144: 'T20 T20 D12',
+    143: 'T20 T17 D16', 142: 'T20 T14 D20', 141: 'T20 T19 D12', 140: 'T20 T20 D10',
+    139: 'T20 T13 D20', 138: 'T20 T18 D12', 137: 'T20 T19 D10', 136: 'T20 T20 D8',
+    135: 'T20 T15 D15', 134: 'T20 T14 D16', 133: 'T20 T19 D8', 132: 'T20 T16 D12',
+    131: 'T20 T13 D16', 130: 'T20 T18 D8', 129: 'T19 T16 D12', 128: 'T18 T14 D16',
+    127: 'T20 T17 D8', 126: 'T19 T19 D6', 125: 'T20 T15 D10', 124: 'T20 T14 D11',
+    123: 'T19 T16 D9', 122: 'T18 T18 D7', 121: 'T20 T11 D14', 120: 'T20 S20 D20',
+    119: 'T19 T12 D13', 118: 'T20 S18 D20', 117: 'T20 S17 D20', 116: 'T20 S16 D20',
+    115: 'T20 S15 D20', 114: 'T20 S14 D20', 113: 'T20 S13 D20', 112: 'T20 S12 D20',
+    111: 'T20 S11 D20', 110: 'T20 S10 D20', 109: 'T20 S9 D20', 108: 'T20 S16 D16',
+    107: 'T19 S10 D20', 106: 'T20 S6 D20', 105: 'T20 S5 D20', 104: 'T18 S10 D20',
+    103: 'T19 S6 D20', 102: 'T20 S10 D16', 101: 'T17 S10 D20', 100: 'T20 D20',
+    99: 'T19 S10 D16', 98: 'T20 D19', 97: 'T19 D20', 96: 'T20 D18', 95: 'T19 D19',
+    94: 'T18 D20', 93: 'T19 D18', 92: 'T20 D16', 91: 'T17 D20', 90: 'T18 D18',
+    89: 'T19 D16', 88: 'T20 D14', 87: 'T17 D18', 86: 'T18 D16', 85: 'T15 D20',
+    84: 'T20 D12', 83: 'T17 D16', 82: 'T14 D20', 81: 'T19 D12', 80: 'T20 D10',
+    79: 'T13 D20', 78: 'T18 D12', 77: 'T19 D10', 76: 'T20 D8', 75: 'T17 D12',
+    74: 'T14 D16', 73: 'T19 D8', 72: 'T16 D12', 71: 'T13 D16', 70: 'T18 D8',
+    69: 'T19 D6', 68: 'T20 D4', 67: 'T17 D8', 66: 'T10 D18', 65: 'T19 D4',
+    64: 'T16 D8', 63: 'T13 D12', 62: 'T10 D16', 61: 'T15 D8', 60: 'S20 D20',
+    59: 'S19 D20', 58: 'S18 D20', 57: 'S17 D20', 56: 'T16 D4', 55: 'S15 D20',
+    54: 'S14 D20', 53: 'S13 D20', 52: 'S12 D20', 51: 'S11 D20', 50: 'S10 D20',
+    49: 'S9 D20', 48: 'S16 D16', 47: 'S15 D16', 46: 'S6 D20', 45: 'S13 D16',
+    44: 'S12 D16', 43: 'S11 D16', 42: 'S10 D16', 41: 'S9 D16', 40: 'D20',
+    39: 'S7 D16', 38: 'D19', 37: 'S5 D16', 36: 'D18', 35: 'S3 D16', 34: 'D17',
+    33: 'S1 D16', 32: 'D16', 31: 'S15 D8', 30: 'D15', 29: 'S13 D8', 28: 'D14',
+    27: 'S11 D8', 26: 'D13', 25: 'S9 D8', 24: 'D12', 23: 'S7 D8', 22: 'D11',
+    21: 'S5 D8', 20: 'D10', 19: 'S3 D8', 18: 'D9', 17: 'S1 D8', 16: 'D8',
+    15: 'S7 D4', 14: 'D7', 13: 'S5 D4', 12: 'D6', 11: 'S3 D4', 10: 'D5',
+    9: 'S1 D4', 8: 'D4', 7: 'S3 D2', 6: 'D3', 5: 'S1 D2', 4: 'D2', 3: 'S1 D1', 2: 'D1'
+};
+
+// URL Parameters (mutable for PIN-loaded matches)
 const params = new URLSearchParams(window.location.search);
-const leagueId = params.get('league_id');
-const matchId = params.get('match_id');
-const gameIndex = parseInt(params.get('game_index') || '0');
-const gameNumber = params.get('game_number') || '1';
-const checkout = params.get('checkout') || 'double';
+let leagueId = params.get('league_id');
+let matchId = params.get('match_id');
+let tournamentId = params.get('tournament_id'); // Tournament support
+let tournamentMatchId = params.get('tournament_match_id'); // Tournament match ID
+let gameIndex = parseInt(params.get('game_index') || '0');
+let gameNumber = parseInt(params.get('game_number') || '1');
+let checkout = params.get('checkout') || 'double';
+let inRule = params.get('in_rule') || 'straight';
+let adminPin = params.get('admin_pin') || '';
+let fromMatch = params.get('from_match') === 'true';
+let isCasual = params.get('casual') === 'true';
+let matchPin = params.get('match_pin') || '';
 
 let homePlayers = [], awayPlayers = [];
 try { homePlayers = JSON.parse(params.get('home_players') || '[]'); } catch(e) {}
 try { awayPlayers = JSON.parse(params.get('away_players') || '[]'); } catch(e) {}
 
-const START = 501, LEGS_TO_WIN = 2;
-let input = '', active = 0, leg = 1, pendingCheckout = null;
+let STARTING_SCORE = parseInt(params.get('starting_score') || params.get('format') || '501');
+let LEGS_TO_WIN = parseInt(params.get('legs_to_win') || '2');
+let useCork = params.get('cork') !== 'false'; // Default to cork unless explicitly disabled
+let corkRule = params.get('cork_rule') || 'alternate_cork_first_deciding';
+let corkOption = params.get('cork_option') || 'alternate_random_first_last'; // Who has option to choose first/second
+let corkOptionHolder = null; // Who has the option this leg
+let lastLegWinner = null; // Track who won the previous leg for loser_starts rule
+let lastLegStarter = null; // Track who started the previous leg for alternating
+let loadedMatchData = null; // Store full match data for saving
+let practiceMode = params.get('practice_mode') || null;
+let isChicago = params.get('chicago') === 'true';
+let chicagoGame = parseInt(params.get('chicago_game') || '0');
+let isMixedGame = params.get('mixed') === 'true';
+let mixedLegIndex = parseInt(params.get('mixed_leg') || '0');
+let isCorksChoice = params.get('corks_choice') === 'true';
 
-let players = [
-    { name: homePlayers.map(p => p?.name || 'Home').join(' & '), score: START, darts: 0, throws: [], legs: 0,
-      totalDarts: 0, totalPoints: 0, tons: 0, tonForty: 0, tonEighty: 0, t171: 0, highScore: 0, checkouts: [], attempts: 0 },
-    { name: awayPlayers.map(p => p?.name || 'Away').join(' & '), score: START, darts: 0, throws: [], legs: 0,
-      totalDarts: 0, totalPoints: 0, tons: 0, tonForty: 0, tonEighty: 0, t171: 0, highScore: 0, checkouts: [], attempts: 0 }
+// Resume mode params
+let isResumeMode = params.get('resume') === 'true';
+let resumeHomeScore = parseInt(params.get('resume_home_score') || STARTING_SCORE);
+let resumeAwayScore = parseInt(params.get('resume_away_score') || STARTING_SCORE);
+let resumeHomeDarts = parseInt(params.get('resume_home_darts') || '0');
+let resumeAwayDarts = parseInt(params.get('resume_away_darts') || '0');
+let resumeActiveTeam = parseInt(params.get('resume_active') || '0');
+
+// Bot configuration - average scores per 3 darts
+const BOT_CONFIG = {
+    easy: { avg: 40, variance: 15, checkoutPct: 0.15 },
+    medium: { avg: 55, variance: 18, checkoutPct: 0.25 },
+    league: { avg: 65, variance: 20, checkoutPct: 0.35 },
+    hard: { avg: 75, variance: 22, checkoutPct: 0.50 },
+    pro: { avg: 90, variance: 25, checkoutPct: 0.70 }
+};
+
+// Check if away team is a bot
+function isAwayBot() {
+    // Support both old practice mode format and new isBot format from game-setup
+    return (practiceMode && awayPlayers[0]?.is_bot) || awayPlayers[0]?.isBot;
+}
+
+// Check if home team is a bot
+function isHomeBot() {
+    return homePlayers[0]?.isBot;
+}
+
+// Check if current active team is a bot
+function isCurrentTeamBot() {
+    return activeTeam === 0 ? isHomeBot() : isAwayBot();
+}
+
+// Get bot config for a team
+function getBotConfig(teamIndex) {
+    const players = teamIndex === 0 ? homePlayers : awayPlayers;
+    const difficulty = players[0]?.botDifficulty || players[0]?.bot_level || 'medium';
+    return { difficulty, config: BOT_CONFIG[difficulty] || BOT_CONFIG.medium };
+}
+
+// Generate bot score based on difficulty
+function generateBotScore(botLevel, currentScore) {
+    const config = BOT_CONFIG[botLevel] || BOT_CONFIG.medium;
+
+    // Check if bot can checkout
+    if (currentScore <= 170 && CHECKOUTS[currentScore]) {
+        // Bot attempts checkout based on checkout percentage
+        if (Math.random() < config.checkoutPct) {
+            // Successful checkout - determine darts used (1-3)
+            const dartsUsed = Math.random() < 0.3 ? 1 : (Math.random() < 0.6 ? 2 : 3);
+            return { score: currentScore, isCheckout: true, dartsUsed };
+        }
+    }
+
+    // Generate normal score with variance
+    let baseScore = config.avg + (Math.random() - 0.5) * config.variance * 2;
+
+    // Add occasional big scores for realism
+    if (Math.random() < 0.08) baseScore = 100 + Math.random() * 40; // Ton
+    if (Math.random() < 0.03) baseScore = 140 + Math.random() * 20; // Ton40
+    if (Math.random() < 0.01 && botLevel !== 'easy') baseScore = 180; // 180
+
+    // Round and clamp
+    let score = Math.round(baseScore);
+    score = Math.max(0, Math.min(180, score));
+
+    // Don't bust - if score would bust, reduce it
+    if (score > currentScore) {
+        score = Math.floor(currentScore * 0.6); // Safe score
+    }
+
+    // Avoid leaving impossible checkouts (like 169, 168, 166, 165, 163, 162, 159)
+    const remaining = currentScore - score;
+    const impossibleScores = [169, 168, 166, 165, 163, 162, 159];
+    if (impossibleScores.includes(remaining)) {
+        score = Math.max(0, score - 1);
+    }
+
+    return { score, isCheckout: false, dartsUsed: 3 };
+}
+
+// Bot plays its turn
+let botPlaying = false; // Prevent duplicate bot plays
+
+function botPlay() {
+    if (!isCurrentTeamBot()) return;
+    if (botPlaying) return; // Already playing
+    botPlaying = true;
+
+    const { difficulty } = getBotConfig(activeTeam);
+    const currentScore = teams[activeTeam].score;
+
+    // Delay for realism (shorter for bot vs bot)
+    const isBotVsBot = isHomeBot() && isAwayBot();
+    const delay = isBotVsBot ? (400 + Math.random() * 300) : (800 + Math.random() * 700);
+
+    setTimeout(() => {
+        const result = generateBotScore(difficulty, currentScore);
+
+        if (result.isCheckout) {
+            // Bot checks out
+            completeCheckout(result.score, result.dartsUsed);
+        } else {
+            // Normal score - call submitScore directly with the value
+            setTimeout(() => {
+                submitScore(result.score);
+            }, isBotVsBot ? 150 : 300);
+        }
+    }, delay);
+}
+
+// Game State
+let activeTeam = 0;
+let corkFirstThrow = null; // Who throws first at the bull
+let inputValue = '0';
+let leg = 1;
+let gameStartTime = Date.now();
+let history = []; // For undo
+let pendingCheckout = null;
+let pendingGameWin = null; // Store state for game-winning confirmation
+let throwHistory = [[], []]; // Track throws for each team [home, away]
+
+// Leg tracking for summaries
+let legStats = [[], []]; // Track each leg's stats for both teams
+let currentLegStats = [{}, {}]; // Stats for current leg
+
+function resetCurrentLegStats() {
+    currentLegStats = [
+        {
+            darts: 0, points: 0, first9Points: 0, first9Darts: 0,
+            tons: 0, ton40s: 0, ton80s: 0, checkout: 0,
+            // DartConnect breakdown: T00, T20, T40, T60, T80
+            ton_00: 0, ton_20: 0, ton_40: 0, ton_60: 0, ton_80: 0,
+            ton_71: 0, // 171s
+            checkout_attempts: 0, checkout_darts: 0, high_score: 0
+        },
+        {
+            darts: 0, points: 0, first9Points: 0, first9Darts: 0,
+            tons: 0, ton40s: 0, ton80s: 0, checkout: 0,
+            // DartConnect breakdown: T00, T20, T40, T60, T80
+            ton_00: 0, ton_20: 0, ton_40: 0, ton_60: 0, ton_80: 0,
+            ton_71: 0, // 171s
+            checkout_attempts: 0, checkout_darts: 0, high_score: 0
+        }
+    ];
+}
+resetCurrentLegStats();
+
+let teams = [
+    {
+        name: homePlayers.map(p => p?.name || 'Home').join(' & ') || 'Home',
+        score: STARTING_SCORE,
+        legs: 0,
+        darts: 0,
+        points: 0,
+        tons: 0,
+        ton40s: 0,
+        ton80s: 0,
+        // DartConnect breakdown
+        ton_00: 0, ton_20: 0, ton_40: 0, ton_60: 0, ton_80: 0,
+        ton_71: 0,
+        highCheckout: 0,
+        highScore: 0,
+        bestLeg: 999, // Best leg darts (lower is better)
+        totalCheckouts: 0,
+        checkoutAttempts: 0,
+        checkoutDarts: 0, // Total darts thrown at doubles
+        first9Darts: 0,
+        first9Points: 0
+    },
+    {
+        name: awayPlayers.map(p => p?.name || 'Away').join(' & ') || 'Away',
+        score: STARTING_SCORE,
+        legs: 0,
+        darts: 0,
+        points: 0,
+        tons: 0,
+        ton40s: 0,
+        ton80s: 0,
+        // DartConnect breakdown
+        ton_00: 0, ton_20: 0, ton_40: 0, ton_60: 0, ton_80: 0,
+        ton_71: 0,
+        highCheckout: 0,
+        highScore: 0,
+        bestLeg: 999,
+        totalCheckouts: 0,
+        checkoutAttempts: 0,
+        checkoutDarts: 0,
+        first9Darts: 0,
+        first9Points: 0
+    }
 ];
 
-const OUTS = {170:'T20 T20 Bull',167:'T20 T19 Bull',164:'T20 T18 Bull',161:'T20 T17 Bull',160:'T20 T20 D20',158:'T20 T20 D19',157:'T20 T19 D20',156:'T20 T20 D18',155:'T20 T19 D19',154:'T20 T18 D20',153:'T20 T19 D18',152:'T20 T20 D16',151:'T20 T17 D20',150:'T20 T18 D18',149:'T20 T19 D16',148:'T20 T20 D14',147:'T20 T17 D18',146:'T20 T18 D16',145:'T20 T19 D14',144:'T20 T20 D12',143:'T20 T17 D16',142:'T20 T14 D20',141:'T20 T19 D12',140:'T20 T20 D10',139:'T20 T13 D20',138:'T20 T18 D12',137:'T20 T19 D10',136:'T20 T20 D8',135:'T20 T17 D12',134:'T20 T14 D16',133:'T20 T19 D8',132:'T20 T16 D12',131:'T20 T13 D16',130:'T20 T18 D8',129:'T19 T16 D12',128:'T18 T14 D16',127:'T20 T17 D8',126:'T19 T19 D6',125:'T20 T15 D10',124:'T20 T14 D11',123:'T19 T16 D9',122:'T18 T18 D7',121:'T20 T11 D14',120:'T20 S20 D20',119:'T19 T12 D13',118:'T20 S18 D20',117:'T20 S17 D20',116:'T20 S16 D20',115:'T20 S15 D20',114:'T20 S14 D20',113:'T20 S13 D20',112:'T20 S12 D20',111:'T20 S11 D20',110:'T20 S10 D20',109:'T20 S9 D20',108:'T20 S8 D20',107:'T19 S10 D20',106:'T20 S6 D20',105:'T20 S5 D20',104:'T18 S10 D20',103:'T19 S6 D20',102:'T20 S10 D16',101:'T17 S10 D20',100:'T20 D20',99:'T19 S10 D16',98:'T20 D19',97:'T19 D20',96:'T20 D18',95:'T19 D19',94:'T18 D20',93:'T19 D18',92:'T20 D16',91:'T17 D20',90:'T18 D18',89:'T19 D16',88:'T20 D14',87:'T17 D18',86:'T18 D16',85:'T19 D14',84:'T20 D12',83:'T17 D16',82:'T14 D20',81:'T19 D12',80:'T20 D10',79:'T13 D20',78:'T18 D12',77:'T19 D10',76:'T20 D8',75:'T17 D12',74:'T14 D16',73:'T19 D8',72:'T16 D12',71:'T13 D16',70:'T18 D8',69:'T19 D6',68:'T20 D4',67:'T17 D8',66:'T10 D18',65:'T19 D4',64:'T16 D8',63:'T13 D12',62:'T10 D16',61:'T15 D8',60:'S20 D20',58:'S18 D20',56:'T16 D4',54:'S14 D20',52:'S12 D20',50:'S10 D20',48:'S8 D20',46:'S6 D20',44:'S4 D20',42:'S10 D16',40:'D20',38:'D19',36:'D18',34:'D17',32:'D16',30:'D15',28:'D14',26:'D13',24:'D12',22:'D11',20:'D10',18:'D9',16:'D8',14:'D7',12:'D6',10:'D5',8:'D4',6:'D3',4:'D2',2:'D1'};
+// Load leg scores from URL params (for mixed game mode)
+if (isMixedGame) {
+    const homeLegsParam = parseInt(params.get('home_legs') || '0');
+    const awayLegsParam = parseInt(params.get('away_legs') || '0');
+    teams[0].legs = homeLegsParam;
+    teams[1].legs = awayLegsParam;
+}
 
 function init() {
-    document.getElementById('gameTitle').textContent = `Game ${gameNumber} • 501 ${checkout==='choice'?'C/CH':'DO'}`;
-    document.getElementById('player1Name').textContent = players[0].name;
-    document.getElementById('player2Name').textContent = players[1].name;
+    document.getElementById('gameTitle').textContent = `GAME ${gameNumber}`;
+    // Build format display: e.g., "501 DI/DO" or "301 SI/DO"
+    const inDisplay = inRule === 'double' ? 'DI' : 'SI';
+    const outDisplay = checkout === 'double' ? 'DO' : (checkout === 'master' ? 'MO' : 'SO');
+    document.getElementById('gameFormat').textContent = `${STARTING_SCORE} ${inDisplay}/${outDisplay}`;
+
+    if (homePlayers[0]) document.getElementById('homeName1').textContent = homePlayers[0].name || 'Home';
+    if (homePlayers[1]) document.getElementById('homeName2').textContent = homePlayers[1].name || '';
+    if (awayPlayers[0]) document.getElementById('awayName1').textContent = awayPlayers[0].name || 'Away';
+    if (awayPlayers[1]) document.getElementById('awayName2').textContent = awayPlayers[1].name || '';
+
+    // Update cork button names
+    document.getElementById('corkHomeBtn').textContent = teams[0].name;
+    document.getElementById('corkAwayBtn').textContent = teams[1].name;
+
     updateUI();
+
+    // Handle bot games
+    const homeIsBot = isHomeBot();
+    const awayIsBot = isAwayBot();
+
+    if (homeIsBot || awayIsBot) {
+        // Skip cork for bot games
+        if (homeIsBot && awayIsBot) {
+            // Bot vs Bot - random starter
+            activeTeam = Math.random() < 0.5 ? 0 : 1;
+        } else if (awayIsBot) {
+            // Human vs Bot - human starts
+            activeTeam = 0;
+        } else {
+            // Bot vs Human - human starts
+            activeTeam = 1;
+        }
+        updateUI();
+
+        // Start bot play if it's a bot's turn
+        if (isCurrentTeamBot()) {
+            setTimeout(() => botPlay(), 500);
+        }
+        return;
+    }
+
+    // Show starter modal (with or without cork)
+    const needsCork = shouldCorkThisLeg(leg);
+    showStarterModal(needsCork);
 }
+
+// PIN Entry Functions
+function setupPinEntry() {
+    const pinInputs = document.querySelectorAll('.pin-char');
+
+    pinInputs.forEach((input, index) => {
+        input.addEventListener('input', (e) => {
+            e.target.value = e.target.value.toUpperCase();
+            if (e.target.value.length === 1 && index < pinInputs.length - 1) {
+                pinInputs[index + 1].focus();
+            }
+            // Auto-submit when all filled
+            const pin = Array.from(pinInputs).map(i => i.value).join('');
+            if (pin.length === 6) {
+                loadMatchByPin();
+            }
+        });
+
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Backspace' && !e.target.value && index > 0) {
+                pinInputs[index - 1].focus();
+            }
+            if (e.key === 'Enter') {
+                loadMatchByPin();
+            }
+        });
+    });
+
+    // Focus first input
+    if (pinInputs[0]) pinInputs[0].focus();
+}
+
+window.loadMatchByPin = async function() {
+    const pinInputs = document.querySelectorAll('.pin-char');
+    const pin = Array.from(pinInputs).map(i => i.value).join('').toUpperCase();
+
+    if (pin.length !== 6) {
+        showPinError('Enter all 6 characters');
+        return;
+    }
+
+    document.getElementById('loadMatchBtn').textContent = 'LOADING...';
+    document.getElementById('loadMatchBtn').disabled = true;
+
+    try {
+        const result = await callFunction('getMatchByPin', { pin: pin });
+
+        if (!result.success) {
+            showPinError(result.error || 'Match not found');
+            document.getElementById('loadMatchBtn').textContent = 'LOAD MATCH';
+            document.getElementById('loadMatchBtn').disabled = false;
+            return;
+        }
+
+        // Redirect to match hub with the league and match IDs
+        window.location.href = `/pages/match-hub.html?league_id=${result.match.league_id}&match_id=${result.match.match_id}`;
+
+    } catch (error) {
+        showPinError('Error: ' + error.message);
+        document.getElementById('loadMatchBtn').textContent = 'LOAD MATCH';
+        document.getElementById('loadMatchBtn').disabled = false;
+    }
+};
+
+function showPinError(msg) {
+    const el = document.getElementById('pinError');
+    el.textContent = msg;
+    el.style.display = 'block';
+}
+
+// Starter Modal Functions (Cork or Ready)
+let pendingStarter = null;
+
+function showStarterModal(needsCork) {
+    // Update leg info
+    document.getElementById('starterLegInfo').textContent = `LEG ${leg} of ${LEGS_TO_WIN * 2 - 1}`;
+
+    // Update game info
+    if (isCorksChoice) {
+        document.getElementById('preLegGame').textContent = 'CORKS CHOICE';
+    } else {
+        const inText = inRule === 'double' ? 'DI' : 'SI';
+        const outText = checkout === 'double' ? 'DO' : (checkout === 'master' ? 'MO' : 'SO');
+        document.getElementById('preLegGame').textContent = `${STARTING_SCORE} ${inText}/${outText}`;
+    }
+
+    // Update team names
+    document.getElementById('preLegHomeName').textContent = teams[0].name;
+    document.getElementById('preLegAwayName').textContent = teams[1].name;
+    document.getElementById('corkHomeBtn').textContent = teams[0].name;
+    document.getElementById('corkAwayBtn').textContent = teams[1].name;
+
+    // Hide all sections first
+    document.getElementById('corkSection').style.display = 'none';
+    document.getElementById('noCorkSection').style.display = 'none';
+    document.getElementById('starterReadyPhase').style.display = 'none';
+    document.getElementById('corksChoicePhase').style.display = 'none';
+
+    // Hide all cork phases
+    document.getElementById('corkReadyPhase').style.display = 'none';
+    document.getElementById('corkShufflePhase').style.display = 'none';
+    document.getElementById('throwsFirstPhase').style.display = 'none';
+    document.getElementById('whoGotItPhase').style.display = 'none';
+    document.getElementById('chooseOrderPhase').style.display = 'none';
+
+    if (needsCork) {
+        // Show cork section with "Cork It" button
+        document.getElementById('corkSection').style.display = 'block';
+        document.getElementById('corkReadyPhase').style.display = 'block';
+    } else {
+        // Determine starter and show no-cork section
+        pendingStarter = determineStarterWithoutCork(leg);
+        document.getElementById('noCorkSection').style.display = 'block';
+        const starterName = teams[pendingStarter].name;
+        const starterColor = pendingStarter === 0 ? 'var(--pink)' : 'var(--teal)';
+        document.getElementById('starterName').textContent = starterName;
+        document.getElementById('starterName').style.color = starterColor;
+    }
+
+    document.getElementById('starterModal').classList.add('active');
+}
+
+function showStarterReadyPhase() {
+    // Hide cork phases
+    document.getElementById('corkSection').style.display = 'none';
+    document.getElementById('noCorkSection').style.display = 'none';
+    document.getElementById('starterReadyPhase').style.display = 'block';
+
+    const starterName = teams[pendingStarter].name;
+    const starterColor = pendingStarter === 0 ? 'var(--pink)' : 'var(--teal)';
+    document.getElementById('starterReadyName').textContent = starterName;
+    document.getElementById('starterReadyName').style.color = starterColor;
+}
+
+window.startCorkShuffle = function() {
+    document.getElementById('corkReadyPhase').style.display = 'none';
+    document.getElementById('corkShufflePhase').style.display = 'block';
+
+    const spinner = document.getElementById('shuffleName');
+    let count = 0;
+    const names = [teams[0].name, teams[1].name];
+
+    // Animate the shuffle
+    const interval = setInterval(() => {
+        spinner.textContent = names[count % 2];
+        spinner.style.color = count % 2 === 0 ? 'var(--pink)' : 'var(--teal)';
+        count++;
+    }, 100);
+
+    // Stop after random duration (1.5-2.5 seconds)
+    const duration = 1500 + Math.random() * 1000;
+    setTimeout(() => {
+        clearInterval(interval);
+        // Randomly pick who throws first at the bull
+        const throwsFirst = Math.random() < 0.5 ? 0 : 1;
+        corkFirstThrow = throwsFirst;
+
+        // Show "Throws First" phase
+        document.getElementById('corkShufflePhase').style.display = 'none';
+        document.getElementById('throwsFirstPhase').style.display = 'block';
+        document.getElementById('throwsFirstName').textContent = teams[throwsFirst].name;
+        document.getElementById('throwsFirstName').style.color = throwsFirst === 0 ? 'var(--pink)' : 'var(--teal)';
+    }, duration);
+};
+
+window.showWhoGotIt = function() {
+    document.getElementById('throwsFirstPhase').style.display = 'none';
+    document.getElementById('whoGotItPhase').style.display = 'block';
+};
+
+window.corkWinner = function(winner) {
+    corkOptionHolder = winner; // Cork winner has the option
+
+    // If corks choice mode, show game selector first
+    if (isCorksChoice) {
+        showCorksChoiceSelector(winner);
+    } else {
+        // Show choose first/second phase
+        showChooseOrderPhase(winner);
+    }
+};
+
+function showChooseOrderPhase(winner) {
+    // Hide other phases
+    document.getElementById('whoGotItPhase').style.display = 'none';
+    document.getElementById('chooseOrderPhase').style.display = 'block';
+
+    const winnerName = teams[winner].name;
+    const winnerColor = winner === 0 ? 'var(--pink)' : 'var(--teal)';
+    document.getElementById('chooseOrderWinner').textContent = winnerName;
+    document.getElementById('chooseOrderWinner').style.color = winnerColor;
+}
+
+window.chooseThrowOrder = function(choice) {
+    if (choice === 'first') {
+        // Cork winner throws first
+        pendingStarter = corkOptionHolder;
+    } else {
+        // Cork winner throws second (opponent throws first)
+        pendingStarter = 1 - corkOptionHolder;
+    }
+
+    // Check if we need to redirect to cricket
+    if (window.pendingCricketRedirect) {
+        const newParams = new URLSearchParams(window.location.search);
+        newParams.delete('corks_choice');
+        newParams.delete('starting_score');
+        newParams.delete('in_rule');
+        newParams.delete('out_rule');
+        newParams.delete('checkout');
+        newParams.set('starter', pendingStarter === 0 ? 'home' : 'away');
+        window.location.href = `/pages/league-cricket.html?${newParams.toString()}`;
+        return;
+    }
+
+    // Hide choose order phase and show ready phase
+    document.getElementById('chooseOrderPhase').style.display = 'none';
+    showStarterReadyPhase();
+};
+
+function showCorksChoiceSelector(winner) {
+    // Hide all other phases
+    document.getElementById('corkSection').style.display = 'none';
+    document.getElementById('noCorkSection').style.display = 'none';
+    document.getElementById('starterReadyPhase').style.display = 'none';
+
+    // Show corks choice phase
+    document.getElementById('corksChoicePhase').style.display = 'block';
+    document.getElementById('corksChoiceWinner').textContent = teams[winner].name;
+    document.getElementById('corksChoiceWinner').style.color = winner === 0 ? 'var(--pink)' : 'var(--teal)';
+}
+
+window.selectCorksChoiceGame = function(gameType) {
+    if (gameType === 'cricket') {
+        // Show choose order phase first, then redirect
+        document.getElementById('corksChoicePhase').style.display = 'none';
+        document.getElementById('chooseOrderPhase').style.display = 'block';
+        document.getElementById('chooseOrderWinner').textContent = teams[corkOptionHolder].name;
+        document.getElementById('chooseOrderWinner').style.color = corkOptionHolder === 0 ? 'var(--pink)' : 'var(--teal)';
+
+        // Store that we're going to cricket after choose
+        window.pendingCricketRedirect = true;
+    } else {
+        // X01 game - update current page settings
+        const newScore = parseInt(gameType);
+        STARTING_SCORE = newScore;
+        isCorksChoice = false; // Disable for this game
+
+        // Update display
+        document.getElementById('gameFormat').textContent = `${newScore} DO`;
+        document.getElementById('preLegGame').textContent = `${newScore} SI/DO`;
+        document.getElementById('homeScore').textContent = newScore;
+        document.getElementById('awayScore').textContent = newScore;
+        teams[0].score = newScore;
+        teams[1].score = newScore;
+
+        // Show choose order phase
+        document.getElementById('corksChoicePhase').style.display = 'none';
+        showChooseOrderPhase(corkOptionHolder);
+    }
+};
+
+window.confirmStarter = function() {
+    activeTeam = pendingStarter;
+    lastLegStarter = pendingStarter;
+    document.getElementById('starterModal').classList.remove('active');
+    updateUI();
+
+    // If bot should throw first, let it play
+    if ((isAwayBot() && activeTeam === 1) || (isHomeBot() && activeTeam === 0)) {
+        botPlay();
+    }
+};
+
+// Calculator input functions
+let pendingOp = null;
+let storedValue = 0;
+
+window.appendDigit = function(digit) {
+    if (inputValue === '0') {
+        inputValue = digit;
+    } else if (inputValue.length < 3) {
+        inputValue += digit;
+    }
+    updateInputDisplay();
+};
+
+window.clearInput = function() {
+    inputValue = '0';
+    pendingOp = null;
+    storedValue = 0;
+    updateInputDisplay();
+};
+
+// Remaining Score Feature (DartConnect style)
+// Type what you have LEFT, then tap your score to calculate and submit the throw
+window.submitRemainingScore = function(teamIndex) {
+    // Only allow for the active team
+    if (teamIndex !== activeTeam) {
+        return;
+    }
+
+    // Get the remaining score they typed
+    let remainingScore;
+    if (pendingOp === 'multiply') {
+        remainingScore = storedValue * (parseInt(inputValue) || 1);
+    } else if (pendingOp === 'add') {
+        remainingScore = storedValue + (parseInt(inputValue) || 0);
+    } else {
+        remainingScore = parseInt(inputValue) || 0;
+    }
+
+    // If no value entered or just 0, do nothing
+    if (remainingScore === 0) {
+        return;
+    }
+
+    const currentScore = teams[activeTeam].score;
+    const throwScore = currentScore - remainingScore;
+
+    // Validate the calculated throw score
+    if (throwScore < 0) {
+        alert('Invalid: The remaining score cannot be higher than your current score!');
+        return;
+    }
+    if (throwScore > 180) {
+        alert('Invalid: Maximum score per turn is 180!');
+        return;
+    }
+
+    // Reset operation state
+    pendingOp = null;
+    storedValue = 0;
+    inputValue = '0';
+    updateInputDisplay();
+
+    // Submit the calculated throw score
+    submitScore(throwScore);
+};
+
+window.multiply = function() {
+    storedValue = parseInt(inputValue) || 0;
+    pendingOp = 'multiply';
+    inputValue = '0';
+    updateInputDisplay();
+};
+
+window.add = function() {
+    if (pendingOp === 'multiply') {
+        // Complete multiplication first, then prepare for addition
+        const result = storedValue * (parseInt(inputValue) || 0);
+        storedValue = result;
+        pendingOp = 'add';
+        inputValue = '0';
+    } else {
+        storedValue = parseInt(inputValue) || 0;
+        pendingOp = 'add';
+        inputValue = '0';
+    }
+    updateInputDisplay();
+};
+
+window.quickScore = function(score) {
+    inputValue = score.toString();
+    pendingOp = null;
+    storedValue = 0;
+    updateInputDisplay();
+    submitCurrentScore();
+};
+
+function updateInputDisplay() {
+    const display = document.getElementById('scoreInput');
+    let displayText = '';
+
+    // Show expression if there's a pending operation
+    if (pendingOp === 'multiply') {
+        displayText = storedValue + 'x' + (inputValue !== '0' ? inputValue : '');
+    } else if (pendingOp === 'add') {
+        displayText = storedValue + '+' + (inputValue !== '0' ? inputValue : '');
+    } else {
+        displayText = inputValue;
+    }
+
+    // Check if we should show checkout hint instead (only for active player on their turn)
+    const activeScore = teams[activeTeam].score;
+    const isOnCheckout = activeScore <= 170 && CHECKOUTS[activeScore];
+    if (inputValue === '0' && !pendingOp && isOnCheckout) {
+        display.textContent = CHECKOUTS[activeScore];
+        display.classList.add('checkout-hint-mode');
+        display.classList.remove('invalid');
+        return;
+    }
+
+    display.textContent = displayText;
+    display.classList.remove('checkout-hint-mode');
+
+    // Calculate preview value for validation
+    let previewValue;
+    if (pendingOp === 'multiply') {
+        previewValue = storedValue * (parseInt(inputValue) || 1);
+    } else if (pendingOp === 'add') {
+        previewValue = storedValue + (parseInt(inputValue) || 0);
+    } else {
+        previewValue = parseInt(inputValue) || 0;
+    }
+
+    // Validate: max possible is 180
+    if (previewValue > 180) {
+        display.classList.add('invalid');
+    } else {
+        display.classList.remove('invalid');
+    }
+}
+
+window.submitCurrentScore = function() {
+    let finalScore;
+    const currentValue = parseInt(inputValue) || 0;
+
+    // Calculate based on pending operation
+    if (pendingOp === 'multiply') {
+        finalScore = storedValue * currentValue;
+    } else if (pendingOp === 'add') {
+        finalScore = storedValue + currentValue;
+    } else {
+        finalScore = currentValue;
+    }
+
+    // Reset operation state
+    pendingOp = null;
+    storedValue = 0;
+
+    if (finalScore > 180) {
+        alert('Maximum score is 180!');
+        inputValue = '0';
+        updateInputDisplay();
+        return;
+    }
+    submitScore(finalScore);
+};
+
+window.submitScore = function(score, dartsUsed = 3) {
+    // Hide wrong game button after first score
+    hideWrongGameBtn();
+
+    const team = teams[activeTeam];
+
+    // Double-in validation: first score of leg must be even (or 0)
+    if (inRule === 'double' && currentLegStats[activeTeam].darts === 0 && score > 0) {
+        if (score % 2 !== 0) {
+            alert('Double In: First score must be even (you need to start with a double)');
+            inputValue = '0';
+            updateInputDisplay();
+            return;
+        }
+    }
+
+    const newScore = team.score - score;
+
+    // Save state for undo (keep max 10 turns for history viewing)
+    history.push({
+        team: activeTeam,
+        score: team.score,
+        darts: team.darts,
+        points: team.points,
+        tons: team.tons,
+        ton40s: team.ton40s,
+        ton80s: team.ton80s,
+        legStatsDarts: currentLegStats[activeTeam].darts,
+        legStatsPoints: currentLegStats[activeTeam].points,
+        legStatsTon80s: currentLegStats[activeTeam].ton80s
+    });
+    if (history.length > 10) {
+        history.shift(); // Remove oldest turn
+    }
+
+    // Bust check
+    if (newScore < 0 || newScore === 1) {
+        // Bust - no score, but track it
+        throwHistory[activeTeam].push({ value: score, bust: true });
+        team.darts += 3;
+        inputValue = '0';
+        updateInputDisplay();
+        updateThrowHistory();
+        switchTeam();
+        return;
+    }
+
+    // Add to throw history
+    throwHistory[activeTeam].push({ value: score, bust: false });
+
+    // Checkout check
+    if (newScore === 0) {
+        if (checkout === 'double') {
+            // Ask how many darts were used
+            pendingCheckout = { score, team: activeTeam };
+
+            // Calculate minimum darts possible for this checkout
+            const minDarts = getMinCheckoutDarts(score);
+
+            // Enable/disable dart buttons based on minimum required
+            document.getElementById('dartBtn1').disabled = minDarts > 1;
+            document.getElementById('dartBtn2').disabled = minDarts > 2;
+            document.getElementById('dartBtn3').disabled = false; // Always possible
+
+            // Show checkout score
+            document.getElementById('checkoutScoreDisplay').textContent = score;
+
+            document.getElementById('dartsModal').classList.add('active');
+            return;
+        } else {
+            // Straight out - complete checkout
+            completeCheckout(score, dartsUsed);
+            return;
+        }
+    }
+
+    // Normal score
+    team.score = newScore;
+    team.darts += 3;
+    team.points += score;
+
+    // Update leg-level stats
+    currentLegStats[activeTeam].darts += 3;
+    currentLegStats[activeTeam].points += score;
+
+    // Track first 9 darts (first 3 throws = 9 darts)
+    if (currentLegStats[activeTeam].first9Darts < 9) {
+        currentLegStats[activeTeam].first9Darts += 3;
+        currentLegStats[activeTeam].first9Points += score;
+        team.first9Darts += 3;
+        team.first9Points += score;
+    }
+
+    // Track high score
+    if (score > currentLegStats[activeTeam].high_score) {
+        currentLegStats[activeTeam].high_score = score;
+    }
+    if (score > team.highScore) {
+        team.highScore = score;
+    }
+
+    // DartConnect ton breakdown (T00: 100-119, T20: 120-139, T40: 140-159, T60: 160-179, T80: 180)
+    if (score >= 180) {
+        team.ton80s++;
+        team.ton_80++;
+        currentLegStats[activeTeam].ton80s++;
+        currentLegStats[activeTeam].ton_80++;
+    } else if (score >= 160) {
+        team.ton40s++;
+        team.ton_60++;
+        currentLegStats[activeTeam].ton40s++;
+        currentLegStats[activeTeam].ton_60++;
+    } else if (score >= 140) {
+        team.ton40s++;
+        team.ton_40++;
+        currentLegStats[activeTeam].ton40s++;
+        currentLegStats[activeTeam].ton_40++;
+    } else if (score >= 120) {
+        team.tons++;
+        team.ton_20++;
+        currentLegStats[activeTeam].tons++;
+        currentLegStats[activeTeam].ton_20++;
+    } else if (score >= 100) {
+        team.tons++;
+        team.ton_00++;
+        currentLegStats[activeTeam].tons++;
+        currentLegStats[activeTeam].ton_00++;
+    }
+
+    // Track 171s specifically
+    if (score === 171) {
+        team.ton_71++;
+        currentLegStats[activeTeam].ton_71++;
+    }
+
+    // Track checkout attempts (when on a checkout score before throwing)
+    // Note: newScore is score AFTER this throw, so we check the old score
+    if (team.score + score <= 170 && team.score + score >= 2 && CHECKOUTS[team.score + score]) {
+        // Was on a checkout before this throw but didn't finish
+        team.checkoutAttempts++;
+        currentLegStats[activeTeam].checkout_attempts++;
+        team.checkoutDarts += 3; // All 3 darts were at doubles
+        currentLegStats[activeTeam].checkout_darts += 3;
+    }
+
+    inputValue = '0';
+    updateInputDisplay();
+    updateThrowHistory();
+    switchTeam();
+};
+
+window.confirmCheckout = function(darts) {
+    document.getElementById('dartsModal').classList.remove('active');
+    if (pendingCheckout) {
+        completeCheckout(pendingCheckout.score, darts);
+        pendingCheckout = null;
+    }
+};
+
+// Calculate minimum possible darts for a starting score
+function calculateMinDarts(startScore) {
+    // Based on max 180 per turn and max 170 checkout
+    if (startScore <= 170) return 3;   // Can checkout in 1 turn
+    if (startScore <= 350) return 6;   // 180 + checkout (max 170)
+    if (startScore <= 530) return 9;   // 180 + 180 + checkout (max 170)
+    if (startScore <= 710) return 12;  // 180 + 180 + 180 + checkout
+    return Math.ceil((startScore - 170) / 180) * 3 + 3;
+}
+
+// Calculate minimum darts needed for a checkout score (for dart button validation)
+function getMinCheckoutDarts(checkoutScore) {
+    // 1-dart checkouts: even numbers 2-40 (doubles) and 50 (Bull)
+    if ((checkoutScore >= 2 && checkoutScore <= 40 && checkoutScore % 2 === 0) || checkoutScore === 50) {
+        return 1;
+    }
+
+    // 2-dart checkouts: max is T20 + Bull = 110
+    // All valid checkouts from 1-110 that aren't 1-dart can be done in 2 darts
+    if (checkoutScore <= 110) {
+        return 2;
+    }
+
+    // 3-dart checkouts: 111-170 (max is T20 + T20 + Bull = 170)
+    return 3;
+}
+
+function completeCheckout(score, dartsUsed) {
+    const team = teams[activeTeam];
+    const totalDarts = currentLegStats[activeTeam].darts + dartsUsed;
+
+    // Validate minimum darts - prevent impossible scores like 8-darters
+    const minDarts = calculateMinDarts(STARTING_SCORE);
+    if (totalDarts < minDarts) {
+        alert(`Invalid: ${STARTING_SCORE} cannot be completed in ${totalDarts} darts.\nMinimum possible is ${minDarts} darts.`);
+        document.getElementById('dartsModal').classList.remove('active');
+        return;
+    }
+
+    // Store state for potential undo before making changes
+    const preCheckoutState = {
+        teamScore: team.score,
+        teamDarts: team.darts,
+        teamPoints: team.points,
+        teamLegs: team.legs,
+        teamTotalCheckouts: team.totalCheckouts,
+        teamHighCheckout: team.highCheckout,
+        teamBestLeg: team.bestLeg,
+        teamCheckoutAttempts: team.checkoutAttempts,
+        teamCheckoutDarts: team.checkoutDarts,
+        legStatsDarts: currentLegStats[activeTeam].darts,
+        legStatsPoints: currentLegStats[activeTeam].points,
+        legStatsFirst9Darts: currentLegStats[activeTeam].first9Darts,
+        legStatsFirst9Points: currentLegStats[activeTeam].first9Points,
+        legStatsCheckoutAttempts: currentLegStats[activeTeam].checkout_attempts,
+        legStatsCheckoutDarts: currentLegStats[activeTeam].checkout_darts,
+        checkoutScore: score,
+        dartsUsed: dartsUsed,
+        activeTeamIdx: activeTeam
+    };
+
+    team.score = 0;
+    team.darts += dartsUsed;
+    team.points += score;
+    team.legs++;
+    team.totalCheckouts++;
+
+    // Track checkout attempt and darts (the successful checkout counts as 1 attempt, with dartsUsed darts)
+    team.checkoutAttempts++;
+    team.checkoutDarts += dartsUsed;
+    currentLegStats[activeTeam].checkout_attempts++;
+    currentLegStats[activeTeam].checkout_darts += dartsUsed;
+
+    // Track leg winner and starter for cork rules
+    lastLegWinner = activeTeam;
+    lastLegStarter = lastLegStarter === null ? activeTeam : lastLegStarter; // First leg starter
+
+    // Update leg-level stats
+    currentLegStats[activeTeam].darts += dartsUsed;
+    currentLegStats[activeTeam].points += score;
+    currentLegStats[activeTeam].checkout = score;
+
+    // Track first 9 if still counting
+    if (preCheckoutState.legStatsFirst9Darts < 9) {
+        const remaining = 9 - preCheckoutState.legStatsFirst9Darts;
+        const dartsToAdd = Math.min(dartsUsed, remaining);
+        currentLegStats[activeTeam].first9Darts = preCheckoutState.legStatsFirst9Darts + dartsToAdd;
+        // Approximate score proportionally
+        const proportionalScore = Math.round(score * (dartsToAdd / dartsUsed));
+        currentLegStats[activeTeam].first9Points = preCheckoutState.legStatsFirst9Points + proportionalScore;
+        // Update team totals
+        team.first9Darts += dartsToAdd;
+        team.first9Points += proportionalScore;
+    }
+
+    if (score > team.highCheckout) team.highCheckout = score;
+
+    // Track best leg (fewest darts to win)
+    const legDarts = currentLegStats[activeTeam].darts;
+    if (legDarts < team.bestLeg) team.bestLeg = legDarts;
+
+    // Save leg stats for summary
+    legStats[activeTeam].push({...currentLegStats[activeTeam]});
+    legStats[1 - activeTeam].push({...currentLegStats[1 - activeTeam]});
+
+    inputValue = '0';
+    updateInputDisplay();
+
+    // Check for game win - show confirmation modal
+    if (team.legs >= LEGS_TO_WIN) {
+        // Store pending game win for confirmation
+        pendingGameWin = {
+            ...preCheckoutState,
+            winnerIdx: activeTeam,
+            winnerName: team.name
+        };
+
+        // Show confirmation modal
+        document.getElementById('confirmWinnerName').textContent = `${team.name} wins the game!`;
+        document.getElementById('confirmCheckoutScore').textContent = `${score} checkout in ${totalDarts} darts`;
+        document.getElementById('confirmGameModal').classList.add('active');
+    } else {
+        showLegWinner(activeTeam);
+    }
+}
+
+// Confirm the game win and proceed
+window.confirmGameWin = function() {
+    document.getElementById('confirmGameModal').classList.remove('active');
+    if (pendingGameWin) {
+        showGameWinner(pendingGameWin.winnerIdx);
+        pendingGameWin = null;
+    }
+};
+
+// Undo the game-winning checkout
+window.undoGameWin = function() {
+    document.getElementById('confirmGameModal').classList.remove('active');
+
+    if (pendingGameWin) {
+        const state = pendingGameWin;
+        const team = teams[state.activeTeamIdx];
+
+        // Restore team state
+        team.score = state.teamScore;
+        team.darts = state.teamDarts;
+        team.points = state.teamPoints;
+        team.legs = state.teamLegs;
+        team.totalCheckouts = state.teamTotalCheckouts;
+        team.highCheckout = state.teamHighCheckout;
+        team.bestLeg = state.teamBestLeg;
+
+        // Restore leg stats
+        currentLegStats[state.activeTeamIdx].darts = state.legStatsDarts;
+        currentLegStats[state.activeTeamIdx].points = state.legStatsPoints;
+        currentLegStats[state.activeTeamIdx].checkout = 0;
+        currentLegStats[state.activeTeamIdx].first9Darts = state.legStatsFirst9Darts;
+        currentLegStats[state.activeTeamIdx].first9Points = state.legStatsFirst9Points;
+
+        // Remove the leg stats we just pushed
+        legStats[state.activeTeamIdx].pop();
+        legStats[1 - state.activeTeamIdx].pop();
+
+        // Remove from throw history
+        if (throwHistory[state.activeTeamIdx].length > 0) {
+            throwHistory[state.activeTeamIdx].pop();
+        }
+
+        pendingGameWin = null;
+
+        // Update UI
+        updateUI();
+        updateThrowHistory();
+    }
+};
+
+function switchTeam() {
+    activeTeam = activeTeam === 0 ? 1 : 0;
+    updateUI();
+
+    // Reset bot flag when switching
+    botPlaying = false;
+
+    // If it's a bot's turn, let it play
+    if (isCurrentTeamBot()) {
+        botPlay();
+    }
+}
+
+window.undoScore = function() {
+    // First press: clear input if there's something entered
+    if (inputValue !== '0') {
+        inputValue = '0';
+        pendingOp = null;
+        storedValue = 0;
+        updateInputDisplay();
+        return;
+    }
+
+    // Second press: undo last turn
+    if (history.length === 0) return;
+
+    const prev = history.pop();
+    const team = teams[prev.team];
+    team.score = prev.score;
+    team.darts = prev.darts;
+    team.points = prev.points;
+    team.tons = prev.tons;
+    team.ton40s = prev.ton40s;
+    team.ton80s = prev.ton80s;
+
+    // Restore leg stats (for correct averages)
+    if (prev.legStatsDarts !== undefined) {
+        currentLegStats[prev.team].darts = prev.legStatsDarts;
+        currentLegStats[prev.team].points = prev.legStatsPoints;
+        currentLegStats[prev.team].ton80s = prev.legStatsTon80s;
+    }
+
+    // Remove from throw history
+    if (throwHistory[prev.team].length > 0) {
+        throwHistory[prev.team].pop();
+    }
+
+    activeTeam = prev.team;
+    updateUI();
+    updateThrowHistory();
+};
 
 function updateUI() {
+    document.getElementById('homeScore').textContent = teams[0].score;
+    document.getElementById('awayScore').textContent = teams[1].score;
+
+    document.getElementById('homeCheckout').textContent = CHECKOUTS[teams[0].score] || '';
+    document.getElementById('awayCheckout').textContent = CHECKOUTS[teams[1].score] || '';
+
+    document.getElementById('homeLegs').textContent = teams[0].legs;
+    document.getElementById('awayLegs').textContent = teams[1].legs;
+    document.getElementById('legIndicator').textContent = `LEG ${leg}`;
+
+    // Leg stats (current leg only)
+    const homeLegDarts = currentLegStats[0].darts;
+    const awayLegDarts = currentLegStats[1].darts;
+    const homeLegPoints = currentLegStats[0].points;
+    const awayLegPoints = currentLegStats[1].points;
+
+    // Leg average (this leg only)
+    const homeLegAvg = homeLegDarts > 0 ? (homeLegPoints / homeLegDarts * 3).toFixed(1) : '0.0';
+    const awayLegAvg = awayLegDarts > 0 ? (awayLegPoints / awayLegDarts * 3).toFixed(1) : '0.0';
+
+    // Match average (all legs combined)
+    const homeMatchDarts = teams[0].darts + homeLegDarts;
+    const awayMatchDarts = teams[1].darts + awayLegDarts;
+    const homeMatchPoints = teams[0].points + homeLegPoints;
+    const awayMatchPoints = teams[1].points + awayLegPoints;
+    const homeMatchAvg = homeMatchDarts > 0 ? (homeMatchPoints / homeMatchDarts * 3).toFixed(1) : '0.0';
+    const awayMatchAvg = awayMatchDarts > 0 ? (awayMatchPoints / awayMatchDarts * 3).toFixed(1) : '0.0';
+
+    document.getElementById('homeLegAvg').textContent = homeLegAvg;
+    document.getElementById('awayLegAvg').textContent = awayLegAvg;
+    document.getElementById('homeAvg').textContent = homeMatchAvg;
+    document.getElementById('awayAvg').textContent = awayMatchAvg;
+    document.getElementById('homeDarts').textContent = homeLegDarts;
+    document.getElementById('awayDarts').textContent = awayLegDarts;
+    document.getElementById('home180s').textContent = currentLegStats[0].ton80s;
+    document.getElementById('away180s').textContent = currentLegStats[1].ton80s;
+
+    document.getElementById('homePanel').classList.toggle('active', activeTeam === 0);
+    document.getElementById('awayPanel').classList.toggle('active', activeTeam === 1);
+
+    // Update checkout hint in score input
+    updateCheckoutHint();
+}
+
+function updateCheckoutHint() {
+    const display = document.getElementById('scoreInput');
+    const activeScore = teams[activeTeam].score;
+    const quickOutContainer = document.getElementById('quickOutContainer');
+    const quickOutGrid = document.getElementById('quickOutGrid');
+
+    // Only show hint when input is empty/zero and there's a checkout available
+    if (inputValue === '0' && !pendingOp && CHECKOUTS[activeScore]) {
+        display.textContent = CHECKOUTS[activeScore];
+        display.classList.add('checkout-hint-mode');
+    } else {
+        display.classList.remove('checkout-hint-mode');
+    }
+
+    // Show quick out buttons when on a checkout (score <= 170)
+    if (activeScore > 0 && activeScore <= 170 && checkout !== 'straight') {
+        const commonOuts = getQuickOutsForScore(activeScore);
+        if (commonOuts.length > 0) {
+            quickOutGrid.innerHTML = commonOuts.map(score =>
+                `<button class="quick-out-btn" onclick="quickCheckout(${score})">${score}</button>`
+            ).join('');
+            quickOutContainer.style.display = 'block';
+        } else {
+            quickOutContainer.style.display = 'none';
+        }
+    } else {
+        quickOutContainer.style.display = 'none';
+    }
+}
+
+// Get quick out options based on remaining score
+function getQuickOutsForScore(score) {
+    const outs = [];
+
+    // Common double checkouts (most frequent in darts)
+    const commonCheckouts = [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 24, 32, 36, 40, 50];
+
+    for (const checkout of commonCheckouts) {
+        if (checkout === score) {
+            outs.push(checkout);
+        }
+    }
+
+    // If exact match found, also suggest higher reachable outs
+    if (outs.length === 0) {
+        // Show the remaining score as an out option if it's a valid checkout
+        if (isValidCheckout(score)) {
+            outs.push(score);
+        }
+    }
+
+    // Add common setup + out combinations for current score
+    // For example, if on 61, suggest 61 (T15+D8) or could hit 25 for 36 remaining
+    if (score <= 50 && isValidCheckout(score)) {
+        outs.push(score);
+    } else if (score <= 110 && isValidCheckout(score)) {
+        outs.push(score);
+    } else if (score <= 170 && isValidCheckout(score)) {
+        outs.push(score);
+    }
+
+    return [...new Set(outs)].slice(0, 6); // Limit to 6 unique options
+}
+
+// Check if a score is a valid checkout (can be finished with double or bull)
+function isValidCheckout(score) {
+    if (score < 2 || score > 170) return false;
+    if (score === 169 || score === 168 || score === 166 || score === 165 || score === 163 || score === 162 || score === 159) return false;
+    return true;
+}
+
+// Quick checkout - enters the checkout score directly
+window.quickCheckout = function(score) {
+    inputValue = score.toString();
+    updateInputDisplay();
+    submitScore();
+};
+
+function updateThrowHistory() {
+    const homeContainer = document.getElementById('homeThrows');
+    const awayContainer = document.getElementById('awayThrows');
+
+    // Render all home throws (oldest at top, newest at bottom)
+    homeContainer.innerHTML = throwHistory[0].map((t, idx) => {
+        let classes = 'throw-item home';
+        if (t.bust) classes += ' bust';
+        else if (t.value >= 180) classes += ' ton80';
+        else if (t.value >= 100) classes += ' ton';
+        return `<div class="${classes}" onclick="editThrow(0, ${idx})">${t.value}</div>`;
+    }).join('');
+
+    // Render all away throws (oldest at top, newest at bottom)
+    awayContainer.innerHTML = throwHistory[1].map((t, idx) => {
+        let classes = 'throw-item away';
+        if (t.bust) classes += ' bust';
+        else if (t.value >= 180) classes += ' ton80';
+        else if (t.value >= 100) classes += ' ton';
+        return `<div class="${classes}" onclick="editThrow(1, ${idx})">${t.value}</div>`;
+    }).join('');
+
+    // Auto-scroll to show newest scores at bottom
+    homeContainer.scrollTop = homeContainer.scrollHeight;
+    awayContainer.scrollTop = awayContainer.scrollHeight;
+}
+
+// Edit a past throw
+window.editThrow = function(teamIdx, throwIdx) {
+    const currentValue = throwHistory[teamIdx][throwIdx].value;
+    const newValue = prompt(`Edit score (was ${currentValue}):`, currentValue);
+
+    if (newValue === null) return; // Cancelled
+
+    const newScore = parseInt(newValue);
+    if (isNaN(newScore) || newScore < 0 || newScore > 180) {
+        alert('Invalid score. Must be 0-180.');
+        return;
+    }
+
+    // Update the throw
+    const oldValue = throwHistory[teamIdx][throwIdx].value;
+    const wasBust = throwHistory[teamIdx][throwIdx].bust;
+
+    throwHistory[teamIdx][throwIdx].value = newScore;
+    throwHistory[teamIdx][throwIdx].bust = false; // Reset bust status, will recalc
+
+    // Recalculate scores from scratch for this leg
+    recalculateScores();
+    updateThrowHistory();
+    updateUI();
+};
+
+// Recalculate all scores based on throw history
+function recalculateScores() {
+    // Reset scores to starting value
+    teams[0].score = STARTING_SCORE;
+    teams[1].score = STARTING_SCORE;
+
+    // Reset current leg stats
+    currentLegStats[0] = { darts: 0, points: 0, first9Points: 0, first9Darts: 0, tons: 0, ton40s: 0, ton80s: 0, checkout: 0 };
+    currentLegStats[1] = { darts: 0, points: 0, first9Points: 0, first9Darts: 0, tons: 0, ton40s: 0, ton80s: 0, checkout: 0 };
+
+    // Replay all throws
     for (let i = 0; i < 2; i++) {
-        const p = players[i];
-        document.getElementById(`player${i+1}Score`).textContent = p.score;
-        document.getElementById(`player${i+1}Darts`).textContent = p.darts;
-        document.getElementById(`player${i+1}Legs`).textContent = p.legs;
-        const avg = p.darts > 0 ? ((START - p.score + (p.throws.reduce((a,b)=>a+b,0))) / p.darts * 3).toFixed(1) : '0.0';
-        document.getElementById(`player${i+1}Avg`).textContent = avg;
-        document.getElementById(`player${i+1}Last`).textContent = p.throws.length > 0 ? p.throws[p.throws.length-1] : '-';
-        
-        let hist = '';
-        p.throws.slice().reverse().forEach((t, idx) => {
-            const cls = t >= 180 ? 'ton-eighty' : t >= 140 ? 'ton-forty' : t >= 100 ? 'ton' : '';
-            hist += `<div class="throw-entry ${cls}"><span>#${p.throws.length - idx}</span><span class="score">${t}</span></div>`;
-        });
-        document.getElementById(`player${i+1}History`).innerHTML = hist;
-    }
+        for (let j = 0; j < throwHistory[i].length; j++) {
+            const t = throwHistory[i][j];
+            const newScore = teams[i].score - t.value;
 
-    document.getElementById('player1Panel').classList.toggle('active', active === 0);
-    document.getElementById('player2Panel').classList.toggle('active', active === 1);
-    document.getElementById('legInfo').textContent = `LEG ${leg}/3`;
+            // Check for bust
+            if (newScore < 0 || newScore === 1) {
+                t.bust = true;
+                currentLegStats[i].darts += 3;
+            } else {
+                t.bust = false;
+                teams[i].score = newScore;
+                currentLegStats[i].darts += 3;
+                currentLegStats[i].points += t.value;
 
-    const hint = document.getElementById('checkoutHint');
-    const score = players[active].score;
-    if (score <= 170 && OUTS[score]) {
-        hint.textContent = `${score}: ${OUTS[score]}`;
-        hint.style.display = 'block';
-    } else {
-        hint.style.display = 'none';
+                // Track first 9 darts
+                if (currentLegStats[i].first9Darts < 9) {
+                    currentLegStats[i].first9Darts += 3;
+                    currentLegStats[i].first9Points += t.value;
+                }
+
+                if (t.value >= 180) currentLegStats[i].ton80s++;
+                else if (t.value >= 140) currentLegStats[i].ton40s++;
+                else if (t.value >= 100) currentLegStats[i].tons++;
+            }
+        }
     }
 }
 
-window.setActivePlayer = function(idx) { active = idx; updateUI(); };
-window.appendDigit = function(d) { if (input.length < 3) { input += d; document.getElementById('inputDisplay').textContent = input || '0'; } };
-window.clearInput = function() { input = ''; document.getElementById('inputDisplay').textContent = '0'; };
+function showLegWinner(teamIndex) {
+    const winner = currentLegStats[teamIndex];
+    const loser = currentLegStats[1 - teamIndex];
+    const winnerTeam = teams[teamIndex];
+    const loserTeam = teams[1 - teamIndex];
 
-window.enterScore = function(val) {
-    input = '';
-    processScore(val);
-};
+    const winnerAvg = winner.darts > 0 ? (winner.points / winner.darts * 3).toFixed(1) : '0.0';
+    const loserAvg = loser.darts > 0 ? (loser.points / loser.darts * 3).toFixed(1) : '0.0';
+    const winnerFirst9 = winner.first9Darts > 0 ? (winner.first9Points / winner.first9Darts * 3).toFixed(1) : '-';
+    const loserFirst9 = loser.first9Darts > 0 ? (loser.first9Points / loser.first9Darts * 3).toFixed(1) : '-';
 
-window.submitScore = function() {
-    const val = parseInt(input) || 0;
-    input = '';
-    document.getElementById('inputDisplay').textContent = '0';
-    processScore(val);
-};
+    const winnerColor = teamIndex === 0 ? 'var(--pink)' : 'var(--teal)';
+    const loserColor = teamIndex === 0 ? 'var(--teal)' : 'var(--pink)';
 
-function processScore(val) {
-    if (val < 0 || val > 180) { alert('Invalid score (0-180)'); return; }
-    
-    const p = players[active];
-    const newScore = p.score - val;
-
-    if (newScore < 0 || newScore === 1) {
-        // Bust
-        p.throws.push(0);
-        p.darts += 3;
-        if (p.score <= 170) p.attempts++;
-    } else if (newScore === 0) {
-        // Possible checkout
-        pendingCheckout = val;
-        document.getElementById('checkoutModal').classList.add('active');
-        return;
-    } else {
-        p.score = newScore;
-        p.throws.push(val);
-        p.darts += 3;
-        
-        // Track stats
-        if (val >= 100) p.tons++;
-        if (val >= 140) p.tonForty++;
-        if (val === 180) p.tonEighty++;
-        if (val === 171) p.t171++;
-        if (val > p.highScore) p.highScore = val;
-        
-        if (p.score <= 170) p.attempts++;
-        
-        // Switch player
-        active = 1 - active;
-    }
-    updateUI();
-}
-
-window.recordCheckout = function(darts) {
-    document.getElementById('checkoutModal').classList.remove('active');
-    const p = players[active];
-    const val = pendingCheckout;
-    
-    p.score = 0;
-    p.throws.push(val);
-    p.darts += darts;
-    p.checkouts.push({ out: START - (p.score + val) + val, darts: darts });
-    p.legs++;
-    
-    if (val >= 100) { p.tons++; }
-    if (val >= 140) p.tonForty++;
-    if (val === 180) p.tonEighty++;
-    
-    // Accumulate totals
-    p.totalDarts += p.darts;
-    p.totalPoints += START;
-    
-    pendingCheckout = null;
-    updateUI();
-
-    if (p.legs >= LEGS_TO_WIN) {
-        showGameWinner(active);
-    } else {
-        showLegWinner(active);
-    }
-};
-
-window.bust = function() {
-    const p = players[active];
-    p.throws.push(0);
-    p.darts += 3;
-    if (p.score <= 170) p.attempts++;
-    active = 1 - active;
-    updateUI();
-};
-
-window.undoLast = function() {
-    // Simple undo - remove last throw from current player's opponent
-    const other = 1 - active;
-    const p = players[other];
-    if (p.throws.length === 0) return;
-    
-    const lastThrow = p.throws.pop();
-    p.score += lastThrow;
-    p.darts = Math.max(0, p.darts - 3);
-    active = other;
-    updateUI();
-};
-
-window.promptCheckout = function() {
-    const p = players[active];
-    if (p.score > 170 || !OUTS[p.score]) {
-        alert('Not on a checkout!');
-        return;
-    }
-    pendingCheckout = p.score;
-    document.getElementById('checkoutModal').classList.add('active');
-};
-
-function showLegWinner(idx) {
-    const p = players[idx];
-    document.getElementById('legWinner').textContent = p.name;
-    const avg = p.darts > 0 ? (START / p.darts * 3).toFixed(2) : '0';
+    document.getElementById('legWinnerName').textContent = winnerTeam.name + ' WINS LEG ' + leg + '!';
     document.getElementById('legStats').innerHTML = `
-        <div><span>3-Dart Avg</span><span>${avg}</span></div>
-        <div><span>Darts</span><span>${p.darts}</span></div>
-        <div><span>High Score</span><span>${p.highScore}</span></div>
+        <div style="display: grid; grid-template-columns: 1fr auto auto; gap: 8px; font-size: 13px;">
+            <div style="font-weight: 700; color: var(--text-dim);"></div>
+            <div style="font-weight: 800; text-align: center; min-width: 50px; color: ${winnerColor};">${winnerTeam.name.split(' ')[0]}</div>
+            <div style="font-weight: 800; text-align: center; min-width: 50px; color: ${loserColor};">${loserTeam.name.split(' ')[0]}</div>
+
+            <div>Darts</div>
+            <div style="text-align: center; color: var(--yellow); font-weight: 700;">${winner.darts}</div>
+            <div style="text-align: center; opacity: 0.7;">${loser.darts}</div>
+
+            <div>Average</div>
+            <div style="text-align: center; color: var(--yellow); font-weight: 700;">${winnerAvg}</div>
+            <div style="text-align: center; opacity: 0.7;">${loserAvg}</div>
+
+            <div>First 9 Avg</div>
+            <div style="text-align: center; color: var(--yellow); font-weight: 700;">${winnerFirst9}</div>
+            <div style="text-align: center; opacity: 0.7;">${loserFirst9}</div>
+
+            <div>Checkout</div>
+            <div style="text-align: center; color: var(--yellow); font-weight: 700;">${winner.checkout || '-'}</div>
+            <div style="text-align: center; opacity: 0.7;">-</div>
+
+            <div>100+</div>
+            <div style="text-align: center;">${winner.tons + winner.ton40s + winner.ton80s}</div>
+            <div style="text-align: center; opacity: 0.7;">${loser.tons + loser.ton40s + loser.ton80s}</div>
+
+            <div>140+</div>
+            <div style="text-align: center;">${winner.ton40s + winner.ton80s}</div>
+            <div style="text-align: center; opacity: 0.7;">${loser.ton40s + loser.ton80s}</div>
+
+            <div>180s</div>
+            <div style="text-align: center;">${winner.ton80s}</div>
+            <div style="text-align: center; opacity: 0.7;">${loser.ton80s}</div>
+        </div>
+        <div style="margin-top: 12px; text-align: center; font-size: 16px; font-weight: 700;">
+            <span style="color: ${winnerColor};">${winnerTeam.legs}</span>
+            <span style="opacity: 0.5; margin: 0 8px;">-</span>
+            <span style="color: ${loserColor};">${loserTeam.legs}</span>
+        </div>
     `;
+
+    // Show next game info if in mixed mode
+    const nextGameInfo = document.getElementById('nextGameInfo');
+    if (isMixedGame) {
+        const mixedConfig = JSON.parse(sessionStorage.getItem('mixedGameConfig') || '{}');
+        const nextLegIndex = mixedLegIndex + 1;
+        if (mixedConfig.legs && nextLegIndex < mixedConfig.legs.length) {
+            const nextLeg = mixedConfig.legs[nextLegIndex];
+            const gameLabel = getGameLabel(nextLeg);
+            document.getElementById('nextGameLabel').textContent = gameLabel;
+            nextGameInfo.style.display = 'block';
+        } else {
+            nextGameInfo.style.display = 'none';
+        }
+    } else {
+        nextGameInfo.style.display = 'none';
+    }
+
     document.getElementById('legModal').classList.add('active');
 }
 
 window.nextLeg = function() {
     document.getElementById('legModal').classList.remove('active');
+
+    // Handle mixed game mode - navigate to next leg's game type
+    if (isMixedGame) {
+        const mixedConfig = JSON.parse(sessionStorage.getItem('mixedGameConfig') || '{}');
+        if (mixedConfig.legs && mixedConfig.legs.length > 0) {
+            // Update current leg index
+            const nextLegIndex = mixedLegIndex + 1;
+
+            // Update match score in sessionStorage
+            mixedConfig.current_leg = nextLegIndex;
+            mixedConfig.home_legs = teams[0].legs;
+            mixedConfig.away_legs = teams[1].legs;
+            sessionStorage.setItem('mixedGameConfig', JSON.stringify(mixedConfig));
+
+            // Check if there are more legs
+            if (nextLegIndex < mixedConfig.legs.length) {
+                const nextLeg = mixedConfig.legs[nextLegIndex];
+
+                // Build common params
+                const newParams = new URLSearchParams();
+                newParams.set('home_players', JSON.stringify(homePlayers));
+                newParams.set('away_players', JSON.stringify(awayPlayers));
+                newParams.set('casual', isCasual ? 'true' : 'false');
+                newParams.set('mixed', 'true');
+                newParams.set('mixed_leg', nextLegIndex.toString());
+                newParams.set('legs_to_win', LEGS_TO_WIN.toString());
+                newParams.set('home_legs', teams[0].legs.toString());
+                newParams.set('away_legs', teams[1].legs.toString());
+
+                if (useCork) {
+                    newParams.set('cork', 'true');
+                }
+
+                // Navigate to appropriate scorer
+                if (nextLeg.type === 'cricket') {
+                    window.location.href = `/pages/league-cricket.html?${newParams.toString()}`;
+                } else {
+                    // X01 game
+                    const score = nextLeg.score || (nextLeg.type === '301' ? 301 : (nextLeg.type === '701' ? 701 : 501));
+                    newParams.set('starting_score', score.toString());
+                    newParams.set('in_rule', nextLeg.inRule || 'straight');
+                    newParams.set('out_rule', nextLeg.outRule || 'double');
+                    newParams.set('checkout', nextLeg.outRule || 'double');
+                    window.location.href = `/pages/league-501.html?${newParams.toString()}`;
+                }
+                return;
+            }
+        }
+    }
+
     leg++;
-    // Reset scores but keep legs
-    players.forEach(p => {
-        p.totalDarts += p.darts;
-        p.totalPoints += START - p.score;
-        p.score = START;
-        p.darts = 0;
-        p.throws = [];
-    });
-    // Alternate who starts
-    active = leg % 2 === 0 ? 1 : 0;
-    updateUI();
+    teams[0].score = STARTING_SCORE;
+    teams[1].score = STARTING_SCORE;
+    history = [];
+    throwHistory = [[], []]; // Clear throw history for new leg
+    resetCurrentLegStats(); // Reset leg-level stats
+    updateThrowHistory();
+
+    // Apply cork rules for new leg
+    const homeIsBot = isHomeBot();
+    const awayIsBot = isAwayBot();
+
+    if (homeIsBot || awayIsBot) {
+        // Bot games - use simplified logic
+        if (homeIsBot && awayIsBot) {
+            activeTeam = leg % 2 === 0 ? 1 : 0;
+        } else {
+            activeTeam = awayIsBot ? 0 : 1;
+        }
+        lastLegStarter = activeTeam;
+        updateUI();
+        botPlaying = false;
+        if (isCurrentTeamBot()) {
+            setTimeout(() => botPlay(), 500);
+        }
+    } else {
+        // Show starter modal (with or without cork)
+        const needsCork = shouldCorkThisLeg(leg);
+        showStarterModal(needsCork);
+    }
 };
 
-function showGameWinner(idx) {
-    const p = players[idx];
-    const loser = players[1-idx];
-    document.getElementById('gameWinner').textContent = p.name + ' WINS!';
-    
-    const pAvg = p.totalDarts > 0 ? (p.totalPoints / p.totalDarts * 3).toFixed(2) : '0';
-    const lAvg = loser.totalDarts > 0 ? (loser.totalPoints / loser.totalDarts * 3).toFixed(2) : '0';
-    
+// Determine if this leg needs a cork based on cork_rule
+function shouldCorkThisLeg(legNum) {
+    // If cork is disabled entirely, never cork
+    if (!useCork) return false;
+
+    // Check if this is a deciding leg
+    const isDecidingLeg = teams[0].legs === teams[1].legs && teams[0].legs === LEGS_TO_WIN - 1;
+
+    switch (corkRule) {
+        case 'cork_every_leg':
+            return true;
+
+        case 'home_first':
+        case 'away_first':
+        case 'choose_no_cork':
+            // Manual starter selection - no cork needed
+            return false;
+
+        case 'loser_starts_cork_first_deciding':
+        case 'winner_starts_cork_first_deciding':
+        case 'alternate_cork_first_deciding':
+        case 'cork_first_leg':
+        default:
+            // Cork for leg 1 and deciding leg
+            if (legNum === 1) return true;
+            if (isDecidingLeg) return true;
+            return false;
+    }
+}
+
+// Determine who starts without a cork (for non-cork legs)
+function determineStarterWithoutCork(legNum) {
+    switch (corkRule) {
+        case 'home_first':
+            // Home/Team1 always starts first leg, then alternate
+            if (legNum === 1) return 0;
+            return lastLegStarter !== null ? 1 - lastLegStarter : 0;
+
+        case 'away_first':
+            // Away/Team2 always starts first leg, then alternate
+            if (legNum === 1) return 1;
+            return lastLegStarter !== null ? 1 - lastLegStarter : 1;
+
+        case 'loser_starts_cork_first_deciding':
+            // Loser of previous leg starts (non-cork legs)
+            if (lastLegWinner !== null) {
+                return 1 - lastLegWinner; // Opposite of winner
+            }
+            return lastLegStarter !== null ? 1 - lastLegStarter : 0;
+
+        case 'winner_starts_cork_first_deciding':
+            // Winner of previous leg starts (non-cork legs)
+            if (lastLegWinner !== null) {
+                return lastLegWinner;
+            }
+            return lastLegStarter !== null ? 1 - lastLegStarter : 0;
+
+        case 'alternate_cork_first_deciding':
+        case 'cork_first_leg':
+        default:
+            // Alternate from last starter
+            if (lastLegStarter !== null) {
+                return 1 - lastLegStarter;
+            }
+            return 0;
+    }
+}
+
+function showGameWinner(teamIndex) {
+    const winner = teams[teamIndex];
+    const loser = teams[1 - teamIndex];
+
+    // Calculate total stats from legStats (more accurate than teams object)
+    const winnerLegStats = legStats[teamIndex];
+    const loserLegStats = legStats[1 - teamIndex];
+
+    const winnerTotalDarts = winnerLegStats.reduce((sum, leg) => sum + (leg.darts || 0), 0);
+    const winnerTotalPoints = winnerLegStats.reduce((sum, leg) => sum + (leg.points || 0), 0);
+    const loserTotalDarts = loserLegStats.reduce((sum, leg) => sum + (leg.darts || 0), 0);
+    const loserTotalPoints = loserLegStats.reduce((sum, leg) => sum + (leg.points || 0), 0);
+
+    const winnerAvg = winnerTotalDarts > 0 ? (winnerTotalPoints / winnerTotalDarts * 3).toFixed(1) : '0.0';
+    const loserAvg = loserTotalDarts > 0 ? (loserTotalPoints / loserTotalDarts * 3).toFixed(1) : '0.0';
+
+    // Calculate ton stats from legStats
+    const winnerTons = winnerLegStats.reduce((sum, leg) => sum + (leg.tons || 0), 0);
+    const winnerTon40s = winnerLegStats.reduce((sum, leg) => sum + (leg.ton40s || 0), 0);
+    const winnerTon80s = winnerLegStats.reduce((sum, leg) => sum + (leg.ton80s || 0), 0);
+    const loserTons = loserLegStats.reduce((sum, leg) => sum + (leg.tons || 0), 0);
+    const loserTon40s = loserLegStats.reduce((sum, leg) => sum + (leg.ton40s || 0), 0);
+    const loserTon80s = loserLegStats.reduce((sum, leg) => sum + (leg.ton80s || 0), 0);
+
+    const winnerColor = teamIndex === 0 ? 'var(--pink)' : 'var(--teal)';
+    const loserColor = teamIndex === 0 ? 'var(--teal)' : 'var(--pink)';
+
+    // Calculate checkout percentages
+    const winnerCOPct = winner.checkoutAttempts > 0 ? Math.round((winner.totalCheckouts / winner.checkoutAttempts) * 100) : 0;
+    const loserCOPct = loser.checkoutAttempts > 0 ? Math.round((loser.totalCheckouts / loser.checkoutAttempts) * 100) : 0;
+
+    // Best leg display
+    const winnerBest = winner.bestLeg < 999 ? winner.bestLeg : '-';
+    const loserBest = loser.bestLeg < 999 ? loser.bestLeg : '-';
+
+    document.getElementById('gameWinnerName').textContent = winner.name + ' WINS!';
     document.getElementById('gameStats').innerHTML = `
-        <div><span>${p.name}</span><span></span></div>
-        <div><span>3DA</span><span>${pAvg}</span></div>
-        <div><span>180s</span><span>${p.tonEighty}</span></div>
-        <div><span>140+</span><span>${p.tonForty}</span></div>
-        <div><span>100+</span><span>${p.tons}</span></div>
-        <hr style="border:1px solid #ccc;margin:10px 0">
-        <div><span>${loser.name}</span><span></span></div>
-        <div><span>3DA</span><span>${lAvg}</span></div>
-        <div><span>180s</span><span>${loser.tonEighty}</span></div>
+        <div style="text-align: center; margin-bottom: 12px;">
+            <span style="font-size: 32px; font-family: 'Rowdies', cursive;">
+                <span style="color: ${winnerColor};">${winner.legs}</span>
+                <span style="opacity: 0.5; margin: 0 12px;">-</span>
+                <span style="color: ${loserColor};">${loser.legs}</span>
+            </span>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr auto auto; gap: 6px; font-size: 12px;">
+            <div style="font-weight: 700; color: var(--text-dim);"></div>
+            <div style="font-weight: 800; text-align: center; min-width: 55px; color: ${winnerColor}; font-size: 11px;">${winner.name.split(' ')[0].substring(0, 8)}</div>
+            <div style="font-weight: 800; text-align: center; min-width: 55px; color: ${loserColor}; font-size: 11px;">${loser.name.split(' ')[0].substring(0, 8)}</div>
+
+            <div>Average</div>
+            <div style="text-align: center; color: var(--yellow); font-weight: 700;">${winnerAvg}</div>
+            <div style="text-align: center; opacity: 0.7;">${loserAvg}</div>
+
+            <div>Darts</div>
+            <div style="text-align: center;">${winnerTotalDarts}</div>
+            <div style="text-align: center; opacity: 0.7;">${loserTotalDarts}</div>
+
+            <div>Best Leg</div>
+            <div style="text-align: center;">${winnerBest}</div>
+            <div style="text-align: center; opacity: 0.7;">${loserBest}</div>
+
+            <div>High Checkout</div>
+            <div style="text-align: center; color: var(--yellow);">${winner.highCheckout || '-'}</div>
+            <div style="text-align: center; opacity: 0.7;">${loser.highCheckout || '-'}</div>
+
+            <div>Checkout %</div>
+            <div style="text-align: center;">${winnerCOPct}%</div>
+            <div style="text-align: center; opacity: 0.7;">${loserCOPct}%</div>
+
+            <div>100+</div>
+            <div style="text-align: center;">${winnerTons + winnerTon40s + winnerTon80s}</div>
+            <div style="text-align: center; opacity: 0.7;">${loserTons + loserTon40s + loserTon80s}</div>
+
+            <div>140+</div>
+            <div style="text-align: center;">${winnerTon40s + winnerTon80s}</div>
+            <div style="text-align: center; opacity: 0.7;">${loserTon40s + loserTon80s}</div>
+
+            <div>180s</div>
+            <div style="text-align: center; color: var(--yellow);">${winnerTon80s}</div>
+            <div style="text-align: center; opacity: 0.7;">${loserTon80s}</div>
+        </div>
     `;
     document.getElementById('gameModal').classList.add('active');
 }
 
-window.saveAndExit = async function() {
-    const winner = players[0].legs >= LEGS_TO_WIN ? 'home' : 'away';
-    const p = players[winner === 'home' ? 0 : 1];
-    const loser = players[winner === 'home' ? 1 : 0];
-    
-    // Build leg data for each completed leg
-    const legData = {
-        leg_number: leg,
-        winner: winner,
-        home_stats: {
-            darts_thrown: players[0].totalDarts + players[0].darts,
-            points_scored: players[0].totalPoints + (START - players[0].score),
-            three_dart_avg: 0,
-            tons: players[0].tons,
-            ton_forties: players[0].tonForty,
-            ton_eighties: players[0].tonEighty,
-            one_seventyone: players[0].t171,
-            checkout: players[0].checkouts.length > 0 ? players[0].checkouts[players[0].checkouts.length-1]?.out : 0,
-            checkout_attempts: players[0].attempts
-        },
-        away_stats: {
-            darts_thrown: players[1].totalDarts + players[1].darts,
-            points_scored: players[1].totalPoints + (START - players[1].score),
-            three_dart_avg: 0,
-            tons: players[1].tons,
-            ton_forties: players[1].tonForty,
-            ton_eighties: players[1].tonEighty,
-            one_seventyone: players[1].t171,
-            checkout: players[1].checkouts.length > 0 ? players[1].checkouts[players[1].checkouts.length-1]?.out : 0,
-            checkout_attempts: players[1].attempts
+window.saveGame = async function() {
+    const winner = teams[0].legs >= LEGS_TO_WIN ? 'home' : 'away';
+    const duration = Math.floor((Date.now() - gameStartTime) / 1000);
+
+    const homeAvg = teams[0].darts > 0 ? parseFloat((teams[0].points / teams[0].darts * 3).toFixed(2)) : 0;
+    const awayAvg = teams[1].darts > 0 ? parseFloat((teams[1].points / teams[1].darts * 3).toFixed(2)) : 0;
+
+    // Build comprehensive DartConnect-compatible leg data
+    const buildLegData = () => {
+        const legs = [];
+        const numLegs = Math.max(legStats[0].length, legStats[1].length);
+
+        for (let i = 0; i < numLegs; i++) {
+            const homeLeg = legStats[0][i] || {};
+            const awayLeg = legStats[1][i] || {};
+            const legWinner = (homeLeg.checkout && homeLeg.checkout > 0) ? 'home' : 'away';
+
+            legs.push({
+                leg_number: i + 1,
+                winner: legWinner,
+                home_stats: {
+                    darts_thrown: homeLeg.darts || 0,
+                    points_scored: homeLeg.points || 0,
+                    first9_darts: homeLeg.first9Darts || 0,
+                    first9_points: homeLeg.first9Points || 0,
+                    // Ton breakdown
+                    tons: homeLeg.tons || 0,
+                    ton_00: homeLeg.ton_00 || 0,
+                    ton_20: homeLeg.ton_20 || 0,
+                    ton_40: homeLeg.ton_40 || 0,
+                    ton_60: homeLeg.ton_60 || 0,
+                    ton_80: homeLeg.ton_80 || 0,
+                    ton_forties: (homeLeg.ton_40 || 0) + (homeLeg.ton_60 || 0) + (homeLeg.ton_80 || 0),
+                    ton_eighties: homeLeg.ton_80 || 0,
+                    ton_71: homeLeg.ton_71 || 0,
+                    // Checkout
+                    checkout: legWinner === 'home' ? (homeLeg.checkout || 0) : 0,
+                    checkout_attempts: homeLeg.checkout_attempts || 0,
+                    checkout_darts: homeLeg.checkout_darts || 0,
+                    high_score: homeLeg.high_score || 0
+                },
+                away_stats: {
+                    darts_thrown: awayLeg.darts || 0,
+                    points_scored: awayLeg.points || 0,
+                    first9_darts: awayLeg.first9Darts || 0,
+                    first9_points: awayLeg.first9Points || 0,
+                    // Ton breakdown
+                    tons: awayLeg.tons || 0,
+                    ton_00: awayLeg.ton_00 || 0,
+                    ton_20: awayLeg.ton_20 || 0,
+                    ton_40: awayLeg.ton_40 || 0,
+                    ton_60: awayLeg.ton_60 || 0,
+                    ton_80: awayLeg.ton_80 || 0,
+                    ton_forties: (awayLeg.ton_40 || 0) + (awayLeg.ton_60 || 0) + (awayLeg.ton_80 || 0),
+                    ton_eighties: awayLeg.ton_80 || 0,
+                    ton_71: awayLeg.ton_71 || 0,
+                    // Checkout
+                    checkout: legWinner === 'away' ? (awayLeg.checkout || 0) : 0,
+                    checkout_attempts: awayLeg.checkout_attempts || 0,
+                    checkout_darts: awayLeg.checkout_darts || 0,
+                    high_score: awayLeg.high_score || 0
+                }
+            });
         }
+        return legs;
     };
-    
-    // Calc averages
-    if (legData.home_stats.darts_thrown > 0) {
-        legData.home_stats.three_dart_avg = (legData.home_stats.points_scored / legData.home_stats.darts_thrown * 3).toFixed(2);
+
+    // Handle Chicago match progression
+    if (isChicago && chicagoGame > 0) {
+        const chicagoMatch = JSON.parse(sessionStorage.getItem('chicagoMatch') || '{}');
+
+        // Update wins
+        if (winner === 'home') chicagoMatch.home_wins++;
+        else chicagoMatch.away_wins++;
+
+        // Check if match is over (first to 2 wins)
+        if (chicagoMatch.home_wins >= 2 || chicagoMatch.away_wins >= 2) {
+            const matchWinner = chicagoMatch.home_wins >= 2 ? 'Home' : 'Away';
+            alert(`Chicago Match Over! ${matchWinner} wins ${chicagoMatch.home_wins}-${chicagoMatch.away_wins}`);
+            sessionStorage.removeItem('chicagoMatch');
+            window.location.href = '/pages/scorer-hub.html';
+            return;
+        }
+
+        // Move to next game
+        chicagoMatch.current_game++;
+        sessionStorage.setItem('chicagoMatch', JSON.stringify(chicagoMatch));
+
+        const nextGame = chicagoMatch.games[chicagoMatch.current_game - 1];
+        const params = new URLSearchParams();
+        params.set('home_players', JSON.stringify(chicagoMatch.home_players));
+        params.set('away_players', JSON.stringify(chicagoMatch.away_players));
+        params.set('casual', 'true');
+        params.set('chicago', 'true');
+        params.set('chicago_game', chicagoMatch.current_game.toString());
+        params.set('legs_to_win', '1');
+        params.set('cork_rule', chicagoMatch.cork_rule);
+        if (chicagoMatch.practice_mode && chicagoMatch.practice_mode !== 'off') {
+            params.set('practice_mode', chicagoMatch.practice_mode);
+        }
+
+        if (nextGame.type === 'cricket') {
+            // Game 2: Cricket
+            window.location.href = `/pages/league-cricket.html?${params.toString()}`;
+        } else {
+            // Game 3: 301 DIDO
+            params.set('starting_score', nextGame.starting_score.toString());
+            params.set('in_rule', nextGame.in_rule);
+            params.set('out_rule', nextGame.out_rule);
+            params.set('checkout', nextGame.out_rule);
+            window.location.href = `/pages/league-501.html?${params.toString()}`;
+        }
+        return;
     }
-    if (legData.away_stats.darts_thrown > 0) {
-        legData.away_stats.three_dart_avg = (legData.away_stats.points_scored / legData.away_stats.darts_thrown * 3).toFixed(2);
+
+    // Build comprehensive game stats with leg-by-leg data (DartConnect compatible)
+    const comprehensiveGameStats = {
+        game_type: '501',
+        starting_score: STARTING_SCORE,
+        duration_seconds: duration,
+        // Summary stats
+        home: {
+            name: teams[0].name,
+            legs: teams[0].legs,
+            average: homeAvg,
+            first9_avg: teams[0].first9Darts > 0 ? parseFloat((teams[0].first9Points / teams[0].first9Darts * 3).toFixed(2)) : 0,
+            // Ton breakdown
+            tons: teams[0].tons,
+            ton_00: teams[0].ton_00,
+            ton_20: teams[0].ton_20,
+            ton_40: teams[0].ton_40,
+            ton_60: teams[0].ton_60,
+            ton_80: teams[0].ton_80,
+            ton80s: teams[0].ton80s,
+            ton_71: teams[0].ton_71,
+            // Checkout stats
+            high_checkout: teams[0].highCheckout,
+            high_score: teams[0].highScore,
+            best_leg: teams[0].bestLeg < 999 ? teams[0].bestLeg : 0,
+            checkout_attempts: teams[0].checkoutAttempts,
+            checkout_darts: teams[0].checkoutDarts,
+            checkouts_hit: teams[0].totalCheckouts
+        },
+        away: {
+            name: teams[1].name,
+            legs: teams[1].legs,
+            average: awayAvg,
+            first9_avg: teams[1].first9Darts > 0 ? parseFloat((teams[1].first9Points / teams[1].first9Darts * 3).toFixed(2)) : 0,
+            // Ton breakdown
+            tons: teams[1].tons,
+            ton_00: teams[1].ton_00,
+            ton_20: teams[1].ton_20,
+            ton_40: teams[1].ton_40,
+            ton_60: teams[1].ton_60,
+            ton_80: teams[1].ton_80,
+            ton80s: teams[1].ton80s,
+            ton_71: teams[1].ton_71,
+            // Checkout stats
+            high_checkout: teams[1].highCheckout,
+            high_score: teams[1].highScore,
+            best_leg: teams[1].bestLeg < 999 ? teams[1].bestLeg : 0,
+            checkout_attempts: teams[1].checkoutAttempts,
+            checkout_darts: teams[1].checkoutDarts,
+            checkouts_hit: teams[1].totalCheckouts
+        },
+        // Leg-by-leg data for player stat aggregation
+        legs: buildLegData()
+    };
+
+    const gameResult = {
+        game_number: gameNumber,
+        game_type: '501',
+        winner,
+        home_legs: teams[0].legs,
+        away_legs: teams[1].legs,
+        stats: { home_avg: homeAvg, away_avg: awayAvg, home_180s: teams[0].ton80s, away_180s: teams[1].ton80s }
+    };
+
+    if (fromMatch) {
+        const matchState = JSON.parse(sessionStorage.getItem('activeMatch') || '{}');
+        if (!matchState.games_completed) matchState.games_completed = [];
+        matchState.games_completed.push(gameResult);
+        matchState[winner + '_score'] = (matchState[winner + '_score'] || 0) + 1;
+        sessionStorage.setItem('activeMatch', JSON.stringify(matchState));
+
+        try {
+            if (leagueId && matchId) {
+                await callFunction('submitGameResult', {
+                    league_id: leagueId, match_id: matchId, game_number: gameNumber,
+                    winner, home_legs_won: teams[0].legs, away_legs_won: teams[1].legs,
+                    admin_pin: adminPin,
+                    game_stats: comprehensiveGameStats
+                });
+            }
+        } catch (e) { console.error('Save error:', e); }
+
+        window.location.href = '/pages/match-transition.html';
+        return;
     }
 
     try {
         if (leagueId && matchId) {
-            await callFunction('recordLeg', {
-                league_id: leagueId,
-                match_id: matchId,
-                game_number: parseInt(gameNumber),
-                leg_data: legData
+            // League game submission
+            await callFunction('submitGameResult', {
+                league_id: leagueId, match_id: matchId, game_number: gameNumber,
+                winner, home_legs_won: teams[0].legs, away_legs_won: teams[1].legs,
+                admin_pin: adminPin,
+                game_stats: comprehensiveGameStats
             });
+            alert('Game saved!');
+        } else if (tournamentId && tournamentMatchId) {
+            // Tournament game submission with comprehensive stats
+            await callFunction('submitMatchResult', {
+                tournament_id: tournamentId,
+                match_id: tournamentMatchId,
+                player1_score: teams[0].legs,
+                player2_score: teams[1].legs,
+                game_stats: comprehensiveGameStats
+            });
+            alert('Tournament match saved!');
         }
     } catch (e) {
-        console.error('Error saving:', e);
+        console.error('Save error:', e);
+        alert('Error: ' + e.message);
     }
-    
-    // Go back to match hub
-    window.location.href = `/pages/match-hub.html?league_id=${leagueId}&match_id=${matchId}`;
+
+    navigateAway();
 };
 
-window.goBack = function() {
-    if (confirm('Exit without saving?')) {
+window.exitWithoutSave = function() {
+    if (confirm('Exit without saving?')) navigateAway();
+};
+
+function navigateAway() {
+    // Check for custom return URL first
+    const returnUrl = params.get('return_url');
+    if (returnUrl) {
+        window.location.href = returnUrl;
+        return;
+    }
+
+    // Default navigation based on origin
+    const origin = params.get('origin');
+    if (origin === 'casual') {
+        window.location.href = '/pages/game-setup.html';
+    } else if (origin === 'league') {
+        const leagueReturnUrl = params.get('league_return_url');
+        if (leagueReturnUrl) window.location.href = leagueReturnUrl;
+        else if (leagueId && matchId) window.location.href = `/pages/match-hub.html?league_id=${leagueId}&match_id=${matchId}`;
+        else window.location.href = '/pages/scorer-hub.html';
+    } else if (origin === 'tournament') {
+        const tournamentReturnUrl = params.get('tournament_return_url');
+        if (tournamentReturnUrl) window.location.href = tournamentReturnUrl;
+        else window.location.href = '/pages/scorer-hub.html';
+    } else if (fromMatch) {
+        window.location.href = '/pages/match-transition.html';
+    } else if (isCasual) {
+        window.location.href = '/pages/game-setup.html';
+    } else if (leagueId && matchId) {
         window.location.href = `/pages/match-hub.html?league_id=${leagueId}&match_id=${matchId}`;
+    } else {
+        window.location.href = '/pages/scorer-hub.html';
+    }
+}
+
+window.exitGame = function() {
+    // For casual games, offer to save and resume from game-setup
+    if (isCasual) {
+        const hasProgress = teams[0].darts > 0 || teams[1].darts > 0 || teams[0].legs > 0 || teams[1].legs > 0;
+        if (hasProgress) {
+            // Save match state for resume
+            const resumeState = {
+                timestamp: Date.now(),
+                gameType: '501',
+                startingScore: STARTING_SCORE,
+                inRule: inRule,
+                outRule: outRule,
+                teams: teams.map(t => ({
+                    name: t.name,
+                    score: t.score,
+                    legs: t.legs,
+                    sets: t.sets || 0,
+                    darts: t.darts,
+                    points: t.points,
+                    tons: t.tons,
+                    ton40s: t.ton40s,
+                    ton80s: t.ton80s,
+                    highCheckout: t.highCheckout,
+                    bestLeg: t.bestLeg,
+                    totalCheckouts: t.totalCheckouts,
+                    checkoutAttempts: t.checkoutAttempts
+                })),
+                activeTeam: activeTeam,
+                currentLeg: currentLeg,
+                legsToWin: legsToWin,
+                setsToWin: setsToWin,
+                isMixedGame: isMixedGame,
+                mixedLegIndex: mixedLegIndex,
+                homePlayers: homePlayers,
+                awayPlayers: awayPlayers
+            };
+            sessionStorage.setItem('matchResumeState', JSON.stringify(resumeState));
+            window.location.href = '/pages/game-setup.html?resume=true';
+            return;
+        }
+    }
+
+    // Non-casual games or no progress - confirm and navigate away
+    if (teams[0].darts > 0 || teams[1].darts > 0) {
+        if (!confirm('Exit? Game progress will be lost.')) return;
+    }
+    navigateAway();
+};
+
+// Startup: Check if we have match data or need PIN entry
+if (isCasual && homePlayers.length > 0) {
+    // Casual game from game-setup - initialize directly
+    init();
+
+    // Restore resume state if applicable
+    if (isResumeMode && (resumeHomeDarts > 0 || resumeAwayDarts > 0)) {
+        teams[0].score = resumeHomeScore;
+        teams[1].score = resumeAwayScore;
+        teams[0].darts = resumeHomeDarts;
+        teams[1].darts = resumeAwayDarts;
+        activeTeam = resumeActiveTeam;
+
+        // Update displays
+        updateScoreDisplay();
+        updateThrowHistory();
+        updateActivePanel();
+
+        // Hide wrong game button since we're resuming mid-leg
+        const wrongGameBtn = document.getElementById('wrongGameBtn');
+        if (wrongGameBtn) wrongGameBtn.style.display = 'none';
+
+        // Clear the resume state from sessionStorage
+        sessionStorage.removeItem('matchResumeState');
+    }
+} else if (leagueId && matchId && homePlayers.length > 0) {
+    // URL has match params - initialize directly
+    init();
+} else if (matchPin) {
+    // Match PIN provided in URL - load match
+    document.getElementById('pinEntryScreen').style.display = 'flex';
+    document.getElementById('pinEntryScreen').classList.add('active');
+    const pinInputs = document.querySelectorAll('.pin-char');
+    matchPin.split('').forEach((char, i) => {
+        if (pinInputs[i]) pinInputs[i].value = char;
+    });
+    loadMatchByPin();
+} else {
+    // No match data - show PIN entry screen
+    document.getElementById('pinEntryScreen').style.display = 'flex';
+    document.getElementById('pinEntryScreen').classList.add('active');
+    setupPinEntry();
+}
+
+// ===== GAME SELECTOR FUNCTIONS =====
+let gameSelectorMode = 'next'; // 'next' or 'current'
+let selectedNextGameType = null;
+
+function getGameLabel(leg) {
+    if (!leg) return '501';
+    if (leg.type === 'cricket') return 'CRICKET';
+    if (leg.type === 'x01') return `${leg.score || 501} ${(leg.inRule === 'double' ? 'DI' : 'SI')}/${(leg.outRule === 'double' ? 'DO' : (leg.outRule === 'master' ? 'MO' : 'SO'))}`;
+    if (leg.type === '301') return `301 ${(leg.outRule === 'double' ? 'DO' : 'SO')}`;
+    if (leg.type === '701') return `701 ${(leg.outRule === 'double' ? 'DO' : 'SO')}`;
+    return `501 ${(leg.outRule === 'double' ? 'DO' : 'SO')}`;
+}
+
+window.showGameSelector = function(mode) {
+    gameSelectorMode = mode || 'next';
+    document.getElementById('x01CustomOptions').style.display = 'none';
+    document.getElementById('gameSelectorModal').classList.add('active');
+};
+
+window.selectNextGame = function(type) {
+    if (type === 'x01') {
+        document.getElementById('x01CustomOptions').style.display = 'block';
+        selectedNextGameType = 'x01';
+    } else {
+        selectedNextGameType = type;
+        applyGameSelection(type, type === '301' ? 301 : 501, 'straight', 'double');
     }
 };
 
-init();
+window.confirmX01Selection = function() {
+    const score = parseInt(document.getElementById('x01CustomScore').value) || 501;
+    const inRule = document.getElementById('x01CustomIn').value;
+    const outRule = document.getElementById('x01CustomOut').value;
+    applyGameSelection('x01', score, inRule, outRule);
+};
+
+function applyGameSelection(type, score, inRule, outRule) {
+    document.getElementById('gameSelectorModal').classList.remove('active');
+
+    if (gameSelectorMode === 'current') {
+        // Change current game - navigate immediately
+        navigateToGame(type, score, inRule, outRule, mixedLegIndex);
+    } else {
+        // Update next leg in mixed config
+        const mixedConfig = JSON.parse(sessionStorage.getItem('mixedGameConfig') || '{}');
+        const nextLegIndex = mixedLegIndex + 1;
+        if (mixedConfig.legs && nextLegIndex < mixedConfig.legs.length) {
+            mixedConfig.legs[nextLegIndex] = { type, score, inRule, outRule };
+            sessionStorage.setItem('mixedGameConfig', JSON.stringify(mixedConfig));
+            document.getElementById('nextGameLabel').textContent = getGameLabel(mixedConfig.legs[nextLegIndex]);
+        }
+    }
+}
+
+function navigateToGame(type, score, inRule, outRule, legIndex) {
+    const newParams = new URLSearchParams();
+    newParams.set('home_players', JSON.stringify(homePlayers));
+    newParams.set('away_players', JSON.stringify(awayPlayers));
+    newParams.set('casual', isCasual ? 'true' : 'false');
+    newParams.set('mixed', 'true');
+    newParams.set('mixed_leg', legIndex.toString());
+    newParams.set('legs_to_win', LEGS_TO_WIN.toString());
+    newParams.set('home_legs', teams[0].legs.toString());
+    newParams.set('away_legs', teams[1].legs.toString());
+    if (useCork) newParams.set('cork', 'true');
+
+    if (type === 'cricket') {
+        window.location.href = `/pages/league-cricket.html?${newParams.toString()}`;
+    } else {
+        newParams.set('starting_score', score.toString());
+        newParams.set('in_rule', inRule);
+        newParams.set('out_rule', outRule);
+        newParams.set('checkout', outRule);
+        window.location.href = `/pages/league-501.html?${newParams.toString()}`;
+    }
+}
+
+window.closeGameSelector = function() {
+    document.getElementById('gameSelectorModal').classList.remove('active');
+    document.getElementById('x01CustomOptions').style.display = 'none';
+};
+
+function hideWrongGameBtn() {
+    const btn = document.getElementById('wrongGameBtn');
+    if (btn) btn.classList.add('hidden');
+}
+
+// Show/hide wrong game button based on mode
+if (isMixedGame || isCasual) {
+    document.getElementById('wrongGameBtn').style.display = 'block';
+} else {
+    document.getElementById('wrongGameBtn').style.display = 'none';
+}
+
+// Register service worker
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js')
+        .then(() => {})
+        .catch(err => console.error('[SW] Registration failed:', err));
+}
 </script>
+<script src="/js/nav-menu.js"></script>
 </body>
 </html>

@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tournament - BRDC</title>
+    <link rel="icon" type="image/png" href="/images/favicon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --pink: #FF469A;
+            --teal: #91D7EB;
+            --yellow: #FDD835;
+            --black: #1a1a2e;
+            --blue-dark: #0f0f1a;
+            --blue-light: #1a1a2e;
+            --text-light: #ffffff;
+            --text-dim: #a0a0b0;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(180deg, var(--blue-light) 0%, var(--blue-dark) 100%);
+            min-height: 100vh;
+            color: var(--text-light);
+        }
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse at 20% 20%, rgba(255, 70, 154, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(145, 215, 235, 0.06) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: -1;
+        }
+        .header-bar {
+            background: rgba(26, 26, 46, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 4px solid var(--teal);
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .back-btn {
+            background: transparent;
+            border: 2px solid var(--teal);
+            color: var(--teal);
+            padding: 8px 16px;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 16px;
+            letter-spacing: 2px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .back-btn:hover { background: var(--teal); color: var(--black); }
+        .header-logo { width: 45px; height: 45px; }
+        .header-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 28px;
+            letter-spacing: 3px;
+            color: var(--teal);
+        }
+        .container { max-width: 1000px; margin: 0 auto; padding: 30px 20px; }
+
+        /* Tournament Info Card */
+        .tournament-card {
+            background: rgba(26, 26, 46, 0.9);
+            border: 4px solid var(--black);
+            box-shadow: 10px 10px 0 rgba(0,0,0,0.5);
+            margin-bottom: 30px;
+        }
+        .tournament-header {
+            background: linear-gradient(135deg, var(--teal) 0%, #5ab8d4 100%);
+            color: var(--black);
+            padding: 30px;
+        }
+        .tournament-name {
+            font-family: 'Archivo Black', sans-serif;
+            font-size: 36px;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+        .tournament-date {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 20px;
+            letter-spacing: 3px;
+        }
+        .tournament-body { padding: 30px; }
+        .info-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 30px;
+            margin-bottom: 25px;
+        }
+        .info-item { flex: 1; min-width: 150px; }
+        .info-label {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-dim);
+            margin-bottom: 5px;
+        }
+        .info-value { font-weight: 700; font-size: 18px; }
+
+        .register-btn {
+            width: 100%;
+            padding: 20px;
+            background: linear-gradient(135deg, var(--pink), #cc3879);
+            border: 4px solid var(--black);
+            color: white;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 24px;
+            letter-spacing: 3px;
+            cursor: pointer;
+            box-shadow: 6px 6px 0 rgba(0,0,0,0.5);
+            transition: all 0.2s;
+        }
+        .register-btn:hover { transform: translate(-2px, -2px); box-shadow: 8px 8px 0 rgba(0,0,0,0.5); }
+        .register-btn:disabled { background: #666; cursor: not-allowed; transform: none; }
+
+        /* Events Section */
+        .events-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 32px;
+            letter-spacing: 3px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .events-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+        .event-card {
+            background: rgba(26, 26, 46, 0.9);
+            border: 4px solid var(--black);
+            box-shadow: 8px 8px 0 rgba(0,0,0,0.5);
+            overflow: hidden;
+            transition: transform 0.2s;
+        }
+        .event-card:hover { transform: translate(-3px, -3px); }
+        .event-header {
+            padding: 20px;
+            position: relative;
+        }
+        .event-header.singles { background: linear-gradient(135deg, var(--pink), #cc3879); }
+        .event-header.doubles { background: linear-gradient(135deg, var(--teal), #5ab8d4); color: var(--black); }
+        .event-header.triples { background: linear-gradient(135deg, var(--yellow), #e6c200); color: var(--black); }
+        .event-header.other { background: linear-gradient(135deg, #9333ea, #7c3aed); }
+        .event-name {
+            font-family: 'Archivo Black', sans-serif;
+            font-size: 24px;
+            text-transform: uppercase;
+        }
+        .event-fee {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 18px;
+            letter-spacing: 2px;
+            margin-top: 5px;
+        }
+        .event-body { padding: 20px; }
+        .event-detail {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .event-detail:last-child { border-bottom: none; }
+        .event-detail-label { color: var(--text-dim); font-size: 14px; }
+        .event-detail-value { font-weight: 600; }
+        .event-signups {
+            background: var(--yellow);
+            color: var(--black);
+            padding: 15px;
+            text-align: center;
+            border-top: 3px solid var(--black);
+        }
+        .event-signups-count {
+            font-family: 'Archivo Black', sans-serif;
+            font-size: 28px;
+        }
+        .event-signups-label { font-size: 12px; font-weight: 700; }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 20px;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal-content {
+            background: linear-gradient(180deg, var(--blue-light) 0%, var(--blue-dark) 100%);
+            border: 4px solid var(--teal);
+            box-shadow: 0 0 50px rgba(145, 215, 235, 0.3);
+            max-width: 550px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .modal-header {
+            background: var(--teal);
+            color: var(--black);
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .modal-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 28px;
+            letter-spacing: 2px;
+        }
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--black);
+            font-size: 28px;
+            cursor: pointer;
+            line-height: 1;
+        }
+        .modal-body { padding: 25px; }
+
+        /* PIN Section */
+        .pin-section {
+            background: linear-gradient(135deg, var(--yellow), #e6c200);
+            color: var(--black);
+            padding: 20px;
+            margin-bottom: 25px;
+            border: 3px solid var(--black);
+        }
+        .pin-section-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 18px;
+            letter-spacing: 1px;
+            margin-bottom: 12px;
+        }
+        .pin-row { display: flex; gap: 10px; }
+        .pin-input {
+            flex: 1;
+            padding: 12px;
+            border: 3px solid var(--black);
+            font-size: 18px;
+            font-family: monospace;
+            letter-spacing: 3px;
+            text-align: center;
+        }
+        .pin-btn {
+            padding: 12px 20px;
+            background: var(--black);
+            color: white;
+            border: none;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .divider {
+            text-align: center;
+            margin: 20px 0;
+            position: relative;
+        }
+        .divider::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 50%;
+            height: 2px;
+            background: rgba(255,255,255,0.2);
+        }
+        .divider span {
+            background: var(--blue-light);
+            padding: 0 15px;
+            position: relative;
+            color: var(--text-dim);
+            font-weight: 600;
+        }
+
+        .form-group { margin-bottom: 20px; }
+        .form-label {
+            display: block;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+            color: var(--text-dim);
+        }
+        .form-label span { color: var(--pink); }
+        .form-input, .form-select {
+            width: 100%;
+            padding: 14px;
+            border: 3px solid var(--black);
+            background: rgba(255,255,255,0.05);
+            color: white;
+            font-size: 16px;
+        }
+        .form-input:focus, .form-select:focus { outline: none; border-color: var(--teal); }
+
+        /* Event Selection */
+        .events-selection {
+            margin: 25px 0;
+            border: 3px solid var(--black);
+            background: rgba(255,255,255,0.03);
+        }
+        .events-selection-header {
+            background: var(--black);
+            padding: 15px;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 18px;
+            letter-spacing: 1px;
+        }
+        .event-option {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 15px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .event-option:hover { background: rgba(255,255,255,0.05); }
+        .event-option:last-child { border-bottom: none; }
+        .event-option.selected { background: rgba(145, 215, 235, 0.15); }
+        .event-option input {
+            width: 22px;
+            height: 22px;
+            accent-color: var(--teal);
+            margin-right: 15px;
+        }
+        .event-option-info { flex: 1; }
+        .event-option-name { font-weight: 700; }
+        .event-option-desc { font-size: 12px; color: var(--text-dim); }
+        .event-option-fee {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 20px;
+            color: var(--yellow);
+        }
+
+        .total-display {
+            background: rgba(255,255,255,0.05);
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 20px 0;
+            border: 2px solid var(--teal);
+        }
+        .total-label { font-weight: 600; }
+        .total-amount {
+            font-family: 'Archivo Black', sans-serif;
+            font-size: 28px;
+            color: var(--teal);
+        }
+
+        /* Payment Options */
+        .payment-option {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 15px;
+            background: rgba(255,255,255,0.05);
+            border: 2px solid transparent;
+            margin-bottom: 10px;
+            cursor: pointer;
+        }
+        .payment-option:hover { background: rgba(255,255,255,0.1); }
+        .payment-option.selected { border-color: var(--teal); background: rgba(145, 215, 235, 0.1); }
+        .payment-option input { width: 20px; height: 20px; accent-color: var(--teal); }
+        .payment-label { font-weight: 600; }
+        .payment-desc { font-size: 12px; color: var(--text-dim); }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+        .checkbox-group input {
+            width: 22px;
+            height: 22px;
+            accent-color: var(--teal);
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 18px;
+            background: linear-gradient(135deg, var(--pink), #cc3879);
+            border: 4px solid var(--black);
+            color: white;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 22px;
+            letter-spacing: 2px;
+            cursor: pointer;
+            box-shadow: 5px 5px 0 rgba(0,0,0,0.5);
+        }
+        .submit-btn:hover { transform: translate(-2px, -2px); }
+        .submit-btn:disabled { background: #666; cursor: not-allowed; transform: none; }
+
+        /* Success */
+        .success-content { text-align: center; padding: 40px 20px; }
+        .success-icon { font-size: 80px; margin-bottom: 20px; }
+        .success-title {
+            font-family: 'Archivo Black', sans-serif;
+            font-size: 32px;
+            margin-bottom: 15px;
+        }
+        .success-message { color: var(--text-dim); margin-bottom: 25px; line-height: 1.6; }
+        .pin-display-box {
+            background: var(--yellow);
+            color: var(--black);
+            padding: 20px;
+            margin: 20px 0;
+            border: 4px solid var(--black);
+        }
+        .pin-display-label { font-weight: 700; font-size: 14px; margin-bottom: 5px; }
+        .pin-display-value {
+            font-family: 'Archivo Black', sans-serif;
+            font-size: 36px;
+            letter-spacing: 8px;
+        }
+
+        .loading { text-align: center; padding: 60px; color: var(--text-dim); }
+        .error-message {
+            background: rgba(239, 68, 68, 0.2);
+            border: 2px solid #ef4444;
+            padding: 20px;
+            text-align: center;
+            color: #ef4444;
+        }
+    </style>
+</head>
+<body>
+    <div class="header-bar">
+        <button class="back-btn" onclick="history.back()">BACK</button>
+        <img src="/images/white_logo.jpg" alt="BRDC" class="header-logo">
+        <span class="header-title">TOURNAMENT</span>
+    </div>
+
+    <div class="container" id="mainContent">
+        <div class="loading">Loading tournament information...</div>
+    </div>
+
+    <!-- Registration Modal -->
+    <div class="modal-overlay" id="registerModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="modal-title">REGISTER</span>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <!-- Form will be rendered here -->
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { db, doc, getDoc, collection, getDocs, callFunction } from '/js/firebase-config.js';
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const tournamentId = urlParams.get('tournament_id') || urlParams.get('id');
+
+        let tournamentData = null;
+        let events = [];
+        let registrations = {};
+        let memberData = null;
+        let selectedEvents = new Set();
+
+        window.onload = async function() {
+            if (!tournamentId) {
+                showError('Missing tournament_id in URL');
+                return;
+            }
+            await loadTournamentData();
+        };
+
+        async function loadTournamentData() {
+            try {
+                const tournamentDoc = await getDoc(doc(db, 'tournaments', tournamentId));
+
+                if (!tournamentDoc.exists()) {
+                    throw new Error('Tournament not found');
+                }
+
+                tournamentData = { id: tournamentId, ...tournamentDoc.data() };
+
+                // Load events
+                try {
+                    const eventsSnap = await getDocs(collection(db, 'tournaments', tournamentId, 'events'));
+                    events = eventsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+                    // Load registrations for each event
+                    for (const event of events) {
+                        try {
+                            const regsSnap = await getDocs(collection(db, 'tournaments', tournamentId, 'events', event.id, 'registrations'));
+                            registrations[event.id] = regsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+                        } catch (e) {
+                            registrations[event.id] = [];
+                        }
+                    }
+                } catch (e) {
+                    events = [];
+                }
+
+                // If no events subcollection, check for events array in tournament doc
+                if (events.length === 0 && tournamentData.events) {
+                    events = tournamentData.events.map((e, i) => ({ id: `event_${i}`, ...e }));
+                }
+
+                renderPage();
+
+            } catch (error) {
+                console.error('Error loading tournament:', error);
+                showError('Failed to load tournament: ' + error.message);
+            }
+        }
+
+        function renderPage() {
+            const html = `
+                <div class="tournament-card">
+                    <div class="tournament-header">
+                        <div class="tournament-name">${tournamentData.name || tournamentData.tournament_name}</div>
+                        <div class="tournament-date">${formatDate(tournamentData.date || tournamentData.start_date)}</div>
+                    </div>
+                    <div class="tournament-body">
+                        <div class="info-row">
+                            <div class="info-item">
+                                <div class="info-label">Venue</div>
+                                <div class="info-value">${tournamentData.venue_name || tournamentData.venue || 'TBD'}</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Address</div>
+                                <div class="info-value">${tournamentData.venue_address || tournamentData.address || 'TBD'}</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Events</div>
+                                <div class="info-value">${events.length} Events</div>
+                            </div>
+                        </div>
+                        ${tournamentData.description ? `<p style="color: var(--text-dim); margin-bottom: 20px;">${tournamentData.description}</p>` : ''}
+
+                        <button class="register-btn" onclick="openModal()">
+                            REGISTER NOW
+                        </button>
+                    </div>
+                </div>
+
+                <div class="events-title">EVENTS</div>
+                <div class="events-grid">
+                    ${events.map(event => renderEventCard(event)).join('')}
+                </div>
+            `;
+
+            document.getElementById('mainContent').innerHTML = html;
+        }
+
+        function isEventClickable() {
+            // Event cards are clickable when tournament is active or completed
+            const status = tournamentData.status || 'registration';
+            return status === 'active' || status === 'in_progress' || status === 'completed';
+        }
+
+        function renderEventCard(event) {
+            const regs = registrations[event.id] || [];
+            const count = regs.length;
+            const eventType = getEventType(event.name || event.event_name);
+            const clickable = isEventClickable();
+            const eventUrl = `/pages/event-view.html?tournament_id=${tournamentId}&event_id=${event.id}`;
+
+            return `
+                <div class="event-card" ${clickable ? `onclick="window.location.href='${eventUrl}'" style="cursor: pointer;"` : ''}>
+                    <div class="event-header ${eventType}">
+                        <div class="event-name">${event.name || event.event_name}</div>
+                        <div class="event-fee">${event.entry_fee ? '$' + parseFloat(event.entry_fee).toFixed(2) : 'FREE'}</div>
+                    </div>
+                    <div class="event-body">
+                        <div class="event-detail">
+                            <span class="event-detail-label">Format</span>
+                            <span class="event-detail-value">${event.format || event.game_type || '501'}</span>
+                        </div>
+                        <div class="event-detail">
+                            <span class="event-detail-label">Bracket</span>
+                            <span class="event-detail-value">${event.bracket_type || 'Double Elimination'}</span>
+                        </div>
+                        <div class="event-detail">
+                            <span class="event-detail-label">Legs</span>
+                            <span class="event-detail-value">Best of ${event.legs || 3}</span>
+                        </div>
+                    </div>
+                    <div class="event-signups">
+                        <div class="event-signups-count">${count}</div>
+                        <div class="event-signups-label">${clickable ? 'VIEW EVENT' : 'REGISTERED'}</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function getEventType(name) {
+            const lower = (name || '').toLowerCase();
+            if (lower.includes('single')) return 'singles';
+            if (lower.includes('double')) return 'doubles';
+            if (lower.includes('triple') || lower.includes('team')) return 'triples';
+            return 'other';
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return 'TBD';
+            return new Date(dateStr).toLocaleDateString('en-US', {
+                weekday: 'long',
+                month: 'long',
+                day: 'numeric',
+                year: 'numeric'
+            });
+        }
+
+        window.openModal = function() {
+            selectedEvents.clear();
+            renderRegistrationForm();
+            document.getElementById('registerModal').classList.add('active');
+        };
+
+        window.closeModal = function() {
+            document.getElementById('registerModal').classList.remove('active');
+        };
+
+        function renderRegistrationForm() {
+            const html = `
+                <!-- PIN Lookup Section -->
+                <div class="pin-section">
+                    <div class="pin-section-title">ALREADY A MEMBER? ENTER YOUR PIN</div>
+                    <div class="pin-row">
+                        <input type="text" id="memberPin" class="pin-input" maxlength="5" placeholder="12345" inputmode="numeric">
+                        <button class="pin-btn" onclick="lookupPin()">GO</button>
+                    </div>
+                </div>
+
+                <div class="divider"><span>OR REGISTER NEW</span></div>
+
+                <form id="registrationForm" onsubmit="submitRegistration(event)">
+                    <div class="form-group">
+                        <label class="form-label">Full Name <span>*</span></label>
+                        <input type="text" id="regName" name="full_name" class="form-input" required placeholder="John Smith">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Email <span>*</span></label>
+                        <input type="email" id="regEmail" name="email" class="form-input" required placeholder="john@example.com">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Phone <span>*</span></label>
+                        <input type="tel" id="regPhone" name="phone" class="form-input" required placeholder="555-123-4567">
+                    </div>
+
+                    <!-- Event Selection -->
+                    <div class="events-selection">
+                        <div class="events-selection-header">SELECT EVENTS</div>
+                        ${events.map(event => `
+                            <label class="event-option" onclick="toggleEvent('${event.id}', this)">
+                                <input type="checkbox" name="events" value="${event.id}">
+                                <div class="event-option-info">
+                                    <div class="event-option-name">${event.name || event.event_name}</div>
+                                    <div class="event-option-desc">${event.format || '501'} - ${event.bracket_type || 'Double Elim'}</div>
+                                </div>
+                                <div class="event-option-fee">${event.entry_fee ? '$' + parseFloat(event.entry_fee).toFixed(2) : 'FREE'}</div>
+                            </label>
+                        `).join('')}
+                    </div>
+
+                    <div class="total-display">
+                        <span class="total-label">TOTAL</span>
+                        <span class="total-amount" id="totalAmount">$0.00</span>
+                    </div>
+
+                    <label class="checkbox-group">
+                        <input type="checkbox" name="sms_opt_in" checked>
+                        <span>Send me SMS updates</span>
+                    </label>
+
+                    <div id="paymentSection" style="display: none;">
+                        <div style="font-family: 'Bebas Neue', cursive; font-size: 18px; margin-bottom: 15px;">PAYMENT METHOD</div>
+                        <label class="payment-option selected" onclick="selectPayment(this, 'paypal')">
+                            <input type="radio" name="payment_method" value="paypal" checked>
+                            <div>
+                                <div class="payment-label">Pay Now (PayPal)</div>
+                                <div class="payment-desc">Secure payment, instant confirmation</div>
+                            </div>
+                        </label>
+                        <label class="payment-option" onclick="selectPayment(this, 'later')">
+                            <input type="radio" name="payment_method" value="later">
+                            <div>
+                                <div class="payment-label">Pay Later</div>
+                                <div class="payment-desc">Reserve your spot, pay before event</div>
+                            </div>
+                        </label>
+                        <label class="payment-option" onclick="selectPayment(this, 'event')">
+                            <input type="radio" name="payment_method" value="event">
+                            <div>
+                                <div class="payment-label">Pay at Event</div>
+                                <div class="payment-desc">Cash or card at check-in</div>
+                            </div>
+                        </label>
+                    </div>
+
+                    <button type="submit" class="submit-btn" id="submitBtn">SELECT EVENTS TO CONTINUE</button>
+                </form>
+            `;
+
+            document.getElementById('modalBody').innerHTML = html;
+            updateTotal();
+        }
+
+        window.toggleEvent = function(eventId, element) {
+            const checkbox = element.querySelector('input');
+            checkbox.checked = !checkbox.checked;
+
+            if (checkbox.checked) {
+                selectedEvents.add(eventId);
+                element.classList.add('selected');
+            } else {
+                selectedEvents.delete(eventId);
+                element.classList.remove('selected');
+            }
+
+            updateTotal();
+        };
+
+        function updateTotal() {
+            let total = 0;
+            selectedEvents.forEach(eventId => {
+                const event = events.find(e => e.id === eventId);
+                if (event && event.entry_fee) {
+                    total += parseFloat(event.entry_fee);
+                }
+            });
+
+            document.getElementById('totalAmount').textContent = '$' + total.toFixed(2);
+            document.getElementById('paymentSection').style.display = total > 0 ? 'block' : 'none';
+
+            const btn = document.getElementById('submitBtn');
+            if (selectedEvents.size === 0) {
+                btn.textContent = 'SELECT EVENTS TO CONTINUE';
+                btn.disabled = true;
+            } else {
+                btn.textContent = total > 0 ? 'REGISTER ($' + total.toFixed(2) + ')' : 'REGISTER';
+                btn.disabled = false;
+            }
+        }
+
+        window.selectPayment = function(el, method) {
+            document.querySelectorAll('.payment-option').forEach(opt => opt.classList.remove('selected'));
+            el.classList.add('selected');
+            el.querySelector('input').checked = true;
+        };
+
+        window.lookupPin = async function() {
+            const pin = document.getElementById('memberPin').value.trim();
+            if (pin.length !== 5) {
+                alert('Please enter a 5-digit PIN');
+                return;
+            }
+
+            try {
+                const result = await callFunction('playerLogin', { pin: pin });
+                if (result.success && result.player) {
+                    memberData = result.player;
+                    document.getElementById('regName').value = memberData.name || '';
+                    document.getElementById('regEmail').value = memberData.email || '';
+                    document.getElementById('regPhone').value = memberData.phone || '';
+                    alert('Welcome back, ' + memberData.name + '!');
+                } else {
+                    alert('PIN not found. Please register as a new player.');
+                }
+            } catch (e) {
+                alert('Error looking up PIN: ' + e.message);
+            }
+        };
+
+        window.submitRegistration = async function(e) {
+            e.preventDefault();
+
+            if (selectedEvents.size === 0) {
+                alert('Please select at least one event');
+                return;
+            }
+
+            const form = e.target;
+            const formData = new FormData(form);
+            const btn = document.getElementById('submitBtn');
+
+            let total = 0;
+            selectedEvents.forEach(eventId => {
+                const event = events.find(e => e.id === eventId);
+                if (event && event.entry_fee) total += parseFloat(event.entry_fee);
+            });
+
+            const paymentMethod = total > 0 ? (formData.get('payment_method') || 'event') : 'free';
+
+            btn.disabled = true;
+            btn.textContent = 'REGISTERING...';
+
+            try {
+                const result = await callFunction('registerForTournament', {
+                    tournament_id: tournamentId,
+                    full_name: formData.get('full_name'),
+                    email: formData.get('email'),
+                    phone: formData.get('phone'),
+                    event_ids: Array.from(selectedEvents),
+                    sms_opt_in: formData.get('sms_opt_in') ? true : false,
+                    payment_method: paymentMethod,
+                    total_amount: total,
+                    member_pin: memberData?.pin || null
+                });
+
+                if (!result.success) {
+                    throw new Error(result.error || 'Registration failed');
+                }
+
+                if (paymentMethod === 'paypal' && result.paypal_url) {
+                    window.location.href = result.paypal_url;
+                    return;
+                }
+
+                showSuccess(result);
+
+            } catch (error) {
+                alert('Error: ' + error.message);
+                btn.disabled = false;
+                updateTotal();
+            }
+        };
+
+        function showSuccess(result) {
+            const html = `
+                <div class="success-content">
+                    <div class="success-icon">🎉</div>
+                    <div class="success-title">YOU'RE REGISTERED!</div>
+                    <div class="success-message">
+                        You've been registered for ${selectedEvents.size} event(s).
+                        ${result.payment_status === 'pending' ? 'Please complete payment before the event.' : 'Check your email for confirmation details.'}
+                    </div>
+                    ${result.player_pin ? `
+                        <div class="pin-display-box">
+                            <div class="pin-display-label">YOUR PIN (SAVE THIS!)</div>
+                            <div class="pin-display-value">${result.player_pin}</div>
+                        </div>
+                    ` : ''}
+                    <button class="submit-btn" onclick="closeModal(); location.reload();">DONE</button>
+                </div>
+            `;
+
+            document.getElementById('modalBody').innerHTML = html;
+        }
+
+        function showError(message) {
+            document.getElementById('mainContent').innerHTML = `
+                <div class="error-message">
+                    <strong>Error</strong><br>${message}
+                </div>
+            `;
+        }
+    </script>
+    <script src="/js/nav-menu.js"></script>
+</body>
+</html>

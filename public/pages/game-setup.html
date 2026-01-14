@@ -1,0 +1,2073 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Game Setup - BRDC Scorer</title>
+    <link rel="icon" type="image/png" href="/images/favicon.png">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="BRDC">
+    <link rel="apple-touch-icon" href="/images/white_logo.jpg">
+    <meta name="theme-color" content="#FF469A">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700;800;900&display=swap');
+
+        :root {
+            --pink: #FF469A;
+            --teal: #91D7EB;
+            --yellow: #FDD835;
+            --bg-dark: #1a1a2e;
+            --bg-panel: #16213e;
+            --team-1: #dc2626;
+            --team-2: #2563eb;
+            --team-3: #16a34a;
+            --team-4: #9333ea;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+        html, body { min-height: 100%; }
+        body {
+            background: linear-gradient(135deg, var(--bg-dark) 0%, #0f0f23 100%);
+            color: white;
+            padding-bottom: 90px;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse at 20% 20%, rgba(255, 70, 154, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(145, 215, 235, 0.06) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .header-bar {
+            background: var(--bg-panel);
+            border-bottom: 3px solid var(--pink);
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+        }
+
+        .header-logo {
+            width: 40px;
+            height: 40px;
+            mix-blend-mode: multiply;
+            filter: drop-shadow(0 0 8px rgba(255, 70, 154, 0.5));
+        }
+
+        .header-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 28px;
+            letter-spacing: 3px;
+            color: var(--pink);
+        }
+
+        .back-btn {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border: 2px solid rgba(255,255,255,0.3);
+            padding: 8px 14px;
+            font-weight: 700;
+            cursor: pointer;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 15px;
+        }
+
+        .section {
+            background: var(--bg-panel);
+            border: 3px solid #000;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 4px 4px 0 rgba(0,0,0,0.4);
+        }
+
+        .section-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 20px;
+            color: var(--teal);
+            margin-bottom: 12px;
+            letter-spacing: 1px;
+        }
+
+        /* Player Input Row */
+        .player-add-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+            align-items: stretch;
+        }
+
+        .name-add-group {
+            display: flex;
+            gap: 0;
+            flex: 1;
+        }
+
+        .player-name-input {
+            flex: 1;
+            background: rgba(255,255,255,0.1);
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 6px 0 0 6px;
+            padding: 12px;
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            border-right: none;
+        }
+
+        .player-name-input::placeholder { color: rgba(255,255,255,0.4); }
+        .player-name-input:focus { outline: none; border-color: var(--pink); }
+
+        .add-btn {
+            background: var(--pink);
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 0 6px 6px 0;
+            min-width: 50px;
+            color: white;
+            font-size: 28px;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .add-btn:active { transform: scale(0.95); }
+
+        .pin-btn {
+            background: rgba(253,216,53,0.15);
+            border: 2px solid var(--yellow);
+            border-radius: 6px;
+            padding: 10px 14px;
+            color: var(--yellow);
+            font-size: 12px;
+            font-weight: 800;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+        }
+
+        .pin-btn:active { transform: scale(0.95); background: var(--yellow); color: #000; }
+
+        /* PIN Modal */
+        .pin-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.8);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .pin-modal.active { display: flex; }
+
+        .pin-modal-content {
+            background: var(--bg-panel);
+            border: 3px solid var(--yellow);
+            border-radius: 16px;
+            padding: 24px;
+            max-width: 340px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .pin-modal-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 24px;
+            color: var(--yellow);
+            margin-bottom: 8px;
+            letter-spacing: 2px;
+        }
+
+        .pin-modal-subtitle {
+            font-size: 13px;
+            color: var(--text-dim);
+            margin-bottom: 16px;
+        }
+
+        .pin-modal-input {
+            width: 100%;
+            background: rgba(253,216,53,0.15);
+            border: 2px solid var(--yellow);
+            border-radius: 8px;
+            padding: 16px;
+            color: var(--yellow);
+            font-size: 24px;
+            font-weight: 700;
+            text-align: center;
+            letter-spacing: 6px;
+            margin-bottom: 16px;
+        }
+
+        .pin-modal-input::placeholder { color: rgba(253,216,53,0.3); letter-spacing: 3px; }
+
+        .pin-modal-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .pin-modal-btn {
+            flex: 1;
+            padding: 14px;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            border: none;
+        }
+
+        .pin-modal-btn.primary {
+            background: var(--yellow);
+            color: #000;
+        }
+
+        .pin-modal-btn.secondary {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border: 2px solid rgba(255,255,255,0.3);
+        }
+
+        /* Bot Button */
+        .bot-btn-container {
+            position: relative;
+        }
+
+        .bot-btn {
+            background: var(--teal);
+            border: 2px solid #000;
+            border-radius: 6px;
+            padding: 0 12px;
+            height: 48px;
+            color: #000;
+            font-size: 12px;
+            font-weight: 800;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            letter-spacing: 0.5px;
+        }
+
+        .bot-btn:active { transform: scale(0.95); }
+
+        .bot-dropdown {
+            display: none;
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 4px;
+            background: var(--bg-panel);
+            border: 2px solid var(--teal);
+            border-radius: 8px;
+            overflow: hidden;
+            z-index: 100;
+            min-width: 160px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        }
+
+        .bot-dropdown.open { display: block; }
+
+        .bot-option {
+            padding: 12px 14px;
+            cursor: pointer;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            transition: background 0.15s;
+        }
+
+        .bot-option:last-child { border-bottom: none; }
+
+        .bot-option:hover, .bot-option:active {
+            background: rgba(145,215,235,0.2);
+        }
+
+        .bot-option-name {
+            font-weight: 700;
+            color: var(--teal);
+            font-size: 14px;
+        }
+
+        .bot-option-avg {
+            font-size: 11px;
+            color: var(--text-dim);
+            margin-top: 2px;
+        }
+
+        /* Registered Bots Section */
+        .registered-bots-section {
+            margin-bottom: 12px;
+        }
+
+        .registered-bots-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .registered-bots-label {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--teal);
+            letter-spacing: 1px;
+        }
+
+        .manage-bots-link {
+            font-size: 11px;
+            color: var(--yellow);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .registered-bots-scroll {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding: 4px 0;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .registered-bots-scroll::-webkit-scrollbar {
+            display: none;
+        }
+
+        .registered-bot-chip {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 12px;
+            background: rgba(145,215,235,0.15);
+            border: 2px solid var(--teal);
+            border-radius: 20px;
+            color: white;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.15s;
+            flex-shrink: 0;
+        }
+
+        .registered-bot-chip:hover, .registered-bot-chip:active {
+            background: rgba(145,215,235,0.3);
+            transform: scale(1.02);
+        }
+
+        .registered-bot-chip.added {
+            opacity: 0.4;
+            pointer-events: none;
+        }
+
+        .registered-bot-chip .bot-diff {
+            font-size: 10px;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .bot-diff.easy { background: #22c55e; color: #000; }
+        .bot-diff.medium { background: var(--yellow); color: #000; }
+        .bot-diff.league { background: var(--teal); color: #000; }
+        .bot-diff.hard { background: #f97316; color: #000; }
+        .bot-diff.pro { background: var(--pink); color: #fff; }
+
+        /* Player Pool */
+        .player-pool {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            min-height: 45px;
+            padding: 10px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 8px;
+            margin-bottom: 12px;
+        }
+
+        .player-pool.empty {
+            justify-content: center;
+            align-items: center;
+            color: rgba(255,255,255,0.4);
+            font-size: 14px;
+        }
+
+        .player-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 12px;
+            border-radius: 20px;
+            background: rgba(255,255,255,0.15);
+            border: 2px solid rgba(255,255,255,0.3);
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .player-chip.team-1 { background: var(--team-1); border-color: var(--team-1); }
+        .player-chip.team-2 { background: var(--team-2); border-color: var(--team-2); }
+        .player-chip.team-3 { background: var(--team-3); border-color: var(--team-3); }
+        .player-chip.team-4 { background: var(--team-4); border-color: var(--team-4); }
+
+        .player-chip.bot {
+            background: rgba(145,215,235,0.2);
+            border-color: var(--teal);
+            border-style: dashed;
+        }
+        .player-chip.bot.team-1 { background: var(--team-1); border-color: var(--team-1); border-style: dashed; }
+        .player-chip.bot.team-2 { background: var(--team-2); border-color: var(--team-2); border-style: dashed; }
+
+        .bot-icon {
+            font-size: 12px;
+            opacity: 0.8;
+        }
+
+        .player-chip.selectable {
+            animation: pulse-border 1s infinite;
+        }
+
+        @keyframes pulse-border {
+            0%, 100% { border-color: rgba(255,255,255,0.3); box-shadow: none; }
+            50% { border-color: var(--yellow); box-shadow: 0 0 10px rgba(253,216,53,0.3); }
+        }
+
+        .player-chip .registered { color: var(--yellow); margin-right: 2px; }
+
+        .remove-chip {
+            background: rgba(0,0,0,0.3);
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            margin-left: 2px;
+        }
+
+        /* Team Buttons */
+        .team-buttons {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .team-btn {
+            flex: 1;
+            padding: 12px 8px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 8px;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 16px;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: all 0.15s;
+            text-align: center;
+        }
+
+        .team-btn[data-team="1"] { border-color: var(--team-1); }
+        .team-btn[data-team="2"] { border-color: var(--team-2); }
+        .team-btn[data-team="3"] { border-color: var(--team-3); }
+        .team-btn[data-team="4"] { border-color: var(--team-4); }
+
+        .team-btn.active[data-team="1"] { background: var(--team-1); }
+        .team-btn.active[data-team="2"] { background: var(--team-2); }
+        .team-btn.active[data-team="3"] { background: var(--team-3); }
+        .team-btn.active[data-team="4"] { background: var(--team-4); }
+
+        .team-count { opacity: 0.7; font-size: 14px; }
+
+        .assignment-help {
+            font-size: 12px;
+            color: rgba(255,255,255,0.5);
+            text-align: center;
+            padding: 8px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 6px;
+            line-height: 1.5;
+        }
+
+        .assignment-help strong {
+            color: var(--yellow);
+        }
+
+        .team-instructions {
+            background: rgba(145,215,235,0.1);
+            border: 1px solid rgba(145,215,235,0.3);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 10px;
+            font-size: 12px;
+            color: var(--text-dim);
+            line-height: 1.6;
+        }
+
+        .team-instructions strong {
+            color: var(--teal);
+        }
+
+        /* Config Rows */
+        .config-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .config-row:last-child { border-bottom: none; }
+
+        .config-label {
+            color: rgba(255,255,255,0.8);
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .config-select {
+            background: rgba(255,255,255,0.1);
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 6px;
+            padding: 8px 12px;
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+            min-width: 140px;
+        }
+
+        .config-select:focus { outline: none; border-color: var(--pink); }
+        .config-select option { background: var(--bg-dark); }
+
+        .config-select.mini {
+            min-width: 55px;
+            padding: 8px 6px;
+        }
+
+        .config-input {
+            background: rgba(255,255,255,0.1);
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 6px;
+            padding: 8px 12px;
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+            width: 80px;
+            text-align: center;
+        }
+
+        .config-input:focus { outline: none; border-color: var(--pink); }
+
+        /* Toggle Group */
+        .toggle-group {
+            display: flex;
+            background: rgba(0,0,0,0.3);
+            border-radius: 6px;
+            padding: 3px;
+        }
+
+        .toggle-btn {
+            flex: 1;
+            padding: 8px 14px;
+            border: none;
+            background: transparent;
+            color: rgba(255,255,255,0.5);
+            font-weight: 700;
+            font-size: 12px;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.15s;
+        }
+
+        .toggle-btn.active {
+            background: var(--pink);
+            color: white;
+        }
+
+        /* Mixed Config */
+        .mixed-config {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .mixed-leg-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 6px;
+            margin-bottom: 6px;
+        }
+
+        .leg-label {
+            font-weight: 700;
+            color: var(--yellow);
+            min-width: 38px;
+            font-size: 12px;
+        }
+
+        .mixed-leg-row .config-select.game-type-select {
+            width: 90px;
+            min-width: 90px;
+            flex-shrink: 0;
+        }
+
+        .x01-inline {
+            display: flex;
+            gap: 4px;
+            flex: 1;
+        }
+
+        .x01-inline .config-input {
+            width: 70px;
+            min-width: 70px;
+        }
+
+        /* Starter Select */
+        .starter-row {
+            margin-top: 10px;
+            padding: 10px;
+            background: rgba(253,216,53,0.1);
+            border-radius: 6px;
+            border: 1px solid rgba(253,216,53,0.3);
+        }
+
+        .starter-buttons {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .starter-btn {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 6px;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .starter-btn.active {
+            border-color: var(--yellow);
+            background: rgba(253,216,53,0.2);
+            color: var(--yellow);
+        }
+
+        /* Start Button */
+        .start-btn-container {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 15px;
+            background: linear-gradient(to top, var(--bg-dark) 70%, transparent);
+        }
+
+        .start-btn {
+            width: 100%;
+            max-width: 500px;
+            margin: 0 auto;
+            display: block;
+            background: linear-gradient(180deg, #22c55e 0%, #16a34a 100%);
+            border: 3px solid #000;
+            border-radius: 10px;
+            padding: 18px;
+            color: white;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 28px;
+            letter-spacing: 3px;
+            cursor: pointer;
+            box-shadow: 4px 4px 0 rgba(0,0,0,0.4);
+        }
+
+        .start-btn:active {
+            transform: translateY(2px);
+            box-shadow: 2px 2px 0 rgba(0,0,0,0.4);
+        }
+
+        .start-btn:disabled {
+            background: #4b5563;
+            cursor: not-allowed;
+        }
+
+        /* Loading state */
+        .loading-pin {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        /* Resume Banner */
+        .resume-banner {
+            background: linear-gradient(135deg, rgba(255,70,154,0.2) 0%, rgba(145,215,235,0.2) 100%);
+            border: 3px solid var(--pink);
+            border-radius: 10px;
+            padding: 16px;
+            margin-bottom: 15px;
+            box-shadow: 0 0 20px rgba(255,70,154,0.3);
+            animation: pulse-glow 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 20px rgba(255,70,154,0.3); }
+            50% { box-shadow: 0 0 30px rgba(255,70,154,0.5); }
+        }
+
+        .resume-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .resume-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 22px;
+            color: var(--yellow);
+            letter-spacing: 2px;
+        }
+
+        .resume-time {
+            font-size: 12px;
+            color: var(--text-dim);
+            opacity: 0.7;
+        }
+
+        .resume-match-info {
+            background: rgba(0,0,0,0.3);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 12px;
+        }
+
+        .resume-teams {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 20px;
+        }
+
+        .resume-team {
+            text-align: center;
+        }
+
+        .resume-team.home { color: var(--pink); }
+        .resume-team.away { color: var(--teal); }
+
+        .resume-score {
+            font-size: 32px;
+            color: white;
+            text-shadow: 2px 2px 0 rgba(0,0,0,0.5);
+        }
+
+        .resume-game-type {
+            text-align: center;
+            font-size: 13px;
+            color: var(--yellow);
+            margin-top: 8px;
+            font-weight: 700;
+        }
+
+        .resume-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .resume-btn {
+            flex: 1;
+            padding: 14px;
+            border: 3px solid #000;
+            border-radius: 8px;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 18px;
+            letter-spacing: 2px;
+            cursor: pointer;
+            box-shadow: 3px 3px 0 rgba(0,0,0,0.4);
+        }
+
+        .resume-btn:active {
+            transform: translateY(2px);
+            box-shadow: 1px 1px 0 rgba(0,0,0,0.4);
+        }
+
+        .resume-btn.primary {
+            background: linear-gradient(180deg, #22c55e 0%, #16a34a 100%);
+            color: white;
+        }
+
+        .resume-btn.secondary {
+            background: rgba(255,255,255,0.1);
+            color: white;
+        }
+
+        /* Stat Tracking Section */
+        .stat-tracking-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px;
+            background: rgba(253,216,53,0.1);
+            border: 2px solid rgba(253,216,53,0.3);
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+
+        .stat-tracking-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--yellow);
+        }
+
+        .stat-tracking-label .icon {
+            font-size: 18px;
+        }
+
+        .stat-toggle {
+            width: 50px;
+            height: 28px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 14px;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+        }
+
+        .stat-toggle::after {
+            content: '';
+            position: absolute;
+            width: 22px;
+            height: 22px;
+            background: white;
+            border-radius: 50%;
+            top: 3px;
+            left: 3px;
+            transition: all 0.2s;
+        }
+
+        .stat-toggle.active {
+            background: var(--yellow);
+        }
+
+        .stat-toggle.active::after {
+            left: 25px;
+        }
+
+        .stat-pin-section {
+            margin-top: 12px;
+            padding: 12px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 8px;
+            display: none;
+        }
+
+        .stat-pin-section.visible {
+            display: block;
+        }
+
+        .stat-pin-info {
+            font-size: 12px;
+            color: rgba(255,255,255,0.6);
+            margin-bottom: 10px;
+        }
+
+        .stat-pin-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .stat-pin-input {
+            flex: 1;
+            background: rgba(253,216,53,0.15);
+            border: 2px solid var(--yellow);
+            border-radius: 6px;
+            padding: 12px;
+            color: var(--yellow);
+            font-size: 18px;
+            font-weight: 700;
+            text-align: center;
+            letter-spacing: 4px;
+        }
+
+        .stat-pin-input::placeholder {
+            color: rgba(253,216,53,0.4);
+            letter-spacing: 2px;
+        }
+
+        .stat-verify-btn {
+            background: var(--yellow);
+            border: none;
+            border-radius: 6px;
+            padding: 12px 16px;
+            color: #000;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .stat-verify-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .stat-player-verified {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            background: rgba(34,197,94,0.2);
+            border: 2px solid #22c55e;
+            border-radius: 6px;
+            color: #22c55e;
+            font-weight: 600;
+        }
+
+        .stat-player-verified .checkmark {
+            font-size: 18px;
+        }
+
+        .stat-player-verified .clear-btn {
+            margin-left: auto;
+            background: none;
+            border: none;
+            color: rgba(255,255,255,0.5);
+            font-size: 18px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="header-bar">
+        <button class="back-btn" onclick="window.location.href='/'">← BACK</button>
+        <img src="/images/white_logo.jpg" alt="BRDC" class="header-logo">
+        <span class="header-title">GAME SETUP</span>
+    </div>
+
+    <div class="container">
+        <!-- Resume Banner (hidden by default) -->
+        <div class="resume-banner" id="resumeBanner" style="display: none;">
+            <div class="resume-header">
+                <div class="resume-title">MATCH IN PROGRESS</div>
+                <div class="resume-time" id="resumeTime"></div>
+            </div>
+            <div class="resume-match-info">
+                <div class="resume-teams">
+                    <div class="resume-team home">
+                        <div id="resumeHomeName">HOME</div>
+                        <div class="resume-score" id="resumeHomeLegs">0</div>
+                    </div>
+                    <div style="color: var(--text-dim); font-size: 16px;">LEGS</div>
+                    <div class="resume-team away">
+                        <div id="resumeAwayName">AWAY</div>
+                        <div class="resume-score" id="resumeAwayLegs">0</div>
+                    </div>
+                </div>
+                <div class="resume-game-type" id="resumeGameType">501</div>
+            </div>
+            <div class="resume-buttons">
+                <button class="resume-btn primary" onclick="resumeMatch()">RESUME MATCH</button>
+                <button class="resume-btn secondary" onclick="discardMatch()">NEW GAME</button>
+            </div>
+        </div>
+
+        <!-- Players Section -->
+        <div class="section">
+            <div class="section-title">PLAYERS</div>
+
+            <div class="player-add-row">
+                <div class="name-add-group">
+                    <input type="text" class="player-name-input" id="playerNameInput" placeholder="Player name" autocomplete="off">
+                    <button class="add-btn" onclick="addPlayerToPool()">+</button>
+                </div>
+                <button class="pin-btn" onclick="openPinModal()">&#128273; PIN</button>
+                <div class="bot-btn-container">
+                    <button class="bot-btn" onclick="toggleBotDropdown()">BOT ▼</button>
+                    <div class="bot-dropdown" id="botDropdown">
+                        <div id="botDropdownContent">
+                            <div class="bot-option disabled">
+                                <div class="bot-option-name">Loading bots...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="player-pool empty" id="playerPool">Add players above</div>
+
+            <div class="team-instructions" id="teamInstructions" style="display: none;">
+                <strong>How to assign teams:</strong><br>
+                1. Tap a <strong>Team button</strong> below to select it<br>
+                2. Tap <strong>unassigned players</strong> (gray) to add them to that team<br>
+                3. Tap an <strong>assigned player</strong> to remove them from their team
+            </div>
+
+            <div class="team-buttons" id="teamButtons"></div>
+            <div class="assignment-help" id="assignmentHelp">Add at least 2 players to assign teams</div>
+        </div>
+
+        <!-- Stat Tracking Section -->
+        <div class="section">
+            <div class="section-title">STAT TRACKING</div>
+            <div class="stat-tracking-row">
+                <div class="stat-tracking-label">
+                    <span class="icon">&#9733;</span>
+                    <span>Record stats to player portal</span>
+                </div>
+                <button class="stat-toggle" id="statToggle" onclick="toggleStatTracking()"></button>
+            </div>
+            <div class="stat-pin-section" id="statPinSection">
+                <div class="stat-pin-info">Enter your 8-digit PIN to record stats to your player profile</div>
+                <div id="statPinEntry">
+                    <div class="stat-pin-row">
+                        <input type="text" class="stat-pin-input" id="statPinInput" placeholder="PIN" maxlength="8" inputmode="numeric">
+                        <button class="stat-verify-btn" id="statVerifyBtn" onclick="verifyStatPin()">VERIFY</button>
+                    </div>
+                </div>
+                <div id="statPlayerVerified" style="display: none;">
+                    <div class="stat-player-verified">
+                        <span class="checkmark">&#10003;</span>
+                        <span id="statPlayerName">Player Name</span>
+                        <button class="clear-btn" onclick="clearStatPlayer()">&times;</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Game Config Section -->
+        <div class="section">
+            <div class="section-title">GAME CONFIG</div>
+
+            <!-- Legs -->
+            <div class="config-row">
+                <span class="config-label">Number of Legs</span>
+                <select class="config-select" id="numLegs" onchange="handleLegsChange()">
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3" selected>3</option>
+                    <option value="4">4</option>
+                    <option value="5">5</option>
+                    <option value="6">6</option>
+                    <option value="7">7</option>
+                    <option value="8">8</option>
+                    <option value="9">9</option>
+                </select>
+            </div>
+
+            <!-- Leg Mode -->
+            <div class="config-row">
+                <span class="config-label">Leg Mode</span>
+                <div class="toggle-group">
+                    <button class="toggle-btn active" data-value="best-of" onclick="setLegMode('best-of')">Best Of</button>
+                    <button class="toggle-btn" data-value="play-all" onclick="setLegMode('play-all')">Play All</button>
+                </div>
+            </div>
+
+            <!-- Sets -->
+            <div class="config-row" id="setsRow">
+                <span class="config-label">Number of Sets</span>
+                <select class="config-select" id="numSets" onchange="handleSetsChange()">
+                    <option value="0" selected>No Sets (Legs Only)</option>
+                    <option value="1">1 Set</option>
+                    <option value="3">Best of 3 Sets</option>
+                    <option value="5">Best of 5 Sets</option>
+                    <option value="7">Best of 7 Sets</option>
+                </select>
+            </div>
+
+            <!-- Set Mode (only visible when sets > 0) -->
+            <div class="config-row" id="setModeRow" style="display: none;">
+                <span class="config-label">Set Mode</span>
+                <div class="toggle-group">
+                    <button class="toggle-btn active" data-value="best-of" onclick="setSetMode('best-of')">Best Of</button>
+                    <button class="toggle-btn" data-value="play-all" onclick="setSetMode('play-all')">Play All</button>
+                </div>
+            </div>
+
+            <!-- Game Type -->
+            <div class="config-row">
+                <span class="config-label">Game Type</span>
+                <select class="config-select" id="gameType" onchange="handleGameTypeChange()">
+                    <option value="501" selected>All 501</option>
+                    <option value="301">All 301</option>
+                    <option value="701">All 701</option>
+                    <option value="cricket">All Cricket</option>
+                    <option value="x01">All X01 (Custom)</option>
+                    <option value="corks_choice">All Corks Choice</option>
+                    <option value="mixed">Mixed</option>
+                </select>
+            </div>
+
+            <!-- X01 Options -->
+            <div class="config-row" id="x01Options" style="display: none;">
+                <span class="config-label">X01 Settings</span>
+                <div style="display: flex; gap: 6px; align-items: center;">
+                    <input type="number" class="config-input" id="x01Score" value="501" min="101" max="1001" step="100">
+                    <select class="config-select mini" id="inRule">
+                        <option value="straight">SI</option>
+                        <option value="double">DI</option>
+                    </select>
+                    <select class="config-select mini" id="outRule">
+                        <option value="double" selected>DO</option>
+                        <option value="straight">SO</option>
+                        <option value="master">MO</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Standard 501/301 DI/DO Options -->
+            <div class="config-row" id="standardX01Options">
+                <span class="config-label">In/Out Rules</span>
+                <div style="display: flex; gap: 6px;">
+                    <select class="config-select mini" id="standardInRule">
+                        <option value="straight" selected>SI</option>
+                        <option value="double">DI</option>
+                    </select>
+                    <select class="config-select mini" id="standardOutRule">
+                        <option value="double" selected>DO</option>
+                        <option value="straight">SO</option>
+                        <option value="master">MO</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Start Rules (for regular games) -->
+            <div class="config-row" id="startRulesRow">
+                <span class="config-label">Start Rules</span>
+                <select class="config-select" id="startRules" onchange="handleStartRulesChange()">
+                    <option value="cork-every">Cork every leg</option>
+                    <option value="alternate-cork">Alternate, cork first/deciding</option>
+                    <option value="loser-cork">Loser starts, cork first/deciding</option>
+                    <option value="winner-cork">Winner starts, cork first/deciding</option>
+                    <option value="select-starter">Select starter</option>
+                </select>
+            </div>
+
+            <div class="starter-row" id="starterRow" style="display: none;">
+                <span class="config-label">Who starts first?</span>
+                <div class="starter-buttons">
+                    <button class="starter-btn active" data-team="1" onclick="setStarter(1)">Team 1</button>
+                    <button class="starter-btn" data-team="2" onclick="setStarter(2)">Team 2</button>
+                </div>
+            </div>
+
+            <!-- Cork Order (for Corks Choice games) -->
+            <div class="config-row" id="corkOrderRow" style="display: none;">
+                <span class="config-label">Cork Order</span>
+                <select class="config-select" id="corkOrder">
+                    <option value="alternate-random">Alternate, random first/deciding</option>
+                    <option value="random-every">Random every leg</option>
+                    <option value="loser-random">Loser throws first, random first/deciding</option>
+                    <option value="winner-random">Winner throws first, random first/deciding</option>
+                </select>
+            </div>
+
+            <!-- Cork Winner Gets (for Corks Choice games) -->
+            <div class="config-row" id="corkWinnerRow" style="display: none;">
+                <span class="config-label">Cork Winner Gets</span>
+                <select class="config-select" id="corkWinnerGets">
+                    <option value="choose-and-start">Choose game AND start</option>
+                    <option value="choose-only">Choose game only (other starts)</option>
+                </select>
+            </div>
+
+            <!-- Mixed Config (per-leg) -->
+            <div class="mixed-config" id="mixedConfig" style="display: none;"></div>
+        </div>
+    </div>
+
+    <!-- PIN Entry Modal -->
+    <div class="pin-modal" id="pinModal">
+        <div class="pin-modal-content">
+            <div class="pin-modal-title">ENTER PIN</div>
+            <div class="pin-modal-subtitle">Look up a registered player by their 8-digit PIN</div>
+            <input type="text" class="pin-modal-input" id="pinModalInput" placeholder="12345678" maxlength="8" inputmode="numeric" autocomplete="off">
+            <div class="pin-modal-buttons">
+                <button class="pin-modal-btn secondary" onclick="closePinModal()">CANCEL</button>
+                <button class="pin-modal-btn primary" onclick="lookupPinPlayer()">LOOKUP</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="start-btn-container">
+        <button class="start-btn" id="startBtn" onclick="startGame()" disabled>START GAME</button>
+    </div>
+
+<script type="module">
+import { callFunction } from '/js/firebase-config.js';
+
+// State
+let playerPool = [];
+let nextPlayerId = 1;
+let selectedTeamId = null;
+let selectedStarter = 1;
+let legMode = 'best-of';
+let mixedLegs = [];
+
+// Add player to pool (by name only - use PIN button for registered players)
+window.addPlayerToPool = function() {
+    const nameInput = document.getElementById('playerNameInput');
+    const name = nameInput.value.trim();
+
+    if (!name) {
+        alert('Please enter a player name');
+        nameInput.focus();
+        return;
+    }
+
+    // Check for duplicate
+    if (playerPool.some(p => p.name.toLowerCase() === name.toLowerCase())) {
+        alert('Player already added');
+        return;
+    }
+
+    const player = {
+        id: `casual_${Date.now()}_${nextPlayerId++}`,
+        name: name,
+        pin: null,
+        teamId: null,
+        registeredPlayer: false
+    };
+
+    playerPool.push(player);
+
+    nameInput.value = '';
+    nameInput.focus();
+
+    renderPlayerPool();
+    updateTeamButtons();
+    updateStartButton();
+};
+
+// Handle Enter key in player name input
+document.getElementById('playerNameInput').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') addPlayerToPool();
+});
+
+// Bot difficulty labels
+// Toggle bot dropdown
+window.toggleBotDropdown = function() {
+    const dropdown = document.getElementById('botDropdown');
+    dropdown.classList.toggle('open');
+};
+
+// Close dropdown when clicking outside
+document.addEventListener('click', (e) => {
+    const dropdown = document.getElementById('botDropdown');
+    const botBtn = e.target.closest('.bot-btn-container');
+    if (!botBtn && dropdown) {
+        dropdown.classList.remove('open');
+    }
+});
+
+// Add registered bot to player pool from dropdown
+window.addBotFromDropdown = function(botId) {
+    document.getElementById('botDropdown').classList.remove('open');
+
+    const bot = registeredBots.find(b => b.id === botId);
+    if (!bot) return;
+
+    // Check if already added
+    if (playerPool.some(p => p.registeredBotId === botId)) {
+        alert('This bot is already in the game!');
+        return;
+    }
+
+    const player = {
+        id: `rbot_${bot.id}`,
+        name: bot.name,
+        pin: null,
+        teamId: null,
+        registeredPlayer: false,
+        isBot: true,
+        botDifficulty: bot.difficulty,
+        registeredBotId: bot.id
+    };
+
+    playerPool.push(player);
+    renderPlayerPool();
+    updateBotDropdown();
+    updateTeamButtons();
+    updateStartButton();
+};
+
+// Render player chips
+function renderPlayerPool() {
+    const container = document.getElementById('playerPool');
+
+    if (playerPool.length === 0) {
+        container.innerHTML = 'Add players above';
+        container.classList.add('empty');
+        return;
+    }
+
+    container.classList.remove('empty');
+    let html = '';
+
+    for (const player of playerPool) {
+        const teamClass = player.teamId ? `team-${player.teamId}` : '';
+        const selectableClass = selectedTeamId && !player.teamId ? 'selectable' : '';
+        const botClass = player.isBot ? 'bot' : '';
+        const registeredIcon = player.registeredPlayer ? '<span class="registered">&#9733;</span>' : '';
+        const botIcon = player.isBot ? '<span class="bot-icon">🤖</span>' : '';
+
+        html += `
+            <div class="player-chip ${teamClass} ${selectableClass} ${botClass}"
+                 data-player-id="${player.id}"
+                 onclick="togglePlayerTeam('${player.id}')">
+                ${botIcon}${registeredIcon}${player.name}
+                <span class="remove-chip" onclick="removePlayer('${player.id}', event)">&times;</span>
+            </div>
+        `;
+    }
+
+    container.innerHTML = html;
+}
+
+// Update team buttons
+function updateTeamButtons() {
+    const container = document.getElementById('teamButtons');
+    const help = document.getElementById('assignmentHelp');
+    const instructions = document.getElementById('teamInstructions');
+    const playerCount = playerPool.length;
+
+    if (playerCount < 2) {
+        container.innerHTML = '';
+        help.textContent = 'Add at least 2 players to assign teams';
+        if (instructions) instructions.style.display = 'none';
+        return;
+    }
+
+    // Show instructions when we have players to assign
+    if (instructions) instructions.style.display = 'block';
+
+    // Show 2 teams by default, up to 4 if more players
+    const maxTeams = Math.min(Math.max(2, playerCount), 4);
+
+    let html = '';
+    for (let i = 1; i <= maxTeams; i++) {
+        const isActive = selectedTeamId === i;
+        const teamPlayers = playerPool.filter(p => p.teamId === i);
+        const countText = teamPlayers.length > 0 ? ` <span class="team-count">(${teamPlayers.length})</span>` : '';
+
+        html += `
+            <button class="team-btn ${isActive ? 'active' : ''}"
+                    data-team="${i}"
+                    onclick="selectTeam(${i})">
+                Team ${i}${countText}
+            </button>
+        `;
+    }
+
+    container.innerHTML = html;
+
+    if (selectedTeamId) {
+        help.innerHTML = `<strong>Team ${selectedTeamId} selected</strong> - tap gray players to assign`;
+    } else {
+        help.textContent = '';
+    }
+
+    // Update starter buttons
+    updateStarterButtons();
+}
+
+// Update starter button labels
+function updateStarterButtons() {
+    const team1Players = playerPool.filter(p => p.teamId === 1);
+    const team2Players = playerPool.filter(p => p.teamId === 2);
+
+    const btn1 = document.querySelector('.starter-btn[data-team="1"]');
+    const btn2 = document.querySelector('.starter-btn[data-team="2"]');
+
+    if (btn1 && team1Players.length > 0) {
+        btn1.textContent = team1Players.map(p => p.name.split(' ')[0]).join(' & ');
+    } else if (btn1) {
+        btn1.textContent = 'Team 1';
+    }
+
+    if (btn2 && team2Players.length > 0) {
+        btn2.textContent = team2Players.map(p => p.name.split(' ')[0]).join(' & ');
+    } else if (btn2) {
+        btn2.textContent = 'Team 2';
+    }
+}
+
+// Select team for assignment
+window.selectTeam = function(teamId) {
+    selectedTeamId = selectedTeamId === teamId ? null : teamId;
+    updateTeamButtons();
+    renderPlayerPool();
+};
+
+// Toggle player's team assignment
+window.togglePlayerTeam = function(playerId) {
+    if (!selectedTeamId) return;
+
+    const player = playerPool.find(p => p.id === playerId);
+    if (!player) return;
+
+    if (player.teamId === selectedTeamId) {
+        player.teamId = null;
+    } else {
+        player.teamId = selectedTeamId;
+    }
+
+    renderPlayerPool();
+    updateTeamButtons();
+    updateStartButton();
+};
+
+// Remove player
+window.removePlayer = function(playerId, event) {
+    event.stopPropagation();
+    playerPool = playerPool.filter(p => p.id !== playerId);
+    renderPlayerPool();
+    updateBotDropdown(); // Refresh to show bot as available again
+    updateTeamButtons();
+    updateStartButton();
+};
+
+// Set leg mode
+let setMode = 'best-of';
+
+window.setLegMode = function(mode) {
+    legMode = mode;
+    document.querySelectorAll('#setsRow ~ .config-row .toggle-btn, .config-row:nth-child(2) .toggle-btn').forEach(btn => {
+        // Only update leg mode buttons (first toggle group)
+    });
+    const legBtns = document.querySelectorAll('.config-row:nth-of-type(2) .toggle-btn');
+    legBtns.forEach(btn => btn.classList.toggle('active', btn.dataset.value === mode));
+};
+
+// Set set mode
+window.setSetMode = function(mode) {
+    setMode = mode;
+    const setModeBtns = document.querySelectorAll('#setModeRow .toggle-btn');
+    setModeBtns.forEach(btn => btn.classList.toggle('active', btn.dataset.value === mode));
+};
+
+// Handle sets change
+window.handleSetsChange = function() {
+    const numSets = parseInt(document.getElementById('numSets').value);
+    const setModeRow = document.getElementById('setModeRow');
+    setModeRow.style.display = numSets > 0 ? 'flex' : 'none';
+};
+
+// Set starter
+window.setStarter = function(team) {
+    selectedStarter = team;
+    document.querySelectorAll('.starter-btn').forEach(btn => {
+        btn.classList.toggle('active', parseInt(btn.dataset.team) === team);
+    });
+};
+
+// PIN Modal Functions
+window.openPinModal = function() {
+    document.getElementById('pinModal').classList.add('active');
+    document.getElementById('pinModalInput').value = '';
+    document.getElementById('pinModalInput').focus();
+};
+
+window.closePinModal = function() {
+    document.getElementById('pinModal').classList.remove('active');
+};
+
+window.lookupPinPlayer = async function() {
+    const pin = document.getElementById('pinModalInput').value.trim();
+    if (!pin || pin.length !== 8) {
+        alert('Please enter an 8-digit PIN');
+        return;
+    }
+
+    try {
+        const result = await callFunction('playerLogin', { pin });
+        if (result.success && result.player) {
+            // Add the player to the pool
+            const player = {
+                id: `reg_${result.player.id}`,
+                name: result.player.name,
+                pin: pin,
+                teamId: null,
+                registeredPlayer: true,
+                playerId: result.player.id
+            };
+
+            // Check if already added
+            if (playerPool.some(p => p.playerId === result.player.id)) {
+                alert('This player is already in the game!');
+                closePinModal();
+                return;
+            }
+
+            playerPool.push(player);
+            renderPlayerPool();
+            updateTeamButtons();
+            updateStartButton();
+            closePinModal();
+        } else {
+            alert('PIN not found. Please check and try again.');
+        }
+    } catch (error) {
+        console.error('PIN lookup failed:', error);
+        alert('Error looking up PIN. Please try again.');
+    }
+};
+
+// Enter key handler for PIN modal
+document.getElementById('pinModalInput').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') lookupPinPlayer();
+});
+
+// Handle start rules change
+window.handleStartRulesChange = function() {
+    const startRules = document.getElementById('startRules').value;
+    const starterRow = document.getElementById('starterRow');
+    starterRow.style.display = startRules === 'select-starter' ? 'block' : 'none';
+};
+
+// Handle game type change
+window.handleGameTypeChange = function() {
+    const gameType = document.getElementById('gameType').value;
+    const x01Options = document.getElementById('x01Options');
+    const standardX01Options = document.getElementById('standardX01Options');
+    const mixedConfig = document.getElementById('mixedConfig');
+    const startRulesRow = document.getElementById('startRulesRow');
+    const corkOrderRow = document.getElementById('corkOrderRow');
+    const corkWinnerRow = document.getElementById('corkWinnerRow');
+
+    // Show X01 options only for custom X01
+    x01Options.style.display = gameType === 'x01' ? 'flex' : 'none';
+
+    // Show standard DI/DO for 501/301/701
+    standardX01Options.style.display = (gameType === '501' || gameType === '301' || gameType === '701') ? 'flex' : 'none';
+
+    // Show mixed config
+    if (gameType === 'mixed') {
+        mixedConfig.style.display = 'block';
+        renderMixedConfig();
+    } else {
+        mixedConfig.style.display = 'none';
+    }
+
+    // Toggle between Start Rules (regular games) and Cork Order (corks choice)
+    if (gameType === 'corks_choice') {
+        startRulesRow.style.display = 'none';
+        document.getElementById('starterRow').style.display = 'none';
+        corkOrderRow.style.display = 'flex';
+        corkWinnerRow.style.display = 'flex';
+    } else {
+        startRulesRow.style.display = 'flex';
+        corkOrderRow.style.display = 'none';
+        corkWinnerRow.style.display = 'none';
+        handleStartRulesChange(); // Update starter row visibility
+    }
+};
+
+// Handle legs change
+window.handleLegsChange = function() {
+    const gameType = document.getElementById('gameType').value;
+    if (gameType === 'mixed') {
+        renderMixedConfig();
+    }
+};
+
+// Render mixed config
+function renderMixedConfig() {
+    const numLegs = parseInt(document.getElementById('numLegs').value);
+    const container = document.getElementById('mixedConfig');
+
+    // Initialize/resize mixedLegs array
+    while (mixedLegs.length < numLegs) {
+        mixedLegs.push({ type: '501', score: 501, inRule: 'straight', outRule: 'double' });
+    }
+    mixedLegs = mixedLegs.slice(0, numLegs);
+
+    let html = '<div style="font-size: 13px; color: var(--yellow); margin-bottom: 10px;">Configure each leg:</div>';
+
+    for (let i = 0; i < numLegs; i++) {
+        const leg = mixedLegs[i];
+        const isX01 = ['301', '501', '701', 'x01'].includes(leg.type);
+
+        html += `
+            <div class="mixed-leg-row">
+                <span class="leg-label">Leg ${i + 1}</span>
+                <select class="config-select game-type-select" onchange="updateMixedLeg(${i}, 'type', this.value)">
+                    <option value="501" ${leg.type === '501' ? 'selected' : ''}>501</option>
+                    <option value="301" ${leg.type === '301' ? 'selected' : ''}>301</option>
+                    <option value="701" ${leg.type === '701' ? 'selected' : ''}>701</option>
+                    <option value="cricket" ${leg.type === 'cricket' ? 'selected' : ''}>Cricket</option>
+                    <option value="x01" ${leg.type === 'x01' ? 'selected' : ''}>X01</option>
+                    <option value="corks_choice" ${leg.type === 'corks_choice' ? 'selected' : ''}>Corks Choice</option>
+                </select>
+                ${isX01 ? `
+                    <div class="x01-inline">
+                        ${leg.type === 'x01' ? `
+                            <input type="number" class="config-input" value="${leg.score}"
+                                   onchange="updateMixedLeg(${i}, 'score', this.value)" min="101" max="1001" step="100">
+                        ` : ''}
+                        <select class="config-select mini" onchange="updateMixedLeg(${i}, 'inRule', this.value)">
+                            <option value="straight" ${leg.inRule === 'straight' ? 'selected' : ''}>SI</option>
+                            <option value="double" ${leg.inRule === 'double' ? 'selected' : ''}>DI</option>
+                        </select>
+                        <select class="config-select mini" onchange="updateMixedLeg(${i}, 'outRule', this.value)">
+                            <option value="double" ${leg.outRule === 'double' ? 'selected' : ''}>DO</option>
+                            <option value="straight" ${leg.outRule === 'straight' ? 'selected' : ''}>SO</option>
+                            <option value="master" ${leg.outRule === 'master' ? 'selected' : ''}>MO</option>
+                        </select>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    }
+
+    container.innerHTML = html;
+}
+
+// Update mixed leg config
+window.updateMixedLeg = function(legIndex, property, value) {
+    if (property === 'score') {
+        mixedLegs[legIndex].score = parseInt(value);
+    } else {
+        mixedLegs[legIndex][property] = value;
+    }
+
+    if (property === 'type') {
+        if (value === '301') mixedLegs[legIndex].score = 301;
+        if (value === '501') mixedLegs[legIndex].score = 501;
+        if (value === '701') mixedLegs[legIndex].score = 701;
+        renderMixedConfig();
+    }
+};
+
+// Update start button state
+function updateStartButton() {
+    const btn = document.getElementById('startBtn');
+    const team1 = playerPool.filter(p => p.teamId === 1);
+    const team2 = playerPool.filter(p => p.teamId === 2);
+
+    btn.disabled = team1.length === 0 || team2.length === 0;
+}
+
+// Start game
+window.startGame = function() {
+    const team1Players = playerPool.filter(p => p.teamId === 1);
+    const team2Players = playerPool.filter(p => p.teamId === 2);
+
+    if (team1Players.length === 0 || team2Players.length === 0) {
+        alert('Please assign at least one player to each team');
+        return;
+    }
+
+    const numLegs = parseInt(document.getElementById('numLegs').value);
+    const startRules = document.getElementById('startRules').value;
+    const gameType = document.getElementById('gameType').value;
+
+    // Build player arrays (include bot info if applicable)
+    const homePlayers = team1Players.map((p, i) => ({
+        name: p.name,
+        id: p.id,
+        position: i + 1,
+        isBot: p.isBot || false,
+        botDifficulty: p.botDifficulty || null
+    }));
+
+    const awayPlayers = team2Players.map((p, i) => ({
+        name: p.name,
+        id: p.id,
+        position: i + 1,
+        isBot: p.isBot || false,
+        botDifficulty: p.botDifficulty || null
+    }));
+
+    // Map start rules to cork_rule
+    let corkRule;
+    let useCork = true;
+
+    if (gameType === 'corks_choice') {
+        // For corks choice, always cork - the cork_order and cork_winner_gets are separate params
+        corkRule = 'cork_every_leg'; // Always cork in corks choice
+        useCork = true;
+    } else if (startRules === 'cork-every') {
+        corkRule = 'cork_every_leg';
+    } else if (startRules === 'alternate-cork') {
+        corkRule = 'alternate_cork_first_deciding';
+    } else if (startRules === 'loser-cork') {
+        corkRule = 'loser_starts_cork_first_deciding';
+    } else if (startRules === 'winner-cork') {
+        corkRule = 'winner_starts_cork_first_deciding';
+    } else if (startRules === 'select-starter') {
+        corkRule = selectedStarter === 1 ? 'home_first' : 'away_first';
+        useCork = false;
+    }
+
+    // Calculate legs to win
+    const legsToWin = legMode === 'best-of' ? Math.ceil(numLegs / 2) : numLegs;
+
+    // Build URL params
+    const params = new URLSearchParams();
+    params.set('home_players', JSON.stringify(homePlayers));
+    params.set('away_players', JSON.stringify(awayPlayers));
+    params.set('casual', 'true');
+    params.set('cork_rule', corkRule);
+    params.set('legs_to_win', legsToWin);
+    params.set('origin', 'casual');
+    params.set('return_url', '/pages/game-setup.html');
+
+    // Stat tracking - include verified player if enabled
+    if (statTrackingEnabled && statTrackingPlayer) {
+        params.set('track_stats', 'true');
+        params.set('stat_player_id', statTrackingPlayer.id);
+        params.set('stat_player_name', statTrackingPlayer.name);
+    }
+
+    // Cork settings for scorer
+    params.set('cork', useCork ? 'true' : 'false');
+
+    // Corks choice specific params
+    if (gameType === 'corks_choice') {
+        const corkOrder = document.getElementById('corkOrder').value;
+        const corkWinnerGets = document.getElementById('corkWinnerGets').value;
+        params.set('cork_order', corkOrder);
+        params.set('cork_winner_gets', corkWinnerGets);
+    }
+
+    // Handle game type
+    if (gameType === 'mixed') {
+        // Store mixed config in sessionStorage
+        const mixedConfig = {
+            home_players: homePlayers,
+            away_players: awayPlayers,
+            legs: mixedLegs,
+            current_leg: 0,
+            home_legs: 0,
+            away_legs: 0,
+            leg_mode: legMode,
+            cork_rule: corkRule
+        };
+        sessionStorage.setItem('mixedGameConfig', JSON.stringify(mixedConfig));
+
+        // Start with first leg
+        const firstLeg = mixedLegs[0];
+        params.set('mixed', 'true');
+        params.set('mixed_leg', '0');
+
+        if (firstLeg.type === 'cricket') {
+            window.location.href = `/pages/league-cricket.html?${params.toString()}`;
+        } else if (firstLeg.type === 'corks_choice') {
+            // Cork's choice - go to 501 scorer with game selector flag
+            params.set('corks_choice', 'true');
+            params.set('starting_score', 501);
+            params.set('in_rule', 'straight');
+            params.set('out_rule', 'double');
+            params.set('checkout', 'double');
+            window.location.href = `/pages/league-501.html?${params.toString()}`;
+        } else {
+            params.set('starting_score', firstLeg.score || (firstLeg.type === '301' ? 301 : (firstLeg.type === '701' ? 701 : 501)));
+            params.set('in_rule', firstLeg.inRule);
+            params.set('out_rule', firstLeg.outRule);
+            params.set('checkout', firstLeg.outRule);
+            window.location.href = `/pages/league-501.html?${params.toString()}`;
+        }
+    } else if (gameType === 'cricket') {
+        window.location.href = `/pages/league-cricket.html?${params.toString()}`;
+    } else if (gameType === 'corks_choice') {
+        // Cork's choice - go to 501 scorer with game selector flag
+        params.set('corks_choice', 'true');
+        params.set('starting_score', 501);
+        params.set('in_rule', 'straight');
+        params.set('out_rule', 'double');
+        params.set('checkout', 'double');
+        window.location.href = `/pages/league-501.html?${params.toString()}`;
+    } else {
+        // X01 types (501, 301, 701, x01)
+        let startingScore, inRule, outRule;
+
+        if (gameType === 'x01') {
+            startingScore = parseInt(document.getElementById('x01Score').value) || 501;
+            inRule = document.getElementById('inRule').value;
+            outRule = document.getElementById('outRule').value;
+        } else {
+            startingScore = parseInt(gameType);
+            inRule = document.getElementById('standardInRule').value;
+            outRule = document.getElementById('standardOutRule').value;
+        }
+
+        params.set('starting_score', startingScore);
+        params.set('in_rule', inRule);
+        params.set('out_rule', outRule);
+        params.set('checkout', outRule);
+
+        window.location.href = `/pages/league-501.html?${params.toString()}`;
+    }
+};
+
+// Initialize
+handleGameTypeChange();
+
+// Load registered bots
+let registeredBots = [];
+
+const BOT_AVG_LABELS = {
+    easy: '~40 avg',
+    medium: '~55 avg',
+    league: '~65 avg',
+    hard: '~75 avg',
+    pro: '~90 avg'
+};
+
+async function loadRegisteredBots() {
+    try {
+        const result = await callFunction('getBots', {});
+        registeredBots = result.bots || [];
+        updateBotDropdown();
+    } catch (error) {
+        console.error('Error loading registered bots:', error);
+        updateBotDropdown();
+    }
+}
+
+function updateBotDropdown() {
+    const container = document.getElementById('botDropdownContent');
+    const addedBotIds = playerPool.filter(p => p.registeredBotId).map(p => p.registeredBotId);
+
+    if (registeredBots.length === 0) {
+        container.innerHTML = `
+            <div class="bot-option disabled" style="text-align: center;">
+                <div class="bot-option-name" style="color: var(--text-dim);">No bots registered</div>
+                <div class="bot-option-avg">Add bots in Admin Portal</div>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = registeredBots.map(bot => {
+        const isAdded = addedBotIds.includes(bot.id);
+        const avgLabel = BOT_AVG_LABELS[bot.difficulty] || '~55 avg';
+        return `
+            <div class="bot-option ${isAdded ? 'disabled' : ''}" onclick="${isAdded ? '' : `addBotFromDropdown('${bot.id}')`}" style="${isAdded ? 'opacity: 0.4;' : ''}">
+                <div class="bot-option-name">${bot.name} ${isAdded ? '(Added)' : ''}</div>
+                <div class="bot-option-avg">${bot.difficulty.charAt(0).toUpperCase() + bot.difficulty.slice(1)} - ${avgLabel}</div>
+            </div>
+        `;
+    }).join('');
+}
+
+// Load bots on page load
+loadRegisteredBots();
+
+// Check for resume mode
+let resumeState = null;
+const urlParams = new URLSearchParams(window.location.search);
+if (urlParams.get('resume') === 'true') {
+    try {
+        resumeState = JSON.parse(sessionStorage.getItem('matchResumeState'));
+        if (resumeState && resumeState.timestamp) {
+            // Check if the saved state is not too old (24 hours)
+            const ageHours = (Date.now() - resumeState.timestamp) / (1000 * 60 * 60);
+            if (ageHours < 24) {
+                showResumeBanner(resumeState);
+            } else {
+                // Too old, discard
+                sessionStorage.removeItem('matchResumeState');
+            }
+        }
+    } catch (e) {
+        console.error('Error loading resume state:', e);
+    }
+}
+
+function showResumeBanner(state) {
+    const banner = document.getElementById('resumeBanner');
+    banner.style.display = 'block';
+
+    // Set team names
+    const homeName = state.teams[0]?.name || 'HOME';
+    const awayName = state.teams[1]?.name || 'AWAY';
+    document.getElementById('resumeHomeName').textContent = homeName.length > 12 ? homeName.substring(0, 12) + '...' : homeName;
+    document.getElementById('resumeAwayName').textContent = awayName.length > 12 ? awayName.substring(0, 12) + '...' : awayName;
+
+    // Set leg scores
+    document.getElementById('resumeHomeLegs').textContent = state.teams[0]?.legs || 0;
+    document.getElementById('resumeAwayLegs').textContent = state.teams[1]?.legs || 0;
+
+    // Set game type
+    let gameLabel = state.gameType?.toUpperCase() || '501';
+    if (state.gameType === '501' || state.gameType === '301' || state.gameType === 'x01') {
+        gameLabel = state.startingScore || '501';
+    } else if (state.gameType === 'cricket') {
+        gameLabel = 'CRICKET';
+    }
+    if (state.isMixedGame) {
+        gameLabel += ' (MIXED)';
+    }
+    document.getElementById('resumeGameType').textContent = gameLabel;
+
+    // Set time ago
+    const minsAgo = Math.floor((Date.now() - state.timestamp) / (1000 * 60));
+    if (minsAgo < 1) {
+        document.getElementById('resumeTime').textContent = 'Just now';
+    } else if (minsAgo < 60) {
+        document.getElementById('resumeTime').textContent = `${minsAgo} min ago`;
+    } else {
+        const hoursAgo = Math.floor(minsAgo / 60);
+        document.getElementById('resumeTime').textContent = `${hoursAgo}h ago`;
+    }
+}
+
+window.resumeMatch = function() {
+    if (!resumeState) return;
+
+    // Build URL params for the scorer
+    const params = new URLSearchParams();
+    params.set('home_players', JSON.stringify(resumeState.homePlayers));
+    params.set('away_players', JSON.stringify(resumeState.awayPlayers));
+    params.set('casual', 'true');
+    params.set('legs_to_win', resumeState.legsToWin);
+    params.set('home_legs', resumeState.teams[0]?.legs || 0);
+    params.set('away_legs', resumeState.teams[1]?.legs || 0);
+    params.set('resume', 'true');
+
+    // Add current leg state
+    params.set('resume_home_score', resumeState.teams[0]?.score || resumeState.startingScore);
+    params.set('resume_away_score', resumeState.teams[1]?.score || resumeState.startingScore);
+    params.set('resume_home_darts', resumeState.teams[0]?.darts || 0);
+    params.set('resume_away_darts', resumeState.teams[1]?.darts || 0);
+    params.set('resume_active', resumeState.activeTeam || 0);
+
+    // Game-specific params
+    if (resumeState.gameType === 'cricket') {
+        if (resumeState.isMixedGame) {
+            params.set('mixed', 'true');
+            params.set('mixed_leg', resumeState.mixedLegIndex || 0);
+        }
+        window.location.href = `/pages/league-cricket.html?${params.toString()}`;
+    } else {
+        params.set('starting_score', resumeState.startingScore || 501);
+        params.set('in_rule', resumeState.inRule || 'open');
+        params.set('out_rule', resumeState.outRule || 'double');
+        params.set('checkout', resumeState.outRule || 'double');
+
+        if (resumeState.isMixedGame) {
+            params.set('mixed', 'true');
+            params.set('mixed_leg', resumeState.mixedLegIndex || 0);
+        }
+
+        window.location.href = `/pages/league-501.html?${params.toString()}`;
+    }
+};
+
+window.discardMatch = function() {
+    sessionStorage.removeItem('matchResumeState');
+    document.getElementById('resumeBanner').style.display = 'none';
+    // Remove resume param from URL
+    window.history.replaceState({}, '', window.location.pathname);
+};
+
+// Stat tracking state
+let statTrackingEnabled = false;
+let statTrackingPlayer = null;
+
+window.toggleStatTracking = function() {
+    statTrackingEnabled = !statTrackingEnabled;
+    const toggle = document.getElementById('statToggle');
+    const pinSection = document.getElementById('statPinSection');
+
+    toggle.classList.toggle('active', statTrackingEnabled);
+    pinSection.classList.toggle('visible', statTrackingEnabled);
+
+    if (!statTrackingEnabled) {
+        clearStatPlayer();
+    }
+};
+
+window.verifyStatPin = async function() {
+    const pin = document.getElementById('statPinInput').value.trim();
+    if (!pin || pin.length !== 8) {
+        alert('Please enter an 8-digit PIN');
+        return;
+    }
+
+    const btn = document.getElementById('statVerifyBtn');
+    btn.disabled = true;
+    btn.textContent = '...';
+
+    try {
+        const result = await callFunction('playerLogin', { pin });
+        if (result.success && result.player) {
+            statTrackingPlayer = {
+                id: result.player.id,
+                name: result.player.name,
+                pin: pin
+            };
+
+            // Show verified state
+            document.getElementById('statPinEntry').style.display = 'none';
+            document.getElementById('statPlayerVerified').style.display = 'block';
+            document.getElementById('statPlayerName').textContent = result.player.name;
+        } else {
+            alert('PIN not found. Check your PIN and try again.');
+        }
+    } catch (error) {
+        console.error('PIN verification failed:', error);
+        alert('Error verifying PIN. Please try again.');
+    }
+
+    btn.disabled = false;
+    btn.textContent = 'VERIFY';
+};
+
+window.clearStatPlayer = function() {
+    statTrackingPlayer = null;
+    document.getElementById('statPinInput').value = '';
+    document.getElementById('statPinEntry').style.display = 'block';
+    document.getElementById('statPlayerVerified').style.display = 'none';
+};
+
+// Enter key handler for stat PIN
+document.getElementById('statPinInput').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') verifyStatPin();
+});
+
+// Register service worker
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js')
+        .then(() => {})
+        .catch(err => console.error('[SW] Registration failed:', err));
+}
+</script>
+<script src="/js/nav-menu.js"></script>
+</body>
+</html>

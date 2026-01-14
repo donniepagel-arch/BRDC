@@ -1,0 +1,1178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>League Management - BRDC</title>
+    <link rel="icon" type="image/png" href="/images/favicon.png">
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --pink: #FF469A;
+            --teal: #91D7EB;
+            --yellow: #FDD835;
+            --bg-dark: #1a1a2e;
+            --bg-panel: #16213e;
+            --bg-card: #1e2a47;
+            --text-primary: #f0f0f0;
+            --text-secondary: #a0a0a0;
+            --text-muted: #666;
+            --border: rgba(255, 255, 255, 0.1);
+            --border-strong: #000;
+            --success: #10b981;
+            --error: #ef4444;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #0f0f23 100%);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse at 20% 20%, rgba(255, 70, 154, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(145, 215, 235, 0.06) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .header-bar {
+            background: var(--bg-panel);
+            border-bottom: 3px solid var(--pink);
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .back-btn {
+            background: transparent;
+            border: 2px solid var(--pink);
+            color: var(--pink);
+            padding: 8px 16px;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 14px;
+            letter-spacing: 1px;
+            cursor: pointer;
+        }
+
+        .back-btn:hover {
+            background: var(--pink);
+            color: white;
+        }
+
+        .header-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 24px;
+            letter-spacing: 2px;
+            color: var(--pink);
+        }
+
+        .league-name-header {
+            margin-left: auto;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 18px;
+            color: var(--yellow);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Login Modal */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal-overlay.hidden { display: none; }
+
+        .modal-content {
+            background: var(--bg-panel);
+            border: 4px solid var(--border-strong);
+            border-radius: 16px;
+            padding: 30px;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 8px 8px 0 rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 28px;
+            color: var(--pink);
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .tab {
+            background: rgba(0, 0, 0, 0.3);
+            border: 3px solid var(--border-strong);
+            padding: 12px 20px;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 16px;
+            letter-spacing: 1px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .tab:hover { background: rgba(255, 255, 255, 0.1); }
+        .tab.active { background: var(--yellow); color: black; }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* Stats Bar */
+        .stats-bar {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            border: 3px solid var(--border-strong);
+            padding: 15px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 36px;
+            color: var(--yellow);
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        /* Cards Grid */
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 3px solid var(--border-strong);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .card-header {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 12px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid var(--border-strong);
+        }
+
+        .card-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 20px;
+            color: var(--teal);
+        }
+
+        .card-badge {
+            font-size: 11px;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+
+        .card-badge.forming { background: var(--yellow); color: black; }
+        .card-badge.complete { background: var(--success); color: white; }
+        .card-badge.pending { background: var(--pink); color: white; }
+
+        .card-body { padding: 16px; }
+
+        .roster-list {
+            list-style: none;
+        }
+
+        .roster-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .roster-item:last-child { border-bottom: none; }
+
+        .roster-name { font-weight: 600; }
+
+        .roster-level {
+            font-size: 12px;
+            padding: 2px 8px;
+            background: var(--teal);
+            color: black;
+            font-weight: bold;
+        }
+
+        .roster-captain {
+            font-size: 11px;
+            color: var(--yellow);
+        }
+
+        .card-actions {
+            padding: 12px 16px;
+            background: rgba(0, 0, 0, 0.2);
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 10px 16px;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 14px;
+            letter-spacing: 1px;
+            border: 2px solid var(--border-strong);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: var(--pink);
+            color: white;
+        }
+
+        .btn-primary:hover { background: #d63384; }
+
+        .btn-secondary {
+            background: var(--teal);
+            color: black;
+        }
+
+        .btn-secondary:hover { background: #6fc9de; }
+
+        .btn-outline {
+            background: transparent;
+            border-color: var(--teal);
+            color: var(--teal);
+        }
+
+        .btn-outline:hover {
+            background: var(--teal);
+            color: black;
+        }
+
+        .btn-danger {
+            background: var(--error);
+            color: white;
+        }
+
+        .btn-block { width: 100%; }
+
+        .btn-lg {
+            padding: 14px 24px;
+            font-size: 18px;
+        }
+
+        /* Form Styles */
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 14px;
+            color: var(--teal);
+            margin-bottom: 6px;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 12px;
+            background: var(--bg-card);
+            border: 3px solid var(--border-strong);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 16px;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--teal);
+        }
+
+        /* Action Bar */
+        .action-bar {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+        }
+
+        /* Free Agent Card */
+        .free-agent-card {
+            background: var(--bg-card);
+            border: 3px solid var(--border-strong);
+            border-radius: 10px;
+            padding: 16px;
+        }
+
+        .free-agent-name {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 20px;
+            color: white;
+        }
+
+        .free-agent-meta {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        .free-agent-note {
+            font-size: 12px;
+            color: var(--text-secondary);
+            font-style: italic;
+            margin-top: 8px;
+        }
+
+        /* Settings Panel */
+        .settings-panel {
+            background: var(--bg-card);
+            border: 3px solid var(--border-strong);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .settings-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .settings-row:last-child { border-bottom: none; }
+
+        .settings-label {
+            font-weight: 600;
+        }
+
+        .settings-value {
+            color: var(--teal);
+        }
+
+        /* Status indicator */
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+
+        .status-indicator.open {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--success);
+        }
+
+        .status-indicator.closed {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--error);
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-muted);
+        }
+
+        .empty-state-icon {
+            font-size: 60px;
+            margin-bottom: 15px;
+        }
+
+        /* Loading */
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-muted);
+        }
+
+        @media (max-width: 640px) {
+            .header-title { font-size: 18px; }
+            .league-name-header { display: none; }
+            .stats-bar { grid-template-columns: repeat(2, 1fr); }
+            .cards-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Modal -->
+    <div class="modal-overlay" id="loginModal">
+        <div class="modal-content">
+            <div class="modal-title">DIRECTOR LOGIN</div>
+            <div class="form-group">
+                <label>Director PIN</label>
+                <input type="text" id="pinInput" placeholder="Enter your PIN" maxlength="8"
+                       style="text-align: center; font-size: 20px; letter-spacing: 4px;">
+            </div>
+            <button class="btn btn-primary btn-block btn-lg" onclick="directorLogin()">LOGIN</button>
+            <div id="loginError" style="color: var(--error); text-align: center; margin-top: 15px; display: none;"></div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div id="mainContent" style="display: none;">
+        <div class="header-bar">
+            <button class="back-btn" onclick="window.location.href='/pages/dashboard.html'">← BACK</button>
+            <span class="header-title">LEAGUE MANAGEMENT</span>
+            <span class="league-name-header" id="leagueNameHeader"></span>
+        </div>
+
+        <div class="container">
+            <!-- Stats Bar -->
+            <div class="stats-bar" id="statsBar">
+                <div class="stat-card">
+                    <div class="stat-value" id="statTeams">-</div>
+                    <div class="stat-label">Teams</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="statPlayers">-</div>
+                    <div class="stat-label">Players</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="statFreeAgents">-</div>
+                    <div class="stat-label">Free Agents</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="statStatus">-</div>
+                    <div class="stat-label">Status</div>
+                </div>
+            </div>
+
+            <!-- Tabs -->
+            <div class="tabs">
+                <button class="tab active" onclick="showTab('teams')">TEAMS</button>
+                <button class="tab" onclick="showTab('freeagents')">FREE AGENTS</button>
+                <button class="tab" onclick="showTab('registrations')">ALL PLAYERS</button>
+                <button class="tab" onclick="showTab('settings')">SETTINGS</button>
+            </div>
+
+            <!-- Teams Tab -->
+            <div class="tab-content active" id="tab-teams">
+                <div class="action-bar">
+                    <button class="btn btn-primary" onclick="showCreateTeamModal()">+ CREATE TEAM</button>
+                </div>
+                <div class="cards-grid" id="teamsGrid">
+                    <div class="loading">Loading teams...</div>
+                </div>
+            </div>
+
+            <!-- Free Agents Tab -->
+            <div class="tab-content" id="tab-freeagents">
+                <div class="action-bar">
+                    <button class="btn btn-secondary" onclick="showAddFreeAgentModal()">+ ADD FREE AGENT</button>
+                </div>
+                <div class="cards-grid" id="freeAgentsGrid">
+                    <div class="loading">Loading free agents...</div>
+                </div>
+            </div>
+
+            <!-- Registrations Tab -->
+            <div class="tab-content" id="tab-registrations">
+                <div id="registrationsList">
+                    <div class="loading">Loading registrations...</div>
+                </div>
+            </div>
+
+            <!-- Settings Tab -->
+            <div class="tab-content" id="tab-settings">
+                <div class="settings-panel">
+                    <div class="settings-row">
+                        <div>
+                            <div class="settings-label">Registration Status</div>
+                            <div style="font-size: 13px; color: var(--text-muted);">Control whether new registrations are accepted</div>
+                        </div>
+                        <div id="registrationStatus">
+                            <span class="status-indicator open">
+                                <span class="status-dot"></span> OPEN
+                            </span>
+                        </div>
+                    </div>
+                    <div style="margin-top: 15px;">
+                        <button class="btn btn-danger" id="toggleRegistrationBtn" onclick="toggleRegistration()">
+                            CLOSE REGISTRATION
+                        </button>
+                    </div>
+                </div>
+
+                <div class="settings-panel">
+                    <div class="settings-row">
+                        <div class="settings-label">League Mode</div>
+                        <div class="settings-value" id="leagueMode">-</div>
+                    </div>
+                    <div class="settings-row">
+                        <div class="settings-label">Min Players Per Team</div>
+                        <div class="settings-value" id="minPlayers">-</div>
+                    </div>
+                    <div class="settings-row">
+                        <div class="settings-label">Max Roster Size</div>
+                        <div class="settings-value" id="maxRoster">-</div>
+                    </div>
+                    <div class="settings-row">
+                        <div class="settings-label">Start Date</div>
+                        <div class="settings-value" id="startDate">-</div>
+                    </div>
+                </div>
+
+                <div class="settings-panel" style="background: rgba(239, 68, 68, 0.1); border-color: var(--error);">
+                    <div style="color: var(--error); font-weight: 600; margin-bottom: 10px;">Danger Zone</div>
+                    <button class="btn btn-danger" onclick="deleteLeague()">DELETE LEAGUE</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Team Modal -->
+    <div class="modal-overlay hidden" id="createTeamModal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-title">CREATE TEAM</div>
+            <div class="form-group">
+                <label>Team Name</label>
+                <input type="text" id="newTeamName" placeholder="Enter team name">
+            </div>
+            <div class="form-group">
+                <label>Captain Email</label>
+                <input type="email" id="newTeamCaptainEmail" placeholder="captain@example.com">
+            </div>
+            <div class="form-group">
+                <label>Captain Name</label>
+                <input type="text" id="newTeamCaptainName" placeholder="Captain's full name">
+            </div>
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button class="btn btn-outline" onclick="closeModal('createTeamModal')" style="flex: 1;">CANCEL</button>
+                <button class="btn btn-primary" onclick="createTeam()" style="flex: 1;">CREATE</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Player to Team Modal -->
+    <div class="modal-overlay hidden" id="addPlayerModal">
+        <div class="modal-content">
+            <div class="modal-title">ADD PLAYER TO TEAM</div>
+            <input type="hidden" id="addPlayerTeamId">
+            <div class="form-group">
+                <label>Player Name</label>
+                <input type="text" id="addPlayerName" placeholder="Full name">
+            </div>
+            <div class="form-group">
+                <label>Email</label>
+                <input type="email" id="addPlayerEmail" placeholder="email@example.com">
+            </div>
+            <div class="form-group">
+                <label>Phone (optional)</label>
+                <input type="tel" id="addPlayerPhone" placeholder="555-123-4567">
+            </div>
+            <div class="form-group">
+                <label>Level</label>
+                <select id="addPlayerLevel">
+                    <option value="">Select level...</option>
+                    <option value="A">A - Advanced</option>
+                    <option value="B">B - Intermediate</option>
+                    <option value="C">C - Beginner</option>
+                </select>
+            </div>
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button class="btn btn-outline" onclick="closeModal('addPlayerModal')" style="flex: 1;">CANCEL</button>
+                <button class="btn btn-primary" onclick="addPlayerToTeam()" style="flex: 1;">ADD</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Assign Free Agent Modal -->
+    <div class="modal-overlay hidden" id="assignFreeAgentModal">
+        <div class="modal-content">
+            <div class="modal-title">ASSIGN TO TEAM</div>
+            <input type="hidden" id="assignFreeAgentId">
+            <div id="assignFreeAgentName" style="font-size: 18px; margin-bottom: 15px; color: var(--yellow);"></div>
+            <div class="form-group">
+                <label>Select Team</label>
+                <select id="assignTeamSelect">
+                    <option value="">Choose a team...</option>
+                </select>
+            </div>
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button class="btn btn-outline" onclick="closeModal('assignFreeAgentModal')" style="flex: 1;">CANCEL</button>
+                <button class="btn btn-primary" onclick="assignFreeAgent()" style="flex: 1;">ASSIGN</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Player Level Modal -->
+    <div class="modal-overlay hidden" id="editLevelModal">
+        <div class="modal-content">
+            <div class="modal-title">CHANGE PLAYER LEVEL</div>
+            <input type="hidden" id="editLevelPlayerId">
+            <div id="editLevelPlayerName" style="font-size: 18px; margin-bottom: 15px; color: var(--yellow);"></div>
+            <div class="form-group">
+                <label>New Level</label>
+                <select id="editLevelSelect">
+                    <option value="A">A - Advanced</option>
+                    <option value="B">B - Intermediate</option>
+                    <option value="C">C - Beginner</option>
+                </select>
+            </div>
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button class="btn btn-outline" onclick="closeModal('editLevelModal')" style="flex: 1;">CANCEL</button>
+                <button class="btn btn-primary" onclick="updatePlayerLevel()" style="flex: 1;">UPDATE</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { db, doc, getDoc, collection, getDocs, query, where, addDoc, updateDoc, deleteDoc, callFunction } from '/js/firebase-config.js';
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const leagueId = urlParams.get('league_id');
+
+        let leagueData = null;
+        let teamsData = [];
+        let registrationsData = [];
+        let directorPin = null;
+
+        window.onload = function() {
+            if (!leagueId) {
+                alert('No league_id provided');
+                window.location.href = '/pages/dashboard.html';
+                return;
+            }
+
+            // Check for saved session
+            const saved = localStorage.getItem(`director_${leagueId}`);
+            if (saved) {
+                directorPin = saved;
+                loadLeagueData();
+            }
+
+            document.getElementById('pinInput').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') directorLogin();
+            });
+        };
+
+        window.directorLogin = async function() {
+            const pin = document.getElementById('pinInput').value.trim();
+            if (!pin) {
+                showLoginError('Please enter your PIN');
+                return;
+            }
+
+            try {
+                // Verify director PIN
+                const result = await callFunction('verifyDirectorPin', { league_id: leagueId, pin });
+
+                if (result.success) {
+                    directorPin = pin;
+                    localStorage.setItem(`director_${leagueId}`, pin);
+                    loadLeagueData();
+                } else {
+                    showLoginError(result.error || 'Invalid PIN');
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                showLoginError('Login failed');
+            }
+        };
+
+        function showLoginError(msg) {
+            const el = document.getElementById('loginError');
+            el.textContent = msg;
+            el.style.display = 'block';
+        }
+
+        async function loadLeagueData() {
+            document.getElementById('loginModal').classList.add('hidden');
+            document.getElementById('mainContent').style.display = 'block';
+
+            try {
+                // Load league
+                const leagueDoc = await getDoc(doc(db, 'leagues', leagueId));
+                if (!leagueDoc.exists()) {
+                    alert('League not found');
+                    return;
+                }
+                leagueData = { id: leagueId, ...leagueDoc.data() };
+
+                // Load teams
+                const teamsSnap = await getDocs(collection(db, 'leagues', leagueId, 'teams'));
+                teamsData = teamsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+                // Load registrations
+                const regsSnap = await getDocs(collection(db, 'leagues', leagueId, 'registrations'));
+                registrationsData = regsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+                renderDashboard();
+            } catch (error) {
+                console.error('Error loading league:', error);
+                alert('Failed to load league data');
+            }
+        }
+
+        function renderDashboard() {
+            // Header
+            document.getElementById('leagueNameHeader').textContent = leagueData.league_name;
+
+            // Stats
+            const freeAgents = registrationsData.filter(r => r.type === 'free_agent');
+            const players = registrationsData.filter(r => r.type === 'team_member' || r.type === 'individual');
+
+            document.getElementById('statTeams').textContent = teamsData.length;
+            document.getElementById('statPlayers').textContent = players.length;
+            document.getElementById('statFreeAgents').textContent = freeAgents.length;
+
+            const isClosed = leagueData.registration_closed || leagueData.status === 'active';
+            document.getElementById('statStatus').textContent = isClosed ? 'CLOSED' : 'OPEN';
+            document.getElementById('statStatus').style.color = isClosed ? 'var(--error)' : 'var(--success)';
+
+            renderTeams();
+            renderFreeAgents();
+            renderRegistrations();
+            renderSettings();
+        }
+
+        function renderTeams() {
+            const grid = document.getElementById('teamsGrid');
+
+            if (teamsData.length === 0) {
+                grid.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">👥</div>
+                        <div>No teams yet. Create one to get started!</div>
+                    </div>
+                `;
+                return;
+            }
+
+            grid.innerHTML = teamsData.map(team => {
+                const teamPlayers = registrationsData.filter(r => r.team_id === team.id);
+                const minPlayers = leagueData.min_players || 3;
+                const maxRoster = leagueData.max_roster || 4;
+                const isComplete = teamPlayers.length >= minPlayers;
+                const isFull = teamPlayers.length >= maxRoster;
+
+                return `
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="card-title">${team.name || '(No Name)'}</span>
+                            <span class="card-badge ${isComplete ? 'complete' : 'forming'}">
+                                ${isComplete ? 'COMPLETE' : 'FORMING'}
+                            </span>
+                        </div>
+                        <div class="card-body">
+                            <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 10px;">
+                                ${teamPlayers.length}/${maxRoster} players
+                            </div>
+                            <ul class="roster-list">
+                                ${teamPlayers.map(p => `
+                                    <li class="roster-item">
+                                        <div>
+                                            <span class="roster-name">${p.name || p.full_name}</span>
+                                            ${p.is_captain ? '<span class="roster-captain"> (Captain)</span>' : ''}
+                                        </div>
+                                        <div style="display: flex; gap: 8px; align-items: center;">
+                                            ${p.skill_level ? `<span class="roster-level">${p.skill_level}</span>` : ''}
+                                            <button onclick="showEditLevelModal('${p.id}', '${p.name || p.full_name}', '${p.skill_level || ''}')"
+                                                    style="background: none; border: none; color: var(--teal); cursor: pointer; font-size: 14px;">
+                                                ✏️
+                                            </button>
+                                        </div>
+                                    </li>
+                                `).join('')}
+                                ${teamPlayers.length === 0 ? '<li style="color: var(--text-muted); font-style: italic;">No players yet</li>' : ''}
+                            </ul>
+                        </div>
+                        <div class="card-actions">
+                            ${!isFull ? `<button class="btn btn-secondary" onclick="showAddPlayerModal('${team.id}')">+ ADD PLAYER</button>` : ''}
+                            <button class="btn btn-outline" onclick="editTeamName('${team.id}', '${team.name || ''}')">RENAME</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderFreeAgents() {
+            const grid = document.getElementById('freeAgentsGrid');
+            const freeAgents = registrationsData.filter(r => r.type === 'free_agent');
+
+            if (freeAgents.length === 0) {
+                grid.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">🎯</div>
+                        <div>No free agents in the pool</div>
+                    </div>
+                `;
+                return;
+            }
+
+            grid.innerHTML = freeAgents.map(fa => `
+                <div class="free-agent-card">
+                    <div class="free-agent-name">${fa.name || fa.full_name}</div>
+                    <div class="free-agent-meta">
+                        ${fa.skill_level ? `Level ${fa.skill_level}` : 'No level set'}
+                        ${fa.email ? ` • ${fa.email}` : ''}
+                    </div>
+                    ${fa.note ? `<div class="free-agent-note">"${fa.note}"</div>` : ''}
+                    <div style="margin-top: 12px; display: flex; gap: 10px;">
+                        <button class="btn btn-primary" onclick="showAssignModal('${fa.id}', '${fa.name || fa.full_name}')" style="flex: 1;">
+                            ASSIGN TO TEAM
+                        </button>
+                        <button class="btn btn-outline" onclick="showEditLevelModal('${fa.id}', '${fa.name || fa.full_name}', '${fa.skill_level || ''}')" style="padding: 10px;">
+                            ✏️
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderRegistrations() {
+            const list = document.getElementById('registrationsList');
+
+            if (registrationsData.length === 0) {
+                list.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📋</div>
+                        <div>No registrations yet</div>
+                    </div>
+                `;
+                return;
+            }
+
+            list.innerHTML = `
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background: rgba(0,0,0,0.3);">
+                            <th style="padding: 12px; text-align: left; color: var(--teal); font-family: 'Bebas Neue', cursive;">Name</th>
+                            <th style="padding: 12px; text-align: left; color: var(--teal); font-family: 'Bebas Neue', cursive;">Type</th>
+                            <th style="padding: 12px; text-align: left; color: var(--teal); font-family: 'Bebas Neue', cursive;">Team</th>
+                            <th style="padding: 12px; text-align: left; color: var(--teal); font-family: 'Bebas Neue', cursive;">Level</th>
+                            <th style="padding: 12px; text-align: left; color: var(--teal); font-family: 'Bebas Neue', cursive;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${registrationsData.map(r => {
+                            const team = teamsData.find(t => t.id === r.team_id);
+                            return `
+                                <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+                                    <td style="padding: 12px;">${r.name || r.full_name}</td>
+                                    <td style="padding: 12px;">
+                                        <span style="font-size: 12px; padding: 2px 8px; background: ${r.type === 'free_agent' ? 'var(--yellow)' : 'var(--teal)'}; color: black; border-radius: 4px;">
+                                            ${r.type === 'free_agent' ? 'FREE AGENT' : r.type === 'team_member' ? 'TEAM' : 'INDIVIDUAL'}
+                                        </span>
+                                    </td>
+                                    <td style="padding: 12px;">${team?.name || '-'}</td>
+                                    <td style="padding: 12px;">${r.skill_level || '-'}</td>
+                                    <td style="padding: 12px;">
+                                        <button onclick="showEditLevelModal('${r.id}', '${r.name || r.full_name}', '${r.skill_level || ''}')"
+                                                style="background: none; border: none; color: var(--teal); cursor: pointer;">
+                                            Edit Level
+                                        </button>
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        function renderSettings() {
+            const isClosed = leagueData.registration_closed || leagueData.status === 'active';
+
+            document.getElementById('registrationStatus').innerHTML = `
+                <span class="status-indicator ${isClosed ? 'closed' : 'open'}">
+                    <span class="status-dot"></span> ${isClosed ? 'CLOSED' : 'OPEN'}
+                </span>
+            `;
+
+            document.getElementById('toggleRegistrationBtn').textContent = isClosed ? 'REOPEN REGISTRATION' : 'CLOSE REGISTRATION';
+            document.getElementById('toggleRegistrationBtn').className = isClosed ? 'btn btn-secondary' : 'btn btn-danger';
+
+            document.getElementById('leagueMode').textContent = leagueData.league_mode === 'team' ? 'Team League' : 'Draft League';
+            document.getElementById('minPlayers').textContent = leagueData.min_players || 3;
+            document.getElementById('maxRoster').textContent = leagueData.max_roster || 4;
+            document.getElementById('startDate').textContent = leagueData.start_date ? new Date(leagueData.start_date).toLocaleDateString() : '-';
+        }
+
+        // Tab navigation
+        window.showTab = function(tabName) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById('tab-' + tabName).classList.add('active');
+        };
+
+        // Modal helpers
+        window.closeModal = function(id) {
+            document.getElementById(id).classList.add('hidden');
+        };
+
+        window.showCreateTeamModal = function() {
+            document.getElementById('newTeamName').value = '';
+            document.getElementById('newTeamCaptainEmail').value = '';
+            document.getElementById('newTeamCaptainName').value = '';
+            document.getElementById('createTeamModal').classList.remove('hidden');
+        };
+
+        window.showAddPlayerModal = function(teamId) {
+            document.getElementById('addPlayerTeamId').value = teamId;
+            document.getElementById('addPlayerName').value = '';
+            document.getElementById('addPlayerEmail').value = '';
+            document.getElementById('addPlayerPhone').value = '';
+            document.getElementById('addPlayerLevel').value = '';
+            document.getElementById('addPlayerModal').classList.remove('hidden');
+        };
+
+        window.showAssignModal = function(freeAgentId, name) {
+            document.getElementById('assignFreeAgentId').value = freeAgentId;
+            document.getElementById('assignFreeAgentName').textContent = name;
+
+            // Populate team select
+            const select = document.getElementById('assignTeamSelect');
+            select.innerHTML = '<option value="">Choose a team...</option>' +
+                teamsData.filter(t => {
+                    const count = registrationsData.filter(r => r.team_id === t.id).length;
+                    return count < (leagueData.max_roster || 4);
+                }).map(t => `<option value="${t.id}">${t.name || '(Unnamed)'}</option>`).join('');
+
+            document.getElementById('assignFreeAgentModal').classList.remove('hidden');
+        };
+
+        window.showEditLevelModal = function(playerId, name, currentLevel) {
+            document.getElementById('editLevelPlayerId').value = playerId;
+            document.getElementById('editLevelPlayerName').textContent = name;
+            document.getElementById('editLevelSelect').value = currentLevel || 'B';
+            document.getElementById('editLevelModal').classList.remove('hidden');
+        };
+
+        // Actions
+        window.createTeam = async function() {
+            const name = document.getElementById('newTeamName').value.trim();
+            const captainEmail = document.getElementById('newTeamCaptainEmail').value.trim();
+            const captainName = document.getElementById('newTeamCaptainName').value.trim();
+
+            if (!captainEmail || !captainName) {
+                alert('Captain email and name are required');
+                return;
+            }
+
+            try {
+                const result = await callFunction('createTeamManual', {
+                    league_id: leagueId,
+                    pin: directorPin,
+                    team_name: name || null,
+                    captain_email: captainEmail,
+                    captain_name: captainName
+                });
+
+                if (result.success) {
+                    closeModal('createTeamModal');
+                    loadLeagueData();
+                } else {
+                    alert(result.error || 'Failed to create team');
+                }
+            } catch (error) {
+                console.error('Create team error:', error);
+                alert('Failed to create team');
+            }
+        };
+
+        window.addPlayerToTeam = async function() {
+            const teamId = document.getElementById('addPlayerTeamId').value;
+            const name = document.getElementById('addPlayerName').value.trim();
+            const email = document.getElementById('addPlayerEmail').value.trim();
+            const phone = document.getElementById('addPlayerPhone').value.trim();
+            const level = document.getElementById('addPlayerLevel').value;
+
+            if (!name || !email) {
+                alert('Name and email are required');
+                return;
+            }
+
+            try {
+                const result = await callFunction('addPlayerToTeam', {
+                    league_id: leagueId,
+                    team_id: teamId,
+                    pin: directorPin,
+                    player_name: name,
+                    player_email: email,
+                    player_phone: phone,
+                    player_level: level
+                });
+
+                if (result.success) {
+                    closeModal('addPlayerModal');
+                    loadLeagueData();
+                } else {
+                    alert(result.error || 'Failed to add player');
+                }
+            } catch (error) {
+                console.error('Add player error:', error);
+                alert('Failed to add player');
+            }
+        };
+
+        window.assignFreeAgent = async function() {
+            const freeAgentId = document.getElementById('assignFreeAgentId').value;
+            const teamId = document.getElementById('assignTeamSelect').value;
+
+            if (!teamId) {
+                alert('Please select a team');
+                return;
+            }
+
+            try {
+                const result = await callFunction('assignFreeAgentToTeam', {
+                    league_id: leagueId,
+                    registration_id: freeAgentId,
+                    team_id: teamId,
+                    pin: directorPin
+                });
+
+                if (result.success) {
+                    closeModal('assignFreeAgentModal');
+                    loadLeagueData();
+                } else {
+                    alert(result.error || 'Failed to assign player');
+                }
+            } catch (error) {
+                console.error('Assign error:', error);
+                alert('Failed to assign player');
+            }
+        };
+
+        window.updatePlayerLevel = async function() {
+            const playerId = document.getElementById('editLevelPlayerId').value;
+            const newLevel = document.getElementById('editLevelSelect').value;
+
+            try {
+                const result = await callFunction('updatePlayerLevel', {
+                    league_id: leagueId,
+                    registration_id: playerId,
+                    level: newLevel,
+                    pin: directorPin
+                });
+
+                if (result.success) {
+                    closeModal('editLevelModal');
+                    loadLeagueData();
+                } else {
+                    alert(result.error || 'Failed to update level');
+                }
+            } catch (error) {
+                console.error('Update level error:', error);
+                alert('Failed to update level');
+            }
+        };
+
+        window.editTeamName = async function(teamId, currentName) {
+            const newName = prompt('Enter new team name:', currentName);
+            if (newName === null || newName === currentName) return;
+
+            try {
+                await updateDoc(doc(db, 'leagues', leagueId, 'teams', teamId), {
+                    name: newName
+                });
+                loadLeagueData();
+            } catch (error) {
+                console.error('Rename error:', error);
+                alert('Failed to rename team');
+            }
+        };
+
+        window.toggleRegistration = async function() {
+            const isClosed = leagueData.registration_closed || leagueData.status === 'active';
+            const action = isClosed ? 'reopen' : 'close';
+
+            if (!confirm(`Are you sure you want to ${action} registration?`)) return;
+
+            try {
+                const result = await callFunction('toggleLeagueRegistration', {
+                    league_id: leagueId,
+                    pin: directorPin,
+                    close: !isClosed
+                });
+
+                if (result.success) {
+                    loadLeagueData();
+                } else {
+                    alert(result.error || `Failed to ${action} registration`);
+                }
+            } catch (error) {
+                console.error('Toggle error:', error);
+                alert(`Failed to ${action} registration`);
+            }
+        };
+
+        window.deleteLeague = async function() {
+            if (!confirm('Are you SURE you want to delete this league? This cannot be undone!')) return;
+            if (!confirm('REALLY delete? All teams, players, and data will be lost.')) return;
+
+            try {
+                const result = await callFunction('adminDeleteLeague', {
+                    pin: directorPin,
+                    league_id: leagueId
+                });
+
+                if (result.success) {
+                    alert('League deleted');
+                    window.location.href = '/pages/dashboard.html';
+                } else {
+                    alert(result.error || 'Failed to delete league');
+                }
+            } catch (error) {
+                console.error('Delete error:', error);
+                alert('Failed to delete league');
+            }
+        };
+    </script>
+</body>
+</html>
