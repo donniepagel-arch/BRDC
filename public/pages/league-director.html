@@ -1172,6 +1172,56 @@ Alice Brown, alice@email.com, 555-1234, 42.5, B"></textarea>
 
         // Check for saved director session
         (async function checkSavedSession() {
+            // 1. Check for PIN in URL (from create-league success page)
+            const urlPin = urlParams.get('pin');
+            if (urlPin && urlPin.length === 8) {
+                try {
+                    const result = await callFunction('verifyLeaguePin', {
+                        league_id: leagueId || null,
+                        pin: urlPin
+                    });
+                    if (result.success) {
+                        leagueId = result.league_id;
+                        leagueData = { id: leagueId, ...result.league };
+                        window.history.replaceState({}, '', `?league_id=${leagueId}`);
+                        adminPin = urlPin;
+                        document.getElementById('loginOverlay').style.display = 'none';
+                        document.getElementById('dashboard').style.display = 'block';
+                        initDashboard();
+                        return;
+                    }
+                } catch (e) {
+                    console.error('URL PIN verify error:', e);
+                }
+            }
+
+            // 2. Check for league-specific admin PIN in localStorage
+            if (leagueId) {
+                const leaguePin = localStorage.getItem('leagueAdminPin_' + leagueId);
+                if (leaguePin) {
+                    try {
+                        const session = JSON.parse(leaguePin);
+                        if (session.pin && (Date.now() - session.timestamp) < 7 * 24 * 60 * 60 * 1000) {
+                            const result = await callFunction('verifyLeaguePin', {
+                                league_id: leagueId,
+                                pin: session.pin
+                            });
+                            if (result.success) {
+                                leagueData = { id: leagueId, ...result.league };
+                                adminPin = session.pin;
+                                document.getElementById('loginOverlay').style.display = 'none';
+                                document.getElementById('dashboard').style.display = 'block';
+                                initDashboard();
+                                return;
+                            }
+                        }
+                    } catch (e) {
+                        console.error('League PIN restore error:', e);
+                    }
+                }
+            }
+
+            // 3. Fall back to generic director session
             const saved = localStorage.getItem('directorSession');
             if (saved) {
                 try {
@@ -1233,8 +1283,8 @@ Alice Brown, alice@email.com, 555-1234, 42.5, B"></textarea>
 
                 adminPin = pin;
 
-                // Save session for persistence
-                localStorage.setItem('directorSession', JSON.stringify({
+                // Save league-specific PIN (don't overwrite player session used for templates)
+                localStorage.setItem('leagueAdminPin_' + leagueId, JSON.stringify({
                     pin: pin,
                     timestamp: Date.now()
                 }));
