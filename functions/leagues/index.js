@@ -36,6 +36,25 @@ const MATCH_FORMAT = [
 // UTILITY FUNCTIONS
 // ============================================================================
 
+// Master admin player ID (Donnie Pagel) - can access any league
+const MASTER_ADMIN_PLAYER_ID = 'X2DMb9bP4Q8fy9yr5Fam';
+
+// Check if a PIN grants access to a league (either league PIN or master admin)
+async function checkLeagueAccess(league, pin) {
+    // Check if PIN matches league admin or director PIN
+    if (league.admin_pin === pin || league.director_pin === pin) {
+        return true;
+    }
+
+    // Check if PIN belongs to master admin
+    const masterCheck = await db.collection('players').where('pin', '==', pin).limit(1).get();
+    if (!masterCheck.empty && masterCheck.docs[0].id === MASTER_ADMIN_PLAYER_ID) {
+        return true;
+    }
+
+    return false;
+}
+
 function generatePin() {
     // 8-digit PIN for league admin access
     return Math.floor(10000000 + Math.random() * 90000000).toString();
@@ -109,30 +128,12 @@ exports.verifyLeaguePin = functions.https.onRequest(async (req, res) => {
         console.log('verifyLeaguePin - entered pin:', pin, 'type:', typeof pin);
         console.log('verifyLeaguePin - stored admin_pin:', league.admin_pin, 'type:', typeof league.admin_pin);
         console.log('verifyLeaguePin - stored director_pin:', league.director_pin, 'type:', typeof league.director_pin);
-        console.log('verifyLeaguePin - admin match:', league.admin_pin === pin);
-        console.log('verifyLeaguePin - director match:', league.director_pin === pin);
 
-        // Master admin - check if PIN belongs to the site owner (Donnie Pagel)
-        const MASTER_ADMIN_PLAYER_ID = 'X2DMb9bP4Q8fy9yr5Fam';
-        let isMasterAdmin = false;
+        // Check PIN matches using helper function (includes master admin check)
+        const hasAccess = await checkLeagueAccess(league, pin);
+        console.log('verifyLeaguePin - access granted:', hasAccess);
 
-        // Check if the entered PIN belongs to the master admin player
-        const masterAdminCheck = await db.collection('players')
-            .where('pin', '==', pin)
-            .limit(1)
-            .get();
-
-        if (!masterAdminCheck.empty && masterAdminCheck.docs[0].id === MASTER_ADMIN_PLAYER_ID) {
-            isMasterAdmin = true;
-            console.log('verifyLeaguePin - MASTER ADMIN access granted');
-        }
-
-        // Check PIN matches - either league admin_pin, director_pin, or master admin
-        const pinMatches = league.admin_pin === pin ||
-                          league.director_pin === pin ||
-                          isMasterAdmin;
-
-        if (!pinMatches) {
+        if (!hasAccess) {
             return res.status(401).json({
                 success: false,
                 error: 'Invalid PIN',
@@ -367,8 +368,8 @@ exports.deleteLeague = functions.https.onRequest(async (req, res) => {
         }
 
         const league = leagueDoc.data();
-        // Accept either admin_pin or director_pin
-        if (league.admin_pin !== admin_pin && league.director_pin !== admin_pin) {
+        // Accept either admin_pin, director_pin, or master admin
+        if (!(await checkLeagueAccess(league, admin_pin))) {
             return res.status(403).json({ success: false, error: 'Invalid admin PIN' });
         }
 
@@ -423,7 +424,7 @@ exports.updateLeagueStatus = functions.https.onRequest(async (req, res) => {
         }
 
         const league = leagueDoc.data();
-        if (league.admin_pin !== admin_pin && league.director_pin !== admin_pin) {
+        if (!(await checkLeagueAccess(league, admin_pin))) {
             return res.status(403).json({ success: false, error: 'Invalid PIN' });
         }
 
@@ -465,7 +466,7 @@ exports.updateLeagueSettings = functions.https.onRequest(async (req, res) => {
         }
 
         const league = leagueDoc.data();
-        if (league.admin_pin !== admin_pin && league.director_pin !== admin_pin) {
+        if (!(await checkLeagueAccess(league, admin_pin))) {
             return res.status(403).json({ success: false, error: 'Invalid PIN' });
         }
 
@@ -644,7 +645,7 @@ exports.addPlayer = functions.https.onRequest(async (req, res) => {
         }
 
         const league = leagueDoc.data();
-        if (league.admin_pin !== admin_pin && league.director_pin !== admin_pin) {
+        if (!(await checkLeagueAccess(league, admin_pin))) {
             return res.status(403).json({ success: false, error: 'Invalid PIN' });
         }
 
@@ -721,7 +722,7 @@ exports.addBotToLeague = functions.https.onRequest(async (req, res) => {
         }
 
         const league = leagueDoc.data();
-        if (league.admin_pin !== admin_pin && league.director_pin !== admin_pin) {
+        if (!(await checkLeagueAccess(league, admin_pin))) {
             return res.status(403).json({ success: false, error: 'Invalid PIN' });
         }
 
@@ -805,7 +806,8 @@ exports.bulkAddPlayers = functions.https.onRequest(async (req, res) => {
         }
 
         const league = leagueDoc.data();
-        if (league.admin_pin !== admin_pin && league.director_pin !== admin_pin) {
+
+        if (!(await checkLeagueAccess(league, admin_pin))) {
             return res.status(403).json({ success: false, error: 'Invalid PIN' });
         }
 
@@ -923,7 +925,7 @@ exports.updatePlayer = functions.https.onRequest(async (req, res) => {
         }
 
         const league = leagueDoc.data();
-        if (league.admin_pin !== admin_pin && league.director_pin !== admin_pin) {
+        if (!(await checkLeagueAccess(league, admin_pin))) {
             return res.status(403).json({ success: false, error: 'Invalid PIN' });
         }
 
@@ -993,7 +995,7 @@ exports.deletePlayer = functions.https.onRequest(async (req, res) => {
         }
 
         const league = leagueDoc.data();
-        if (league.admin_pin !== admin_pin && league.director_pin !== admin_pin) {
+        if (!(await checkLeagueAccess(league, admin_pin))) {
             return res.status(403).json({ success: false, error: 'Invalid PIN' });
         }
 
@@ -1050,7 +1052,7 @@ exports.createTeam = functions.https.onRequest(async (req, res) => {
         }
 
         const league = leagueDoc.data();
-        if (league.admin_pin !== admin_pin && league.director_pin !== admin_pin) {
+        if (!(await checkLeagueAccess(league, admin_pin))) {
             return res.status(403).json({ success: false, error: 'Invalid PIN' });
         }
 
@@ -1220,7 +1222,7 @@ exports.generateSchedule = functions.https.onRequest(async (req, res) => {
         }
 
         const league = leagueDoc.data();
-        if (league.admin_pin !== admin_pin && league.director_pin !== admin_pin) {
+        if (!(await checkLeagueAccess(league, admin_pin))) {
             return res.status(403).json({ success: false, error: 'Invalid PIN' });
         }
 
@@ -1407,7 +1409,7 @@ exports.startMatch = functions.https.onRequest(async (req, res) => {
         const leagueDoc = await db.collection('leagues').doc(league_id).get();
         const league = leagueDoc.data();
 
-        if (league.admin_pin !== admin_pin && league.director_pin !== admin_pin) {
+        if (!(await checkLeagueAccess(league, admin_pin))) {
             return res.status(403).json({ success: false, error: 'Invalid PIN' });
         }
 
@@ -2218,7 +2220,7 @@ exports.submitGameResult = functions.https.onRequest(async (req, res) => {
         const leagueDoc = await db.collection('leagues').doc(league_id).get();
         const league = leagueDoc.data();
 
-        if (admin_pin && league.admin_pin !== admin_pin && league.director_pin !== admin_pin) {
+        if (admin_pin && !(await checkLeagueAccess(league, admin_pin))) {
             return res.status(403).json({ success: false, error: 'Invalid PIN' });
         }
 
