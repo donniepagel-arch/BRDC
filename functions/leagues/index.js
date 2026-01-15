@@ -112,8 +112,27 @@ exports.verifyLeaguePin = functions.https.onRequest(async (req, res) => {
         console.log('verifyLeaguePin - admin match:', league.admin_pin === pin);
         console.log('verifyLeaguePin - director match:', league.director_pin === pin);
 
-        // Check PIN matches
-        if (league.admin_pin !== pin && league.director_pin !== pin) {
+        // Master admin - check if PIN belongs to the site owner (Donnie Pagel)
+        const MASTER_ADMIN_PLAYER_ID = 'X2DMb9bP4Q8fy9yr5Fam';
+        let isMasterAdmin = false;
+
+        // Check if the entered PIN belongs to the master admin player
+        const masterAdminCheck = await db.collection('players')
+            .where('pin', '==', pin)
+            .limit(1)
+            .get();
+
+        if (!masterAdminCheck.empty && masterAdminCheck.docs[0].id === MASTER_ADMIN_PLAYER_ID) {
+            isMasterAdmin = true;
+            console.log('verifyLeaguePin - MASTER ADMIN access granted');
+        }
+
+        // Check PIN matches - either league admin_pin, director_pin, or master admin
+        const pinMatches = league.admin_pin === pin ||
+                          league.director_pin === pin ||
+                          isMasterAdmin;
+
+        if (!pinMatches) {
             return res.status(401).json({
                 success: false,
                 error: 'Invalid PIN',
