@@ -42,8 +42,9 @@ const globalAuthFunctions = require('./global-auth');
 Object.assign(exports, globalAuthFunctions);
 
 // Notification Functions (scheduled reminders, SMS/email)
-const notificationFunctions = require('./notifications');
-Object.assign(exports, notificationFunctions);
+// TEMPORARILY DISABLED - uses firebase-functions v2 scheduler not compatible with v4
+// const notificationFunctions = require('./notifications');
+// Object.assign(exports, notificationFunctions);
 
 // Admin Functions
 const adminFunctions = require('./admin-functions');
@@ -58,32 +59,37 @@ const chatRoomFunctions = require('./chat-rooms');
 Object.assign(exports, chatRoomFunctions);
 
 // Message Digest (Phase 1 Social Platform - SMS notifications)
-const messageDigestFunctions = require('./message-digest');
-Object.assign(exports, messageDigestFunctions);
+// TEMPORARILY DISABLED - uses firebase-functions v2 scheduler not compatible with v4
+// const messageDigestFunctions = require('./message-digest');
+// Object.assign(exports, messageDigestFunctions);
 
 // Presence System (Phase 2 Social Platform)
-const presenceFunctions = require('./presence');
-Object.assign(exports, presenceFunctions);
+// TEMPORARILY DISABLED - uses firebase-functions v2 scheduler not compatible with v4
+// const presenceFunctions = require('./presence');
+// Object.assign(exports, presenceFunctions);
 
 // Social Features (Phase 3 Social Platform - reactions, cheers, achievements)
 const socialFunctions = require('./social');
 Object.assign(exports, socialFunctions);
 
 // Online Play (Phase 4 Social Platform - challenges, online matches)
-const onlinePlayFunctions = require('./online-play');
-Object.assign(exports, onlinePlayFunctions);
+// TEMPORARILY DISABLED - uses firebase-functions v2 scheduler not compatible with v4
+// const onlinePlayFunctions = require('./online-play');
+// Object.assign(exports, onlinePlayFunctions);
 
 // Mini Tournaments (Phase 5 Social Platform - quick brackets in scorer)
 const miniTournamentFunctions = require('./mini-tournaments');
 Object.assign(exports, miniTournamentFunctions);
 
 // Advanced Features (Phase 6 - spectate, replay, handicap, bounty board)
-const advancedFeaturesFunctions = require('./advanced-features');
-Object.assign(exports, advancedFeaturesFunctions);
+// TEMPORARILY DISABLED - uses firebase-functions v2 scheduler not compatible with v4
+// const advancedFeaturesFunctions = require('./advanced-features');
+// Object.assign(exports, advancedFeaturesFunctions);
 
 // Stats Unification (Phase 7 - unified average, leaderboards, practice mode)
-const statsUnificationFunctions = require('./stats-unification');
-Object.assign(exports, statsUnificationFunctions);
+// TEMPORARILY DISABLED - uses firebase-functions v2 scheduler not compatible with v4
+// const statsUnificationFunctions = require('./stats-unification');
+// Object.assign(exports, statsUnificationFunctions);
 
 // Match Import Functions (temporary - for DartConnect data import)
 const importMatchFunctions = require('./import-matches');
@@ -121,8 +127,9 @@ const notablePerformancesFunctions = require('./notable-performances');
 Object.assign(exports, notablePerformancesFunctions);
 
 // Push Notifications (tiered: FCM > SMS > Email)
-const pushNotificationFunctions = require('./push-notifications');
-Object.assign(exports, pushNotificationFunctions);
+// TEMPORARILY DISABLED - uses firebase-functions v2 scheduler not compatible with v4
+// const pushNotificationFunctions = require('./push-notifications');
+// Object.assign(exports, pushNotificationFunctions);
 
 
 // ===================================================================
