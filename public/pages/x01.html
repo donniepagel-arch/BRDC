@@ -31,6 +31,11 @@
             -webkit-tap-highlight-color: transparent;
         }
         
+        html, body {
+            overflow-x: hidden;
+            width: 100%;
+        }
+
         body {
             background: linear-gradient(180deg, var(--blue-light) 0%, var(--blue-dark) 100%);
             overflow: hidden;
@@ -208,6 +213,88 @@
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 12px;
+        }
+
+        /* Bot Selection */
+        .player-input-row {
+            display: flex;
+            gap: 8px;
+            align-items: stretch;
+        }
+
+        .player-input-row .form-input {
+            flex: 1;
+        }
+
+        .bot-btn {
+            background: rgba(145,215,235,0.2);
+            border: 3px solid var(--teal);
+            padding: 12px 14px;
+            color: var(--teal);
+            font-size: 13px;
+            font-weight: 800;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            white-space: nowrap;
+            box-shadow: 3px 3px 0 rgba(0, 0, 0, 1);
+        }
+
+        .bot-btn:active { transform: scale(0.95); }
+        .bot-btn.selected { background: var(--teal); color: var(--black); }
+
+        .bot-btn-container {
+            position: relative;
+        }
+
+        .bot-dropdown {
+            display: none;
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 4px;
+            background: var(--white);
+            border: 3px solid var(--teal);
+            z-index: 100;
+            min-width: 180px;
+            box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.5);
+        }
+
+        .bot-dropdown.open { display: block; }
+
+        .bot-option {
+            padding: 12px 14px;
+            cursor: pointer;
+            border-bottom: 1px solid rgba(0,0,0,0.1);
+            transition: background 0.15s;
+        }
+
+        .bot-option:last-child { border-bottom: none; }
+        .bot-option:hover, .bot-option:active { background: rgba(145,215,235,0.3); }
+        .bot-option.disabled { opacity: 0.4; cursor: not-allowed; }
+
+        .bot-option-name {
+            font-weight: 700;
+            color: var(--teal);
+            font-size: 14px;
+        }
+
+        .bot-option-avg {
+            font-size: 11px;
+            color: #666;
+            margin-top: 2px;
+        }
+
+        .clear-bot-btn {
+            background: none;
+            border: none;
+            color: var(--pink);
+            font-size: 12px;
+            cursor: pointer;
+            padding: 4px 8px;
+            margin-left: 8px;
         }
 
         .toggle-group {
@@ -491,6 +578,93 @@
 
         .cork-btn:hover {
             background: #E03786;
+        }
+
+        .cork-btn.hidden {
+            display: none;
+        }
+
+        .cork-subtitle {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 28px;
+            color: var(--black);
+            margin: 15px 0;
+            letter-spacing: 2px;
+        }
+
+        .cork-player-btns {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin: 20px 0;
+        }
+
+        .cork-player-btn {
+            padding: 20px 30px;
+            background: var(--teal);
+            color: var(--black);
+            border: 4px solid var(--black);
+            font-family: 'Bebas Neue', cursive;
+            font-size: 22px;
+            cursor: pointer;
+            box-shadow: 4px 4px 0 rgba(0, 0, 0, 1);
+            letter-spacing: 1px;
+            min-width: 140px;
+        }
+
+        .cork-player-btn:hover {
+            background: #7DC8E0;
+        }
+
+        .cork-player-btn:active {
+            transform: translate(2px, 2px);
+            box-shadow: 2px 2px 0 rgba(0, 0, 0, 1);
+        }
+
+        .cork-choice-btns {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin: 25px 0;
+        }
+
+        .cork-choice-btn {
+            padding: 25px 20px;
+            background: var(--white);
+            border: 4px solid var(--black);
+            cursor: pointer;
+            box-shadow: 5px 5px 0 rgba(0, 0, 0, 1);
+            min-width: 150px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .cork-choice-btn:hover {
+            background: #f0f0f0;
+        }
+
+        .cork-choice-btn:active {
+            transform: translate(2px, 2px);
+            box-shadow: 3px 3px 0 rgba(0, 0, 0, 1);
+        }
+
+        .cork-choice-btn .choice-icon {
+            font-size: 32px;
+        }
+
+        .cork-choice-btn .choice-label {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 22px;
+            color: var(--pink);
+            letter-spacing: 1px;
+        }
+
+        .cork-choice-btn .choice-desc {
+            font-size: 12px;
+            color: #6b7280;
+            font-weight: 600;
         }
 
         /* GAME SCREEN - continues from your existing CSS */
@@ -1176,11 +1350,23 @@
                 <div class="grid-2">
                     <div class="form-group">
                         <label class="form-label">Player 1 Name</label>
-                        <input type="text" id="player1Name" class="form-input" placeholder="Enter name">
+                        <div class="player-input-row">
+                            <input type="text" id="player1Name" class="form-input" placeholder="Enter name">
+                            <div class="bot-btn-container">
+                                <button class="bot-btn" id="bot1Btn" onclick="toggleBotDropdown(1)">&#129302; BOT</button>
+                                <div class="bot-dropdown" id="botDropdown1"></div>
+                            </div>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label class="form-label">Player 2 Name</label>
-                        <input type="text" id="player2Name" class="form-input" placeholder="Enter name">
+                        <div class="player-input-row">
+                            <input type="text" id="player2Name" class="form-input" placeholder="Enter name">
+                            <div class="bot-btn-container">
+                                <button class="bot-btn" id="bot2Btn" onclick="toggleBotDropdown(2)">&#129302; BOT</button>
+                                <div class="bot-dropdown" id="botDropdown2"></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1317,11 +1503,44 @@
     <!-- CORK POPUP -->
     <div class="cork-popup" id="corkPopup">
         <div class="cork-content">
-            <div class="cork-title">CORK FOR START</div>
-            <div class="cork-message" id="corkMessage">Randomizing first thrower...</div>
-            <div class="cork-result" id="corkResult"></div>
-            <div id="corkGameSelect" class="hidden">
-                <p style="margin: 20px 0; font-weight: 700;">Winner selects game for this leg:</p>
+            <div class="cork-title" id="corkTitle">CORK FOR START</div>
+
+            <!-- Step 1: Randomize -->
+            <div id="corkStep1">
+                <div class="cork-message">Tap to randomize who has option</div>
+                <button class="cork-btn" onclick="randomizeCork()">🎯 RANDOMIZE</button>
+            </div>
+
+            <!-- Step 2: Who got it? -->
+            <div id="corkStep2" class="hidden">
+                <div class="cork-message" id="corkOptionMessage">Player has option on cork</div>
+                <div class="cork-subtitle">WHO GOT IT?</div>
+                <div class="cork-player-btns">
+                    <button class="cork-player-btn" id="corkPlayer1Btn" onclick="selectCorkWinner(1)">PLAYER 1</button>
+                    <button class="cork-player-btn" id="corkPlayer2Btn" onclick="selectCorkWinner(2)">PLAYER 2</button>
+                </div>
+            </div>
+
+            <!-- Step 3a: Game OR Start choice -->
+            <div id="corkStep3Choice" class="hidden">
+                <div class="cork-message" id="corkWinnerMessage">Winner chooses:</div>
+                <div class="cork-choice-btns">
+                    <button class="cork-choice-btn" onclick="corkChooseOption('game')">
+                        <span class="choice-icon">🎮</span>
+                        <span class="choice-label">PICK GAME</span>
+                        <span class="choice-desc">Opponent starts</span>
+                    </button>
+                    <button class="cork-choice-btn" onclick="corkChooseOption('start')">
+                        <span class="choice-icon">🎯</span>
+                        <span class="choice-label">PICK START</span>
+                        <span class="choice-desc">Play default game</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Step 3b: Game selection -->
+            <div id="corkStep3Game" class="hidden">
+                <div class="cork-message">Select game for this leg:</div>
                 <div class="game-select-btns">
                     <button class="game-select-btn" onclick="selectCorkGame(501)">501</button>
                     <button class="game-select-btn" onclick="selectCorkGame(301)">301</button>
@@ -1329,7 +1548,9 @@
                     <button class="game-select-btn" onclick="selectCorkGame('custom')">CUSTOM</button>
                 </div>
             </div>
-            <button class="cork-btn" id="corkStartBtn" onclick="startLegFromCork()">START LEG</button>
+
+            <!-- Final: Start button -->
+            <button class="cork-btn hidden" id="corkStartBtn" onclick="startLegFromCork()">START LEG</button>
         </div>
     </div>
 
@@ -1456,11 +1677,25 @@
             <div class="winner-trophy">🏆</div>
             <div class="winner-title" id="winnerName">PLAYER 1 WINS!</div>
             <div class="winner-stats" id="winnerStats"></div>
-            <button class="new-game-btn" onclick="resetToWelcome()">NEW GAME</button>
+            <div id="saveGameSection" style="margin: 30px 0;">
+                <p style="font-weight: 700; margin-bottom: 15px;">Save this game to track your stats?</p>
+                <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                    <button class="cork-btn" onclick="savePickupGame()" style="background: #4CAF50;">SAVE GAME</button>
+                    <button class="cork-btn" onclick="skipSaveGame()" style="background: #6b7280;">SKIP</button>
+                </div>
+                <p id="saveStatus" style="margin-top: 15px; font-size: 14px; color: #6b7280;"></p>
+            </div>
+            <button class="new-game-btn" id="newGameBtn" style="display: none;" onclick="resetToWelcome()">NEW GAME</button>
         </div>
     </div>
 
     <script>
+        // Mobile error display for debugging
+        window.onerror = function(msg, url, line) {
+            alert('Error: ' + msg + '\nLine: ' + line);
+            return false;
+        };
+
         // OUTSHOT COMBINATIONS
         const OUTSHOTS = {
             2: ['D1'], 4: ['D2'], 6: ['D3'], 8: ['D4'], 10: ['D5'],
@@ -1538,10 +1773,6 @@
             gameScreen: document.getElementById('gameScreen'),
             winnerModal: document.getElementById('winnerModal'),
             corkPopup: document.getElementById('corkPopup'),
-            corkMessage: document.getElementById('corkMessage'),
-            corkResult: document.getElementById('corkResult'),
-            corkGameSelect: document.getElementById('corkGameSelect'),
-            corkStartBtn: document.getElementById('corkStartBtn'),
             inputDisplay: document.getElementById('inputDisplay'),
             outshotHint: document.getElementById('outshotHint'),
             dartSelector: document.getElementById('dartSelector'),
@@ -1567,6 +1798,155 @@
 
         const shortcuts = ['26', '40', '41', '43', '45', '60', '81', '85', '100', '180', '140'];
 
+        // BOT SELECTION
+        let registeredBots = [];
+        let selectedBots = { 1: null, 2: null };
+        const BOT_AVG_LABELS = {
+            easy: '~40 avg',
+            medium: '~55 avg',
+            league: '~65 avg',
+            hard: '~75 avg',
+            pro: '~90 avg'
+        };
+
+        async function loadRegisteredBots() {
+            try {
+                const CLOUD_URL = 'https://us-central1-brdc-69.cloudfunctions.net';
+                const response = await fetch(`${CLOUD_URL}/getBots`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({})
+                });
+                const result = await response.json();
+                registeredBots = result.bots || [];
+                updateBotDropdowns();
+            } catch (error) {
+                console.error('Error loading bots:', error);
+            }
+        }
+
+        function toggleBotDropdown(playerNum) {
+            const dropdown = document.getElementById(`botDropdown${playerNum}`);
+            const otherDropdown = document.getElementById(`botDropdown${playerNum === 1 ? 2 : 1}`);
+            otherDropdown.classList.remove('open');
+            dropdown.classList.toggle('open');
+        }
+
+        function updateBotDropdowns() {
+            [1, 2].forEach(playerNum => {
+                const container = document.getElementById(`botDropdown${playerNum}`);
+                const otherBotId = selectedBots[playerNum === 1 ? 2 : 1]?.id;
+
+                if (registeredBots.length === 0) {
+                    container.innerHTML = `
+                        <div class="bot-option disabled">
+                            <div class="bot-option-name" style="color: #666;">No bots available</div>
+                            <div class="bot-option-avg">Add bots in Admin Portal</div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = registeredBots.map(bot => {
+                    const isOtherBot = bot.id === otherBotId;
+                    const avgLabel = BOT_AVG_LABELS[bot.difficulty] || '~55 avg';
+                    return `
+                        <div class="bot-option ${isOtherBot ? 'disabled' : ''}" onclick="${isOtherBot ? '' : `selectBot(${playerNum}, '${bot.id}')`}">
+                            <div class="bot-option-name">${bot.name}${isOtherBot ? ' (P${playerNum === 1 ? 2 : 1})' : ''}</div>
+                            <div class="bot-option-avg">${bot.difficulty.charAt(0).toUpperCase() + bot.difficulty.slice(1)} - ${avgLabel}</div>
+                        </div>
+                    `;
+                }).join('') + `
+                    ${selectedBots[playerNum] ? `
+                        <div class="bot-option" onclick="clearBot(${playerNum})" style="background: rgba(255,70,154,0.1);">
+                            <div class="bot-option-name" style="color: var(--pink);">Clear Bot</div>
+                        </div>
+                    ` : ''}
+                `;
+            });
+        }
+
+        function selectBot(playerNum, botId) {
+            const bot = registeredBots.find(b => b.id === botId);
+            if (!bot) return;
+
+            selectedBots[playerNum] = bot;
+            document.getElementById(`player${playerNum}Name`).value = bot.name;
+            document.getElementById(`player${playerNum}Name`).disabled = true;
+            document.getElementById(`bot${playerNum}Btn`).classList.add('selected');
+            document.getElementById(`botDropdown${playerNum}`).classList.remove('open');
+
+            // Store bot info in gameState
+            gameState[`player${playerNum}`].isBot = true;
+            gameState[`player${playerNum}`].botDifficulty = bot.difficulty;
+            gameState[`player${playerNum}`].registeredBotId = bot.id;
+
+            updateBotDropdowns();
+        }
+
+        function clearBot(playerNum) {
+            selectedBots[playerNum] = null;
+            document.getElementById(`player${playerNum}Name`).value = '';
+            document.getElementById(`player${playerNum}Name`).disabled = false;
+            document.getElementById(`bot${playerNum}Btn`).classList.remove('selected');
+            document.getElementById(`botDropdown${playerNum}`).classList.remove('open');
+
+            gameState[`player${playerNum}`].isBot = false;
+            gameState[`player${playerNum}`].botDifficulty = null;
+            gameState[`player${playerNum}`].registeredBotId = null;
+
+            updateBotDropdowns();
+        }
+
+        // Close dropdowns when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.bot-btn-container')) {
+                document.querySelectorAll('.bot-dropdown').forEach(d => d.classList.remove('open'));
+            }
+        });
+
+        // Load bots on page load
+        loadRegisteredBots();
+
+        // KNOCKOUT MODE DETECTION
+        let knockoutContext = null;
+        const urlParams = new URLSearchParams(window.location.search);
+        const isKnockoutMode = urlParams.get('knockout') === 'true';
+
+        if (isKnockoutMode) {
+            // Load knockout context from localStorage
+            try {
+                knockoutContext = JSON.parse(localStorage.getItem('knockoutContext'));
+            } catch (e) {
+                console.log('No knockout context found');
+            }
+
+            // Pre-fill player names from URL params
+            const p1Name = urlParams.get('p1');
+            const p2Name = urlParams.get('p2');
+            const bestOf = urlParams.get('bestOf');
+            const startScore = urlParams.get('startScore');
+
+            if (p1Name) document.getElementById('player1Name').value = p1Name;
+            if (p2Name) document.getElementById('player2Name').value = p2Name;
+            if (bestOf) document.getElementById('bestOfLegs').value = bestOf;
+            if (startScore) document.getElementById('gameType').value = startScore;
+
+            console.log('Knockout mode enabled:', knockoutContext);
+
+            // Show setup screen briefly then auto-start game
+            setTimeout(() => {
+                // Switch to setup screen first (required for form fields)
+                document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+                document.getElementById('setupScreen').classList.add('active');
+
+                // Start game after a brief moment
+                setTimeout(() => {
+                    startGame();
+                }, 50);
+            }, 100);
+        }
+
         // SCREEN NAVIGATION
         function showScreen(screenId) {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -1582,7 +1962,8 @@
         }
 
         function showPinEntry() {
-            alert('PIN entry coming soon! This will validate against scheduled matches.');
+            // Redirect to main site for match PIN entry
+            window.location.href = '/';
         }
 
         function exitGame() {
@@ -1757,51 +2138,131 @@
             return gameState.startingRule === 'cork-every' || gameState.startingRule === 'cork-first';
         }
 
+        // Cork state
+        let corkState = {
+            optionPlayer: null,  // Who has option (from randomize)
+            winner: null,        // Who actually won the cork
+            chosenOption: null   // 'game' or 'start' (for game-or-start mode)
+        };
+
         function showCorkPopup() {
-            elements.corkMessage.textContent = 'Randomizing first thrower...';
-            elements.corkResult.textContent = '';
-            elements.corkGameSelect.classList.add('hidden');
-            elements.corkStartBtn.style.display = 'none';
+            // Reset cork state
+            corkState = { optionPlayer: null, winner: null, chosenOption: null };
+
+            // Set title based on mode
+            const titleEl = document.getElementById('corkTitle');
+            if (gameState.gameFormat === 'corks-choice') {
+                titleEl.textContent = 'CORK TO SELECT GAME & START';
+            } else {
+                titleEl.textContent = 'CORK FOR START';
+            }
+
+            // Reset all steps
+            document.getElementById('corkStep1').classList.remove('hidden');
+            document.getElementById('corkStep2').classList.add('hidden');
+            document.getElementById('corkStep3Choice').classList.add('hidden');
+            document.getElementById('corkStep3Game').classList.add('hidden');
+            document.getElementById('corkStartBtn').classList.add('hidden');
+
+            // Set player names on buttons
+            document.getElementById('corkPlayer1Btn').textContent = gameState.player1.name.toUpperCase();
+            document.getElementById('corkPlayer2Btn').textContent = gameState.player2.name.toUpperCase();
+
             elements.corkPopup.classList.add('active');
-            
-            setTimeout(() => {
-                const winner = Math.random() < 0.5 ? 1 : 2;
-                gameState.corkWinner = winner;
-                gameState.currentPlayer = winner;
-                
-                const winnerName = winner === 1 ? gameState.player1.name : gameState.player2.name;
-                elements.corkResult.textContent = `${winnerName.toUpperCase()} THROWS FIRST`;
-                
-                if (gameState.gameFormat === 'corks-choice') {
-                    elements.corkGameSelect.classList.remove('hidden');
-                } else {
-                    elements.corkStartBtn.style.display = 'block';
-                }
-            }, 1500);
         }
 
-        function selectCorkGame(game) {
+        window.randomizeCork = function() {
+            const step1 = document.getElementById('corkStep1');
+            const step2 = document.getElementById('corkStep2');
+            const msgEl = document.getElementById('corkOptionMessage');
+
+            // Shuffle animation
+            step1.innerHTML = '<div class="cork-message" style="font-size: 24px;">🎯 Randomizing...</div>';
+
+            let shuffleCount = 0;
+            const shuffleInterval = setInterval(() => {
+                const randomPlayer = Math.random() < 0.5 ? 1 : 2;
+                const name = randomPlayer === 1 ? gameState.player1.name : gameState.player2.name;
+                step1.innerHTML = `<div class="cork-message" style="font-size: 24px;">🎯 ${name.toUpperCase()}</div>`;
+                shuffleCount++;
+
+                if (shuffleCount >= 10) {
+                    clearInterval(shuffleInterval);
+
+                    // Final result
+                    corkState.optionPlayer = Math.random() < 0.5 ? 1 : 2;
+                    const winnerName = corkState.optionPlayer === 1 ? gameState.player1.name : gameState.player2.name;
+
+                    setTimeout(() => {
+                        step1.classList.add('hidden');
+                        msgEl.textContent = `${winnerName.toUpperCase()} has option on cork`;
+                        step2.classList.remove('hidden');
+                    }, 300);
+                }
+            }, 100);
+        };
+
+        window.selectCorkWinner = function(player) {
+            corkState.winner = player;
+            gameState.corkWinner = player;
+            gameState.currentPlayer = player;
+
+            const winnerName = player === 1 ? gameState.player1.name : gameState.player2.name;
+
+            document.getElementById('corkStep2').classList.add('hidden');
+
+            // Determine next step based on game format
+            if (gameState.gameFormat === 'corks-choice') {
+                // Winner picks game AND starts
+                document.getElementById('corkWinnerMessage').textContent = `${winnerName.toUpperCase()} selects game:`;
+                document.getElementById('corkStep3Game').classList.remove('hidden');
+            } else {
+                // Just cork for start - go directly to game
+                document.getElementById('corkStartBtn').classList.remove('hidden');
+            }
+        };
+
+        window.corkChooseOption = function(option) {
+            corkState.chosenOption = option;
+            const winnerName = corkState.winner === 1 ? gameState.player1.name : gameState.player2.name;
+
+            document.getElementById('corkStep3Choice').classList.add('hidden');
+
+            if (option === 'game') {
+                // Winner picks game, opponent starts
+                gameState.currentPlayer = corkState.winner === 1 ? 2 : 1;
+                document.getElementById('corkStep3Game').classList.remove('hidden');
+            } else {
+                // Winner starts, play default game
+                gameState.currentPlayer = corkState.winner;
+                document.getElementById('corkStartBtn').classList.remove('hidden');
+            }
+        };
+
+        window.selectCorkGame = function(game) {
             document.querySelectorAll('.game-select-btn').forEach(btn => btn.classList.remove('selected'));
             event.target.classList.add('selected');
-            
+
             if (game === 'custom') {
                 const customScore = prompt('Enter custom score (must end in 01):', '901');
                 if (customScore && parseInt(customScore) % 100 === 1) {
                     gameState.currentLegGame = parseInt(customScore);
                     gameState.startingScore = parseInt(customScore);
+                } else {
+                    return; // Invalid, don't proceed
                 }
             } else {
                 gameState.currentLegGame = game;
                 gameState.startingScore = game;
             }
-            
-            elements.corkStartBtn.style.display = 'block';
-        }
 
-        function startLegFromCork() {
+            document.getElementById('corkStartBtn').classList.remove('hidden');
+        };
+
+        window.startLegFromCork = function() {
             elements.corkPopup.classList.remove('active');
             initializeGame();
-        }
+        };
 
         function initializeGame() {
             gameState.player1.score = gameState.startingScore;
@@ -2116,7 +2577,67 @@
             elements.winnerName.textContent = winner.name.toUpperCase() + ' WINS!';
             elements.winnerStats.textContent = `Final Score: ${gameState.player1.sets} - ${gameState.player2.sets} (Sets)`;
             elements.winnerModal.classList.add('active');
+
+            // If knockout mode, show different UI
+            if (isKnockoutMode && knockoutContext) {
+                const saveSection = document.getElementById('saveGameSection');
+                saveSection.innerHTML = `
+                    <p style="font-weight: 700; margin-bottom: 15px;">Match Complete!</p>
+                    <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                        <button class="cork-btn" onclick="submitKnockoutResult()" style="background: var(--pink);">BACK TO BRACKET</button>
+                    </div>
+                    <p id="saveStatus" style="margin-top: 15px; font-size: 14px; color: #6b7280;"></p>
+                `;
+            }
         }
+
+        // Submit knockout match result
+        async function submitKnockoutResult() {
+            if (!knockoutContext) {
+                window.location.href = '/pages/knockout.html';
+                return;
+            }
+
+            const saveStatus = document.getElementById('saveStatus');
+            saveStatus.textContent = 'Submitting result...';
+
+            try {
+                const score1 = gameState.player1.legs;
+                const score2 = gameState.player2.legs;
+                const winnerIndex = score1 > score2 ? 0 : 1;
+
+                const response = await fetch(`${CLOUD_FUNCTIONS_URL}/submitKnockoutMatch`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        knockout_id: knockoutContext.knockout_id,
+                        match_number: knockoutContext.match_number,
+                        winner_index: winnerIndex,
+                        score: [score1, score2]
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    // Clear knockout context and go back to bracket
+                    localStorage.removeItem('knockoutContext');
+                    window.location.href = `/pages/knockout.html?id=${knockoutContext.knockout_id}`;
+                } else {
+                    saveStatus.textContent = 'Error: ' + result.error;
+                    saveStatus.style.color = '#E03786';
+                }
+            } catch (error) {
+                console.error('Error submitting knockout result:', error);
+                saveStatus.textContent = 'Failed to submit. Going back to bracket...';
+                saveStatus.style.color = '#E03786';
+                // Still go back even on error
+                setTimeout(() => {
+                    window.location.href = `/pages/knockout.html?id=${knockoutContext.knockout_id}`;
+                }, 2000);
+            }
+        }
+        window.submitKnockoutResult = submitKnockoutResult;
 
         function updateAverages(player, legAvgEl, matchAvgEl) {
             const throws = player.throws;
@@ -2137,7 +2658,7 @@
         function resetToWelcome() {
             elements.winnerModal.classList.remove('active');
             elements.gameScreen.classList.remove('game-started');
-            
+
             gameState.player1 = { name: '', score: 501, legs: 0, sets: 0, throws: [], currentThrow: [] };
             gameState.player2 = { name: '', score: 501, legs: 0, sets: 0, throws: [], currentThrow: [] };
             gameState.currentPlayer = 1;
@@ -2152,7 +2673,26 @@
             gameState.gameStarted = false;
             gameState.selectedDart = null;
             gameState.showingOutshot = false;
-            
+
+            // Reset match stats for pickup game tracking
+            matchStats.legs = [];
+            matchStats.player1_match = { darts: 0, points: 0, tons: 0, ton_40: 0, ton_80: 0, checkouts: 0, checkout_points: 0 };
+            matchStats.player2_match = { darts: 0, points: 0, tons: 0, ton_40: 0, ton_80: 0, checkouts: 0, checkout_points: 0 };
+
+            // Reset save game UI
+            const saveSection = document.getElementById('saveGameSection');
+            if (saveSection) {
+                saveSection.innerHTML = `
+                    <p style="font-weight: 700; margin-bottom: 15px;">Save this game to track your stats?</p>
+                    <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                        <button class="cork-btn" onclick="savePickupGame()" style="background: #4CAF50;">SAVE GAME</button>
+                        <button class="cork-btn" onclick="skipSaveGame()" style="background: #6b7280;">SKIP</button>
+                    </div>
+                    <p id="saveStatus" style="margin-top: 15px; font-size: 14px; color: #6b7280;"></p>
+                `;
+            }
+            document.getElementById('newGameBtn').style.display = 'none';
+
             showWelcome();
         }
 
@@ -2220,6 +2760,170 @@
             container.scrollTop = container.scrollHeight;
         }
 
+        // MATCH STATS TRACKING
+        const matchStats = {
+            legs: [],
+            player1_match: { darts: 0, points: 0, tons: 0, ton_40: 0, ton_80: 0, checkouts: 0, checkout_points: 0 },
+            player2_match: { darts: 0, points: 0, tons: 0, ton_40: 0, ton_80: 0, checkouts: 0, checkout_points: 0 }
+        };
+
+        function countTons(throws) {
+            let tons = 0, ton_40 = 0, ton_80 = 0, ton_00 = 0, ton_20 = 0, ton_60 = 0, one_seventyone = 0, high_score = 0;
+            throws.forEach(t => {
+                if (t.bust) return;
+                const score = t.total;
+                if (score > high_score) high_score = score;
+                if (score >= 100 && score < 120) { tons++; ton_00++; }
+                else if (score >= 120 && score < 140) { tons++; ton_20++; }
+                else if (score >= 140 && score < 160) { tons++; ton_40++; }
+                else if (score >= 160 && score < 180) { tons++; ton_60++; ton_80++; }
+                else if (score === 180) { tons++; ton_80++; }
+                if (score === 171) one_seventyone++;
+            });
+            return { tons, ton_00, ton_20, ton_40, ton_60, ton_80, one_seventyone, high_score };
+        }
+
+        function calculateLegStats(player, isWinner) {
+            const throws = player.throws;
+
+            // Calculate total darts - account for checkout darts (may be 1, 2, or 3)
+            let totalDarts = 0;
+            let checkoutDarts = 3; // default
+
+            for (const t of throws) {
+                if (t.checkout && t.dart) {
+                    // Checkout throw - use actual darts thrown (1, 2, or 3)
+                    totalDarts += t.dart;
+                    checkoutDarts = t.dart;
+                } else {
+                    // Normal throw - always 3 darts
+                    totalDarts += 3;
+                }
+            }
+
+            const totalPoints = throws.reduce((sum, t) => sum + (t.bust ? 0 : t.total), 0);
+            const first9Points = throws.slice(0, 3).reduce((sum, t) => sum + (t.bust ? 0 : t.total), 0);
+            const tonStats = countTons(throws);
+
+            const stats = {
+                darts_thrown: totalDarts,
+                points_scored: totalPoints,
+                first9_darts: Math.min(throws.length, 3) * 3,
+                first9_points: first9Points,
+                ...tonStats,
+                checkout_attempts: isWinner ? 1 : 0,
+                checkout_darts: isWinner ? checkoutDarts : 0
+            };
+
+            if (isWinner) {
+                const lastThrow = throws[throws.length - 1];
+                if (lastThrow && lastThrow.checkout) {
+                    stats.checkout = lastThrow.total;
+                }
+            }
+
+            return stats;
+        }
+
+        function recordLegEnd(winner) {
+            const p1Stats = calculateLegStats(gameState.player1, winner === 1);
+            const p2Stats = calculateLegStats(gameState.player2, winner === 2);
+
+            matchStats.legs.push({
+                winner: winner === 1 ? 'player1' : 'player2',
+                player1_stats: p1Stats,
+                player2_stats: p2Stats
+            });
+
+            // Accumulate match totals
+            matchStats.player1_match.darts += p1Stats.darts_thrown;
+            matchStats.player1_match.points += p1Stats.points_scored;
+            matchStats.player1_match.tons += p1Stats.tons;
+            matchStats.player2_match.darts += p2Stats.darts_thrown;
+            matchStats.player2_match.points += p2Stats.points_scored;
+            matchStats.player2_match.tons += p2Stats.tons;
+        }
+
+        // CLOUD FUNCTION URL (update to your project)
+        const CLOUD_FUNCTIONS_URL = 'https://us-central1-brdc-69.cloudfunctions.net';
+
+        async function savePickupGame() {
+            const saveStatus = document.getElementById('saveStatus');
+            saveStatus.textContent = 'Saving game...';
+            saveStatus.style.color = '#6b7280';
+
+            try {
+                // Use stored PIN or prompt for it
+                let player1Pin = localStorage.getItem('brdc_player_pin') || null;
+                let player2Pin = null;
+
+                // Check if player 1 is a bot
+                const player1IsBot = gameState.player1.isBot || false;
+                const player2IsBot = gameState.player2.isBot || false;
+
+                if (!player1Pin && !player1IsBot) {
+                    player1Pin = prompt(`Enter PIN for ${gameState.player1.name} to track stats (or leave blank for guest):`);
+                    if (player1Pin) localStorage.setItem('brdc_player_pin', player1Pin.toUpperCase());
+                }
+
+                if (!player2IsBot) {
+                    player2Pin = prompt(`Enter PIN for ${gameState.player2.name} to track stats (or leave blank for guest):`);
+                }
+
+                const winnerIndex = gameState.player1.sets > gameState.player2.sets ? 0 : 1;
+
+                const payload = {
+                    game_type: gameState.startingScore.toString(),
+                    players: [
+                        { pin: player1Pin?.toUpperCase() || null, name: gameState.player1.name, is_bot: player1IsBot },
+                        { pin: player2Pin?.toUpperCase() || null, name: gameState.player2.name, is_bot: player2IsBot }
+                    ],
+                    winner_index: winnerIndex,
+                    legs: matchStats.legs,
+                    match_config: {
+                        bestOfLegs: gameState.bestOfLegs,
+                        bestOfSets: gameState.bestOfSets,
+                        doubleOut: gameState.outOption === 'double',
+                        doubleIn: gameState.inOption === 'double'
+                    }
+                };
+
+                const response = await fetch(`${CLOUD_FUNCTIONS_URL}/savePickupGame`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    saveStatus.textContent = 'Game saved! Stats updated.';
+                    saveStatus.style.color = '#4CAF50';
+                } else {
+                    throw new Error(result.error || 'Failed to save');
+                }
+            } catch (error) {
+                console.error('Error saving game:', error);
+                saveStatus.textContent = 'Failed to save: ' + error.message;
+                saveStatus.style.color = '#E03786';
+            }
+
+            document.getElementById('saveGameSection').innerHTML = '';
+            document.getElementById('newGameBtn').style.display = 'block';
+        }
+
+        function skipSaveGame() {
+            document.getElementById('saveGameSection').innerHTML = '';
+            document.getElementById('newGameBtn').style.display = 'block';
+        }
+
+        // Modify winLeg to record stats
+        const originalWinLeg = winLeg;
+        winLeg = function() {
+            recordLegEnd(gameState.currentPlayer);
+            originalWinLeg();
+        };
+
         // Initialize
         initializeEventListeners();
         updateInputDisplay();
@@ -2228,4 +2932,5 @@
             setTimeout(() => window.scrollTo(0, 1), 0);
         });
     </script>
+<script src="/js/feedback.js"></script>
 </body>

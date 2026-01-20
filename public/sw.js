@@ -3,7 +3,7 @@
  * Provides offline caching and IndexedDB storage for game data
  */
 
-const CACHE_VERSION = 'brdc-v1';
+const CACHE_VERSION = 'brdc-v2';
 const CACHE_NAME = `brdc-cache-${CACHE_VERSION}`;
 
 // Files to cache for offline use
@@ -17,7 +17,7 @@ const STATIC_ASSETS = [
     '/pages/dashboard.html',
     '/js/firebase-config.js',
     '/css/brdc-styles.css',
-    '/images/white_logo.jpg',
+    '/images/gold_logo.png',
     '/images/favicon.png',
     '/manifest.json'
 ];

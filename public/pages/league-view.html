@@ -492,6 +492,22 @@
             gap: 15px;
         }
         .schedule-match:last-child { margin-bottom: 0; }
+        .schedule-match.clickable:hover {
+            background: rgba(255, 70, 154, 0.15);
+            transform: translateX(3px);
+            transition: all 0.2s;
+        }
+        .match-details-hint {
+            grid-column: 1 / -1;
+            text-align: center;
+            font-size: 12px;
+            color: var(--pink);
+            margin-top: 8px;
+            opacity: 0.7;
+        }
+        .schedule-match.clickable:hover .match-details-hint {
+            opacity: 1;
+        }
         .schedule-team { font-weight: 600; }
         .schedule-team.home { text-align: right; }
         .schedule-team.away { text-align: left; }
@@ -593,7 +609,7 @@
 <body>
     <div class="header-bar">
         <button class="back-btn" onclick="history.back()">BACK</button>
-        <img src="/images/white_logo.jpg" alt="BRDC" class="header-logo">
+        <img src="/images/gold_logo.png" alt="BRDC" class="header-logo">
         <span class="header-title">LEAGUE</span>
         <div style="margin-left: auto;">
             <button class="back-btn" onclick="showDirectorLogin()" style="border-color: var(--yellow); color: var(--yellow);">DIRECTOR LOGIN</button>
@@ -618,7 +634,10 @@
     </div>
 
     <script type="module">
-        import { db, doc, getDoc, collection, getDocs, query, where, orderBy, callFunction } from '/js/firebase-config.js';
+        import { db, doc, getDoc, collection, getDocs, query, where, orderBy, callFunction, uploadImage, showLoading, hideLoading } from '/js/firebase-config.js';
+
+        let selectedFillinPhoto = null;
+        let selectedRegPhoto = null;
 
         const urlParams = new URLSearchParams(window.location.search);
         const leagueId = urlParams.get('league_id');
@@ -628,7 +647,7 @@
         let teams = [];
         let matches = [];
         let fillins = [];
-        let isLoggedIn = false; // TODO: Check actual login state
+        let isLoggedIn = !!localStorage.getItem('brdc_session'); // Check if user is logged in
         let memberData = null;
 
         window.onload = async function() {
@@ -844,14 +863,19 @@
                         </div>
                         <div class="week-matches">
                             ${weekMatches.map(m => `
-                                <div class="schedule-match">
+                                <div class="schedule-match ${m.status === 'completed' ? 'clickable' : ''}"
+                                     ${m.status === 'completed' ? `onclick="viewMatch('${m.id}')"` : ''}
+                                     style="${m.status === 'completed' ? 'cursor: pointer;' : ''}">
                                     <div class="schedule-team home">${m.home_team_name || 'TBD'}</div>
                                     <div class="schedule-vs">
                                         ${m.status === 'completed' ?
                                             `<span class="schedule-score">${m.home_score} - ${m.away_score}</span>` :
+                                            m.status === 'in_progress' ?
+                                            `<span style="color: #10b981; font-weight: bold;">LIVE</span>` :
                                             'VS'}
                                     </div>
                                     <div class="schedule-team away">${m.away_team_name || 'TBD'}</div>
+                                    ${m.status === 'completed' ? `<div class="match-details-hint">View Details →</div>` : ''}
                                 </div>
                             `).join('')}
                         </div>
@@ -958,19 +982,38 @@
                 </div>`;
             }
 
+            // Helper to normalize players for both formats
+            function getNormalizedPlayers(team) {
+                if (team.players?.length) {
+                    return team.players.map(p => ({
+                        id: p.id,
+                        name: p.name || 'Unknown',
+                        level: p.level || ''
+                    }));
+                }
+                const playerIds = team.player_ids || [];
+                const playerNames = team.player_names || [];
+                return playerIds.map((id, i) => ({
+                    id,
+                    name: playerNames[i] || 'Unknown',
+                    level: ''
+                }));
+            }
+
             return `
                 <div class="stats-grid">
-                    ${teams.map(t => `
+                    ${teams.map(t => {
+                        const players = getNormalizedPlayers(t);
+                        return `
                         <div class="stats-card">
                             <div class="stats-card-header" style="cursor: pointer;" onclick="viewTeam('${t.id}')">${t.team_name} <span style="font-size: 12px; opacity: 0.7;">→</span></div>
                             <div class="stats-card-body">
-                                ${(t.player_names || []).map((name, i) => {
-                                    const playerId = t.player_ids?.[i] || '';
-                                    const isCaptain = t.captain_id === playerId || i === 0;
+                                ${players.map((p, i) => {
+                                    const isCaptain = t.captain_id === p.id || i === 0;
                                     return `
-                                    <div class="leaderboard-item" style="cursor: pointer;" onclick="viewPlayer('${playerId}')">
+                                    <div class="leaderboard-item" style="cursor: pointer;" onclick="viewPlayer('${p.id}')">
                                         <div class="leaderboard-rank" style="${isCaptain ? 'background: var(--yellow); color: black;' : ''}">${isCaptain ? 'C' : i + 1}</div>
-                                        <div class="leaderboard-name">${name} <span style="font-size: 10px; color: var(--teal);">→</span></div>
+                                        <div class="leaderboard-name">${p.name} <span style="font-size: 10px; color: var(--teal);">→</span></div>
                                     </div>
                                 `}).join('')}
                                 <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-around; text-align: center;">
@@ -985,7 +1028,7 @@
                                 </div>
                             </div>
                         </div>
-                    `).join('')}
+                    `}).join('')}
                 </div>
             `;
         }
@@ -998,6 +1041,10 @@
             if (playerId) {
                 window.location.href = `/pages/player-public.html?player_id=${playerId}&league_id=${leagueId}`;
             }
+        };
+
+        window.viewMatch = function(matchId) {
+            window.location.href = `/pages/match-hub.html?league_id=${leagueId}&match_id=${matchId}`;
         };
 
         function renderLive() {
@@ -1221,30 +1268,45 @@
         window.showDirectorLogin = function() {
             const html = `
                 <div style="text-align: center;">
-                    <p style="margin-bottom: 20px; color: var(--text-dim);">Enter your Director PIN to access the league management dashboard.</p>
-                    <div class="form-group">
-                        <input type="password" id="directorPinInput" class="form-input" maxlength="8" placeholder="Enter Director PIN" style="text-align: center; font-size: 20px; letter-spacing: 3px;">
+                    <p style="margin-bottom: 25px; color: var(--text-dim);">Enter your 8-digit PIN to access the league management dashboard.</p>
+                    <div style="display: flex; justify-content: center; margin: 30px 0;">
+                        <input type="password" id="directorPinInput" maxlength="8"
+                            style="width: 100%; max-width: 280px; height: 56px; border: 3px solid rgba(255,255,255,0.2); border-radius: 8px; font-size: 24px; text-align: center; font-family: 'JetBrains Mono', monospace; background: rgba(0,0,0,0.3); color: #FDD835; letter-spacing: 4px; transition: all 0.2s;"
+                            inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="••••••••"
+                            onfocus="this.style.borderColor='#FF469A'; this.style.background='rgba(255,70,154,0.1)'; this.style.boxShadow='0 0 15px rgba(255,70,154,0.3)';"
+                            onblur="this.style.borderColor='rgba(255,255,255,0.2)'; this.style.background='rgba(0,0,0,0.3)'; this.style.boxShadow='none';"
+                            onkeydown="if(event.key==='Enter') verifyDirectorPin();">
                     </div>
-                    <button class="submit-btn" onclick="verifyDirectorPin()">LOGIN</button>
+                    <button class="submit-btn" onclick="verifyDirectorPin()" style="width: 100%; max-width: 280px;">ENTER DASHBOARD</button>
+                    <p style="margin-top: 20px; font-size: 12px; color: var(--text-dim);">Use your player PIN or the admin PIN from league creation</p>
                 </div>
             `;
             document.getElementById('modalBody').innerHTML = html;
-            document.querySelector('.modal-title').textContent = 'DIRECTOR LOGIN';
+            document.querySelector('.modal-title').textContent = '🎯 DIRECTOR LOGIN';
             document.getElementById('registerModal').classList.add('active');
             setTimeout(() => document.getElementById('directorPinInput').focus(), 100);
         };
 
         window.verifyDirectorPin = async function() {
             const pin = document.getElementById('directorPinInput').value.trim();
-            if (!pin) {
-                alert('Please enter your Director PIN');
+            if (!pin || pin.length !== 8) {
+                alert('Please enter your 8-digit PIN');
                 return;
             }
 
             try {
-                // Check if PIN matches league director_pin or admin_pin
-                if (pin === leagueData.director_pin || pin === leagueData.admin_pin) {
-                    // Redirect to director dashboard
+                // Verify PIN via backend API
+                const result = await callFunction('verifyLeaguePin', {
+                    league_id: leagueId,
+                    pin: pin
+                });
+
+                if (result.success) {
+                    // Save session and redirect to director dashboard
+                    localStorage.setItem('leagueAdminPin_' + leagueId, JSON.stringify({
+                        pin: pin,
+                        timestamp: Date.now()
+                    }));
                     window.location.href = `/pages/league-director.html?league_id=${leagueId}`;
                 } else {
                     alert('Invalid PIN. Please try again.');
@@ -1267,7 +1329,7 @@
                 <div class="pin-section">
                     <div class="pin-section-title">ALREADY A MEMBER? ENTER YOUR PIN</div>
                     <div class="pin-row">
-                        <input type="text" id="fillinPin" class="pin-input" maxlength="5" placeholder="12345" inputmode="numeric">
+                        <input type="password" id="fillinPin" class="pin-input" maxlength="8" placeholder="••••••••" inputmode="numeric" pattern="[0-9]*" autocomplete="off">
                         <button class="pin-btn" onclick="lookupFillinPin()">GO</button>
                     </div>
                 </div>
@@ -1275,6 +1337,20 @@
                 <div class="divider"><span>OR REGISTER NEW</span></div>
 
                 <form id="fillinForm" onsubmit="submitFillin(event)">
+                    <div class="form-group" style="text-align: center; margin-bottom: 20px;">
+                        <label class="form-label">Profile Photo (Optional)</label>
+                        <div class="image-uploader" id="fillinPhotoUploader" style="max-width: 120px; margin: 10px auto; border-radius: 50%; min-height: 120px;">
+                            <input type="file" id="fillinPhotoInput" accept="image/*" onchange="handleFillinPhotoChange(this)">
+                            <div id="fillinPhotoPlaceholder">
+                                <div class="image-uploader-icon">📷</div>
+                                <div class="image-uploader-text" style="font-size: 11px;">Add photo</div>
+                            </div>
+                            <div id="fillinPhotoPreviewContainer" class="image-preview-container" style="display: none;">
+                                <img id="fillinPhotoPreview" class="image-preview" style="border-radius: 50%; width: 100px; height: 100px;" alt="Preview">
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="form-group">
                         <label class="form-label">Full Name <span>*</span></label>
                         <input type="text" id="fillinName" name="full_name" class="form-input" required placeholder="John Smith">
@@ -1333,8 +1409,8 @@
 
         window.lookupFillinPin = async function() {
             const pin = document.getElementById('fillinPin').value.trim();
-            if (pin.length !== 5) {
-                alert('Please enter a 5-digit PIN');
+            if (pin.length !== 8) {
+                alert('Please enter an 8-digit PIN');
                 return;
             }
 
@@ -1357,6 +1433,44 @@
             }
         };
 
+        window.handleFillinPhotoChange = function(input) {
+            const file = input.files[0];
+            if (file) {
+                if (file.size > 5 * 1024 * 1024) {
+                    alert('Image must be less than 5MB');
+                    input.value = '';
+                    return;
+                }
+                selectedFillinPhoto = file;
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('fillinPhotoPreview').src = e.target.result;
+                    document.getElementById('fillinPhotoPreviewContainer').style.display = 'block';
+                    document.getElementById('fillinPhotoPlaceholder').style.display = 'none';
+                };
+                reader.readAsDataURL(file);
+            }
+        };
+
+        window.handleRegPhotoChange = function(input) {
+            const file = input.files[0];
+            if (file) {
+                if (file.size > 5 * 1024 * 1024) {
+                    alert('Image must be less than 5MB');
+                    input.value = '';
+                    return;
+                }
+                selectedRegPhoto = file;
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('regPhotoPreview').src = e.target.result;
+                    document.getElementById('regPhotoPreviewContainer').style.display = 'block';
+                    document.getElementById('regPhotoPlaceholder').style.display = 'none';
+                };
+                reader.readAsDataURL(file);
+            }
+        };
+
         window.submitFillin = async function(e) {
             e.preventDefault();
 
@@ -1368,6 +1482,19 @@
             btn.textContent = 'SIGNING UP...';
 
             try {
+                // Upload photo if selected
+                let photoUrl = '';
+                if (selectedFillinPhoto) {
+                    showLoading('Uploading photo...');
+                    try {
+                        photoUrl = await uploadImage(selectedFillinPhoto, 'players');
+                    } catch (uploadError) {
+                        console.error('Photo upload failed:', uploadError);
+                    }
+                    hideLoading();
+                }
+
+                showLoading('Signing up...');
                 const result = await callFunction('registerFillin', {
                     league_id: leagueId,
                     full_name: formData.get('full_name'),
@@ -1377,8 +1504,10 @@
                     avg_501: formData.get('avg_501') ? parseFloat(formData.get('avg_501')) : null,
                     avg_cricket: formData.get('avg_cricket') ? parseFloat(formData.get('avg_cricket')) : null,
                     sms_opt_in: formData.get('sms_opt_in') ? true : false,
-                    member_pin: memberData?.pin || null
+                    member_pin: memberData?.pin || null,
+                    photo_url: photoUrl
                 });
+                hideLoading();
 
                 if (!result.success) {
                     throw new Error(result.error || 'Fill-in signup failed');
@@ -1403,6 +1532,7 @@
                 `;
 
             } catch (error) {
+                hideLoading();
                 alert('Error: ' + error.message);
                 btn.disabled = false;
                 btn.textContent = 'SIGN UP AS FILL-IN';
@@ -1456,7 +1586,7 @@
                 <div class="pin-section">
                     <div class="pin-section-title">ALREADY A MEMBER? ENTER YOUR PIN</div>
                     <div class="pin-row">
-                        <input type="text" id="memberPin" class="pin-input" maxlength="5" placeholder="12345" inputmode="numeric">
+                        <input type="password" id="memberPin" class="pin-input" maxlength="8" placeholder="••••••••" inputmode="numeric" pattern="[0-9]*" autocomplete="off">
                         <button class="pin-btn" onclick="lookupPin()">GO</button>
                     </div>
                 </div>
@@ -1464,6 +1594,20 @@
                 <div class="divider"><span>OR REGISTER NEW</span></div>
 
                 <form id="registrationForm" onsubmit="submitRegistration(event)">
+                    <div class="form-group" style="text-align: center; margin-bottom: 20px;">
+                        <label class="form-label">Profile Photo (Optional)</label>
+                        <div class="image-uploader" id="regPhotoUploader" style="max-width: 120px; margin: 10px auto; border-radius: 50%; min-height: 120px; background: linear-gradient(135deg, var(--pink), var(--teal)); display: flex; align-items: center; justify-content: center; cursor: pointer; position: relative; overflow: hidden; border: 3px solid rgba(255,255,255,0.2);">
+                            <input type="file" id="regPhotoInput" accept="image/*" onchange="handleRegPhotoChange(this)" style="position: absolute; inset: 0; opacity: 0; cursor: pointer;">
+                            <div id="regPhotoPlaceholder" style="text-align: center; color: white;">
+                                <div style="font-size: 32px;">📷</div>
+                                <div style="font-size: 11px;">Add photo</div>
+                            </div>
+                            <div id="regPhotoPreviewContainer" style="display: none; width: 100%; height: 100%;">
+                                <img id="regPhotoPreview" style="border-radius: 50%; width: 100px; height: 100px; object-fit: cover;" alt="Preview">
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="form-group">
                         <label class="form-label">Full Name <span>*</span></label>
                         <input type="text" id="regName" name="full_name" class="form-input" required placeholder="John Smith">
@@ -1543,8 +1687,8 @@
 
         window.lookupPin = async function() {
             const pin = document.getElementById('memberPin').value.trim();
-            if (pin.length !== 5) {
-                alert('Please enter a 5-digit PIN');
+            if (pin.length !== 8) {
+                alert('Please enter an 8-digit PIN');
                 return;
             }
 
@@ -1579,6 +1723,19 @@
             btn.textContent = 'REGISTERING...';
 
             try {
+                // Upload photo if selected
+                let photoUrl = '';
+                if (selectedRegPhoto) {
+                    showLoading('Uploading photo...');
+                    try {
+                        photoUrl = await uploadImage(selectedRegPhoto, 'players');
+                    } catch (uploadError) {
+                        console.error('Photo upload failed:', uploadError);
+                    }
+                    hideLoading();
+                }
+
+                showLoading('Registering...');
                 const result = await callFunction('registerForLeague', {
                     league_id: leagueId,
                     full_name: formData.get('full_name'),
@@ -1587,8 +1744,10 @@
                     skill_level: formData.get('skill_level') || null,
                     sms_opt_in: formData.get('sms_opt_in') ? true : false,
                     payment_method: paymentMethod,
-                    member_pin: memberData?.pin || null
+                    member_pin: memberData?.pin || null,
+                    photo_url: photoUrl
                 });
+                hideLoading();
 
                 if (!result.success) {
                     throw new Error(result.error || 'Registration failed');
@@ -1603,6 +1762,7 @@
                 showSuccess(result);
 
             } catch (error) {
+                hideLoading();
                 alert('Error: ' + error.message);
                 btn.disabled = false;
                 btn.textContent = 'REGISTER';
@@ -1641,5 +1801,6 @@
         }
     </script>
     <script src="/js/nav-menu.js"></script>
+<script src="/js/feedback.js"></script>
 </body>
 </html>

@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Chat Room - BRDC</title>
+    <link rel="icon" type="image/png" href="/images/favicon.png">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#FF469A">
+    <link rel="stylesheet" href="/css/brdc-styles.css">
+    <link rel="stylesheet" href="/css/messaging.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700;800&display=swap');
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+        html, body { height: 100%; }
+        body {
+            background: linear-gradient(135deg, var(--bg-dark, #1a1a2e) 0%, #0f0f23 100%);
+            color: var(--text-primary, #f0f0f0);
+            display: flex;
+            flex-direction: column;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse at 20% 20%, rgba(255, 70, 154, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(145, 215, 235, 0.06) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .message-thread {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        .message-header {
+            background: var(--bg-panel, #16213e);
+            border-bottom: 3px solid var(--teal, #91D7EB);
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-shrink: 0;
+        }
+
+        .back-btn {
+            background: none;
+            border: none;
+            color: var(--text-primary, #f0f0f0);
+            font-size: 24px;
+            cursor: pointer;
+            padding: 4px 8px;
+        }
+
+        .room-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .room-icon.league { background: rgba(255, 70, 154, 0.2); }
+        .room-icon.team { background: rgba(145, 215, 235, 0.2); }
+        .room-icon.match { background: rgba(253, 216, 53, 0.2); }
+
+        .header-info {
+            flex: 1;
+        }
+
+        .header-name {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 18px;
+            color: var(--text-primary, #f0f0f0);
+        }
+
+        .header-meta {
+            font-size: 12px;
+            color: var(--text-dim, #8a8aa3);
+        }
+
+        .participants-btn {
+            background: none;
+            border: none;
+            color: var(--text-dim, #8a8aa3);
+            font-size: 20px;
+            cursor: pointer;
+            padding: 8px;
+        }
+
+        .participants-btn:hover {
+            color: var(--text-primary, #f0f0f0);
+        }
+
+        .message-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .message-input-area {
+            padding: 12px 16px;
+            padding-bottom: calc(12px + env(safe-area-inset-bottom, 0));
+            background: var(--bg-panel, #16213e);
+            border-top: 3px solid var(--teal, #91D7EB);
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+            flex-shrink: 0;
+        }
+
+        .message-input-area.archived {
+            justify-content: center;
+            color: var(--text-dim, #8a8aa3);
+            font-size: 14px;
+            padding: 16px;
+        }
+
+        .message-input {
+            flex: 1;
+            min-height: 44px;
+            max-height: 120px;
+            padding: 12px 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 22px;
+            color: var(--text-primary, #f0f0f0);
+            font-size: 15px;
+            resize: none;
+            outline: none;
+        }
+
+        .message-input:focus {
+            border-color: var(--teal, #91D7EB);
+        }
+
+        .send-btn {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: var(--teal, #91D7EB);
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            flex-shrink: 0;
+            transition: all 0.2s;
+        }
+
+        .send-btn:hover {
+            transform: scale(1.1);
+            background: var(--pink, #FF469A);
+        }
+
+        .send-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .loading-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+
+        /* Group message bubble shows sender name */
+        .message-bubble.received .message-sender {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div id="loadingContainer" class="loading-container">
+        <div class="typing-indicator">
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+        </div>
+    </div>
+
+    <div id="messageThread" class="message-thread" style="display: none;">
+        <div class="message-header">
+            <button class="back-btn" onclick="goBack()">←</button>
+            <div class="room-icon" id="roomIcon">🏆</div>
+            <div class="header-info">
+                <div class="header-name" id="headerName">Loading...</div>
+                <div class="header-meta" id="headerMeta">0 members</div>
+            </div>
+            <button class="participants-btn" onclick="showParticipants()">👥</button>
+        </div>
+
+        <!-- Pinned Messages Section -->
+        <div id="pinnedSection" class="pinned-section" style="display: none;">
+            <div class="pinned-title">📌 PINNED</div>
+            <div id="pinnedMessage" class="pinned-message"></div>
+        </div>
+
+        <div class="message-list" id="messageList"></div>
+
+        <div class="message-input-area" id="inputArea">
+            <textarea class="message-input" id="messageInput" placeholder="Type a message..." rows="1" oninput="autoResize(this)"></textarea>
+            <button class="send-btn" id="sendBtn" onclick="sendMessage()">➤</button>
+        </div>
+    </div>
+
+    <!-- Participants Modal -->
+    <div id="participantsModal" class="participants-modal">
+        <div class="participants-content">
+            <div class="participants-header">
+                <span class="participants-title">Participants</span>
+                <button class="close-btn" onclick="closeParticipants()" style="background:none;border:none;color:white;font-size:24px;cursor:pointer;">×</button>
+            </div>
+            <div id="participantsList" class="participants-list"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { db, collection, query, orderBy, onSnapshot, doc, getDoc, callFunction } from '/js/firebase-config.js';
+
+        // Dynamic import for push notifications (fail-safe)
+        let initializePushNotifications = async () => false;
+        try {
+            const pushModule = await import('/js/push-notifications.js');
+            initializePushNotifications = pushModule.initializePushNotifications;
+        } catch (e) {
+            console.warn('Push notifications not available:', e.message);
+        }
+
+        let roomId = null;
+        let playerPin = null;
+        let currentPlayerId = null;
+        let roomData = null;
+        let unsubscribeMessages = null;
+        let lastMessageDate = null;
+
+        // Get room ID from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        roomId = urlParams.get('id');
+
+        if (!roomId) {
+            alert('No chat room specified');
+            window.location.href = '/pages/messages.html';
+        }
+
+        // Check for stored PIN
+        window.addEventListener('DOMContentLoaded', async () => {
+            playerPin = localStorage.getItem('brdc_player_pin');
+
+            if (!playerPin) {
+                window.location.href = '/pages/messages.html';
+                return;
+            }
+
+            await loadChatRoom();
+
+            // Initialize push notifications silently
+            if (currentPlayerId) {
+                initializePushNotifications(currentPlayerId).catch(() => {});
+            }
+
+            // Enter key to send
+            document.getElementById('messageInput').addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                }
+            });
+        });
+
+        async function loadChatRoom() {
+            try {
+                const result = await callFunction('getChatRoomMessages', {
+                    room_id: roomId,
+                    player_pin: playerPin,
+                    limit: 50
+                });
+
+                if (result.success) {
+                    roomData = result.room;
+
+                    // Derive current player ID from messages or API
+                    if (result.messages && result.messages.length > 0) {
+                        const ownMessage = result.messages.find(m => m.is_own);
+                        if (ownMessage) currentPlayerId = ownMessage.sender_id;
+                    }
+
+                    // Update header
+                    document.getElementById('headerName').textContent = roomData.name;
+                    document.getElementById('headerMeta').textContent = `${roomData.participant_count} members`;
+
+                    // Set room icon
+                    const iconEl = document.getElementById('roomIcon');
+                    iconEl.className = `room-icon ${roomData.type}`;
+                    if (roomData.type === 'league') iconEl.textContent = '🏆';
+                    else if (roomData.type === 'team') iconEl.textContent = '👥';
+                    else if (roomData.type === 'match') iconEl.textContent = '🎯';
+
+                    // Handle archived rooms
+                    if (roomData.status === 'archived') {
+                        document.getElementById('inputArea').innerHTML = '<span>This chat has been archived</span>';
+                        document.getElementById('inputArea').classList.add('archived');
+                    }
+
+                    // Show the thread
+                    document.getElementById('loadingContainer').style.display = 'none';
+                    document.getElementById('messageThread').style.display = 'flex';
+
+                    // Render messages
+                    renderMessages(result.messages);
+
+                    // Load pinned messages
+                    loadPinnedMessages();
+
+                    // Setup real-time listener
+                    setupRealtimeListener();
+                } else {
+                    alert('Failed to load chat room');
+                    window.location.href = '/pages/messages.html';
+                }
+            } catch (error) {
+                console.error('Error loading chat room:', error);
+                alert('Error loading chat room');
+                window.location.href = '/pages/messages.html';
+            }
+        }
+
+        function setupRealtimeListener() {
+            const messagesRef = collection(db, 'chat_rooms', roomId, 'messages');
+            const q = query(messagesRef, orderBy('timestamp', 'asc'));
+
+            unsubscribeMessages = onSnapshot(q, (snapshot) => {
+                const messages = [];
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    messages.push({
+                        id: doc.id,
+                        ...data,
+                        timestamp: data.timestamp?.toDate?.()?.toISOString() || null,
+                        is_own: data.sender_id === currentPlayerId
+                    });
+                });
+                renderMessages(messages);
+
+                // Mark as read
+                callFunction('markChatRoomRead', {
+                    room_id: roomId,
+                    player_pin: playerPin
+                }).catch(console.error);
+            });
+        }
+
+        async function loadPinnedMessages() {
+            try {
+                const result = await callFunction('getPinnedMessages', {
+                    room_id: roomId,
+                    player_pin: playerPin
+                });
+
+                if (result.success && result.pinned_messages.length > 0) {
+                    const pinned = result.pinned_messages[0];
+                    document.getElementById('pinnedSection').style.display = 'block';
+                    document.getElementById('pinnedMessage').innerHTML = `
+                        <span class="pinned-message-sender">${pinned.sender_name}:</span>
+                        ${escapeHtml(pinned.text)}
+                    `;
+                }
+            } catch (error) {
+                console.error('Error loading pinned messages:', error);
+            }
+        }
+
+        function renderMessages(messages) {
+            const container = document.getElementById('messageList');
+            lastMessageDate = null;
+
+            if (!messages || messages.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state" style="margin-top: 40px;">
+                        <div class="empty-state-icon">💬</div>
+                        <div class="empty-state-title">No Messages Yet</div>
+                        <div class="empty-state-text">Be the first to say something!</div>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '';
+
+            messages.forEach(msg => {
+                // Date divider
+                const msgDate = msg.timestamp ? new Date(msg.timestamp).toDateString() : null;
+                if (msgDate && msgDate !== lastMessageDate) {
+                    html += `<div class="message-date-divider"><span>${formatDateDivider(msg.timestamp)}</span></div>`;
+                    lastMessageDate = msgDate;
+                }
+
+                // System messages
+                if (msg.type === 'system') {
+                    html += `
+                        <div class="message-bubble system">
+                            <div class="message-text">${escapeHtml(msg.text)}</div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                const bubbleClass = msg.is_own ? 'sent' : 'received';
+                const pinnedClass = msg.pinned ? 'pinned' : '';
+                const time = msg.timestamp ? formatMessageTime(msg.timestamp) : '';
+
+                html += `
+                    <div class="message-bubble ${bubbleClass} ${pinnedClass}">
+                        ${!msg.is_own ? `<div class="message-sender">${msg.sender_name}</div>` : ''}
+                        <div class="message-text">${escapeHtml(msg.text)}</div>
+                        <div class="message-time">${time}</div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+            container.scrollTop = container.scrollHeight;
+        }
+
+        window.sendMessage = async function() {
+            if (roomData?.status === 'archived') return;
+
+            const input = document.getElementById('messageInput');
+            const text = input.value.trim();
+
+            if (!text) return;
+
+            const sendBtn = document.getElementById('sendBtn');
+            sendBtn.disabled = true;
+
+            try {
+                const result = await callFunction('sendChatMessage', {
+                    room_id: roomId,
+                    sender_pin: playerPin,
+                    text: text
+                });
+
+                if (result.success) {
+                    input.value = '';
+                    input.style.height = 'auto';
+                }
+            } catch (error) {
+                console.error('Error sending message:', error);
+                alert('Failed to send message');
+            } finally {
+                sendBtn.disabled = false;
+            }
+        };
+
+        window.showParticipants = async function() {
+            document.getElementById('participantsModal').classList.add('active');
+
+            // Load participants from room document
+            try {
+                const roomDoc = await getDoc(doc(db, 'chat_rooms', roomId));
+                if (roomDoc.exists()) {
+                    const data = roomDoc.data();
+                    const participants = data.participants || [];
+                    const admins = data.admins || [];
+
+                    // We need to fetch player names
+                    // For now, show participant count
+                    let html = '';
+
+                    // This would ideally fetch all participant details
+                    // For simplicity, showing a basic list
+                    html = `
+                        <div style="padding: 16px; text-align: center; color: var(--text-dim);">
+                            ${participants.length} participants in this chat
+                        </div>
+                    `;
+
+                    // If we have last_message info with names, we could build a list
+                    document.getElementById('participantsList').innerHTML = html;
+                }
+            } catch (error) {
+                console.error('Error loading participants:', error);
+            }
+        };
+
+        window.closeParticipants = function() {
+            document.getElementById('participantsModal').classList.remove('active');
+        };
+
+        window.goBack = function() {
+            window.location.href = '/pages/messages.html';
+        };
+
+        window.autoResize = function(textarea) {
+            textarea.style.height = 'auto';
+            textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+        };
+
+        // Helpers
+        function formatDateDivider(isoString) {
+            if (!isoString) return '';
+            const date = new Date(isoString);
+            const today = new Date();
+            const yesterday = new Date(today);
+            yesterday.setDate(yesterday.getDate() - 1);
+
+            if (date.toDateString() === today.toDateString()) return 'Today';
+            if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+
+            return date.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+        }
+
+        function formatMessageTime(isoString) {
+            if (!isoString) return '';
+            const date = new Date(isoString);
+            return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Cleanup
+        window.addEventListener('beforeunload', () => {
+            if (unsubscribeMessages) unsubscribeMessages();
+        });
+    </script>
+<script src="/js/feedback.js"></script>
+</body>
+</html>

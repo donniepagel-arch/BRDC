@@ -7,7 +7,7 @@ const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 
 // Admin PIN from environment variable (set in .env file)
-const ADMIN_PIN = process.env.ADMIN_PIN || functions.config().admin?.pin;
+const ADMIN_PIN = process.env.ADMIN_PIN;
 
 /**
  * Verify admin PIN
@@ -1317,7 +1317,7 @@ exports.adminCreateBotFromPlayer = functions.https.onRequest(async (req, res) =>
 
         // Calculate X01 skills from player stats
         const x01Skills = {
-            three_dart_avg: 55, // default
+            x01_three_dart_avg: 55, // default
             pct_100_plus: 25,
             pct_140_plus: 8,
             pct_171_plus: 1,
@@ -1330,7 +1330,7 @@ exports.adminCreateBotFromPlayer = functions.https.onRequest(async (req, res) =>
 
         // Calculate 3-dart average
         if (playerStats.x01_total_darts > 0 && playerStats.x01_total_points > 0) {
-            x01Skills.three_dart_avg = Math.round(playerStats.x01_total_points / playerStats.x01_total_darts * 3);
+            x01Skills.x01_three_dart_avg = Math.round(playerStats.x01_total_points / playerStats.x01_total_darts * 3);
         }
 
         // Calculate ton percentages (turns based - estimate from leg data)
@@ -1406,7 +1406,7 @@ exports.adminCreateBotFromPlayer = functions.https.onRequest(async (req, res) =>
 
         // Clamp all values to valid ranges
         const clamp = (val, min, max) => Math.max(min, Math.min(max, val));
-        x01Skills.three_dart_avg = clamp(x01Skills.three_dart_avg, 20, 120);
+        x01Skills.x01_three_dart_avg = clamp(x01Skills.x01_three_dart_avg, 20, 120);
         x01Skills.pct_100_plus = clamp(x01Skills.pct_100_plus, 0, 100);
         x01Skills.pct_140_plus = clamp(x01Skills.pct_140_plus, 0, 100);
         x01Skills.pct_171_plus = clamp(x01Skills.pct_171_plus, 0, 100);
@@ -1463,7 +1463,7 @@ exports.adminCreateBotFromPlayer = functions.https.onRequest(async (req, res) =>
             source_player: playerName,
             source_stats: {
                 x01_legs_played: playerStats.x01_legs_played || 0,
-                x01_3da: x01Skills.three_dart_avg,
+                x01_three_dart_avg: x01Skills.x01_three_dart_avg,
                 cricket_legs_played: playerStats.cricket_legs_played || 0
             }
         });

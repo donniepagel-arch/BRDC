@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Register - Matchmaker Tournament</title>
+    <link rel="icon" type="image/png" href="/images/favicon.png">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700;800&display=swap');
+
+        :root {
+            --pink: #FF469A;
+            --teal: #91D7EB;
+            --yellow: #FDD835;
+            --black: #1a1a2e;
+            --blue-dark: #0f0f1a;
+            --bg-panel: #16213e;
+            --text-light: #ffffff;
+            --text-dim: #a0a0b0;
+            --heart: #ff6b6b;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, var(--black) 0%, var(--blue-dark) 100%);
+            min-height: 100vh;
+            color: var(--text-light);
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse at 20% 20%, rgba(255, 70, 154, 0.1) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(255, 107, 107, 0.08) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .header-bar {
+            background: var(--bg-panel);
+            border-bottom: 3px solid var(--pink);
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .back-btn {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border: 2px solid rgba(255,255,255,0.3);
+            padding: 10px 16px;
+            font-weight: 700;
+            cursor: pointer;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .header-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 24px;
+            letter-spacing: 2px;
+            color: var(--pink);
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 30px 20px;
+        }
+
+        .tournament-banner {
+            background: linear-gradient(135deg, var(--pink), #cc3879);
+            border: 4px solid #000;
+            padding: 30px;
+            text-align: center;
+            margin-bottom: 30px;
+            box-shadow: 8px 8px 0 rgba(0,0,0,0.5);
+        }
+
+        .tournament-name {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 36px;
+            letter-spacing: 3px;
+            color: white;
+            text-shadow: 3px 3px 0 rgba(0,0,0,0.3);
+        }
+
+        .tournament-details {
+            margin-top: 10px;
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        /* Registration Status */
+        .status-card {
+            background: var(--bg-panel);
+            border: 3px solid #000;
+            padding: 20px;
+            margin-bottom: 25px;
+            box-shadow: 6px 6px 0 rgba(0,0,0,0.4);
+        }
+
+        .status-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 18px;
+            letter-spacing: 2px;
+            color: var(--teal);
+            margin-bottom: 15px;
+        }
+
+        .status-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .status-row:last-child { border-bottom: none; }
+
+        .status-label { color: var(--text-dim); }
+        .status-value { font-weight: 700; font-size: 18px; }
+        .status-value.pink { color: var(--pink); }
+        .status-value.teal { color: var(--teal); }
+
+        .balance-alert {
+            margin-top: 15px;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .balance-alert.warning {
+            background: rgba(253, 216, 53, 0.2);
+            border: 2px solid var(--yellow);
+            color: var(--yellow);
+        }
+
+        .balance-alert.good {
+            background: rgba(34, 197, 94, 0.2);
+            border: 2px solid #22c55e;
+            color: #22c55e;
+        }
+
+        /* Registration Type Toggle */
+        .type-toggle {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .type-option {
+            flex: 1;
+            background: var(--bg-panel);
+            border: 3px solid rgba(255,255,255,0.2);
+            padding: 25px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 5px 5px 0 rgba(0,0,0,0.3);
+        }
+
+        .type-option:hover {
+            border-color: var(--pink);
+        }
+
+        .type-option.selected {
+            border-color: var(--pink);
+            background: rgba(255, 70, 154, 0.15);
+            box-shadow: 0 0 20px rgba(255, 70, 154, 0.3);
+        }
+
+        .type-icon {
+            font-size: 40px;
+            margin-bottom: 10px;
+        }
+
+        .type-label {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 20px;
+            letter-spacing: 2px;
+        }
+
+        .type-desc {
+            font-size: 12px;
+            color: var(--text-dim);
+            margin-top: 5px;
+        }
+
+        /* Form Sections */
+        .form-section {
+            background: var(--bg-panel);
+            border: 3px solid #000;
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 6px 6px 0 rgba(0,0,0,0.4);
+        }
+
+        .section-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 20px;
+            letter-spacing: 2px;
+            color: var(--teal);
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .form-group {
+            flex: 1;
+        }
+
+        .form-group.full { flex: 1 0 100%; }
+
+        .form-label {
+            display: block;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-dim);
+            margin-bottom: 6px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 14px;
+            background: rgba(255,255,255,0.1);
+            border: 2px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            color: white;
+            font-size: 16px;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--pink);
+        }
+
+        .form-input::placeholder {
+            color: rgba(255,255,255,0.4);
+        }
+
+        /* Gender Toggle */
+        .gender-toggle {
+            display: flex;
+            gap: 10px;
+        }
+
+        .gender-option {
+            flex: 1;
+            padding: 15px;
+            background: rgba(255,255,255,0.1);
+            border: 2px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .gender-option:hover {
+            border-color: var(--pink);
+        }
+
+        .gender-option.selected {
+            border-color: var(--pink);
+            background: rgba(255, 70, 154, 0.2);
+        }
+
+        .gender-option .icon {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+
+        .gender-option .label {
+            font-weight: 700;
+            font-size: 14px;
+        }
+
+        /* Submit Button */
+        .submit-btn {
+            width: 100%;
+            padding: 20px;
+            background: linear-gradient(135deg, var(--pink), #cc3879);
+            border: 4px solid #000;
+            color: white;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 24px;
+            letter-spacing: 3px;
+            cursor: pointer;
+            box-shadow: 6px 6px 0 rgba(0,0,0,0.5);
+            transition: all 0.2s;
+        }
+
+        .submit-btn:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: 8px 8px 0 rgba(0,0,0,0.5);
+        }
+
+        .submit-btn:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Messages */
+        .message {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+
+        .message.success {
+            background: rgba(34, 197, 94, 0.2);
+            border: 2px solid #22c55e;
+            color: #22c55e;
+        }
+
+        .message.error {
+            background: rgba(239, 68, 68, 0.2);
+            border: 2px solid #ef4444;
+            color: #ef4444;
+        }
+
+        .hidden { display: none !important; }
+
+        @media (max-width: 500px) {
+            .form-row { flex-direction: column; }
+            .type-toggle { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header-bar">
+        <button class="back-btn" onclick="history.back()">BACK</button>
+        <span class="header-title">REGISTER</span>
+    </div>
+
+    <div class="container">
+        <div class="tournament-banner">
+            <div class="tournament-name" id="tournamentName">Loading...</div>
+            <div class="tournament-details" id="tournamentDetails"></div>
+        </div>
+
+        <div class="status-card" id="statusCard">
+            <div class="status-title">REGISTRATION STATUS</div>
+            <div class="status-row">
+                <span class="status-label">Teams Registered</span>
+                <span class="status-value" id="teamsCount">0</span>
+            </div>
+            <div class="status-row">
+                <span class="status-label">Male Singles</span>
+                <span class="status-value teal" id="malesCount">0</span>
+            </div>
+            <div class="status-row">
+                <span class="status-label">Female Singles</span>
+                <span class="status-value pink" id="femalesCount">0</span>
+            </div>
+            <div id="balanceAlert"></div>
+        </div>
+
+        <div id="messageBox" class="message hidden"></div>
+
+        <!-- Registration Type Toggle -->
+        <div class="type-toggle">
+            <div class="type-option selected" data-type="single" onclick="selectType('single')">
+                <div class="type-icon">💘</div>
+                <div class="type-label">FIND ME A PARTNER</div>
+                <div class="type-desc">Get randomly matched</div>
+            </div>
+            <div class="type-option" data-type="team" onclick="selectType('team')">
+                <div class="type-icon">💑</div>
+                <div class="type-label">WE'RE A TEAM</div>
+                <div class="type-desc">Already have a partner</div>
+            </div>
+        </div>
+
+        <!-- Single Registration Form -->
+        <div id="singleForm">
+            <div class="form-section">
+                <div class="section-title">YOUR INFO</div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">First Name *</label>
+                        <input type="text" class="form-input" id="singleFirstName" placeholder="Your first name">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Last Name *</label>
+                        <input type="text" class="form-input" id="singleLastName" placeholder="Your last name">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Gender *</label>
+                    <div class="gender-toggle">
+                        <div class="gender-option" data-gender="M" onclick="selectGender(this, 'single')">
+                            <div class="icon">♂️</div>
+                            <div class="label">MALE</div>
+                        </div>
+                        <div class="gender-option" data-gender="F" onclick="selectGender(this, 'single')">
+                            <div class="icon">♀️</div>
+                            <div class="label">FEMALE</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-row" style="margin-top: 15px;">
+                    <div class="form-group">
+                        <label class="form-label">Email</label>
+                        <input type="email" class="form-input" id="singleEmail" placeholder="your@email.com">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Phone</label>
+                        <input type="tel" class="form-input" id="singlePhone" placeholder="555-123-4567">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Player ID (if you have one)</label>
+                    <input type="text" class="form-input" id="singlePlayerId" placeholder="Your 8-digit PIN">
+                </div>
+            </div>
+
+            <button class="submit-btn" onclick="submitSingleRegistration()">
+                FIND MY MATCH 💘
+            </button>
+        </div>
+
+        <!-- Team Registration Form -->
+        <div id="teamForm" class="hidden">
+            <div class="form-section">
+                <div class="section-title">TEAM NAME (OPTIONAL)</div>
+                <div class="form-group">
+                    <input type="text" class="form-input" id="teamName" placeholder="e.g., Love Birds">
+                </div>
+            </div>
+
+            <div class="form-section">
+                <div class="section-title">PLAYER 1</div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">First Name *</label>
+                        <input type="text" class="form-input" id="p1FirstName" placeholder="First name">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Last Name *</label>
+                        <input type="text" class="form-input" id="p1LastName" placeholder="Last name">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Gender *</label>
+                    <div class="gender-toggle" id="p1GenderToggle">
+                        <div class="gender-option" data-gender="M" onclick="selectGender(this, 'p1')">
+                            <div class="icon">♂️</div>
+                            <div class="label">MALE</div>
+                        </div>
+                        <div class="gender-option" data-gender="F" onclick="selectGender(this, 'p1')">
+                            <div class="icon">♀️</div>
+                            <div class="label">FEMALE</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-top: 15px;">
+                    <label class="form-label">Player ID (if they have one)</label>
+                    <input type="text" class="form-input" id="p1PlayerId" placeholder="8-digit PIN">
+                </div>
+            </div>
+
+            <div class="form-section">
+                <div class="section-title">PLAYER 2</div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">First Name *</label>
+                        <input type="text" class="form-input" id="p2FirstName" placeholder="First name">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Last Name *</label>
+                        <input type="text" class="form-input" id="p2LastName" placeholder="Last name">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Gender *</label>
+                    <div class="gender-toggle" id="p2GenderToggle">
+                        <div class="gender-option" data-gender="M" onclick="selectGender(this, 'p2')">
+                            <div class="icon">♂️</div>
+                            <div class="label">MALE</div>
+                        </div>
+                        <div class="gender-option" data-gender="F" onclick="selectGender(this, 'p2')">
+                            <div class="icon">♀️</div>
+                            <div class="label">FEMALE</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-top: 15px;">
+                    <label class="form-label">Player ID (if they have one)</label>
+                    <input type="text" class="form-input" id="p2PlayerId" placeholder="8-digit PIN">
+                </div>
+            </div>
+
+            <button class="submit-btn" onclick="submitTeamRegistration()">
+                REGISTER OUR TEAM 💑
+            </button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { db, doc, getDoc, callFunction } from '/js/firebase-config.js';
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const tournamentId = urlParams.get('id');
+
+        let tournamentData = null;
+        let selectedType = 'single';
+        let selectedGenders = {
+            single: null,
+            p1: null,
+            p2: null
+        };
+
+        window.onload = async function() {
+            if (!tournamentId) {
+                showMessage('Missing tournament ID', 'error');
+                return;
+            }
+            await loadTournament();
+            await loadStatus();
+        };
+
+        async function loadTournament() {
+            try {
+                const tournamentDoc = await getDoc(doc(db, 'tournaments', tournamentId));
+                if (!tournamentDoc.exists()) {
+                    showMessage('Tournament not found', 'error');
+                    return;
+                }
+
+                tournamentData = tournamentDoc.data();
+                document.getElementById('tournamentName').textContent = tournamentData.tournament_name;
+
+                const date = new Date(tournamentData.tournament_date);
+                const details = `${date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })} @ ${tournamentData.tournament_time || 'TBD'} - ${tournamentData.venue_name || 'TBD'}`;
+                document.getElementById('tournamentDetails').textContent = details;
+
+            } catch (error) {
+                console.error('Error loading tournament:', error);
+                showMessage('Failed to load tournament', 'error');
+            }
+        }
+
+        async function loadStatus() {
+            try {
+                const result = await callFunction('getMatchmakerStatus', { tournament_id: tournamentId });
+
+                if (result.success) {
+                    document.getElementById('teamsCount').textContent = result.counts.teams;
+                    document.getElementById('malesCount').textContent = result.counts.singles_male;
+                    document.getElementById('femalesCount').textContent = result.counts.singles_female;
+
+                    const alertBox = document.getElementById('balanceAlert');
+                    if (result.balance.need_more) {
+                        alertBox.className = 'balance-alert warning';
+                        alertBox.innerHTML = `⚠️ Need ${result.balance.need_more.count} more ${result.balance.need_more.gender}${result.balance.need_more.count > 1 ? 's' : ''} to balance singles`;
+                    } else if (result.counts.singles_male > 0 || result.counts.singles_female > 0) {
+                        alertBox.className = 'balance-alert good';
+                        alertBox.innerHTML = '✓ Singles are balanced!';
+                    } else {
+                        alertBox.innerHTML = '';
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading status:', error);
+            }
+        }
+
+        window.selectType = function(type) {
+            selectedType = type;
+
+            document.querySelectorAll('.type-option').forEach(el => {
+                el.classList.toggle('selected', el.dataset.type === type);
+            });
+
+            document.getElementById('singleForm').classList.toggle('hidden', type !== 'single');
+            document.getElementById('teamForm').classList.toggle('hidden', type !== 'team');
+        };
+
+        window.selectGender = function(element, prefix) {
+            const gender = element.dataset.gender;
+            selectedGenders[prefix] = gender;
+
+            const container = element.parentElement;
+            container.querySelectorAll('.gender-option').forEach(el => {
+                el.classList.toggle('selected', el.dataset.gender === gender);
+            });
+        };
+
+        window.submitSingleRegistration = async function() {
+            const firstName = document.getElementById('singleFirstName').value.trim();
+            const lastName = document.getElementById('singleLastName').value.trim();
+            const gender = selectedGenders.single;
+
+            if (!firstName || !lastName) {
+                showMessage('Please enter your name', 'error');
+                return;
+            }
+
+            if (!gender) {
+                showMessage('Please select your gender', 'error');
+                return;
+            }
+
+            try {
+                const result = await callFunction('matchmakerRegister', {
+                    tournament_id: tournamentId,
+                    registration_type: 'single',
+                    player: {
+                        name: `${firstName} ${lastName}`,
+                        gender: gender,
+                        player_id: document.getElementById('singlePlayerId').value.trim() || null
+                    }
+                });
+
+                if (result.success) {
+                    showMessage('You\'re registered! You\'ll be matched with a partner before the tournament starts.', 'success');
+                    await loadStatus();
+                    // Clear form
+                    document.getElementById('singleFirstName').value = '';
+                    document.getElementById('singleLastName').value = '';
+                    selectedGenders.single = null;
+                    document.querySelectorAll('#singleForm .gender-option').forEach(el => el.classList.remove('selected'));
+                } else {
+                    showMessage(result.error || 'Registration failed', 'error');
+                }
+            } catch (error) {
+                console.error('Registration error:', error);
+                showMessage('Registration failed: ' + error.message, 'error');
+            }
+        };
+
+        window.submitTeamRegistration = async function() {
+            const p1First = document.getElementById('p1FirstName').value.trim();
+            const p1Last = document.getElementById('p1LastName').value.trim();
+            const p2First = document.getElementById('p2FirstName').value.trim();
+            const p2Last = document.getElementById('p2LastName').value.trim();
+            const p1Gender = selectedGenders.p1;
+            const p2Gender = selectedGenders.p2;
+
+            if (!p1First || !p1Last || !p2First || !p2Last) {
+                showMessage('Please enter both players\' names', 'error');
+                return;
+            }
+
+            if (!p1Gender || !p2Gender) {
+                showMessage('Please select gender for both players', 'error');
+                return;
+            }
+
+            // Validate mixed doubles
+            if (p1Gender === p2Gender) {
+                showMessage('Mixed doubles requires one male and one female player', 'error');
+                return;
+            }
+
+            try {
+                const result = await callFunction('matchmakerRegister', {
+                    tournament_id: tournamentId,
+                    registration_type: 'team',
+                    team_name: document.getElementById('teamName').value.trim() || null,
+                    player1: {
+                        name: `${p1First} ${p1Last}`,
+                        gender: p1Gender,
+                        player_id: document.getElementById('p1PlayerId').value.trim() || null
+                    },
+                    player2: {
+                        name: `${p2First} ${p2Last}`,
+                        gender: p2Gender,
+                        player_id: document.getElementById('p2PlayerId').value.trim() || null
+                    }
+                });
+
+                if (result.success) {
+                    showMessage('Your team is registered! See you at the tournament.', 'success');
+                    await loadStatus();
+                } else {
+                    showMessage(result.error || 'Registration failed', 'error');
+                }
+            } catch (error) {
+                console.error('Registration error:', error);
+                showMessage('Registration failed: ' + error.message, 'error');
+            }
+        };
+
+        function showMessage(text, type) {
+            const box = document.getElementById('messageBox');
+            box.textContent = text;
+            box.className = `message ${type}`;
+            box.classList.remove('hidden');
+
+            if (type === 'success') {
+                setTimeout(() => box.classList.add('hidden'), 5000);
+            }
+        }
+    </script>
+</body>
+</html>

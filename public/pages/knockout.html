@@ -1,0 +1,1094 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Knockout Bracket - BRDC</title>
+    <link rel="icon" type="image/png" href="/images/favicon.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+        :root {
+            --pink: #FF469A;
+            --teal: #91D7EB;
+            --yellow: #FDD835;
+            --bg-dark: #1a1a2e;
+            --bg-panel: #16213e;
+            --green: #4CAF50;
+            --gray: #6B7280;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html, body {
+            min-height: 100%;
+            overflow-x: hidden;
+            width: 100%;
+        }
+
+        body {
+            background: linear-gradient(135deg, var(--bg-dark) 0%, #0f0f23 100%);
+            color: white;
+            padding-bottom: 30px;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse at 20% 20%, rgba(255, 70, 154, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(145, 215, 235, 0.06) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .header-bar {
+            background: var(--bg-panel);
+            border-bottom: 3px solid var(--pink);
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .back-btn {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border: 2px solid rgba(255,255,255,0.3);
+            padding: 8px 14px;
+            font-weight: 700;
+            cursor: pointer;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .back-btn:active {
+            background: rgba(255,255,255,0.2);
+        }
+
+        .header-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 24px;
+            letter-spacing: 2px;
+            color: var(--pink);
+        }
+
+        .header-info {
+            font-size: 12px;
+            color: var(--teal);
+            font-weight: 600;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 15px;
+        }
+
+        /* SHUFFLE/START SECTION */
+        .shuffle-section {
+            background: var(--bg-panel);
+            border: 3px solid var(--yellow);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            text-align: center;
+            box-shadow: 4px 4px 0 rgba(0,0,0,0.4);
+        }
+
+        .shuffle-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 22px;
+            color: var(--yellow);
+            margin-bottom: 10px;
+            letter-spacing: 1px;
+        }
+
+        .shuffle-subtitle {
+            color: rgba(255,255,255,0.7);
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+
+        .shuffle-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .shuffle-btn {
+            background: rgba(253,216,53,0.2);
+            color: var(--yellow);
+            border: 2px solid var(--yellow);
+            padding: 12px 24px;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 18px;
+            letter-spacing: 1px;
+            cursor: pointer;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .shuffle-btn:active {
+            transform: scale(0.98);
+        }
+
+        .start-btn {
+            background: var(--pink);
+            color: white;
+            border: 2px solid rgba(255,255,255,0.3);
+            padding: 12px 24px;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 18px;
+            letter-spacing: 1px;
+            cursor: pointer;
+            border-radius: 8px;
+        }
+
+        .start-btn:active {
+            transform: scale(0.98);
+        }
+
+        /* CHAMPION BANNER */
+        .champion-banner {
+            display: none;
+            background: linear-gradient(135deg, var(--yellow) 0%, #FFA000 100%);
+            border: 3px solid #000;
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            margin-bottom: 20px;
+            box-shadow: 4px 4px 0 rgba(0,0,0,0.4);
+        }
+
+        .champion-banner.active {
+            display: block;
+        }
+
+        .champion-trophy {
+            font-size: 50px;
+        }
+
+        .champion-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 36px;
+            color: #000;
+            letter-spacing: 2px;
+        }
+
+        .champion-name {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 28px;
+            color: var(--pink);
+            text-shadow: 2px 2px 0 rgba(0,0,0,0.2);
+        }
+
+        /* BRACKET */
+        .bracket-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 15px;
+        }
+
+        @media (max-width: 600px) {
+            .bracket-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .round {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .round-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 16px;
+            color: var(--teal);
+            text-align: center;
+            background: rgba(145,215,235,0.1);
+            border: 2px solid var(--teal);
+            border-radius: 6px;
+            padding: 8px;
+            letter-spacing: 1px;
+        }
+
+        .match-card {
+            background: var(--bg-panel);
+            border: 2px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            overflow: hidden;
+            transition: all 0.2s;
+        }
+
+        .match-card.clickable {
+            cursor: pointer;
+            border-color: var(--pink);
+            box-shadow: 0 0 0 2px rgba(255,70,154,0.3);
+        }
+
+        .match-card.clickable:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 0 3px rgba(255,70,154,0.5), 0 4px 15px rgba(0,0,0,0.3);
+        }
+
+        .match-card.completed {
+            opacity: 0.7;
+        }
+
+        .match-card.waiting {
+            opacity: 0.4;
+        }
+
+        .match-number {
+            background: rgba(0,0,0,0.3);
+            padding: 4px 10px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: rgba(255,255,255,0.6);
+            letter-spacing: 1px;
+        }
+
+        .match-teams {
+            padding: 10px;
+        }
+
+        .match-team {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 10px;
+            margin-bottom: 5px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 4px;
+            border: 2px solid transparent;
+        }
+
+        .match-team:last-child {
+            margin-bottom: 0;
+        }
+
+        .match-team.winner {
+            background: rgba(76,175,80,0.3);
+            border-color: var(--green);
+        }
+
+        .match-team.loser {
+            opacity: 0.5;
+        }
+
+        .match-team.tbd {
+            font-style: italic;
+            color: rgba(255,255,255,0.4);
+        }
+
+        .team-name {
+            font-weight: 700;
+            font-size: 13px;
+        }
+
+        .team-score {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 18px;
+            color: var(--teal);
+        }
+
+        .edit-team-btn {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: rgba(255,255,255,0.6);
+            font-size: 12px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 6px;
+        }
+
+        .edit-team-btn:hover {
+            background: rgba(255,255,255,0.2);
+            color: white;
+        }
+
+        .match-status {
+            text-align: center;
+            padding: 6px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .match-status.ready {
+            background: rgba(255,70,154,0.2);
+            color: var(--pink);
+        }
+
+        .match-status.complete {
+            background: rgba(76,175,80,0.2);
+            color: var(--green);
+        }
+
+        .match-status.waiting-status {
+            background: rgba(255,255,255,0.05);
+            color: rgba(255,255,255,0.4);
+        }
+
+        /* Loading */
+        .loading {
+            text-align: center;
+            padding: 60px 20px;
+            color: rgba(255,255,255,0.6);
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255,255,255,0.1);
+            border-top-color: var(--pink);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Error */
+        .error-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #ef4444;
+        }
+
+        .error-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+
+        /* VIEW TOGGLE */
+        .view-toggle {
+            display: flex;
+            gap: 5px;
+            background: rgba(0,0,0,0.3);
+            padding: 4px;
+            border-radius: 6px;
+        }
+
+        .view-btn {
+            background: transparent;
+            border: none;
+            color: rgba(255,255,255,0.5);
+            padding: 6px 12px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .view-btn.active {
+            background: var(--pink);
+            color: white;
+        }
+
+        .view-btn:hover:not(.active) {
+            color: white;
+            background: rgba(255,255,255,0.1);
+        }
+
+        /* TREE VIEW STYLES */
+        .bracket-tree {
+            display: none;
+            overflow-x: auto;
+            padding: 20px 10px;
+        }
+
+        .bracket-tree.active {
+            display: block;
+        }
+
+        .bracket-container.list-view {
+            display: grid;
+        }
+
+        .bracket-container.tree-view {
+            display: none;
+        }
+
+        .tree-wrapper {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            min-width: fit-content;
+            gap: 20px;
+        }
+
+        .tree-round {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            min-width: 150px;
+        }
+
+        .tree-round-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 12px;
+            color: var(--teal);
+            text-align: center;
+            letter-spacing: 1px;
+            margin-bottom: 5px;
+        }
+
+        .tree-matches {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-around;
+            height: 100%;
+            gap: 15px;
+        }
+
+        .tree-match {
+            background: var(--bg-panel);
+            border: 2px solid rgba(255,255,255,0.2);
+            border-radius: 6px;
+            padding: 8px;
+            font-size: 11px;
+            position: relative;
+        }
+
+        .tree-match.clickable {
+            border-color: var(--pink);
+            cursor: pointer;
+        }
+
+        .tree-match.completed {
+            opacity: 0.7;
+        }
+
+        .tree-match.waiting {
+            opacity: 0.4;
+        }
+
+        .tree-team {
+            padding: 4px 6px;
+            margin: 2px 0;
+            background: rgba(255,255,255,0.05);
+            border-radius: 3px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .tree-team.winner {
+            background: rgba(76,175,80,0.3);
+            border: 1px solid var(--green);
+        }
+
+        .tree-team-name {
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100px;
+        }
+
+        .tree-team-score {
+            font-family: 'Bebas Neue', cursive;
+            color: var(--teal);
+            font-size: 14px;
+        }
+
+        .tree-connector {
+            width: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .tree-line {
+            width: 2px;
+            background: rgba(255,255,255,0.2);
+            flex: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="header-bar">
+        <div class="header-left">
+            <button class="back-btn" onclick="goBack()">← BACK</button>
+            <div>
+                <div class="header-title" id="knockoutTitle">KNOCKOUT</div>
+                <div class="header-info" id="knockoutInfo">Loading...</div>
+            </div>
+        </div>
+        <div class="view-toggle" id="viewToggle" style="display: none;">
+            <button class="view-btn active" data-view="list" onclick="setView('list')">LIST</button>
+            <button class="view-btn" data-view="tree" onclick="setView('tree')">TREE</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Loading State -->
+        <div id="loadingState" class="loading">
+            <div class="loading-spinner"></div>
+            <div>Loading bracket...</div>
+        </div>
+
+        <!-- Error State -->
+        <div id="errorState" class="error-state" style="display: none;">
+            <div class="error-icon">⚠️</div>
+            <div id="errorMessage">Failed to load knockout</div>
+            <div style="margin-top: 15px; display: flex; gap: 10px; justify-content: center;">
+                <button class="back-btn" onclick="location.reload()">🔄 RETRY</button>
+                <button class="back-btn" onclick="goBack()">← BACK</button>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div id="mainContent" style="display: none;">
+            <!-- Shuffle Section (shown before any matches played) -->
+            <div class="shuffle-section" id="shuffleSection" style="display: none;">
+                <div class="shuffle-title">BRACKET NOT STARTED</div>
+                <div class="shuffle-subtitle">Shuffle teams to randomize matchups, or start with current order</div>
+                <div class="shuffle-buttons">
+                    <button class="shuffle-btn" onclick="shuffleTeams()">
+                        🔀 SHUFFLE TEAMS
+                    </button>
+                    <button class="start-btn" onclick="startBracket()">
+                        ▶️ START BRACKET
+                    </button>
+                </div>
+            </div>
+
+            <!-- Champion Banner -->
+            <div class="champion-banner" id="championBanner">
+                <div class="champion-trophy">🏆</div>
+                <div class="champion-title">CHAMPION</div>
+                <div class="champion-name" id="championName">—</div>
+            </div>
+
+            <!-- Bracket List View -->
+            <div class="bracket-container list-view" id="bracketList">
+                <div class="round" id="quarterfinalsRound">
+                    <div class="round-title">QUARTERFINALS</div>
+                </div>
+                <div class="round" id="semifinalsRound">
+                    <div class="round-title">SEMIFINALS</div>
+                </div>
+                <div class="round" id="finalRound">
+                    <div class="round-title">FINAL</div>
+                </div>
+            </div>
+
+            <!-- Bracket Tree View -->
+            <div class="bracket-tree" id="bracketTree"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { callFunction } from '/js/firebase-config.js';
+
+        let currentKnockout = null;
+        let knockoutId = null;
+        let bracketStarted = false;
+
+        // Get knockout ID from URL
+        function getKnockoutIdFromUrl() {
+            const params = new URLSearchParams(window.location.search);
+            return params.get('id');
+        }
+
+        // Load knockout data
+        async function loadKnockout(id) {
+            try {
+                const result = await callFunction('getKnockout', { id });
+
+                if (result.success) {
+                    currentKnockout = result.knockout;
+                    knockoutId = id;
+
+                    // Store in localStorage for scorer to find
+                    localStorage.setItem('currentKnockoutId', id);
+
+                    showContent();
+                    renderKnockout();
+                } else {
+                    showError(result.error || 'Knockout not found');
+                }
+            } catch (error) {
+                console.error('Error loading knockout:', error);
+                showError(error.message || 'Failed to load knockout');
+            }
+        }
+
+        // Show main content
+        function showContent() {
+            document.getElementById('loadingState').style.display = 'none';
+            document.getElementById('errorState').style.display = 'none';
+            document.getElementById('mainContent').style.display = 'block';
+        }
+
+        // Show error state
+        function showError(message) {
+            document.getElementById('loadingState').style.display = 'none';
+            document.getElementById('errorState').style.display = 'block';
+            document.getElementById('mainContent').style.display = 'none';
+            if (message) {
+                document.getElementById('errorMessage').textContent = message;
+            }
+        }
+
+        // Check if bracket has started (any match completed)
+        function hasBracketStarted() {
+            if (!currentKnockout || !currentKnockout.bracket) return false;
+
+            const bracket = currentKnockout.bracket;
+
+            // Check if any match has been completed
+            for (const match of bracket.round1) {
+                if (match.status === 'completed') return true;
+            }
+            for (const match of bracket.semis) {
+                if (match.status === 'completed') return true;
+            }
+            if (bracket.final.status === 'completed') return true;
+
+            return currentKnockout.started === true;
+        }
+
+        // Current view mode
+        let currentView = 'list';
+
+        // Set view mode
+        window.setView = function(view) {
+            currentView = view;
+
+            // Update toggle buttons
+            document.querySelectorAll('.view-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.view === view);
+            });
+
+            // Toggle views
+            const listView = document.getElementById('bracketList');
+            const treeView = document.getElementById('bracketTree');
+
+            if (view === 'list') {
+                listView.style.display = 'grid';
+                treeView.style.display = 'none';
+            } else {
+                listView.style.display = 'none';
+                treeView.style.display = 'block';
+                renderTreeView();
+            }
+        };
+
+        // Render knockout
+        function renderKnockout() {
+            // Update header
+            document.getElementById('knockoutTitle').textContent = currentKnockout.name.toUpperCase();
+            document.getElementById('knockoutInfo').textContent =
+                `${currentKnockout.format.toUpperCase()} • Best of ${currentKnockout.best_of}`;
+
+            bracketStarted = hasBracketStarted();
+
+            // Show/hide shuffle section
+            document.getElementById('shuffleSection').style.display = bracketStarted ? 'none' : 'block';
+
+            // Show view toggle when bracket is active
+            document.getElementById('viewToggle').style.display = bracketStarted ? 'flex' : 'none';
+
+            // Show champion if complete
+            if (currentKnockout.champion) {
+                document.getElementById('championBanner').classList.add('active');
+                document.getElementById('championName').textContent = currentKnockout.champion.name;
+            } else {
+                document.getElementById('championBanner').classList.remove('active');
+            }
+
+            // Render bracket
+            renderBracket();
+
+            // Also render tree view if it's active
+            if (currentView === 'tree') {
+                renderTreeView();
+            }
+        }
+
+        // Render bracket
+        function renderBracket() {
+            const bracket = currentKnockout.bracket;
+            const teams = currentKnockout.teams;
+            const teamCount = teams.length;
+
+            const qfRound = document.getElementById('quarterfinalsRound');
+            const sfRound = document.getElementById('semifinalsRound');
+            const finalRound = document.getElementById('finalRound');
+
+            // Adjust display based on team count
+            if (teamCount === 2) {
+                // Direct final only
+                qfRound.style.display = 'none';
+                sfRound.style.display = 'none';
+                finalRound.innerHTML = '<div class="round-title">FINAL</div>';
+                finalRound.appendChild(createMatchCard(bracket.final, teams, 'final'));
+            } else if (teamCount <= 4) {
+                // Semis + Final (no quarterfinals)
+                qfRound.style.display = 'none';
+                sfRound.style.display = 'flex';
+                sfRound.innerHTML = '<div class="round-title">SEMIFINALS</div>';
+                bracket.semis.forEach(match => {
+                    if (match.status !== 'bye' || match.team1 !== null) {
+                        sfRound.appendChild(createMatchCard(match, teams, 'semis'));
+                    }
+                });
+                finalRound.innerHTML = '<div class="round-title">FINAL</div>';
+                finalRound.appendChild(createMatchCard(bracket.final, teams, 'final'));
+            } else {
+                // Full bracket with quarterfinals
+                qfRound.style.display = 'flex';
+                sfRound.style.display = 'flex';
+                qfRound.innerHTML = '<div class="round-title">QUARTERFINALS</div>';
+                bracket.round1.forEach(match => {
+                    // Skip bye matches with no actual teams
+                    if (match.status !== 'bye' || match.team1 !== null) {
+                        qfRound.appendChild(createMatchCard(match, teams, 'round1'));
+                    }
+                });
+
+                sfRound.innerHTML = '<div class="round-title">SEMIFINALS</div>';
+                bracket.semis.forEach(match => {
+                    sfRound.appendChild(createMatchCard(match, teams, 'semis'));
+                });
+
+                finalRound.innerHTML = '<div class="round-title">FINAL</div>';
+                finalRound.appendChild(createMatchCard(bracket.final, teams, 'final'));
+            }
+        }
+
+        // Create match card
+        function createMatchCard(match, teams, roundName) {
+            const card = document.createElement('div');
+            card.className = 'match-card';
+
+            const team1 = match.team1 !== null ? teams[match.team1] : null;
+            const team2 = match.team2 !== null ? teams[match.team2] : null;
+
+            const team1Name = team1 ? team1.name : 'TBD';
+            const team2Name = team2 ? team2.name : 'TBD';
+
+            const isTeam1Winner = match.winner === 0;
+            const isTeam2Winner = match.winner === 1;
+
+            // Show edit buttons only for round1 (quarterfinals) before match is completed
+            const showEditBtn = roundName === 'round1' && match.status !== 'completed';
+            const editBtn1 = showEditBtn && team1 ? `<button class="edit-team-btn" onclick="editTeamName(${match.team1}, event)">✎</button>` : '';
+            const editBtn2 = showEditBtn && team2 ? `<button class="edit-team-btn" onclick="editTeamName(${match.team2}, event)">✎</button>` : '';
+
+            // Determine card state
+            let statusHtml = '';
+            let isClickable = false;
+
+            if (match.status === 'completed') {
+                card.classList.add('completed');
+                statusHtml = '<div class="match-status complete">✓ COMPLETE</div>';
+            } else if (match.status === 'pending' && bracketStarted) {
+                card.classList.add('clickable');
+                isClickable = true;
+                statusHtml = '<div class="match-status ready">TAP TO SCORE</div>';
+            } else if (match.status === 'waiting') {
+                card.classList.add('waiting');
+                statusHtml = '<div class="match-status waiting-status">WAITING</div>';
+            } else {
+                // Not started yet
+                statusHtml = '<div class="match-status waiting-status">NOT STARTED</div>';
+            }
+
+            card.innerHTML = `
+                <div class="match-number">Match ${match.match}</div>
+                <div class="match-teams">
+                    <div class="match-team ${isTeam1Winner ? 'winner' : ''} ${isTeam2Winner ? 'loser' : ''} ${!team1 ? 'tbd' : ''}">
+                        ${editBtn1}
+                        <span class="team-name">${team1Name}</span>
+                        <span class="team-score">${match.score[0]}</span>
+                    </div>
+                    <div class="match-team ${isTeam2Winner ? 'winner' : ''} ${isTeam1Winner ? 'loser' : ''} ${!team2 ? 'tbd' : ''}">
+                        ${editBtn2}
+                        <span class="team-name">${team2Name}</span>
+                        <span class="team-score">${match.score[1]}</span>
+                    </div>
+                </div>
+                ${statusHtml}
+            `;
+
+            if (isClickable) {
+                card.onclick = () => window.goToScorer(match, team1, team2);
+            }
+
+            return card;
+        }
+
+        // Render tree view
+        function renderTreeView() {
+            const bracket = currentKnockout.bracket;
+            const teams = currentKnockout.teams;
+            const teamCount = teams.length;
+            const treeContainer = document.getElementById('bracketTree');
+
+            let html = '<div class="tree-wrapper">';
+
+            // Build rounds based on team count
+            if (teamCount > 4) {
+                // Quarterfinals
+                html += '<div class="tree-round">';
+                html += '<div class="tree-round-title">QUARTERS</div>';
+                html += '<div class="tree-matches">';
+                for (const match of bracket.round1) {
+                    if (match.status !== 'bye' || match.team1 !== null) {
+                        html += createTreeMatch(match, teams);
+                    }
+                }
+                html += '</div></div>';
+            }
+
+            if (teamCount > 2) {
+                // Semifinals
+                html += '<div class="tree-round">';
+                html += '<div class="tree-round-title">SEMIS</div>';
+                html += '<div class="tree-matches">';
+                for (const match of bracket.semis) {
+                    html += createTreeMatch(match, teams);
+                }
+                html += '</div></div>';
+            }
+
+            // Final
+            html += '<div class="tree-round">';
+            html += '<div class="tree-round-title">FINAL</div>';
+            html += '<div class="tree-matches">';
+            html += createTreeMatch(bracket.final, teams);
+            html += '</div></div>';
+
+            // Champion
+            if (currentKnockout.champion) {
+                html += '<div class="tree-round">';
+                html += '<div class="tree-round-title">🏆</div>';
+                html += '<div class="tree-matches">';
+                html += `<div class="tree-match" style="background: linear-gradient(135deg, var(--yellow) 0%, #FFA000 100%); border-color: var(--yellow);">
+                    <div class="tree-team winner" style="background: rgba(0,0,0,0.2);">
+                        <span class="tree-team-name" style="color: #000; font-weight: 800;">${currentKnockout.champion.name}</span>
+                    </div>
+                </div>`;
+                html += '</div></div>';
+            }
+
+            html += '</div>';
+            treeContainer.innerHTML = html;
+        }
+
+        // Create tree match element
+        function createTreeMatch(match, teams) {
+            const team1 = match.team1 !== null ? teams[match.team1] : null;
+            const team2 = match.team2 !== null ? teams[match.team2] : null;
+            const team1Name = team1 ? team1.name : 'TBD';
+            const team2Name = team2 ? team2.name : 'TBD';
+            const isTeam1Winner = match.winner === 0;
+            const isTeam2Winner = match.winner === 1;
+
+            let classes = 'tree-match';
+            if (match.status === 'completed') classes += ' completed';
+            else if (match.status === 'waiting') classes += ' waiting';
+            else if (match.status === 'pending' && bracketStarted) classes += ' clickable';
+
+            const clickHandler = (match.status === 'pending' && bracketStarted && team1 && team2)
+                ? `onclick="goToScorer(${JSON.stringify(match).replace(/"/g, '&quot;')}, ${JSON.stringify(team1).replace(/"/g, '&quot;')}, ${JSON.stringify(team2).replace(/"/g, '&quot;')})"`
+                : '';
+
+            return `
+                <div class="${classes}" ${clickHandler}>
+                    <div class="tree-team ${isTeam1Winner ? 'winner' : ''}">
+                        <span class="tree-team-name">${team1Name}</span>
+                        <span class="tree-team-score">${match.score[0]}</span>
+                    </div>
+                    <div class="tree-team ${isTeam2Winner ? 'winner' : ''}">
+                        <span class="tree-team-name">${team2Name}</span>
+                        <span class="tree-team-score">${match.score[1]}</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Go to scorer for this match
+        window.goToScorer = function(match, team1, team2) {
+            const format = currentKnockout.format;
+            const scorerPage = format === 'cricket' ? 'league-cricket.html' : 'league-501.html';
+
+            // Store knockout context for scorer to return
+            const knockoutContext = {
+                knockout_id: knockoutId,
+                match_number: match.match,
+                team1_name: team1.name,
+                team2_name: team2.name,
+                team1_index: match.team1,
+                team2_index: match.team2,
+                best_of: currentKnockout.best_of,
+                format: currentKnockout.format
+            };
+            localStorage.setItem('knockoutContext', JSON.stringify(knockoutContext));
+
+            // Build URL with parameters for league scorer
+            const params = new URLSearchParams();
+            params.set('casual', 'true');
+            params.set('knockout', 'true');
+            params.set('knockout_id', knockoutId);
+            params.set('match_number', match.match);
+
+            // Player info as JSON arrays (team name as single player)
+            params.set('home_players', JSON.stringify([{ name: team1.name }]));
+            params.set('away_players', JSON.stringify([{ name: team2.name }]));
+
+            // Game settings
+            const bestOf = currentKnockout.best_of || 3;
+            const legsToWin = Math.ceil(bestOf / 2);
+            params.set('legs_to_win', legsToWin);
+            params.set('cork', 'true');
+
+            if (format !== 'cricket') {
+                params.set('starting_score', format); // 501, 301, etc
+                params.set('checkout', 'double');
+                params.set('in_rule', 'straight');
+            }
+
+            window.location.href = `/pages/${scorerPage}?${params.toString()}`;
+        }
+
+        // Shuffle teams
+        window.shuffleTeams = async function() {
+            if (!currentKnockout) return;
+
+            const teamCount = currentKnockout.teams.length;
+
+            // Fisher-Yates shuffle of team indices (dynamic based on team count)
+            const indices = Array.from({ length: teamCount }, (_, i) => i);
+            for (let i = indices.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [indices[i], indices[j]] = [indices[j], indices[i]];
+            }
+
+            // Reorder teams
+            const shuffledTeams = indices.map(i => currentKnockout.teams[i]);
+            currentKnockout.teams = shuffledTeams;
+
+            // Update bracket matchups visually
+            renderBracket();
+
+            // TODO: Could save shuffle to server, but for simplicity just re-render locally
+            // The shuffle will be locked in when the bracket is started
+        };
+
+        // Start bracket (lock in current matchups)
+        window.startBracket = async function() {
+            if (!currentKnockout) return;
+
+            try {
+                // Call server to mark bracket as started with current team order
+                const result = await callFunction('startKnockout', {
+                    knockout_id: knockoutId,
+                    teams: currentKnockout.teams
+                });
+
+                if (result.success) {
+                    currentKnockout.started = true;
+                    bracketStarted = true;
+                    document.getElementById('shuffleSection').style.display = 'none';
+                    renderBracket();
+                } else {
+                    // If function doesn't exist yet, just mark locally
+                    bracketStarted = true;
+                    document.getElementById('shuffleSection').style.display = 'none';
+                    renderBracket();
+                }
+            } catch (error) {
+                // Function might not exist, just proceed
+                console.log('startKnockout not available, proceeding locally');
+                bracketStarted = true;
+                document.getElementById('shuffleSection').style.display = 'none';
+                renderBracket();
+            }
+        };
+
+        // Edit team name
+        window.editTeamName = async function(teamIndex, event) {
+            event.stopPropagation(); // Prevent match card click
+
+            if (!currentKnockout || teamIndex === null) return;
+
+            const currentName = currentKnockout.teams[teamIndex].name;
+            const newName = prompt('Enter new team name:', currentName);
+
+            if (newName && newName.trim() && newName.trim() !== currentName) {
+                currentKnockout.teams[teamIndex].name = newName.trim();
+
+                // Save to server
+                try {
+                    await callFunction('updateKnockoutTeam', {
+                        knockout_id: knockoutId,
+                        team_index: teamIndex,
+                        team_name: newName.trim()
+                    });
+                } catch (error) {
+                    console.log('updateKnockoutTeam not available, continuing locally');
+                }
+
+                // Re-render bracket
+                renderBracket();
+            }
+        };
+
+        // Go back
+        window.goBack = function() {
+            window.location.href = '/pages/game-setup.html';
+        };
+
+        // Initialize
+        const id = getKnockoutIdFromUrl();
+        if (id) {
+            loadKnockout(id);
+        } else {
+            // No ID provided, check localStorage
+            const savedId = localStorage.getItem('currentKnockoutId');
+            if (savedId) {
+                loadKnockout(savedId);
+            } else {
+                showError();
+            }
+        }
+    </script>
+<script src="/js/feedback.js"></script>
+</body>
+</html>

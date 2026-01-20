@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Matchmaker Tournament - BRDC</title>
+    <link rel="icon" type="image/png" href="/images/favicon.png">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Archivo+Black&family=Inter:wght@400;600;700;800&display=swap');
+
+        :root {
+            --pink: #FF469A;
+            --teal: #91D7EB;
+            --yellow: #FDD835;
+            --black: #1a1a2e;
+            --blue-dark: #0f0f1a;
+            --bg-panel: #16213e;
+            --text-light: #ffffff;
+            --text-dim: #a0a0b0;
+            --heart: #ff6b6b;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, var(--black) 0%, var(--blue-dark) 100%);
+            min-height: 100vh;
+            color: var(--text-light);
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse at 20% 20%, rgba(255, 70, 154, 0.1) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(255, 107, 107, 0.08) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .header-bar {
+            background: var(--bg-panel);
+            border-bottom: 3px solid var(--pink);
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .back-btn {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border: 2px solid rgba(255,255,255,0.3);
+            padding: 10px 16px;
+            font-weight: 700;
+            cursor: pointer;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .header-logo { width: 40px; height: 40px; }
+
+        .header-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 24px;
+            letter-spacing: 2px;
+            color: var(--pink);
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 30px 20px;
+        }
+
+        /* Hero Banner */
+        .hero-banner {
+            background: linear-gradient(135deg, var(--pink), #cc3879);
+            border: 4px solid #000;
+            padding: 40px 30px;
+            text-align: center;
+            margin-bottom: 30px;
+            box-shadow: 10px 10px 0 rgba(0,0,0,0.5);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero-banner::before {
+            content: '💘';
+            position: absolute;
+            font-size: 150px;
+            opacity: 0.1;
+            top: -20px;
+            right: -20px;
+        }
+
+        .hero-name {
+            font-family: 'Archivo Black', sans-serif;
+            font-size: 42px;
+            text-transform: uppercase;
+            color: white;
+            text-shadow: 4px 4px 0 rgba(0,0,0,0.3);
+            margin-bottom: 10px;
+        }
+
+        .hero-subtitle {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 22px;
+            letter-spacing: 3px;
+            opacity: 0.9;
+        }
+
+        .hero-details {
+            margin-top: 20px;
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            flex-wrap: wrap;
+        }
+
+        .hero-detail {
+            background: rgba(0,0,0,0.2);
+            padding: 10px 20px;
+            border-radius: 30px;
+            font-weight: 600;
+        }
+
+        /* Info Cards */
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .info-card {
+            background: var(--bg-panel);
+            border: 4px solid #000;
+            box-shadow: 8px 8px 0 rgba(0,0,0,0.5);
+        }
+
+        .info-card-header {
+            padding: 15px 20px;
+            border-bottom: 3px solid #000;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 18px;
+            letter-spacing: 2px;
+        }
+
+        .info-card-header.pink { background: linear-gradient(135deg, var(--pink), #cc3879); }
+        .info-card-header.teal { background: linear-gradient(135deg, var(--teal), #5ab8d4); color: #000; }
+        .info-card-header.yellow { background: linear-gradient(135deg, var(--yellow), #f9a825); color: #000; }
+
+        .info-card-body { padding: 20px; }
+
+        /* Registration Status */
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .status-item {
+            text-align: center;
+            padding: 15px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+        }
+
+        .status-number {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 36px;
+            line-height: 1;
+        }
+
+        .status-number.pink { color: var(--pink); }
+        .status-number.teal { color: var(--teal); }
+        .status-number.yellow { color: var(--yellow); }
+
+        .status-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-dim);
+            margin-top: 5px;
+        }
+
+        .balance-bar {
+            background: rgba(255,255,255,0.1);
+            border-radius: 20px;
+            height: 30px;
+            position: relative;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+
+        .balance-fill {
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 12px;
+        }
+
+        .balance-fill.male {
+            background: var(--teal);
+            color: #000;
+        }
+
+        .balance-fill.female {
+            background: var(--pink);
+            position: absolute;
+            right: 0;
+            top: 0;
+        }
+
+        .balance-message {
+            text-align: center;
+            font-size: 14px;
+            padding: 10px;
+            border-radius: 8px;
+        }
+
+        .balance-message.warning {
+            background: rgba(253, 216, 53, 0.2);
+            color: var(--yellow);
+        }
+
+        .balance-message.good {
+            background: rgba(34, 197, 94, 0.2);
+            color: #22c55e;
+        }
+
+        /* Format Info */
+        .format-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .format-row:last-child { border-bottom: none; }
+
+        .format-label { color: var(--text-dim); }
+        .format-value { font-weight: 700; }
+
+        /* Rules Section */
+        .rules-list {
+            list-style: none;
+        }
+
+        .rules-list li {
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+        }
+
+        .rules-list li:last-child { border-bottom: none; }
+
+        .rule-icon {
+            font-size: 20px;
+            width: 30px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        /* Teams List */
+        .teams-section {
+            background: var(--bg-panel);
+            border: 4px solid #000;
+            box-shadow: 8px 8px 0 rgba(0,0,0,0.5);
+            margin-bottom: 30px;
+        }
+
+        .teams-header {
+            padding: 15px 20px;
+            background: linear-gradient(135deg, var(--pink), #cc3879);
+            border-bottom: 3px solid #000;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 18px;
+            letter-spacing: 2px;
+        }
+
+        .teams-body { padding: 20px; }
+
+        .team-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+
+        .team-item:last-child { margin-bottom: 0; }
+
+        .team-number {
+            width: 40px;
+            height: 40px;
+            background: var(--pink);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .team-info { flex: 1; }
+
+        .team-name {
+            font-weight: 700;
+            font-size: 16px;
+        }
+
+        .team-players {
+            font-size: 13px;
+            color: var(--text-dim);
+            margin-top: 3px;
+        }
+
+        .team-type {
+            font-size: 11px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .team-type.matched {
+            background: var(--teal);
+            color: #000;
+        }
+
+        .team-type.couple {
+            background: var(--pink);
+            color: white;
+        }
+
+        /* Register Button */
+        .register-btn {
+            display: block;
+            width: 100%;
+            padding: 25px;
+            background: linear-gradient(135deg, var(--pink), #cc3879);
+            border: 4px solid #000;
+            color: white;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 28px;
+            letter-spacing: 4px;
+            text-align: center;
+            text-decoration: none;
+            cursor: pointer;
+            box-shadow: 8px 8px 0 rgba(0,0,0,0.5);
+            transition: all 0.2s;
+        }
+
+        .register-btn:hover {
+            transform: translate(-3px, -3px);
+            box-shadow: 11px 11px 0 rgba(0,0,0,0.5);
+        }
+
+        .director-link {
+            display: block;
+            text-align: center;
+            margin-top: 20px;
+            color: var(--text-dim);
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .director-link:hover { color: var(--pink); }
+
+        @media (max-width: 600px) {
+            .hero-name { font-size: 28px; }
+            .status-grid { grid-template-columns: 1fr; }
+            .hero-details { flex-direction: column; gap: 10px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header-bar">
+        <button class="back-btn" onclick="history.back()">BACK</button>
+        <img src="/images/gold_logo.png" alt="BRDC" class="header-logo">
+        <span class="header-title">TOURNAMENT</span>
+    </div>
+
+    <div class="container">
+        <div class="hero-banner">
+            <div class="hero-name" id="tournamentName">Loading...</div>
+            <div class="hero-subtitle">MIXED DOUBLES PARTNER MATCHING</div>
+            <div class="hero-details">
+                <div class="hero-detail" id="dateDetail">📅 Loading...</div>
+                <div class="hero-detail" id="venueDetail">📍 Loading...</div>
+            </div>
+        </div>
+
+        <div class="info-grid">
+            <!-- Registration Status -->
+            <div class="info-card">
+                <div class="info-card-header pink">💘 REGISTRATION STATUS</div>
+                <div class="info-card-body">
+                    <div class="status-grid">
+                        <div class="status-item">
+                            <div class="status-number yellow" id="teamsCount">0</div>
+                            <div class="status-label">Teams</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-number teal" id="malesCount">0</div>
+                            <div class="status-label">♂ Singles</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-number pink" id="femalesCount">0</div>
+                            <div class="status-label">♀ Singles</div>
+                        </div>
+                    </div>
+
+                    <div class="balance-bar" id="balanceBar">
+                        <div class="balance-fill male" id="maleFill" style="width: 50%;">0 ♂</div>
+                        <div class="balance-fill female" id="femaleFill" style="width: 50%;">0 ♀</div>
+                    </div>
+
+                    <div class="balance-message" id="balanceMessage"></div>
+                </div>
+            </div>
+
+            <!-- Format Info -->
+            <div class="info-card">
+                <div class="info-card-header teal">🎯 FORMAT</div>
+                <div class="info-card-body">
+                    <div class="format-row">
+                        <span class="format-label">Game</span>
+                        <span class="format-value" id="gameType">501</span>
+                    </div>
+                    <div class="format-row">
+                        <span class="format-label">Bracket</span>
+                        <span class="format-value">Double Elimination</span>
+                    </div>
+                    <div class="format-row">
+                        <span class="format-label">Winners Bracket</span>
+                        <span class="format-value" id="winnersBestOf">Best of 5</span>
+                    </div>
+                    <div class="format-row">
+                        <span class="format-label">Losers Bracket</span>
+                        <span class="format-value" id="losersBestOf">Best of 1</span>
+                    </div>
+                    <div class="format-row">
+                        <span class="format-label">Entry Fee</span>
+                        <span class="format-value" id="entryFee">$0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Special Rules -->
+        <div class="info-card" style="margin-bottom: 30px;">
+            <div class="info-card-header yellow">💔 BREAKUP RULES</div>
+            <div class="info-card-body">
+                <ul class="rules-list">
+                    <li>
+                        <span class="rule-icon">💑</span>
+                        <span>Register as a couple OR sign up solo to be randomly matched</span>
+                    </li>
+                    <li>
+                        <span class="rule-icon">😢</span>
+                        <span>Lose in winners bracket? Either player can trigger a <strong>"breakup"</strong></span>
+                    </li>
+                    <li>
+                        <span class="rule-icon">💘</span>
+                        <span>Broken-up players get randomly re-matched with other singles</span>
+                    </li>
+                    <li>
+                        <span class="rule-icon">🔒</span>
+                        <span>Breakups allowed through <strong id="breakupCutoff">quarterfinals</strong> - after that, you're committed!</span>
+                    </li>
+                    <li>
+                        <span class="rule-icon">⚖️</span>
+                        <span>Odd number of breakups? No re-match available - stay with your partner</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Registered Teams -->
+        <div class="teams-section" id="teamsSection">
+            <div class="teams-header">👥 REGISTERED TEAMS</div>
+            <div class="teams-body" id="teamsList">
+                <div style="text-align: center; color: var(--text-dim); padding: 20px;">
+                    No teams registered yet. Be the first!
+                </div>
+            </div>
+        </div>
+
+        <a href="#" class="register-btn" id="registerBtn">REGISTER NOW 💘</a>
+
+        <a href="#" class="director-link" id="directorLink">Tournament Director Login →</a>
+    </div>
+
+    <script type="module">
+        import { db, doc, getDoc, callFunction } from '/js/firebase-config.js';
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const tournamentId = urlParams.get('id');
+
+        let tournamentData = null;
+
+        window.onload = async function() {
+            if (!tournamentId) {
+                document.getElementById('tournamentName').textContent = 'Tournament Not Found';
+                return;
+            }
+
+            document.getElementById('registerBtn').href = `/pages/matchmaker-register.html?id=${tournamentId}`;
+            document.getElementById('directorLink').href = `/pages/matchmaker-director.html?id=${tournamentId}`;
+
+            await loadTournament();
+            await loadStatus();
+            await loadTeams();
+        };
+
+        async function loadTournament() {
+            try {
+                const tournamentDoc = await getDoc(doc(db, 'tournaments', tournamentId));
+                if (!tournamentDoc.exists()) {
+                    document.getElementById('tournamentName').textContent = 'Tournament Not Found';
+                    return;
+                }
+
+                tournamentData = tournamentDoc.data();
+                document.getElementById('tournamentName').textContent = tournamentData.tournament_name;
+
+                const date = new Date(tournamentData.tournament_date);
+                document.getElementById('dateDetail').textContent = `📅 ${date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} @ ${tournamentData.tournament_time || 'TBD'}`;
+                document.getElementById('venueDetail').textContent = `📍 ${tournamentData.venue_name || 'TBD'}`;
+
+                document.getElementById('gameType').textContent = tournamentData.game_type || '501';
+                document.getElementById('winnersBestOf').textContent = `Best of ${tournamentData.winners_best_of || 5}`;
+                document.getElementById('losersBestOf').textContent = `Best of ${tournamentData.losers_best_of || 1}`;
+                document.getElementById('entryFee').textContent = tournamentData.entry_fee ? `$${tournamentData.entry_fee}` : 'FREE';
+                document.getElementById('breakupCutoff').textContent = tournamentData.breakup_cutoff || 'quarterfinals';
+
+                document.title = `${tournamentData.tournament_name} - BRDC`;
+
+            } catch (error) {
+                console.error('Error loading tournament:', error);
+            }
+        }
+
+        async function loadStatus() {
+            try {
+                const result = await callFunction('getMatchmakerStatus', { tournament_id: tournamentId });
+
+                if (result.success) {
+                    const { teams, singles_male, singles_female } = result.counts;
+
+                    document.getElementById('teamsCount').textContent = teams;
+                    document.getElementById('malesCount').textContent = singles_male;
+                    document.getElementById('femalesCount').textContent = singles_female;
+
+                    // Update balance bar
+                    const total = singles_male + singles_female;
+                    if (total > 0) {
+                        const malePercent = (singles_male / total) * 100;
+                        const femalePercent = (singles_female / total) * 100;
+                        document.getElementById('maleFill').style.width = `${malePercent}%`;
+                        document.getElementById('maleFill').textContent = `${singles_male} ♂`;
+                        document.getElementById('femaleFill').style.width = `${femalePercent}%`;
+                        document.getElementById('femaleFill').textContent = `${singles_female} ♀`;
+                    }
+
+                    // Update balance message
+                    const messageBox = document.getElementById('balanceMessage');
+                    if (result.balance.need_more) {
+                        messageBox.className = 'balance-message warning';
+                        messageBox.textContent = `⚠️ Need ${result.balance.need_more.count} more ${result.balance.need_more.gender}${result.balance.need_more.count > 1 ? 's' : ''} to match all singles`;
+                    } else if (total > 0) {
+                        messageBox.className = 'balance-message good';
+                        messageBox.textContent = '✓ Singles are balanced - everyone will be matched!';
+                    } else {
+                        messageBox.textContent = '';
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading status:', error);
+            }
+        }
+
+        async function loadTeams() {
+            try {
+                const result = await callFunction('getMatchmakerTeams', { tournament_id: tournamentId });
+
+                if (result.success && result.teams.length > 0) {
+                    const teamsList = document.getElementById('teamsList');
+                    teamsList.innerHTML = result.teams.map((team, index) => `
+                        <div class="team-item">
+                            <div class="team-number">${index + 1}</div>
+                            <div class="team-info">
+                                <div class="team-name">${team.team_name}</div>
+                                <div class="team-players">${team.player1.name} & ${team.player2.name}</div>
+                            </div>
+                            <span class="team-type ${team.type === 'matched_team' ? 'matched' : 'couple'}">
+                                ${team.type === 'matched_team' ? 'MATCHED' : 'COUPLE'}
+                            </span>
+                        </div>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('Error loading teams:', error);
+            }
+        }
+    </script>
+</body>
+</html>

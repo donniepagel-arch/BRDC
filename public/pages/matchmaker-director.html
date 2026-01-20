@@ -1,0 +1,1045 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Director Dashboard - Matchmaker</title>
+    <link rel="icon" type="image/png" href="/images/favicon.png">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700;800&display=swap');
+
+        :root {
+            --pink: #FF469A;
+            --teal: #91D7EB;
+            --yellow: #FDD835;
+            --black: #1a1a2e;
+            --blue-dark: #0f0f1a;
+            --bg-panel: #16213e;
+            --text-light: #ffffff;
+            --text-dim: #a0a0b0;
+            --success: #22c55e;
+            --danger: #ef4444;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, var(--black) 0%, var(--blue-dark) 100%);
+            min-height: 100vh;
+            color: var(--text-light);
+        }
+
+        .header-bar {
+            background: var(--bg-panel);
+            border-bottom: 3px solid var(--pink);
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .back-btn {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border: 2px solid rgba(255,255,255,0.3);
+            padding: 10px 16px;
+            font-weight: 700;
+            cursor: pointer;
+            border-radius: 6px;
+        }
+
+        .header-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 24px;
+            letter-spacing: 2px;
+            color: var(--pink);
+            flex: 1;
+        }
+
+        .container { max-width: 1200px; margin: 0 auto; padding: 30px 20px; }
+
+        /* PIN Entry */
+        .pin-container {
+            max-width: 400px;
+            margin: 100px auto;
+            text-align: center;
+        }
+
+        .pin-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 32px;
+            letter-spacing: 3px;
+            color: var(--pink);
+            margin-bottom: 30px;
+        }
+
+        .pin-input {
+            width: 100%;
+            padding: 20px;
+            font-size: 32px;
+            text-align: center;
+            letter-spacing: 10px;
+            background: rgba(255,255,255,0.1);
+            border: 3px solid rgba(255,255,255,0.2);
+            border-radius: 10px;
+            color: white;
+            margin-bottom: 20px;
+        }
+
+        .pin-input:focus {
+            outline: none;
+            border-color: var(--pink);
+        }
+
+        .pin-btn {
+            width: 100%;
+            padding: 18px;
+            background: linear-gradient(135deg, var(--pink), #cc3879);
+            border: 3px solid #000;
+            color: white;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 22px;
+            letter-spacing: 2px;
+            cursor: pointer;
+            box-shadow: 5px 5px 0 rgba(0,0,0,0.4);
+        }
+
+        .pin-error {
+            color: var(--danger);
+            margin-top: 15px;
+            font-weight: 600;
+        }
+
+        /* Dashboard */
+        .dashboard { display: none; }
+        .dashboard.active { display: block; }
+
+        /* Tabs */
+        .tab-nav {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 25px;
+            background: var(--bg-panel);
+            padding: 8px;
+            border-radius: 12px;
+            border: 3px solid #000;
+            flex-wrap: wrap;
+        }
+
+        .tab-btn {
+            padding: 14px 24px;
+            background: transparent;
+            color: var(--text-dim);
+            border: none;
+            cursor: pointer;
+            font-weight: 700;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 16px;
+            letter-spacing: 1px;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+
+        .tab-btn:hover { background: rgba(255,255,255,0.1); color: white; }
+        .tab-btn.active { background: linear-gradient(135deg, var(--pink), #cc3879); color: white; }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* Cards */
+        .card {
+            background: var(--bg-panel);
+            border: 4px solid #000;
+            border-radius: 12px;
+            box-shadow: 8px 8px 0 rgba(0,0,0,0.5);
+            margin-bottom: 25px;
+            overflow: hidden;
+        }
+
+        .card-header {
+            padding: 18px 24px;
+            border-bottom: 3px solid #000;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 15px;
+        }
+
+        .card-header.pink { background: linear-gradient(135deg, var(--pink), #cc3879); }
+        .card-header.teal { background: linear-gradient(135deg, var(--teal), #5ab8d4); color: #000; }
+        .card-header.yellow { background: linear-gradient(135deg, var(--yellow), #f9a825); color: #000; }
+
+        .card-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 22px;
+            letter-spacing: 2px;
+        }
+
+        .card-body { padding: 24px; }
+
+        /* Stats Row */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-box {
+            background: rgba(255,255,255,0.05);
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 42px;
+            line-height: 1;
+        }
+
+        .stat-number.pink { color: var(--pink); }
+        .stat-number.teal { color: var(--teal); }
+        .stat-number.yellow { color: var(--yellow); }
+
+        .stat-label {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-dim);
+            margin-top: 8px;
+        }
+
+        /* Action Buttons */
+        .action-btn {
+            padding: 15px 30px;
+            border: 3px solid #000;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 18px;
+            letter-spacing: 2px;
+            cursor: pointer;
+            box-shadow: 4px 4px 0 rgba(0,0,0,0.4);
+            transition: all 0.2s;
+        }
+
+        .action-btn:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: 6px 6px 0 rgba(0,0,0,0.4);
+        }
+
+        .action-btn:disabled {
+            background: #666 !important;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .action-btn.pink { background: linear-gradient(135deg, var(--pink), #cc3879); color: white; }
+        .action-btn.teal { background: linear-gradient(135deg, var(--teal), #5ab8d4); color: #000; }
+        .action-btn.yellow { background: linear-gradient(135deg, var(--yellow), #f9a825); color: #000; }
+        .action-btn.danger { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; }
+
+        /* Registration List */
+        .reg-list { list-style: none; }
+
+        .reg-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+
+        .reg-icon {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+
+        .reg-icon.male { background: var(--teal); color: #000; }
+        .reg-icon.female { background: var(--pink); color: white; }
+        .reg-icon.team { background: var(--yellow); color: #000; }
+
+        .reg-info { flex: 1; }
+        .reg-name { font-weight: 700; font-size: 16px; }
+        .reg-details { font-size: 13px; color: var(--text-dim); margin-top: 3px; }
+
+        .reg-badge {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .reg-badge.waiting { background: rgba(253, 216, 53, 0.3); color: var(--yellow); }
+        .reg-badge.matched { background: rgba(34, 197, 94, 0.3); color: var(--success); }
+        .reg-badge.couple { background: rgba(255, 70, 154, 0.3); color: var(--pink); }
+
+        /* Breakup Pool */
+        .breakup-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px;
+            background: rgba(239, 68, 68, 0.1);
+            border: 2px solid var(--danger);
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+
+        .breakup-info { flex: 1; }
+        .breakup-name { font-weight: 700; }
+        .breakup-ex { font-size: 13px; color: var(--text-dim); }
+
+        /* Match Results */
+        .match-result {
+            background: rgba(255,255,255,0.05);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+        }
+
+        .match-teams {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            justify-content: center;
+            margin-bottom: 15px;
+        }
+
+        .match-team {
+            flex: 1;
+            text-align: center;
+            padding: 15px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+        }
+
+        .match-team.winner {
+            background: rgba(34, 197, 94, 0.2);
+            border: 2px solid var(--success);
+        }
+
+        .match-team.loser {
+            background: rgba(239, 68, 68, 0.1);
+            border: 2px solid var(--danger);
+        }
+
+        .match-vs {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 24px;
+            color: var(--text-dim);
+        }
+
+        .breakup-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .breakup-btn {
+            padding: 10px 20px;
+            border: 2px solid;
+            border-radius: 6px;
+            font-weight: 700;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        .breakup-btn.trigger {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: var(--danger);
+            color: var(--danger);
+        }
+
+        .breakup-btn.stay {
+            background: rgba(34, 197, 94, 0.2);
+            border-color: var(--success);
+            color: var(--success);
+        }
+
+        /* Message */
+        .message {
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+
+        .message.success { background: rgba(34, 197, 94, 0.2); border: 2px solid var(--success); color: var(--success); }
+        .message.error { background: rgba(239, 68, 68, 0.2); border: 2px solid var(--danger); color: var(--danger); }
+        .message.info { background: rgba(145, 215, 235, 0.2); border: 2px solid var(--teal); color: var(--teal); }
+
+        .hidden { display: none !important; }
+
+        @media (max-width: 600px) {
+            .tab-nav { flex-direction: column; }
+            .stats-row { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+    <div class="header-bar">
+        <button class="back-btn" onclick="history.back()">BACK</button>
+        <span class="header-title">MATCHMAKER DIRECTOR</span>
+    </div>
+
+    <!-- PIN Entry -->
+    <div class="pin-container" id="pinContainer">
+        <div class="pin-title">DIRECTOR LOGIN</div>
+        <input type="password" class="pin-input" id="pinInput" placeholder="PIN" maxlength="8" onkeyup="if(event.key==='Enter')verifyPin()">
+        <button class="pin-btn" onclick="verifyPin()">ENTER</button>
+        <div class="pin-error hidden" id="pinError">Invalid PIN</div>
+    </div>
+
+    <!-- Dashboard -->
+    <div class="dashboard" id="dashboard">
+        <div class="container">
+            <div id="messageBox" class="message hidden"></div>
+
+            <!-- Tabs -->
+            <div class="tab-nav">
+                <button class="tab-btn active" onclick="showTab('overview')">OVERVIEW</button>
+                <button class="tab-btn" onclick="showTab('registrations')">REGISTRATIONS</button>
+                <button class="tab-btn" onclick="showTab('matching')">PARTNER DRAW</button>
+                <button class="tab-btn" onclick="showTab('breakups')">BREAKUPS</button>
+                <button class="tab-btn" onclick="showTab('bracket')">BRACKET</button>
+                <button class="tab-btn" onclick="showTab('settings')">SETTINGS</button>
+            </div>
+
+            <!-- Overview Tab -->
+            <div class="tab-content active" id="tab-overview">
+                <div class="stats-row">
+                    <div class="stat-box">
+                        <div class="stat-number yellow" id="overviewTeams">0</div>
+                        <div class="stat-label">Teams</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-number teal" id="overviewMales">0</div>
+                        <div class="stat-label">♂ Singles</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-number pink" id="overviewFemales">0</div>
+                        <div class="stat-label">♀ Singles</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-number" id="overviewTotal">0</div>
+                        <div class="stat-label">Total Teams</div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header pink">
+                        <span class="card-title">TOURNAMENT STATUS</span>
+                    </div>
+                    <div class="card-body">
+                        <div id="tournamentStatus">
+                            <p><strong>Status:</strong> <span id="statusText">Registration Open</span></p>
+                            <p style="margin-top: 10px;"><strong>Balance:</strong> <span id="balanceText">-</span></p>
+                        </div>
+                        <div style="margin-top: 20px; display: flex; gap: 15px; flex-wrap: wrap;">
+                            <button class="action-btn teal" onclick="refreshData()">REFRESH DATA</button>
+                            <a href="#" id="publicViewLink" class="action-btn yellow" style="text-decoration: none;">VIEW PUBLIC PAGE</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Registrations Tab -->
+            <div class="tab-content" id="tab-registrations">
+                <div class="card">
+                    <div class="card-header teal">
+                        <span class="card-title">ALL REGISTRATIONS</span>
+                        <button class="action-btn pink" onclick="refreshData()" style="padding: 10px 20px; font-size: 14px;">REFRESH</button>
+                    </div>
+                    <div class="card-body">
+                        <ul class="reg-list" id="registrationsList">
+                            <li style="text-align: center; color: var(--text-dim); padding: 30px;">Loading...</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Partner Matching Tab -->
+            <div class="tab-content" id="tab-matching">
+                <div class="card">
+                    <div class="card-header yellow">
+                        <span class="card-title">PARTNER DRAW</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="stats-row" style="margin-bottom: 25px;">
+                            <div class="stat-box">
+                                <div class="stat-number teal" id="unmatchedMales">0</div>
+                                <div class="stat-label">Unmatched ♂</div>
+                            </div>
+                            <div class="stat-box">
+                                <div class="stat-number pink" id="unmatchedFemales">0</div>
+                                <div class="stat-label">Unmatched ♀</div>
+                            </div>
+                            <div class="stat-box">
+                                <div class="stat-number yellow" id="canMatch">0</div>
+                                <div class="stat-label">Can Match</div>
+                            </div>
+                        </div>
+
+                        <div id="drawMessage" class="message info hidden"></div>
+
+                        <p style="margin-bottom: 20px; color: var(--text-dim);">
+                            Click the button below to randomly pair all unmatched singles. This will create new teams from the singles pool.
+                        </p>
+
+                        <button class="action-btn pink" onclick="drawPartners()" id="drawBtn" style="width: 100%;">
+                            💘 DRAW PARTNERS
+                        </button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header teal">
+                        <span class="card-title">MATCHED TEAMS</span>
+                    </div>
+                    <div class="card-body">
+                        <ul class="reg-list" id="matchedTeamsList">
+                            <li style="text-align: center; color: var(--text-dim); padding: 20px;">No teams matched yet</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Breakups Tab -->
+            <div class="tab-content" id="tab-breakups">
+                <div class="card">
+                    <div class="card-header" style="background: linear-gradient(135deg, #ef4444, #dc2626);">
+                        <span class="card-title">💔 BREAKUP POOL</span>
+                        <button class="action-btn yellow" onclick="rematchBreakups()" style="padding: 10px 20px; font-size: 14px;">RE-MATCH ALL</button>
+                    </div>
+                    <div class="card-body">
+                        <div id="breakupPoolList">
+                            <p style="text-align: center; color: var(--text-dim); padding: 20px;">No players in breakup pool</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header pink">
+                        <span class="card-title">TRIGGER BREAKUP</span>
+                    </div>
+                    <div class="card-body">
+                        <p style="margin-bottom: 20px; color: var(--text-dim);">
+                            When a team loses in the winners bracket and wants to break up, select the team and which player is triggering the breakup.
+                        </p>
+
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 8px; font-weight: 600;">Select Team:</label>
+                            <select id="breakupTeamSelect" class="pin-input" style="font-size: 16px; letter-spacing: 0; text-align: left; padding: 15px;">
+                                <option value="">-- Select a team --</option>
+                            </select>
+                        </div>
+
+                        <div style="margin-bottom: 20px;">
+                            <label style="display: block; margin-bottom: 8px; font-weight: 600;">Who's breaking up?</label>
+                            <select id="breakupPlayerSelect" class="pin-input" style="font-size: 16px; letter-spacing: 0; text-align: left; padding: 15px;">
+                                <option value="">-- Select player --</option>
+                            </select>
+                        </div>
+
+                        <button class="action-btn danger" onclick="triggerBreakup()" style="width: 100%;">
+                            💔 TRIGGER BREAKUP
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bracket Tab -->
+            <div class="tab-content" id="tab-bracket">
+                <div class="card">
+                    <div class="card-header pink">
+                        <span class="card-title">BRACKET MANAGEMENT</span>
+                    </div>
+                    <div class="card-body">
+                        <div id="bracketStatus">
+                            <p style="margin-bottom: 20px;"><strong>Teams Ready:</strong> <span id="teamsReadyCount">0</span></p>
+                        </div>
+
+                        <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                            <button class="action-btn pink" onclick="generateBracket()" id="genBracketBtn">
+                                GENERATE BRACKET
+                            </button>
+                            <a href="#" id="viewBracketLink" class="action-btn teal hidden" style="text-decoration: none;">
+                                VIEW BRACKET
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings Tab -->
+            <div class="tab-content" id="tab-settings">
+                <div class="card">
+                    <div class="card-header teal">
+                        <span class="card-title">TOURNAMENT INFO</span>
+                    </div>
+                    <div class="card-body">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                            <div>
+                                <label style="display: block; font-size: 12px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 6px;">Tournament Name</label>
+                                <input type="text" id="settingName" class="pin-input" style="font-size: 16px; letter-spacing: 0; text-align: left; padding: 12px;">
+                            </div>
+                            <div>
+                                <label style="display: block; font-size: 12px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 6px;">Date</label>
+                                <input type="date" id="settingDate" class="pin-input" style="font-size: 16px; letter-spacing: 0; text-align: left; padding: 12px;">
+                            </div>
+                            <div>
+                                <label style="display: block; font-size: 12px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 6px;">Time</label>
+                                <input type="text" id="settingTime" class="pin-input" style="font-size: 16px; letter-spacing: 0; text-align: left; padding: 12px;" placeholder="2:30 PM">
+                            </div>
+                            <div>
+                                <label style="display: block; font-size: 12px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 6px;">Venue</label>
+                                <input type="text" id="settingVenue" class="pin-input" style="font-size: 16px; letter-spacing: 0; text-align: left; padding: 12px;">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header pink">
+                        <span class="card-title">MATCH FORMAT</span>
+                    </div>
+                    <div class="card-body">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
+                            <div>
+                                <label style="display: block; font-size: 12px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 6px;">Game Type</label>
+                                <select id="settingGameType" class="pin-input" style="font-size: 16px; letter-spacing: 0; text-align: left; padding: 12px;">
+                                    <option value="501">501</option>
+                                    <option value="301">301</option>
+                                    <option value="cricket">Cricket</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label style="display: block; font-size: 12px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 6px;">Winners Best Of</label>
+                                <select id="settingWinnersBestOf" class="pin-input" style="font-size: 16px; letter-spacing: 0; text-align: left; padding: 12px;">
+                                    <option value="1">1 Leg</option>
+                                    <option value="3">Best of 3</option>
+                                    <option value="5">Best of 5</option>
+                                    <option value="7">Best of 7</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label style="display: block; font-size: 12px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 6px;">Losers Best Of</label>
+                                <select id="settingLosersBestOf" class="pin-input" style="font-size: 16px; letter-spacing: 0; text-align: left; padding: 12px;">
+                                    <option value="1">1 Leg (Sudden Death)</option>
+                                    <option value="3">Best of 3</option>
+                                    <option value="5">Best of 5</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header yellow">
+                        <span class="card-title">BREAKUP RULES</span>
+                    </div>
+                    <div class="card-body">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                            <div>
+                                <label style="display: block; font-size: 12px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 6px;">Breakup Cutoff</label>
+                                <select id="settingBreakupCutoff" class="pin-input" style="font-size: 16px; letter-spacing: 0; text-align: left; padding: 12px;">
+                                    <option value="round1">Round 1 Only</option>
+                                    <option value="round2">Through Round 2</option>
+                                    <option value="quarterfinals">Through Quarterfinals</option>
+                                    <option value="semifinals">Through Semifinals</option>
+                                    <option value="always">Always Allowed</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label style="display: block; font-size: 12px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 6px;">Entry Fee</label>
+                                <input type="number" id="settingEntryFee" class="pin-input" style="font-size: 16px; letter-spacing: 0; text-align: left; padding: 12px;" placeholder="0" min="0">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <button class="action-btn pink" onclick="saveSettings()" style="width: 100%; margin-top: 20px;">
+                    SAVE SETTINGS
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { db, doc, getDoc, collection, getDocs, callFunction } from '/js/firebase-config.js';
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const tournamentId = urlParams.get('id');
+
+        let tournamentData = null;
+        let directorPin = null;
+        let registrations = [];
+        let teams = [];
+
+        window.onload = async function() {
+            if (!tournamentId) {
+                showMessage('Missing tournament ID', 'error');
+                return;
+            }
+
+            document.getElementById('publicViewLink').href = `/pages/matchmaker-view.html?id=${tournamentId}`;
+            document.getElementById('viewBracketLink').href = `/pages/matchmaker-bracket.html?id=${tournamentId}`;
+
+            // Check for stored PIN
+            const storedPin = sessionStorage.getItem(`matchmaker_pin_${tournamentId}`);
+            if (storedPin) {
+                directorPin = storedPin;
+                await loadTournament();
+                if (tournamentData && tournamentData.director_pin === directorPin) {
+                    showDashboard();
+                }
+            }
+        };
+
+        async function loadTournament() {
+            try {
+                const tournamentDoc = await getDoc(doc(db, 'tournaments', tournamentId));
+                if (tournamentDoc.exists()) {
+                    tournamentData = tournamentDoc.data();
+                } else {
+                    showMessage('Tournament not found', 'error');
+                }
+            } catch (error) {
+                console.error('Error loading tournament:', error);
+                showMessage('Error loading tournament: ' + error.message, 'error');
+            }
+        }
+
+        window.verifyPin = async function() {
+            const pin = document.getElementById('pinInput').value;
+            if (!pin) return;
+
+            await loadTournament();
+
+            if (tournamentData && tournamentData.director_pin === pin) {
+                directorPin = pin;
+                sessionStorage.setItem(`matchmaker_pin_${tournamentId}`, pin);
+                showDashboard();
+            } else {
+                document.getElementById('pinError').classList.remove('hidden');
+            }
+        };
+
+        function showDashboard() {
+            document.getElementById('pinContainer').classList.add('hidden');
+            document.getElementById('dashboard').classList.add('active');
+            refreshData();
+            populateSettings();
+        }
+
+        window.showTab = function(tabName) {
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.textContent.toLowerCase().includes(tabName.substring(0, 4)));
+            });
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.toggle('active', tab.id === `tab-${tabName}`);
+            });
+        };
+
+        window.refreshData = async function() {
+            try {
+                // Load status
+                const status = await callFunction('getMatchmakerStatus', { tournament_id: tournamentId });
+                if (status.success) {
+                    document.getElementById('overviewTeams').textContent = status.counts.teams;
+                    document.getElementById('overviewMales').textContent = status.counts.singles_male;
+                    document.getElementById('overviewFemales').textContent = status.counts.singles_female;
+                    document.getElementById('overviewTotal').textContent = status.counts.total_teams_possible;
+
+                    document.getElementById('unmatchedMales').textContent = status.counts.singles_male - (status.counts.matched_singles / 2);
+                    document.getElementById('unmatchedFemales').textContent = status.counts.singles_female - (status.counts.matched_singles / 2);
+                    document.getElementById('canMatch').textContent = Math.min(
+                        status.counts.singles_male - (status.counts.matched_singles / 2),
+                        status.counts.singles_female - (status.counts.matched_singles / 2)
+                    );
+
+                    if (status.balance.need_more) {
+                        document.getElementById('balanceText').innerHTML = `<span style="color: var(--yellow);">Need ${status.balance.need_more.count} more ${status.balance.need_more.gender}s</span>`;
+                    } else {
+                        document.getElementById('balanceText').innerHTML = `<span style="color: var(--success);">Balanced!</span>`;
+                    }
+                }
+
+                // Load teams
+                const teamsResult = await callFunction('getMatchmakerTeams', { tournament_id: tournamentId });
+                if (teamsResult.success) {
+                    teams = teamsResult.teams;
+                    document.getElementById('teamsReadyCount').textContent = teams.length;
+                    renderTeamsList();
+                    renderMatchedTeams();
+                    populateBreakupSelect();
+                }
+
+                // Load registrations from Firestore directly
+                const regsSnap = await getDocs(collection(db, 'tournaments', tournamentId, 'registrations'));
+                registrations = regsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderRegistrationsList();
+
+            } catch (error) {
+                console.error('Error refreshing data:', error);
+                showMessage('Failed to refresh data', 'error');
+            }
+        };
+
+        function renderRegistrationsList() {
+            const list = document.getElementById('registrationsList');
+
+            if (registrations.length === 0) {
+                list.innerHTML = '<li style="text-align: center; color: var(--text-dim); padding: 30px;">No registrations yet</li>';
+                return;
+            }
+
+            list.innerHTML = registrations.map(reg => {
+                if (reg.type === 'team') {
+                    return `
+                        <li class="reg-item">
+                            <div class="reg-icon team">💑</div>
+                            <div class="reg-info">
+                                <div class="reg-name">${reg.team_name || 'Team'}</div>
+                                <div class="reg-details">${reg.player1.name} (${reg.player1.gender}) & ${reg.player2.name} (${reg.player2.gender})</div>
+                            </div>
+                            <span class="reg-badge couple">COUPLE</span>
+                        </li>
+                    `;
+                } else if (reg.type === 'matched_team') {
+                    return `
+                        <li class="reg-item">
+                            <div class="reg-icon team">💘</div>
+                            <div class="reg-info">
+                                <div class="reg-name">${reg.team_name}</div>
+                                <div class="reg-details">${reg.player1.name} & ${reg.player2.name}</div>
+                            </div>
+                            <span class="reg-badge matched">MATCHED</span>
+                        </li>
+                    `;
+                } else {
+                    const gender = reg.player.gender;
+                    return `
+                        <li class="reg-item">
+                            <div class="reg-icon ${gender === 'M' ? 'male' : 'female'}">${gender === 'M' ? '♂️' : '♀️'}</div>
+                            <div class="reg-info">
+                                <div class="reg-name">${reg.player.name}</div>
+                                <div class="reg-details">Single - ${gender === 'M' ? 'Male' : 'Female'}</div>
+                            </div>
+                            <span class="reg-badge ${reg.matched ? 'matched' : 'waiting'}">${reg.matched ? 'MATCHED' : 'WAITING'}</span>
+                        </li>
+                    `;
+                }
+            }).join('');
+        }
+
+        function renderMatchedTeams() {
+            const list = document.getElementById('matchedTeamsList');
+            const matchedTeams = teams.filter(t => t.type === 'matched_team');
+
+            if (matchedTeams.length === 0) {
+                list.innerHTML = '<li style="text-align: center; color: var(--text-dim); padding: 20px;">No teams matched yet</li>';
+                return;
+            }
+
+            list.innerHTML = matchedTeams.map((team, i) => `
+                <li class="reg-item">
+                    <div class="reg-icon team">💘</div>
+                    <div class="reg-info">
+                        <div class="reg-name">${team.team_name}</div>
+                        <div class="reg-details">${team.player1.name} (${team.player1.gender}) & ${team.player2.name} (${team.player2.gender})</div>
+                    </div>
+                    <span class="reg-badge matched">MATCHED</span>
+                </li>
+            `).join('');
+        }
+
+        function populateBreakupSelect() {
+            const select = document.getElementById('breakupTeamSelect');
+            select.innerHTML = '<option value="">-- Select a team --</option>' +
+                teams.map(team => `<option value="${team.id}">${team.team_name}</option>`).join('');
+        }
+
+        window.drawPartners = async function() {
+            const btn = document.getElementById('drawBtn');
+            btn.disabled = true;
+            btn.textContent = 'DRAWING...';
+
+            try {
+                const result = await callFunction('matchmakerDrawPartners', {
+                    tournament_id: tournamentId,
+                    director_pin: directorPin
+                });
+
+                if (result.success) {
+                    const msg = document.getElementById('drawMessage');
+                    msg.classList.remove('hidden');
+                    msg.className = 'message success';
+                    msg.innerHTML = `✓ Created ${result.teams_created} new teams!<br>${result.new_teams.join('<br>')}`;
+
+                    if (result.unmatched.males > 0 || result.unmatched.females > 0) {
+                        msg.innerHTML += `<br><br>⚠️ Unmatched: ${result.unmatched.males} males, ${result.unmatched.females} females`;
+                    }
+
+                    await refreshData();
+                } else {
+                    showMessage(result.error || 'Failed to draw partners', 'error');
+                }
+            } catch (error) {
+                console.error('Draw error:', error);
+                showMessage('Failed to draw partners: ' + error.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '💘 DRAW PARTNERS';
+            }
+        };
+
+        document.getElementById('breakupTeamSelect').addEventListener('change', function() {
+            const teamId = this.value;
+            const playerSelect = document.getElementById('breakupPlayerSelect');
+
+            if (!teamId) {
+                playerSelect.innerHTML = '<option value="">-- Select player --</option>';
+                return;
+            }
+
+            const team = teams.find(t => t.id === teamId);
+            if (team) {
+                playerSelect.innerHTML = `
+                    <option value="">-- Select player --</option>
+                    <option value="${team.player1.player_id || team.player1.name}">${team.player1.name}</option>
+                    <option value="${team.player2.player_id || team.player2.name}">${team.player2.name}</option>
+                `;
+            }
+        });
+
+        window.triggerBreakup = async function() {
+            const teamId = document.getElementById('breakupTeamSelect').value;
+            const playerId = document.getElementById('breakupPlayerSelect').value;
+
+            if (!teamId || !playerId) {
+                showMessage('Please select a team and player', 'error');
+                return;
+            }
+
+            try {
+                const result = await callFunction('matchmakerBreakup', {
+                    tournament_id: tournamentId,
+                    team_id: teamId,
+                    player_id: playerId,
+                    director_pin: directorPin
+                });
+
+                if (result.success) {
+                    showMessage('Breakup registered! Both players added to re-matching pool.', 'success');
+                    await refreshData();
+                } else {
+                    showMessage(result.error || 'Failed to trigger breakup', 'error');
+                }
+            } catch (error) {
+                console.error('Breakup error:', error);
+                showMessage('Failed to trigger breakup', 'error');
+            }
+        };
+
+        window.rematchBreakups = async function() {
+            try {
+                const result = await callFunction('matchmakerRematch', {
+                    tournament_id: tournamentId,
+                    director_pin: directorPin
+                });
+
+                if (result.success) {
+                    showMessage(`Re-matched ${result.teams_created} teams! ${result.message}`, 'success');
+                    await refreshData();
+                } else {
+                    showMessage(result.error || 'Failed to re-match', 'error');
+                }
+            } catch (error) {
+                console.error('Rematch error:', error);
+                showMessage('Failed to re-match', 'error');
+            }
+        };
+
+        window.generateBracket = async function() {
+            try {
+                // For now, just show message - bracket generation would need additional work
+                showMessage('Bracket generation coming soon! Use the standard bracket page for now.', 'info');
+            } catch (error) {
+                showMessage('Failed to generate bracket', 'error');
+            }
+        };
+
+        // Settings functions
+        function populateSettings() {
+            if (!tournamentData) return;
+
+            document.getElementById('settingName').value = tournamentData.tournament_name || '';
+            document.getElementById('settingDate').value = tournamentData.tournament_date || '';
+            document.getElementById('settingTime').value = tournamentData.tournament_time || '';
+            document.getElementById('settingVenue').value = tournamentData.venue_name || '';
+            document.getElementById('settingGameType').value = tournamentData.game_type || '501';
+            document.getElementById('settingWinnersBestOf').value = tournamentData.winners_best_of || '5';
+            document.getElementById('settingLosersBestOf').value = tournamentData.losers_best_of || '1';
+            document.getElementById('settingBreakupCutoff').value = tournamentData.breakup_cutoff || 'quarterfinals';
+            document.getElementById('settingEntryFee').value = tournamentData.entry_fee || 0;
+        }
+
+        window.saveSettings = async function() {
+            const settings = {
+                tournament_name: document.getElementById('settingName').value.trim(),
+                tournament_date: document.getElementById('settingDate').value,
+                tournament_time: document.getElementById('settingTime').value.trim(),
+                venue_name: document.getElementById('settingVenue').value.trim(),
+                game_type: document.getElementById('settingGameType').value,
+                winners_best_of: parseInt(document.getElementById('settingWinnersBestOf').value),
+                losers_best_of: parseInt(document.getElementById('settingLosersBestOf').value),
+                breakup_cutoff: document.getElementById('settingBreakupCutoff').value,
+                entry_fee: parseFloat(document.getElementById('settingEntryFee').value) || 0
+            };
+
+            try {
+                const result = await callFunction('updateTournamentSettings', {
+                    tournament_id: tournamentId,
+                    director_pin: directorPin,
+                    settings: settings
+                });
+
+                if (result.success) {
+                    // Update local data
+                    Object.assign(tournamentData, settings);
+                    showMessage('Settings saved successfully!', 'success');
+                } else {
+                    showMessage(result.error || 'Failed to save settings', 'error');
+                }
+            } catch (error) {
+                console.error('Save settings error:', error);
+                showMessage('Failed to save settings: ' + error.message, 'error');
+            }
+        };
+
+        function showMessage(text, type) {
+            const box = document.getElementById('messageBox');
+            box.textContent = text;
+            box.className = `message ${type}`;
+            box.classList.remove('hidden');
+
+            setTimeout(() => box.classList.add('hidden'), 5000);
+        }
+    </script>
+</body>
+</html>

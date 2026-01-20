@@ -9,7 +9,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="BRDC">
-    <link rel="apple-touch-icon" href="/images/white_logo.jpg">
+    <link rel="apple-touch-icon" href="/images/gold_logo.png">
     <meta name="theme-color" content="#FF469A">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@500;600;700&family=JetBrains+Mono:wght@600;700&display=swap');
@@ -1051,7 +1051,7 @@
     </div>
 
 <script type="module">
-import { callFunction } from '/js/firebase-config.js';
+import { callFunction, showLoading, hideLoading } from '/js/firebase-config.js';
 
 // URL Parameters
 const params = new URLSearchParams(window.location.search);
@@ -1081,13 +1081,13 @@ const corkOrder = params.get('cork_order') || 'random';
 let lastLegWinner = null;
 let lastLegStarter = null;
 
-// Bot configuration for cricket - MPR (marks per round)
-const BOT_CONFIG = {
-    easy: { mpr: 1.5, variance: 0.8 },
-    medium: { mpr: 2.2, variance: 0.9 },
-    league: { mpr: 2.6, variance: 1.0 },
-    hard: { mpr: 3.0, variance: 1.1 },
-    pro: { mpr: 3.8, variance: 1.2 }
+// Fallback bot config for bots without cricket_skills (legacy support)
+const BOT_CONFIG_FALLBACK = {
+    easy:   { miss_pct: 40, triple_bull_pct: 5, pct_5_mark: 5, pct_7_mark: 1, pct_9_mark: 0 },
+    medium: { miss_pct: 25, triple_bull_pct: 15, pct_5_mark: 20, pct_7_mark: 8, pct_9_mark: 2 },
+    league: { miss_pct: 20, triple_bull_pct: 20, pct_5_mark: 28, pct_7_mark: 12, pct_9_mark: 4 },
+    hard:   { miss_pct: 15, triple_bull_pct: 25, pct_5_mark: 35, pct_7_mark: 18, pct_9_mark: 5 },
+    pro:    { miss_pct: 8, triple_bull_pct: 40, pct_5_mark: 55, pct_7_mark: 35, pct_9_mark: 12 }
 };
 
 // Check if away player is a bot
@@ -1105,14 +1105,36 @@ function isCurrentPlayerBot() {
     return activePlayer === 0 ? isHomeBot() : isAwayBot();
 }
 
-// Get bot config for a player
-function getBotConfig(playerIndex) {
+// Get bot skills for cricket - uses actual cricket_skills if available
+function getBotCricketSkills(playerIndex) {
     const playerList = playerIndex === 0 ? homePlayers : awayPlayers;
-    const difficulty = playerList[0]?.botDifficulty || playerList[0]?.bot_level || 'medium';
-    return { difficulty, config: BOT_CONFIG[difficulty] || BOT_CONFIG.medium };
+    const bot = playerList[0];
+
+    // If bot has actual cricket_skills from database, use them
+    if (bot?.cricket_skills) {
+        const skills = bot.cricket_skills;
+        return {
+            miss_pct: (skills.miss_pct ?? 25) / 100,
+            triple_bull_pct: (skills.triple_bull_pct ?? 15) / 100,
+            pct_5_mark: (skills.pct_5_mark_plus ?? 20) / 100,
+            pct_7_mark: (skills.pct_7_mark_plus ?? 8) / 100,
+            pct_9_mark: (skills.pct_9_mark_plus ?? 2) / 100
+        };
+    }
+
+    // Fallback to difficulty-based config for legacy bots
+    const difficulty = bot?.botDifficulty || bot?.bot_level || 'medium';
+    const fallback = BOT_CONFIG_FALLBACK[difficulty] || BOT_CONFIG_FALLBACK.medium;
+    return {
+        miss_pct: fallback.miss_pct / 100,
+        triple_bull_pct: fallback.triple_bull_pct / 100,
+        pct_5_mark: fallback.pct_5_mark / 100,
+        pct_7_mark: fallback.pct_7_mark / 100,
+        pct_9_mark: fallback.pct_9_mark / 100
+    };
 }
 
-// Bot plays its turn in cricket
+// Bot plays its turn in cricket using actual cricket_skills
 let botPlaying = false;
 
 function botPlay() {
@@ -1120,24 +1142,41 @@ function botPlay() {
     if (botPlaying) return;
     botPlaying = true;
 
-    const { config } = getBotConfig(activePlayer);
+    const skills = getBotCricketSkills(activePlayer);
     const isBotVsBot = isHomeBot() && isAwayBot();
     const delay = isBotVsBot ? (300 + Math.random() * 200) : (600 + Math.random() * 400);
 
     setTimeout(() => {
-        let targetMarks = config.mpr + (Math.random() - 0.5) * config.variance;
-        targetMarks = Math.max(0, Math.round(targetMarks));
-
         const botPlayer = players[activePlayer];
         const opponent = players[1 - activePlayer];
-        let marksToThrow = targetMarks;
 
+        // Determine total marks this round based on skill probabilities
+        let totalMarks;
+        const roll = Math.random();
+
+        if (roll < skills.pct_9_mark) {
+            totalMarks = 9; // 9-mark round (max)
+        } else if (roll < skills.pct_9_mark + skills.pct_7_mark) {
+            totalMarks = 7 + Math.floor(Math.random() * 2); // 7-8 marks
+        } else if (roll < skills.pct_9_mark + skills.pct_7_mark + skills.pct_5_mark) {
+            totalMarks = 5 + Math.floor(Math.random() * 2); // 5-6 marks
+        } else {
+            // Normal round based on miss rate
+            // Less misses = more marks on average
+            const avgMarks = 3 * (1 - skills.miss_pct) * (1 + skills.triple_bull_pct);
+            totalMarks = Math.round(avgMarks + (Math.random() - 0.5) * 2);
+        }
+
+        totalMarks = Math.max(0, Math.min(9, totalMarks));
+
+        let marksToThrow = totalMarks;
         const openTargets = TARGETS.filter(t => botPlayer.marks[t] < 3 || opponent.marks[t] < 3);
 
         for (let dart = 0; dart < 3 && marksToThrow > 0; dart++) {
             let target = null;
             let mult = 1;
 
+            // Find best target (prioritize closing)
             for (const t of openTargets) {
                 if (botPlayer.marks[t] < 3) {
                     target = t;
@@ -1145,6 +1184,7 @@ function botPlay() {
                 }
             }
 
+            // If all closed, point on opponent's open targets
             if (!target) {
                 for (const t of TARGETS) {
                     if (botPlayer.marks[t] >= 3 && opponent.marks[t] < 3) {
@@ -1156,9 +1196,19 @@ function botPlay() {
 
             if (!target) target = openTargets[0] || 20;
 
-            const marksThisThrow = Math.min(marksToThrow, Math.random() < 0.3 ? 3 : (Math.random() < 0.5 ? 2 : 1));
-            mult = marksThisThrow;
-            marksToThrow -= marksThisThrow;
+            // Determine marks for this dart (1-3) based on skill
+            let marksThisDart;
+            if (Math.random() < skills.triple_bull_pct) {
+                marksThisDart = 3; // Triple hit
+            } else if (Math.random() < 0.4) {
+                marksThisDart = 2; // Double
+            } else {
+                marksThisDart = 1; // Single
+            }
+
+            marksThisDart = Math.min(marksToThrow, marksThisDart);
+            mult = marksThisDart;
+            marksToThrow -= marksThisDart;
 
             addHit(target, mult);
         }
@@ -1180,20 +1230,32 @@ let leg = 1;
 let gameStartTime = Date.now();
 let pendingWin = null; // Store pending win state for darts selection
 
+// DartConnect-compatible turn tracking per leg
+let legTurnsHistory = []; // Array of all turns for each completed leg
+let legFirstThrow = []; // Who threw first in each leg (0=home, 1=away)
+let currentLegTurns = []; // All turns in current leg
+let currentLegFirstThrow = null; // Who threw first in current leg
+
 let currentLegStats = [
     {
         marks: 0, rounds: 0, score: 0, whiteHorse: 0, threeInBed: 0, finalDarts: 0,
         // DartConnect stats
         darts_thrown: 0, missed_darts: 0, triple_bull_darts: 0,
-        five_mark_rounds: 0, seven_mark_rounds: 0, nine_mark_rounds: 0, eight_mark_rounds: 0,
-        three_bulls: 0, four_bulls: 0, five_bulls: 0, six_bulls: 0, hat_tricks: 0
+        five_mark_rounds: 0, six_mark_rounds: 0, seven_mark_rounds: 0, nine_mark_rounds: 0, eight_mark_rounds: 0,
+        three_bulls: 0, four_bulls: 0, five_bulls: 0, six_bulls: 0, hat_tricks: 0,
+        // NEW: High mark round, With/Against Darts
+        high_mark_round: 0,
+        threw_first: null
     },
     {
         marks: 0, rounds: 0, score: 0, whiteHorse: 0, threeInBed: 0, finalDarts: 0,
         // DartConnect stats
         darts_thrown: 0, missed_darts: 0, triple_bull_darts: 0,
-        five_mark_rounds: 0, seven_mark_rounds: 0, nine_mark_rounds: 0, eight_mark_rounds: 0,
-        three_bulls: 0, four_bulls: 0, five_bulls: 0, six_bulls: 0, hat_tricks: 0
+        five_mark_rounds: 0, six_mark_rounds: 0, seven_mark_rounds: 0, nine_mark_rounds: 0, eight_mark_rounds: 0,
+        three_bulls: 0, four_bulls: 0, five_bulls: 0, six_bulls: 0, hat_tricks: 0,
+        // NEW: High mark round, With/Against Darts
+        high_mark_round: 0,
+        threw_first: null
     }
 ];
 
@@ -1205,14 +1267,16 @@ function resetCurrentLegStats() {
         {
             marks: 0, rounds: 0, score: 0, whiteHorse: 0, threeInBed: 0, finalDarts: 0,
             darts_thrown: 0, missed_darts: 0, triple_bull_darts: 0,
-            five_mark_rounds: 0, seven_mark_rounds: 0, nine_mark_rounds: 0, eight_mark_rounds: 0,
-            three_bulls: 0, four_bulls: 0, five_bulls: 0, six_bulls: 0, hat_tricks: 0
+            five_mark_rounds: 0, six_mark_rounds: 0, seven_mark_rounds: 0, nine_mark_rounds: 0, eight_mark_rounds: 0,
+            three_bulls: 0, four_bulls: 0, five_bulls: 0, six_bulls: 0, hat_tricks: 0,
+            high_mark_round: 0, threw_first: null
         },
         {
             marks: 0, rounds: 0, score: 0, whiteHorse: 0, threeInBed: 0, finalDarts: 0,
             darts_thrown: 0, missed_darts: 0, triple_bull_darts: 0,
-            five_mark_rounds: 0, seven_mark_rounds: 0, nine_mark_rounds: 0, eight_mark_rounds: 0,
-            three_bulls: 0, four_bulls: 0, five_bulls: 0, six_bulls: 0, hat_tricks: 0
+            five_mark_rounds: 0, six_mark_rounds: 0, seven_mark_rounds: 0, nine_mark_rounds: 0, eight_mark_rounds: 0,
+            three_bulls: 0, four_bulls: 0, five_bulls: 0, six_bulls: 0, hat_tricks: 0,
+            high_mark_round: 0, threw_first: null
         }
     ];
 }
@@ -1421,6 +1485,28 @@ window.confirmWinDarts = function(dartsUsed) {
 
     // Calculate marks for this partial turn (up to the winning dart)
     const turnMarks = currentDarts.reduce((sum, d) => sum + d.marksAdded, 0);
+    const turnPoints = currentDarts.reduce((sum, d) => sum + d.pointsAdded, 0);
+
+    // Track who threw first if this is the first turn
+    if (currentLegFirstThrow === null) {
+        currentLegFirstThrow = pendingWin.player;
+    }
+
+    // Save winning turn to current leg turns
+    currentLegTurns.push({
+        player: pendingWin.player,
+        playerName: player.name,
+        darts: currentDarts.slice(0, dartsUsed).map(d => ({
+            target: d.target,
+            multiplier: d.multiplier,
+            marksAdded: d.marksAdded,
+            pointsAdded: d.pointsAdded
+        })),
+        totalMarks: turnMarks,
+        totalPoints: turnPoints,
+        round: Math.floor(currentLegTurns.filter(t => t.player === pendingWin.player).length) + 1,
+        isWinningTurn: true
+    });
 
     // Update stats with actual darts used
     player.totalMarks += turnMarks;
@@ -1436,6 +1522,10 @@ window.confirmWinDarts = function(dartsUsed) {
     // Save leg stats for comprehensive tracking
     legStats[0].push({...currentLegStats[0]});
     legStats[1].push({...currentLegStats[1]});
+
+    // Save turn history for this leg (DartConnect-compatible throws)
+    legTurnsHistory.push([...currentLegTurns]);
+    legFirstThrow.push(currentLegFirstThrow);
 
     player.legs++;
     lastLegWinner = pendingWin.player;
@@ -1469,6 +1559,11 @@ window.undoDart = function() {
         const prevTurn = turnHistory.pop();
         activePlayer = prevTurn.player;
         currentDarts = prevTurn.darts;
+
+        // Also remove from currentLegTurns (DartConnect tracking)
+        if (currentLegTurns.length > 0) {
+            currentLegTurns.pop();
+        }
 
         players[activePlayer].totalMarks = prevTurn.totalMarks;
         players[activePlayer].totalRounds = prevTurn.totalRounds;
@@ -1549,6 +1644,33 @@ window.clearTurn = function() {
 window.nextPlayer = function() {
     if (currentDarts.length === 0) return;
 
+    // Track who threw first in this leg
+    if (currentLegFirstThrow === null) {
+        currentLegFirstThrow = activePlayer;
+        // Set threw_first for with/against darts tracking
+        currentLegStats[activePlayer].threw_first = true;
+        currentLegStats[1 - activePlayer].threw_first = false;
+    }
+
+    // Calculate marks and points for this turn
+    const turnMarks = currentDarts.reduce((sum, d) => sum + d.marksAdded, 0);
+    const turnPoints = currentDarts.reduce((sum, d) => sum + d.pointsAdded, 0);
+
+    // Save turn to current leg turns (for DartConnect-compatible throws)
+    currentLegTurns.push({
+        player: activePlayer,
+        playerName: players[activePlayer].name,
+        darts: currentDarts.map(d => ({
+            target: d.target,
+            multiplier: d.multiplier,
+            marksAdded: d.marksAdded,
+            pointsAdded: d.pointsAdded
+        })),
+        totalMarks: turnMarks,
+        totalPoints: turnPoints,
+        round: Math.floor(currentLegTurns.filter(t => t.player === activePlayer).length) + 1
+    });
+
     turnHistory.push({
         player: activePlayer,
         darts: [...currentDarts],
@@ -1603,7 +1725,7 @@ function endRound() {
     player.tripleBullDarts += tripleBullDarts;
     currentLegStats[activePlayer].triple_bull_darts += tripleBullDarts;
 
-    // High mark rounds (5M+, 7M+, 8M, 9M)
+    // High mark rounds (5M+, 6M, 7M+, 8M, 9M)
     if (turnMarks >= 9) {
         player.nineMarkRounds++;
         currentLegStats[activePlayer].nine_mark_rounds++;
@@ -1613,9 +1735,18 @@ function endRound() {
     } else if (turnMarks >= 7) {
         player.sevenMarkRounds++;
         currentLegStats[activePlayer].seven_mark_rounds++;
+    } else if (turnMarks >= 6) {
+        // NEW: Track 6-mark rounds separately
+        player.sixMarkRounds = (player.sixMarkRounds || 0) + 1;
+        currentLegStats[activePlayer].six_mark_rounds++;
     } else if (turnMarks >= 5) {
         player.fiveMarkRounds++;
         currentLegStats[activePlayer].five_mark_rounds++;
+    }
+
+    // Track high mark round (highest marks in a single round this leg)
+    if (turnMarks > currentLegStats[activePlayer].high_mark_round) {
+        currentLegStats[activePlayer].high_mark_round = turnMarks;
     }
 
     // Bull counts this round
@@ -1840,6 +1971,10 @@ window.nextLeg = function() {
     targetPoints[1] = { 20: 0, 19: 0, 18: 0, 17: 0, 16: 0, 15: 0, BULL: 0 };
     resetCurrentLegStats();
 
+    // Reset turn tracking for new leg
+    currentLegTurns = [];
+    currentLegFirstThrow = null;
+
     const homeIsBot = isHomeBot();
     const awayIsBot = isAwayBot();
 
@@ -1982,6 +2117,12 @@ window.newGame = function() {
     activePlayer = 0;
     currentDarts = [];
     turnHistory = [];
+    // Reset all turn tracking
+    legTurnsHistory = [];
+    legFirstThrow = [];
+    currentLegTurns = [];
+    currentLegFirstThrow = null;
+    legStats = [[], []]; // Reset leg stats
     players.forEach(p => {
         p.score = 0;
         p.marks = { 20: 0, 19: 0, 18: 0, 17: 0, 16: 0, 15: 0, BULL: 0 };
@@ -2008,19 +2149,93 @@ window.saveAndExit = async function() {
     const mpr0 = players[0].totalRounds > 0 ? parseFloat((players[0].totalMarks / players[0].totalRounds).toFixed(2)) : 0;
     const mpr1 = players[1].totalRounds > 0 ? parseFloat((players[1].totalMarks / players[1].totalRounds).toFixed(2)) : 0;
 
-    // Build comprehensive DartConnect-compatible leg data for cricket
+    // Build comprehensive DartConnect-compatible leg data for cricket with throws
     const buildLegData = () => {
         const legs = [];
         const numLegs = Math.max(legStats[0].length, legStats[1].length);
+
+        // Get player names
+        const homePlayerName = players[0]?.name || 'Home';
+        const awayPlayerName = players[1]?.name || 'Away';
 
         for (let i = 0; i < numLegs; i++) {
             const homeLeg = legStats[0][i] || {};
             const awayLeg = legStats[1][i] || {};
             const legWinner = homeLeg.score > (awayLeg.score || 0) ? 'home' : 'away';
 
+            // Build throws array from saved turn history
+            const legTurns = legTurnsHistory[i] || [];
+            const firstThrow = legFirstThrow[i] !== undefined ? (legFirstThrow[i] === 0 ? 'home' : 'away') : 'home';
+            const throws = [];
+
+            // Group turns by round number
+            const homeTurns = legTurns.filter(t => t.player === 0);
+            const awayTurns = legTurns.filter(t => t.player === 1);
+            const maxRounds = Math.max(homeTurns.length, awayTurns.length);
+
+            for (let r = 0; r < maxRounds; r++) {
+                const homeT = homeTurns[r];
+                const awayT = awayTurns[r];
+                const roundData = { round: r + 1 };
+
+                if (homeT) {
+                    roundData.home = {
+                        player: homePlayerName,
+                        marks: homeT.totalMarks,
+                        points: homeT.totalPoints,
+                        score: homeT.totalMarks + 'M', // Display as "3M" for 3 marks
+                        darts: homeT.darts,
+                        isWinningTurn: homeT.isWinningTurn || false
+                    };
+                    // Mark notable rounds (5+ marks)
+                    if (homeT.totalMarks >= 9) roundData.home.notable = '9MR';
+                    else if (homeT.totalMarks >= 7) roundData.home.notable = '7MR';
+                    else if (homeT.totalMarks >= 5) roundData.home.notable = '5MR';
+                }
+
+                if (awayT) {
+                    roundData.away = {
+                        player: awayPlayerName,
+                        marks: awayT.totalMarks,
+                        points: awayT.totalPoints,
+                        score: awayT.totalMarks + 'M', // Display as "3M" for 3 marks
+                        darts: awayT.darts,
+                        isWinningTurn: awayT.isWinningTurn || false
+                    };
+                    // Mark notable rounds (5+ marks)
+                    if (awayT.totalMarks >= 9) roundData.away.notable = '9MR';
+                    else if (awayT.totalMarks >= 7) roundData.away.notable = '7MR';
+                    else if (awayT.totalMarks >= 5) roundData.away.notable = '5MR';
+                }
+
+                throws.push(roundData);
+            }
+
+            // Build player_stats object
+            const player_stats = {};
+            const homeMpr = homeLeg.rounds > 0 ? parseFloat((homeLeg.marks / homeLeg.rounds).toFixed(2)) : 0;
+            const awayMpr = awayLeg.rounds > 0 ? parseFloat((awayLeg.marks / awayLeg.rounds).toFixed(2)) : 0;
+
+            player_stats[homePlayerName] = {
+                rounds: homeLeg.rounds || 0,
+                marks: homeLeg.marks || 0,
+                mpr: homeMpr,
+                score: homeLeg.score || 0,
+                nine_mark_rounds: homeLeg.nine_mark_rounds || 0
+            };
+            player_stats[awayPlayerName] = {
+                rounds: awayLeg.rounds || 0,
+                marks: awayLeg.marks || 0,
+                mpr: awayMpr,
+                score: awayLeg.score || 0,
+                nine_mark_rounds: awayLeg.nine_mark_rounds || 0
+            };
+
             legs.push({
                 leg_number: i + 1,
+                format: 'cricket',
                 winner: legWinner,
+                first_throw: firstThrow,
                 home_stats: {
                     rounds: homeLeg.rounds || 0,
                     marks: homeLeg.marks || 0,
@@ -2028,6 +2243,7 @@ window.saveAndExit = async function() {
                     missed_darts: homeLeg.missed_darts || 0,
                     triple_bull_darts: homeLeg.triple_bull_darts || 0,
                     five_mark_rounds: homeLeg.five_mark_rounds || 0,
+                    six_mark_rounds: homeLeg.six_mark_rounds || 0,
                     seven_mark_rounds: homeLeg.seven_mark_rounds || 0,
                     eight_mark_rounds: homeLeg.eight_mark_rounds || 0,
                     nine_mark_rounds: homeLeg.nine_mark_rounds || 0,
@@ -2035,7 +2251,10 @@ window.saveAndExit = async function() {
                     four_bulls: homeLeg.four_bulls || 0,
                     five_bulls: homeLeg.five_bulls || 0,
                     six_bulls: homeLeg.six_bulls || 0,
-                    hat_tricks: homeLeg.hat_tricks || 0
+                    hat_tricks: homeLeg.hat_tricks || 0,
+                    // NEW: High mark round, With/Against Darts
+                    high_mark_round: homeLeg.high_mark_round || 0,
+                    threw_first: homeLeg.threw_first
                 },
                 away_stats: {
                     rounds: awayLeg.rounds || 0,
@@ -2044,6 +2263,7 @@ window.saveAndExit = async function() {
                     missed_darts: awayLeg.missed_darts || 0,
                     triple_bull_darts: awayLeg.triple_bull_darts || 0,
                     five_mark_rounds: awayLeg.five_mark_rounds || 0,
+                    six_mark_rounds: awayLeg.six_mark_rounds || 0,
                     seven_mark_rounds: awayLeg.seven_mark_rounds || 0,
                     eight_mark_rounds: awayLeg.eight_mark_rounds || 0,
                     nine_mark_rounds: awayLeg.nine_mark_rounds || 0,
@@ -2051,8 +2271,13 @@ window.saveAndExit = async function() {
                     four_bulls: awayLeg.four_bulls || 0,
                     five_bulls: awayLeg.five_bulls || 0,
                     six_bulls: awayLeg.six_bulls || 0,
-                    hat_tricks: awayLeg.hat_tricks || 0
-                }
+                    hat_tricks: awayLeg.hat_tricks || 0,
+                    // NEW: High mark round, With/Against Darts
+                    high_mark_round: awayLeg.high_mark_round || 0,
+                    threw_first: awayLeg.threw_first
+                },
+                player_stats: player_stats,
+                throws: throws
             });
         }
         return legs;
@@ -2161,19 +2386,22 @@ window.saveAndExit = async function() {
 
         try {
             if (leagueId && matchId) {
+                showLoading('Saving game...');
                 await callFunction('submitGameResult', {
                     league_id: leagueId, match_id: matchId, game_number: gameNumber,
                     winner, home_legs_won: players[0].legs, away_legs_won: players[1].legs,
                     admin_pin: adminPin,
                     game_stats: comprehensiveGameStats
                 });
+                hideLoading();
             }
-        } catch (e) { console.error('Save error:', e); }
+        } catch (e) { hideLoading(); console.error('Save error:', e); }
 
         window.location.href = '/pages/match-transition.html';
         return;
     }
 
+    showLoading('Saving game...');
     try {
         if (leagueId && matchId) {
             // League game submission
@@ -2183,6 +2411,7 @@ window.saveAndExit = async function() {
                 admin_pin: adminPin,
                 game_stats: comprehensiveGameStats
             });
+            hideLoading();
             alert('Game saved!');
         } else if (tournamentId && tournamentMatchId) {
             // Tournament game submission with comprehensive stats
@@ -2193,15 +2422,206 @@ window.saveAndExit = async function() {
                 player2_score: players[1].legs,
                 game_stats: comprehensiveGameStats
             });
+            hideLoading();
             alert('Tournament match saved!');
+        } else if (isCasual) {
+            // Casual/Pickup game - save to pickup_games collection
+            hideLoading();
+            await saveCasualCricketGame(comprehensiveGameStats);
+            return; // saveCasualCricketGame handles navigation
+        } else {
+            hideLoading();
         }
     } catch (e) {
+        hideLoading();
         console.error('Save error:', e);
         alert('Error: ' + e.message);
     }
 
     navigateAway();
 };
+
+// Save casual/pickup cricket game with stats
+async function saveCasualCricketGame(gameStats) {
+    const statPlayerId = params.get('stat_player_id');
+    const statPlayerName = params.get('stat_player_name');
+
+    // Check if players are bots
+    const player1IsBot = isHomeBot();
+    const player2IsBot = isAwayBot();
+
+    let player1Pin = statPlayerId ? null : (localStorage.getItem('brdc_player_pin') || null);
+    let player2Pin = null;
+
+    const player1Name = players[0]?.name || 'Player 1';
+    const player2Name = players[1]?.name || 'Player 2';
+
+    // Build confirmation message
+    let confirmMsg = `Save this game to track stats?\n\n${player1Name}${player1IsBot ? ' (Bot)' : ''}: ${players[0].legs} legs\n${player2Name}${player2IsBot ? ' (Bot)' : ''}: ${players[1].legs} legs\n\n${player1Name} MPR: ${gameStats.home.mpr}\n${player2Name} MPR: ${gameStats.away.mpr}`;
+
+    const wantToSave = confirm(confirmMsg);
+
+    if (!wantToSave) {
+        showCasualCricketSummary(gameStats);
+        return;
+    }
+
+    // Get PINs for human players who want to track stats
+    if (!statPlayerId && !player1IsBot) {
+        player1Pin = prompt(`Enter PIN for ${player1Name} to track stats (or leave blank for guest):`);
+        if (player1Pin) localStorage.setItem('brdc_player_pin', player1Pin.toUpperCase());
+    }
+
+    if (!player2IsBot) {
+        player2Pin = prompt(`Enter PIN for ${player2Name} to track stats (or leave blank for guest):`);
+    }
+
+    showLoading('Saving game...');
+
+    try {
+        const winnerIndex = players[0].legs >= LEGS_TO_WIN ? 0 : 1;
+
+        // Build legs data for pickup game format (cricket)
+        const pickupLegs = gameStats.legs.map((leg, idx) => ({
+            winner: leg.winner === 'home' ? 'player1' : 'player2',
+            player1_stats: {
+                rounds: leg.home_stats?.rounds || 0,
+                marks: leg.home_stats?.marks || 0,
+                darts_thrown: leg.home_stats?.darts_thrown || 0,
+                missed_darts: leg.home_stats?.missed_darts || 0,
+                triple_bull_darts: leg.home_stats?.triple_bull_darts || 0,
+                five_mark_rounds: leg.home_stats?.five_mark_rounds || 0,
+                six_mark_rounds: leg.home_stats?.six_mark_rounds || 0,
+                seven_mark_rounds: leg.home_stats?.seven_mark_rounds || 0,
+                eight_mark_rounds: leg.home_stats?.eight_mark_rounds || 0,
+                nine_mark_rounds: leg.home_stats?.nine_mark_rounds || 0,
+                three_bulls: leg.home_stats?.three_bulls || 0,
+                four_bulls: leg.home_stats?.four_bulls || 0,
+                five_bulls: leg.home_stats?.five_bulls || 0,
+                six_bulls: leg.home_stats?.six_bulls || 0,
+                hat_tricks: leg.home_stats?.hat_tricks || 0,
+                // NEW: High mark round, With/Against Darts
+                high_mark_round: leg.home_stats?.high_mark_round || 0,
+                threw_first: leg.home_stats?.threw_first
+            },
+            player2_stats: {
+                rounds: leg.away_stats?.rounds || 0,
+                marks: leg.away_stats?.marks || 0,
+                darts_thrown: leg.away_stats?.darts_thrown || 0,
+                missed_darts: leg.away_stats?.missed_darts || 0,
+                triple_bull_darts: leg.away_stats?.triple_bull_darts || 0,
+                five_mark_rounds: leg.away_stats?.five_mark_rounds || 0,
+                six_mark_rounds: leg.away_stats?.six_mark_rounds || 0,
+                seven_mark_rounds: leg.away_stats?.seven_mark_rounds || 0,
+                eight_mark_rounds: leg.away_stats?.eight_mark_rounds || 0,
+                nine_mark_rounds: leg.away_stats?.nine_mark_rounds || 0,
+                three_bulls: leg.away_stats?.three_bulls || 0,
+                four_bulls: leg.away_stats?.four_bulls || 0,
+                five_bulls: leg.away_stats?.five_bulls || 0,
+                six_bulls: leg.away_stats?.six_bulls || 0,
+                hat_tricks: leg.away_stats?.hat_tricks || 0,
+                // NEW: High mark round, With/Against Darts
+                high_mark_round: leg.away_stats?.high_mark_round || 0,
+                threw_first: leg.away_stats?.threw_first
+            }
+        }));
+
+        // Get bot IDs if applicable
+        const player1BotId = player1IsBot ? (homePlayers[0]?.registeredBotId || null) : null;
+        const player2BotId = player2IsBot ? (awayPlayers[0]?.registeredBotId || null) : null;
+
+        const payload = {
+            game_type: 'cricket',
+            players: [
+                {
+                    id: statPlayerId || player1BotId || null,
+                    pin: player1Pin?.toUpperCase() || null,
+                    name: player1Name,
+                    is_bot: player1IsBot
+                },
+                {
+                    id: player2BotId || null,
+                    pin: player2Pin?.toUpperCase() || null,
+                    name: player2Name,
+                    is_bot: player2IsBot
+                }
+            ],
+            winner_index: winnerIndex,
+            legs: pickupLegs,
+            match_config: {
+                bestOfLegs: LEGS_TO_WIN * 2 - 1,
+                bestOfSets: 1
+            }
+        };
+
+        const result = await callFunction('savePickupGame', payload);
+        hideLoading();
+
+        if (result.success) {
+            showCasualCricketSummary(gameStats, 'Game saved! Stats updated.');
+        } else {
+            showCasualCricketSummary(gameStats, 'Could not save: ' + (result.error || 'Unknown error'));
+        }
+    } catch (error) {
+        hideLoading();
+        console.error('Error saving casual cricket game:', error);
+        showCasualCricketSummary(gameStats, 'Error saving: ' + error.message);
+    }
+}
+
+// Show casual cricket game summary with stats
+function showCasualCricketSummary(gameStats, saveMessage = null) {
+    const modal = document.getElementById('winnerModal');
+    const statsDiv = document.getElementById('winnerModalStats');
+    const winnerText = document.getElementById('winnerText');
+
+    const winner = players[0].legs >= LEGS_TO_WIN ? players[0] : players[1];
+    winnerText.textContent = winner.name + ' WINS!';
+
+    statsDiv.innerHTML = `
+        <div style="text-align: center; margin-bottom: 15px;">
+            <div style="font-size: 24px; color: var(--yellow);">${players[0].legs} - ${players[1].legs}</div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; text-align: center;">
+            <div>
+                <div style="font-weight: 700; color: var(--pink); margin-bottom: 8px;">${players[0].name}</div>
+                <div style="font-size: 28px; font-family: 'Rowdies', cursive;">${gameStats.home.mpr}</div>
+                <div style="font-size: 11px; opacity: 0.7;">MPR</div>
+                <div style="margin-top: 8px;">
+                    <span style="color: var(--yellow);">${gameStats.home.nine_mark_rounds || 0}</span> 9MRs
+                    <span style="margin-left: 10px; color: var(--teal);">${gameStats.home.total_marks}</span> Marks
+                </div>
+            </div>
+            <div>
+                <div style="font-weight: 700; color: var(--teal); margin-bottom: 8px;">${players[1].name}</div>
+                <div style="font-size: 28px; font-family: 'Rowdies', cursive;">${gameStats.away.mpr}</div>
+                <div style="font-size: 11px; opacity: 0.7;">MPR</div>
+                <div style="margin-top: 8px;">
+                    <span style="color: var(--yellow);">${gameStats.away.nine_mark_rounds || 0}</span> 9MRs
+                    <span style="margin-left: 10px; color: var(--teal);">${gameStats.away.total_marks}</span> Marks
+                </div>
+            </div>
+        </div>
+        ${saveMessage ? `<div style="margin-top: 15px; font-size: 13px; color: ${saveMessage.includes('saved') ? '#4CAF50' : '#ff6b6b'};">${saveMessage}</div>` : ''}
+    `;
+
+    // Replace buttons with just a DONE button
+    const modalContent = modal.querySelector('.modal-content');
+    const existingBtns = modalContent.querySelectorAll('.modal-btn');
+    existingBtns.forEach(btn => btn.style.display = 'none');
+
+    if (!document.getElementById('casualDoneBtn')) {
+        const doneBtn = document.createElement('button');
+        doneBtn.id = 'casualDoneBtn';
+        doneBtn.className = 'modal-btn';
+        doneBtn.textContent = 'DONE';
+        doneBtn.onclick = () => navigateAway();
+        doneBtn.style.marginTop = '15px';
+        modalContent.appendChild(doneBtn);
+    }
+
+    modal.classList.add('active');
+}
 
 function navigateAway() {
     // Check for custom return URL first
@@ -2498,5 +2918,6 @@ if ('serviceWorker' in navigator) {
 }
 </script>
 <script src="/js/nav-menu.js"></script>
+<script src="/js/feedback.js"></script>
 </body>
 </html>

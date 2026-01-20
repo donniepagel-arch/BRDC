@@ -22,6 +22,7 @@ exports.createLeague = functions.https.onRequest((req, res) => {
 
         const league = {
             league_name: data.league_name,
+            image_url: data.image_url || '',
             league_type: data.league_type || 'triples_draft',
             league_mode: data.league_mode || 'draft',
             season: data.season || 'Spring 2026',

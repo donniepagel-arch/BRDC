@@ -63,6 +63,7 @@ exports.createTournament = functions.https.onRequest(async (req, res) => {
             tournament_name: data.tournament_name,
             tournament_date: data.tournament_date,
             tournament_time: data.tournament_time || '',
+            image_url: data.image_url || '',
             venue_name: data.venue_name || data.venue || '',
             venue_address: data.venue_address || '',
             tournament_details: data.tournament_details || '',
@@ -117,6 +118,7 @@ exports.createTournament = functions.https.onRequest(async (req, res) => {
                     tournament_id: tournamentId,
                     event_number: index + 1,
                     event_name: event.event_name || `Event ${index + 1}`,
+                    image_url: event.image_url || '',
                     entry_type: event.entry_type || 'individual',
                     format: normalizeFormat(event.format),
                     game: event.game || '501',
@@ -277,9 +279,15 @@ exports.updateTournamentSettings = functions.https.onRequest(async (req, res) =>
 
         // Allowed fields that can be updated
         const allowedFields = [
+            // Basic info
             'tournament_name', 'tournament_date', 'tournament_time', 'tournament_details',
-            'venue_name', 'venue_address', 'format', 'max_players', 'game_type',
-            'entry_fee', 'status'
+            'venue_name', 'venue_address', 'image_url',
+            // Format settings
+            'format', 'max_players', 'game_type', 'entry_fee', 'status',
+            'best_of', 'checkout', 'in_rule', 'out_rule',
+            // Matchmaker specific
+            'winners_best_of', 'losers_best_of', 'breakup_cutoff', 'breakup_enabled',
+            'partner_matching', 'matchmaker_enabled'
         ];
 
         // Build update object with only allowed fields

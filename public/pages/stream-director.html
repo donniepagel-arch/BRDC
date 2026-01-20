@@ -1,0 +1,1069 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stream Director - BRDC Live</title>
+    <link rel="icon" type="image/png" href="/images/favicon.png">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700;800&display=swap');
+
+        :root {
+            --pink: #FF469A;
+            --teal: #91D7EB;
+            --yellow: #FDD835;
+            --bg-dark: #1a1a2e;
+            --bg-panel: #16213e;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+
+        body {
+            background: var(--bg-dark);
+            color: white;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: var(--bg-panel);
+            padding: 15px 20px;
+            border-bottom: 3px solid var(--pink);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .header-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 28px;
+            color: var(--pink);
+            letter-spacing: 3px;
+        }
+
+        .session-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .session-code-display {
+            font-family: monospace;
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--yellow);
+            letter-spacing: 4px;
+            padding: 8px 16px;
+            background: rgba(253,216,53,0.15);
+            border: 2px solid var(--yellow);
+            border-radius: 6px;
+        }
+
+        .main-layout {
+            display: grid;
+            grid-template-columns: 1fr 320px;
+            gap: 20px;
+            padding: 20px;
+            height: calc(100vh - 70px);
+        }
+
+        .preview-section {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .preview-label {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 18px;
+            color: var(--teal);
+            letter-spacing: 2px;
+        }
+
+        .output-preview {
+            background: #000;
+            border: 3px solid var(--pink);
+            border-radius: 8px;
+            overflow: hidden;
+            aspect-ratio: 16/9;
+            position: relative;
+        }
+
+        #outputCanvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        .live-badge {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: #dc2626;
+            color: white;
+            padding: 6px 14px;
+            border-radius: 4px;
+            font-weight: 800;
+            font-size: 14px;
+            animation: pulse 1.5s infinite;
+            display: none;
+        }
+
+        .live-badge.active { display: block; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .source-feeds {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .source-feed {
+            background: var(--bg-panel);
+            border: 2px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .source-feed.connected {
+            border-color: var(--teal);
+        }
+
+        .source-header {
+            padding: 10px 12px;
+            background: rgba(0,0,0,0.3);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .source-name {
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: var(--teal);
+        }
+
+        .source-status {
+            font-size: 11px;
+            padding: 3px 8px;
+            border-radius: 10px;
+            background: #dc2626;
+        }
+
+        .source-status.connected { background: #10b981; }
+
+        .source-video {
+            aspect-ratio: 16/9;
+            background: #000;
+        }
+
+        .source-video video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .control-panel {
+            background: var(--bg-panel);
+            border-radius: 8px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow-y: auto;
+        }
+
+        .panel-section {
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 15px;
+        }
+
+        .panel-section:last-child { border-bottom: none; }
+
+        .panel-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 16px;
+            color: var(--yellow);
+            letter-spacing: 2px;
+            margin-bottom: 12px;
+        }
+
+        .layout-options {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .layout-btn {
+            padding: 10px;
+            background: rgba(255,255,255,0.05);
+            border: 2px solid rgba(255,255,255,0.2);
+            border-radius: 6px;
+            color: white;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .layout-btn:hover { background: rgba(255,255,255,0.1); }
+        .layout-btn.active { border-color: var(--pink); background: rgba(255,70,154,0.2); }
+
+        .form-group {
+            margin-bottom: 12px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: rgba(255,255,255,0.6);
+            margin-bottom: 6px;
+        }
+
+        .form-input, .form-select {
+            width: 100%;
+            padding: 10px;
+            background: rgba(255,255,255,0.05);
+            border: 2px solid rgba(255,255,255,0.2);
+            border-radius: 6px;
+            color: white;
+            font-size: 14px;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 700;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-go-live {
+            background: #dc2626;
+            color: white;
+        }
+
+        .btn-go-live:hover { background: #b91c1c; }
+        .btn-go-live.live { background: #10b981; }
+
+        .btn-create {
+            background: var(--pink);
+            color: white;
+        }
+
+        .btn-create:hover { background: #E03786; }
+
+        .btn-secondary {
+            background: rgba(255,255,255,0.1);
+            color: white;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+        }
+
+        .stat-label { font-size: 12px; color: rgba(255,255,255,0.6); }
+        .stat-value { font-size: 14px; font-weight: 700; color: var(--teal); }
+
+        .stream-status {
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            text-align: center;
+            margin-bottom: 12px;
+        }
+
+        .stream-status.disconnected { background: rgba(220, 38, 38, 0.2); color: #f87171; }
+        .stream-status.connecting { background: rgba(253, 216, 53, 0.2); color: #fdd835; }
+        .stream-status.connected { background: rgba(16, 185, 129, 0.2); color: #10b981; }
+        .stream-status.streaming { background: rgba(220, 38, 38, 0.3); color: #f87171; animation: pulse 1.5s infinite; }
+
+        .relay-config {
+            margin-bottom: 12px;
+            padding: 10px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 6px;
+        }
+
+        .relay-config summary {
+            cursor: pointer;
+            font-size: 11px;
+            color: rgba(255,255,255,0.6);
+        }
+
+        .relay-config .form-group { margin-top: 10px; margin-bottom: 0; }
+
+        .overlay-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 0;
+        }
+
+        .toggle-switch {
+            width: 48px;
+            height: 26px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 13px;
+            position: relative;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .toggle-switch.active { background: var(--pink); }
+
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            width: 22px;
+            height: 22px;
+            background: white;
+            border-radius: 50%;
+            top: 2px;
+            left: 2px;
+            transition: transform 0.2s;
+        }
+
+        .toggle-switch.active::after { transform: translateX(22px); }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-title">STREAM DIRECTOR</div>
+        <div class="session-info">
+            <span style="font-size: 12px; color: rgba(255,255,255,0.6);">SESSION CODE:</span>
+            <div class="session-code-display" id="sessionCodeDisplay">------</div>
+            <button class="btn btn-create" id="createSessionBtn" onclick="createSession()">CREATE SESSION</button>
+        </div>
+    </div>
+
+    <div class="main-layout">
+        <div class="preview-section">
+            <div class="preview-label">OUTPUT PREVIEW</div>
+            <div class="output-preview">
+                <canvas id="outputCanvas" width="1920" height="1080"></canvas>
+                <div class="live-badge" id="liveBadge">LIVE</div>
+            </div>
+
+            <div class="preview-label">SOURCE FEEDS</div>
+            <div class="source-feeds">
+                <div class="source-feed" id="boardFeed">
+                    <div class="source-header">
+                        <span class="source-name">Board Camera</span>
+                        <span class="source-status" id="boardStatus">Waiting</span>
+                    </div>
+                    <div class="source-video">
+                        <video id="boardVideo" autoplay muted playsinline></video>
+                    </div>
+                </div>
+                <div class="source-feed" id="throwerFeed">
+                    <div class="source-header">
+                        <span class="source-name">Thrower Camera</span>
+                        <span class="source-status" id="throwerStatus">Waiting</span>
+                    </div>
+                    <div class="source-video">
+                        <video id="throwerVideo" autoplay muted playsinline></video>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="control-panel">
+            <div class="panel-section">
+                <div class="panel-title">LAYOUT</div>
+                <div class="layout-options">
+                    <button class="layout-btn active" onclick="setLayout('side-by-side')" data-layout="side-by-side">Side by Side</button>
+                    <button class="layout-btn" onclick="setLayout('pip-board')" data-layout="pip-board">Board + PIP</button>
+                    <button class="layout-btn" onclick="setLayout('pip-thrower')" data-layout="pip-thrower">Thrower + PIP</button>
+                    <button class="layout-btn" onclick="setLayout('board-only')" data-layout="board-only">Board Only</button>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <div class="panel-title">OVERLAY</div>
+                <div class="overlay-toggle">
+                    <span class="form-label" style="margin: 0;">Show Scorer Overlay</span>
+                    <div class="toggle-switch" id="overlayToggle" onclick="toggleOverlay()"></div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Match Source</label>
+                    <select id="matchSource" class="form-select">
+                        <option value="">No match linked</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <div class="panel-title">STREAM OUTPUT</div>
+                <div class="stream-status disconnected" id="relayStatus">Relay: Not Connected</div>
+                <details class="relay-config">
+                    <summary>Relay Server Settings</summary>
+                    <div class="form-group">
+                        <label class="form-label">Relay URL</label>
+                        <input type="text" id="relayUrl" class="form-input" value="wss://brdc-streaming-relay-726670872282.us-central1.run.app" placeholder="wss://your-relay-server">
+                    </div>
+                    <button class="btn btn-secondary" style="margin-top: 8px;" onclick="connectRelay()">Connect</button>
+                </details>
+                <div class="form-group">
+                    <label class="form-label">Platform</label>
+                    <select id="streamPlatform" class="form-select">
+                        <option value="youtube">YouTube Live</option>
+                        <option value="twitch">Twitch</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Stream Key</label>
+                    <input type="password" id="streamKey" class="form-input" placeholder="Enter stream key">
+                </div>
+                <button class="btn btn-go-live" id="goLiveBtn" onclick="toggleLive()" disabled>GO LIVE</button>
+            </div>
+
+            <div class="panel-section">
+                <div class="panel-title">STATUS</div>
+                <div class="stat-row">
+                    <span class="stat-label">Board Camera</span>
+                    <span class="stat-value" id="boardStatValue">Disconnected</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Thrower Camera</span>
+                    <span class="stat-value" id="throwerStatValue">Disconnected</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Output Resolution</span>
+                    <span class="stat-value">1920x1080</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Frame Rate</span>
+                    <span class="stat-value" id="fpsValue">0 fps</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Stream Bitrate</span>
+                    <span class="stat-value" id="bitrateValue">-- kbps</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Data Sent</span>
+                    <span class="stat-value" id="dataSentValue">0 MB</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js';
+        import { getFirestore, doc, setDoc, getDoc, onSnapshot, collection, deleteDoc, serverTimestamp, query, orderBy, limit } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDLpaN65tYFNPJQ1TjMWS_36qFeNxJ0AZ4",
+            authDomain: "brdc-v2.firebaseapp.com",
+            projectId: "brdc-v2",
+            storageBucket: "brdc-v2.firebasestorage.app",
+            messagingSenderId: "586498498498",
+            appId: "1:586498498498:web:4b76c0b5e4b94baf0e3b5f"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        const rtcConfig = {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' }
+            ]
+        };
+
+        let sessionId = null;
+        let peerConnections = { board: null, thrower: null };
+        let remoteStreams = { board: null, thrower: null };
+        let currentLayout = 'side-by-side';
+        let showOverlay = false;
+        let isLive = false;
+        let canvas, ctx;
+        let animationFrame;
+        let frameCount = 0;
+        let lastFpsUpdate = 0;
+
+        // Streaming relay variables
+        let relaySocket = null;
+        let mediaRecorder = null;
+        let canvasStream = null;
+        let totalBytesSent = 0;
+        let lastBytesSent = 0;
+        let lastBitrateUpdate = 0;
+
+        // Initialize canvas
+        function initCanvas() {
+            canvas = document.getElementById('outputCanvas');
+            ctx = canvas.getContext('2d');
+            renderFrame();
+        }
+
+        // Generate 6-character session code
+        function generateSessionCode() {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+            let code = '';
+            for (let i = 0; i < 6; i++) {
+                code += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return code;
+        }
+
+        // Create new streaming session
+        window.createSession = async function() {
+            sessionId = generateSessionCode();
+
+            try {
+                await setDoc(doc(db, 'streaming_sessions', sessionId), {
+                    created_at: serverTimestamp(),
+                    status: 'active',
+                    layout: currentLayout
+                });
+
+                document.getElementById('sessionCodeDisplay').textContent = sessionId;
+                document.getElementById('createSessionBtn').textContent = 'END SESSION';
+                document.getElementById('createSessionBtn').onclick = endSession;
+
+                // Listen for incoming offers
+                listenForOffers();
+
+            } catch (error) {
+                console.error('Error creating session:', error);
+                alert('Failed to create session: ' + error.message);
+            }
+        };
+
+        window.endSession = async function() {
+            if (sessionId) {
+                try {
+                    await deleteDoc(doc(db, 'streaming_sessions', sessionId));
+                } catch (e) {
+                    console.log('Cleanup error:', e);
+                }
+
+                Object.values(peerConnections).forEach(pc => {
+                    if (pc) pc.close();
+                });
+                peerConnections = { board: null, thrower: null };
+                remoteStreams = { board: null, thrower: null };
+            }
+
+            sessionId = null;
+            document.getElementById('sessionCodeDisplay').textContent = '------';
+            document.getElementById('createSessionBtn').textContent = 'CREATE SESSION';
+            document.getElementById('createSessionBtn').onclick = createSession;
+
+            updateSourceStatus('board', false);
+            updateSourceStatus('thrower', false);
+        };
+
+        function listenForOffers() {
+            // Listen for board camera offer
+            onSnapshot(doc(db, 'streaming_sessions', sessionId, 'offers', 'board'), async (snapshot) => {
+                if (snapshot.exists()) {
+                    await handleOffer('board', snapshot.data());
+                }
+            });
+
+            // Listen for thrower camera offer
+            onSnapshot(doc(db, 'streaming_sessions', sessionId, 'offers', 'thrower'), async (snapshot) => {
+                if (snapshot.exists()) {
+                    await handleOffer('thrower', snapshot.data());
+                }
+            });
+        }
+
+        async function handleOffer(role, offerData) {
+            console.log(`Received offer from ${role} camera`);
+
+            // Close existing connection if any
+            if (peerConnections[role]) {
+                peerConnections[role].close();
+            }
+
+            const pc = new RTCPeerConnection(rtcConfig);
+            peerConnections[role] = pc;
+
+            // Handle incoming stream
+            pc.ontrack = (event) => {
+                console.log(`Received track from ${role}`);
+                remoteStreams[role] = event.streams[0];
+                document.getElementById(`${role}Video`).srcObject = event.streams[0];
+                updateSourceStatus(role, true);
+            };
+
+            // Handle ICE candidates
+            pc.onicecandidate = async (event) => {
+                if (event.candidate) {
+                    await setDoc(doc(collection(db, 'streaming_sessions', sessionId, 'ice_candidates')), {
+                        candidate: event.candidate.toJSON(),
+                        role: role,
+                        type: 'answer',
+                        timestamp: serverTimestamp()
+                    });
+                }
+            };
+
+            pc.onconnectionstatechange = () => {
+                console.log(`${role} connection state:`, pc.connectionState);
+                if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
+                    updateSourceStatus(role, false);
+                    remoteStreams[role] = null;
+                }
+            };
+
+            // Set remote description (offer)
+            await pc.setRemoteDescription(new RTCSessionDescription({
+                sdp: offerData.sdp,
+                type: offerData.type
+            }));
+
+            // Create and send answer
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+
+            await setDoc(doc(db, 'streaming_sessions', sessionId, 'answers', role), {
+                sdp: answer.sdp,
+                type: answer.type,
+                timestamp: serverTimestamp()
+            });
+
+            // Listen for ICE candidates from this camera
+            onSnapshot(collection(db, 'streaming_sessions', sessionId, 'ice_candidates'), (snapshot) => {
+                snapshot.docChanges().forEach(async (change) => {
+                    if (change.type === 'added') {
+                        const data = change.doc.data();
+                        if (data.type === 'offer' && data.role === role) {
+                            try {
+                                await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+                            } catch (e) {
+                                console.error('Error adding ICE candidate:', e);
+                            }
+                        }
+                    }
+                });
+            });
+        }
+
+        function updateSourceStatus(role, connected) {
+            const statusEl = document.getElementById(`${role}Status`);
+            const feedEl = document.getElementById(`${role}Feed`);
+            const statEl = document.getElementById(`${role}StatValue`);
+
+            if (connected) {
+                statusEl.textContent = 'Connected';
+                statusEl.classList.add('connected');
+                feedEl.classList.add('connected');
+                statEl.textContent = 'Connected';
+                statEl.style.color = '#10b981';
+            } else {
+                statusEl.textContent = 'Waiting';
+                statusEl.classList.remove('connected');
+                feedEl.classList.remove('connected');
+                statEl.textContent = 'Disconnected';
+                statEl.style.color = '#dc2626';
+            }
+        }
+
+        // Layout functions
+        window.setLayout = function(layout) {
+            currentLayout = layout;
+            document.querySelectorAll('.layout-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.layout === layout);
+            });
+        };
+
+        window.toggleOverlay = function() {
+            showOverlay = !showOverlay;
+            document.getElementById('overlayToggle').classList.toggle('active', showOverlay);
+        };
+
+        // ========== STREAMING RELAY FUNCTIONS ==========
+
+        window.connectRelay = function() {
+            const relayUrl = document.getElementById('relayUrl').value.trim();
+            if (!relayUrl) {
+                alert('Please enter a relay server URL');
+                return;
+            }
+
+            updateRelayStatus('connecting', 'Connecting...');
+
+            try {
+                relaySocket = new WebSocket(relayUrl);
+
+                relaySocket.onopen = () => {
+                    console.log('Connected to relay server');
+                    updateRelayStatus('connected', 'Relay: Connected');
+                    document.getElementById('goLiveBtn').disabled = false;
+
+                    // Start ping interval to keep connection alive
+                    setInterval(() => {
+                        if (relaySocket && relaySocket.readyState === WebSocket.OPEN) {
+                            relaySocket.send(JSON.stringify({ type: 'ping' }));
+                        }
+                    }, 30000);
+                };
+
+                relaySocket.onclose = () => {
+                    console.log('Disconnected from relay server');
+                    updateRelayStatus('disconnected', 'Relay: Disconnected');
+                    document.getElementById('goLiveBtn').disabled = true;
+                    if (isLive) {
+                        stopStreaming();
+                    }
+                };
+
+                relaySocket.onerror = (error) => {
+                    console.error('Relay socket error:', error);
+                    updateRelayStatus('disconnected', 'Relay: Error');
+                };
+
+                relaySocket.onmessage = (event) => {
+                    try {
+                        const message = JSON.parse(event.data);
+                        handleRelayMessage(message);
+                    } catch (e) {
+                        console.error('Error parsing relay message:', e);
+                    }
+                };
+
+            } catch (error) {
+                console.error('Error connecting to relay:', error);
+                updateRelayStatus('disconnected', 'Relay: Connection Failed');
+            }
+        };
+
+        function handleRelayMessage(message) {
+            console.log('Relay message:', message);
+
+            switch (message.type) {
+                case 'started':
+                    console.log(`Stream started on ${message.platform}`);
+                    updateRelayStatus('streaming', `LIVE on ${message.platform.toUpperCase()}`);
+                    break;
+
+                case 'stopped':
+                    console.log('Stream stopped');
+                    updateRelayStatus('connected', 'Relay: Connected');
+                    break;
+
+                case 'error':
+                    console.error('Relay error:', message.message);
+                    alert('Stream error: ' + message.message);
+                    if (isLive) {
+                        stopStreaming();
+                    }
+                    break;
+
+                case 'progress':
+                    // FFmpeg progress update
+                    if (message.fps) {
+                        document.getElementById('fpsValue').textContent = `${message.fps.toFixed(1)} fps`;
+                    }
+                    break;
+
+                case 'pong':
+                    // Connection alive
+                    break;
+            }
+        }
+
+        function updateRelayStatus(status, text) {
+            const statusEl = document.getElementById('relayStatus');
+            statusEl.className = `stream-status ${status}`;
+            statusEl.textContent = text;
+        }
+
+        window.toggleLive = function() {
+            if (!isLive) {
+                startStreaming();
+            } else {
+                stopStreaming();
+            }
+        };
+
+        function startStreaming() {
+            const platform = document.getElementById('streamPlatform').value;
+            const streamKey = document.getElementById('streamKey').value.trim();
+
+            if (!streamKey) {
+                alert('Please enter your stream key');
+                return;
+            }
+
+            if (!relaySocket || relaySocket.readyState !== WebSocket.OPEN) {
+                alert('Not connected to relay server');
+                return;
+            }
+
+            isLive = true;
+            totalBytesSent = 0;
+            lastBytesSent = 0;
+
+            const btn = document.getElementById('goLiveBtn');
+            const badge = document.getElementById('liveBadge');
+
+            btn.textContent = 'STOP STREAM';
+            btn.classList.add('live');
+            badge.classList.add('active');
+
+            // Tell relay to start FFmpeg
+            relaySocket.send(JSON.stringify({
+                type: 'start',
+                platform: platform,
+                streamKey: streamKey
+            }));
+
+            // Start capturing canvas and sending to relay
+            startCanvasCapture();
+        }
+
+        function stopStreaming() {
+            isLive = false;
+
+            const btn = document.getElementById('goLiveBtn');
+            const badge = document.getElementById('liveBadge');
+
+            btn.textContent = 'GO LIVE';
+            btn.classList.remove('live');
+            badge.classList.remove('active');
+
+            // Stop media recorder
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+            }
+            mediaRecorder = null;
+
+            // Stop canvas stream tracks
+            if (canvasStream) {
+                canvasStream.getTracks().forEach(track => track.stop());
+                canvasStream = null;
+            }
+
+            // Tell relay to stop
+            if (relaySocket && relaySocket.readyState === WebSocket.OPEN) {
+                relaySocket.send(JSON.stringify({ type: 'stop' }));
+            }
+
+            document.getElementById('bitrateValue').textContent = '-- kbps';
+        }
+
+        function startCanvasCapture() {
+            // Capture the canvas as a MediaStream at 30fps
+            canvasStream = canvas.captureStream(30);
+
+            // Add audio track (silent for now, could add mic/game audio later)
+            const audioCtx = new AudioContext();
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            gainNode.gain.value = 0; // Silent
+            oscillator.connect(gainNode);
+            const audioDestination = audioCtx.createMediaStreamDestination();
+            gainNode.connect(audioDestination);
+            oscillator.start();
+
+            // Combine video and audio
+            const combinedStream = new MediaStream([
+                ...canvasStream.getVideoTracks(),
+                ...audioDestination.stream.getAudioTracks()
+            ]);
+
+            // Configure MediaRecorder
+            // Use VP8 for video, Opus for audio (webm container)
+            const options = {
+                mimeType: 'video/webm;codecs=vp8,opus',
+                videoBitsPerSecond: 4500000, // 4.5 Mbps
+                audioBitsPerSecond: 128000   // 128 kbps
+            };
+
+            // Fallback if VP8 not supported
+            if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                options.mimeType = 'video/webm';
+            }
+
+            try {
+                mediaRecorder = new MediaRecorder(combinedStream, options);
+
+                mediaRecorder.ondataavailable = (event) => {
+                    if (event.data && event.data.size > 0 && relaySocket && relaySocket.readyState === WebSocket.OPEN) {
+                        relaySocket.send(event.data);
+                        totalBytesSent += event.data.size;
+                        updateStreamStats();
+                    }
+                };
+
+                mediaRecorder.onerror = (error) => {
+                    console.error('MediaRecorder error:', error);
+                    stopStreaming();
+                };
+
+                // Request data every 1 second for smoother streaming
+                mediaRecorder.start(1000);
+                console.log('Canvas capture started');
+
+            } catch (error) {
+                console.error('Error starting MediaRecorder:', error);
+                alert('Failed to start video capture: ' + error.message);
+                stopStreaming();
+            }
+        }
+
+        function updateStreamStats() {
+            const now = performance.now();
+
+            // Update bitrate every second
+            if (now - lastBitrateUpdate >= 1000) {
+                const bytesDiff = totalBytesSent - lastBytesSent;
+                const kbps = Math.round((bytesDiff * 8) / 1000); // Convert to kbps
+                document.getElementById('bitrateValue').textContent = `${kbps} kbps`;
+
+                lastBytesSent = totalBytesSent;
+                lastBitrateUpdate = now;
+            }
+
+            // Update total data sent
+            const mbSent = (totalBytesSent / (1024 * 1024)).toFixed(2);
+            document.getElementById('dataSentValue').textContent = `${mbSent} MB`;
+        }
+
+        // Render composite frame
+        function renderFrame() {
+            frameCount++;
+            const now = performance.now();
+
+            // Update FPS counter every second
+            if (now - lastFpsUpdate >= 1000) {
+                document.getElementById('fpsValue').textContent = `${frameCount} fps`;
+                frameCount = 0;
+                lastFpsUpdate = now;
+            }
+
+            // Clear canvas
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            const boardVideo = document.getElementById('boardVideo');
+            const throwerVideo = document.getElementById('throwerVideo');
+
+            switch (currentLayout) {
+                case 'side-by-side':
+                    // Board on left, thrower on right
+                    if (remoteStreams.board && boardVideo.readyState >= 2) {
+                        ctx.drawImage(boardVideo, 0, 0, canvas.width / 2, canvas.height);
+                    }
+                    if (remoteStreams.thrower && throwerVideo.readyState >= 2) {
+                        ctx.drawImage(throwerVideo, canvas.width / 2, 0, canvas.width / 2, canvas.height);
+                    }
+                    // Draw center divider
+                    ctx.strokeStyle = '#FF469A';
+                    ctx.lineWidth = 4;
+                    ctx.beginPath();
+                    ctx.moveTo(canvas.width / 2, 0);
+                    ctx.lineTo(canvas.width / 2, canvas.height);
+                    ctx.stroke();
+                    break;
+
+                case 'pip-board':
+                    // Board full screen, thrower PIP
+                    if (remoteStreams.board && boardVideo.readyState >= 2) {
+                        ctx.drawImage(boardVideo, 0, 0, canvas.width, canvas.height);
+                    }
+                    if (remoteStreams.thrower && throwerVideo.readyState >= 2) {
+                        const pipW = canvas.width * 0.25;
+                        const pipH = canvas.height * 0.25;
+                        const pipX = canvas.width - pipW - 30;
+                        const pipY = canvas.height - pipH - 30;
+                        ctx.strokeStyle = '#FF469A';
+                        ctx.lineWidth = 4;
+                        ctx.strokeRect(pipX - 2, pipY - 2, pipW + 4, pipH + 4);
+                        ctx.drawImage(throwerVideo, pipX, pipY, pipW, pipH);
+                    }
+                    break;
+
+                case 'pip-thrower':
+                    // Thrower full screen, board PIP
+                    if (remoteStreams.thrower && throwerVideo.readyState >= 2) {
+                        ctx.drawImage(throwerVideo, 0, 0, canvas.width, canvas.height);
+                    }
+                    if (remoteStreams.board && boardVideo.readyState >= 2) {
+                        const pipW = canvas.width * 0.25;
+                        const pipH = canvas.height * 0.25;
+                        const pipX = canvas.width - pipW - 30;
+                        const pipY = canvas.height - pipH - 30;
+                        ctx.strokeStyle = '#91D7EB';
+                        ctx.lineWidth = 4;
+                        ctx.strokeRect(pipX - 2, pipY - 2, pipW + 4, pipH + 4);
+                        ctx.drawImage(boardVideo, pipX, pipY, pipW, pipH);
+                    }
+                    break;
+
+                case 'board-only':
+                    if (remoteStreams.board && boardVideo.readyState >= 2) {
+                        ctx.drawImage(boardVideo, 0, 0, canvas.width, canvas.height);
+                    }
+                    break;
+            }
+
+            // Draw overlay if enabled
+            if (showOverlay) {
+                drawScorerOverlay();
+            }
+
+            animationFrame = requestAnimationFrame(renderFrame);
+        }
+
+        function drawScorerOverlay() {
+            // Score bar at bottom
+            const barHeight = 80;
+            const barY = canvas.height - barHeight;
+
+            // Semi-transparent background
+            ctx.fillStyle = 'rgba(22, 33, 62, 0.9)';
+            ctx.fillRect(0, barY, canvas.width, barHeight);
+
+            // Top border
+            ctx.strokeStyle = '#FF469A';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(0, barY);
+            ctx.lineTo(canvas.width, barY);
+            ctx.stroke();
+
+            // Player names and scores (placeholder)
+            ctx.font = 'bold 36px "Bebas Neue", sans-serif';
+            ctx.fillStyle = '#91D7EB';
+            ctx.textAlign = 'left';
+            ctx.fillText('PLAYER 1', 40, barY + 50);
+
+            ctx.textAlign = 'right';
+            ctx.fillText('PLAYER 2', canvas.width - 40, barY + 50);
+
+            ctx.font = 'bold 48px "Bebas Neue", sans-serif';
+            ctx.fillStyle = '#FF469A';
+            ctx.textAlign = 'center';
+            ctx.fillText('501 - 501', canvas.width / 2, barY + 55);
+
+            // BRDC Logo/watermark
+            ctx.font = 'bold 24px "Bebas Neue", sans-serif';
+            ctx.fillStyle = 'rgba(255, 70, 154, 0.5)';
+            ctx.textAlign = 'left';
+            ctx.fillText('BRDC LIVE', 30, 40);
+        }
+
+        // Initialize
+        initCanvas();
+    </script>
+</body>
+</html>

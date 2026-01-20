@@ -34,6 +34,11 @@
             -webkit-tap-highlight-color: transparent;
         }
         
+        html, body {
+            overflow-x: hidden;
+            width: 100%;
+        }
+
         body {
             background: linear-gradient(180deg, var(--blue-light) 0%, var(--blue-dark) 100%);
             overflow: hidden;
@@ -545,6 +550,71 @@
         .hidden {
             display: none !important;
         }
+
+        /* Bot Selection */
+        .bot-select-btn {
+            background: rgba(145,215,235,0.3);
+            border: 2px solid var(--teal);
+            padding: 6px 10px;
+            color: var(--teal);
+            font-size: 12px;
+            font-weight: 800;
+            cursor: pointer;
+            margin-top: 4px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .bot-select-btn:active { transform: scale(0.95); }
+        .bot-select-btn.selected { background: var(--teal); color: var(--black); }
+
+        .game-started .bot-select-btn { display: none; }
+
+        .bot-btn-container {
+            position: relative;
+            display: inline-block;
+        }
+
+        .bot-dropdown {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            margin-top: 4px;
+            background: var(--white);
+            border: 3px solid var(--teal);
+            z-index: 100;
+            min-width: 160px;
+            box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.5);
+        }
+
+        .bot-dropdown.open { display: block; }
+
+        .bot-option {
+            padding: 10px 12px;
+            cursor: pointer;
+            border-bottom: 1px solid rgba(0,0,0,0.1);
+            transition: background 0.15s;
+            text-align: left;
+        }
+
+        .bot-option:last-child { border-bottom: none; }
+        .bot-option:hover, .bot-option:active { background: rgba(145,215,235,0.3); }
+        .bot-option.disabled { opacity: 0.4; cursor: not-allowed; }
+
+        .bot-option-name {
+            font-weight: 700;
+            color: var(--teal);
+            font-size: 13px;
+        }
+
+        .bot-option-avg {
+            font-size: 10px;
+            color: #666;
+            margin-top: 2px;
+        }
     </style>
 </head>
 <body>
@@ -571,11 +641,19 @@
                         <div class="player-score-area">
                             <input type="text" id="player1NameInput" placeholder="TAP TO ENTER NAME" maxlength="20">
                             <div class="player-score-display" id="player1NameDisplay">PLAYER 1</div>
+                            <div class="bot-btn-container">
+                                <button class="bot-select-btn" id="bot1Btn" onclick="toggleBotDropdown(1)">&#129302; BOT</button>
+                                <div class="bot-dropdown" id="botDropdown1"></div>
+                            </div>
                             <div class="score-value" id="player1Score">0</div>
                         </div>
                         <div class="player-score-area">
                             <input type="text" id="player2NameInput" placeholder="TAP TO ENTER NAME" maxlength="20">
                             <div class="player-score-display" id="player2NameDisplay">PLAYER 2</div>
+                            <div class="bot-btn-container">
+                                <button class="bot-select-btn" id="bot2Btn" onclick="toggleBotDropdown(2)">&#129302; BOT</button>
+                                <div class="bot-dropdown" id="botDropdown2"></div>
+                            </div>
                             <div class="score-value" id="player2Score">0</div>
                         </div>
                     </div>
@@ -710,11 +788,25 @@
             <div class="winner-trophy">🏆</div>
             <div class="winner-title" id="winnerName">PLAYER 1 WINS!</div>
             <div class="winner-stats" id="winnerStats"></div>
-            <button class="new-game-btn" onclick="resetGame()">NEW GAME</button>
+            <div id="saveGameSection" style="margin: 30px 0;">
+                <p style="font-weight: 700; margin-bottom: 15px;">Save this game to track your stats?</p>
+                <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                    <button class="new-game-btn" onclick="saveCricketGame()" style="background: #4CAF50; font-size: 24px; padding: 15px 25px;">SAVE GAME</button>
+                    <button class="new-game-btn" onclick="skipSaveGame()" style="background: #6b7280; font-size: 24px; padding: 15px 25px;">SKIP</button>
+                </div>
+                <p id="saveStatus" style="margin-top: 15px; font-size: 14px; color: #6b7280;"></p>
+            </div>
+            <button class="new-game-btn" id="newGameBtn" style="display: none;" onclick="resetGame()">NEW GAME</button>
         </div>
     </div>
 
     <script>
+        // Mobile error display for debugging
+        window.onerror = function(msg, url, line) {
+            alert('Error: ' + msg + '\nLine: ' + line);
+            return false;
+        };
+
         // GAME STATE
         const gameState = {
             player1: {
@@ -722,6 +814,7 @@
                 score: 0,
                 marks: { 20: 0, 19: 0, 18: 0, 17: 0, 16: 0, 15: 0, 25: 0 },
                 totalMarks: 0,
+                dartsThrown: 0,
                 rounds: 0
             },
             player2: {
@@ -729,6 +822,7 @@
                 score: 0,
                 marks: { 20: 0, 19: 0, 18: 0, 17: 0, 16: 0, 15: 0, 25: 0 },
                 totalMarks: 0,
+                dartsThrown: 0,
                 rounds: 0
             },
             currentPlayer: 1,
@@ -738,6 +832,144 @@
         };
 
         const numbers = [20, 19, 18, 17, 16, 15, 25];
+
+        // BOT SELECTION
+        let registeredBots = [];
+        let selectedBots = { 1: null, 2: null };
+        const BOT_AVG_LABELS = {
+            easy: '~40 avg',
+            medium: '~55 avg',
+            league: '~65 avg',
+            hard: '~75 avg',
+            pro: '~90 avg'
+        };
+
+        async function loadRegisteredBots() {
+            try {
+                const CLOUD_URL = 'https://us-central1-brdc-69.cloudfunctions.net';
+                const response = await fetch(`${CLOUD_URL}/getBots`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({})
+                });
+                const result = await response.json();
+                registeredBots = result.bots || [];
+                updateBotDropdowns();
+            } catch (error) {
+                console.error('Error loading bots:', error);
+            }
+        }
+
+        function toggleBotDropdown(playerNum) {
+            const dropdown = document.getElementById(`botDropdown${playerNum}`);
+            const otherDropdown = document.getElementById(`botDropdown${playerNum === 1 ? 2 : 1}`);
+            otherDropdown.classList.remove('open');
+            dropdown.classList.toggle('open');
+        }
+
+        function updateBotDropdowns() {
+            [1, 2].forEach(playerNum => {
+                const container = document.getElementById(`botDropdown${playerNum}`);
+                const otherBotId = selectedBots[playerNum === 1 ? 2 : 1]?.id;
+
+                if (registeredBots.length === 0) {
+                    container.innerHTML = `
+                        <div class="bot-option disabled">
+                            <div class="bot-option-name" style="color: #666;">No bots available</div>
+                            <div class="bot-option-avg">Add bots in Admin Portal</div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = registeredBots.map(bot => {
+                    const isOtherBot = bot.id === otherBotId;
+                    const avgLabel = BOT_AVG_LABELS[bot.difficulty] || '~55 avg';
+                    return `
+                        <div class="bot-option ${isOtherBot ? 'disabled' : ''}" onclick="${isOtherBot ? '' : `selectBot(${playerNum}, '${bot.id}')`}">
+                            <div class="bot-option-name">${bot.name}${isOtherBot ? ' (P' + (playerNum === 1 ? 2 : 1) + ')' : ''}</div>
+                            <div class="bot-option-avg">${bot.difficulty.charAt(0).toUpperCase() + bot.difficulty.slice(1)} - ${avgLabel}</div>
+                        </div>
+                    `;
+                }).join('') + `
+                    ${selectedBots[playerNum] ? `
+                        <div class="bot-option" onclick="clearBot(${playerNum})" style="background: rgba(255,70,154,0.1);">
+                            <div class="bot-option-name" style="color: var(--pink);">Clear Bot</div>
+                        </div>
+                    ` : ''}
+                `;
+            });
+        }
+
+        function selectBot(playerNum, botId) {
+            const bot = registeredBots.find(b => b.id === botId);
+            if (!bot) return;
+
+            selectedBots[playerNum] = bot;
+            document.getElementById(`player${playerNum}NameInput`).value = bot.name;
+            document.getElementById(`player${playerNum}NameInput`).disabled = true;
+            document.getElementById(`bot${playerNum}Btn`).classList.add('selected');
+            document.getElementById(`botDropdown${playerNum}`).classList.remove('open');
+
+            // Store bot info in gameState
+            gameState[`player${playerNum}`].isBot = true;
+            gameState[`player${playerNum}`].botDifficulty = bot.difficulty;
+            gameState[`player${playerNum}`].registeredBotId = bot.id;
+
+            updateBotDropdowns();
+        }
+
+        function clearBot(playerNum) {
+            selectedBots[playerNum] = null;
+            document.getElementById(`player${playerNum}NameInput`).value = '';
+            document.getElementById(`player${playerNum}NameInput`).disabled = false;
+            document.getElementById(`bot${playerNum}Btn`).classList.remove('selected');
+            document.getElementById(`botDropdown${playerNum}`).classList.remove('open');
+
+            gameState[`player${playerNum}`].isBot = false;
+            gameState[`player${playerNum}`].botDifficulty = null;
+            gameState[`player${playerNum}`].registeredBotId = null;
+
+            updateBotDropdowns();
+        }
+
+        // Close dropdowns when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.bot-btn-container')) {
+                document.querySelectorAll('.bot-dropdown').forEach(d => d.classList.remove('open'));
+            }
+        });
+
+        // Load bots on page load
+        loadRegisteredBots();
+
+        // KNOCKOUT MODE DETECTION
+        let knockoutContext = null;
+        const urlParams = new URLSearchParams(window.location.search);
+        const isKnockoutMode = urlParams.get('knockout') === 'true';
+
+        if (isKnockoutMode) {
+            // Load knockout context from localStorage
+            try {
+                knockoutContext = JSON.parse(localStorage.getItem('knockoutContext'));
+            } catch (e) {
+                console.log('No knockout context found');
+            }
+
+            // Pre-fill player names from URL params
+            const p1Name = urlParams.get('p1');
+            const p2Name = urlParams.get('p2');
+
+            if (p1Name) document.getElementById('player1NameInput').value = p1Name;
+            if (p2Name) document.getElementById('player2NameInput').value = p2Name;
+
+            console.log('Knockout mode enabled:', knockoutContext);
+
+            // Auto-start game when coming from knockout bracket
+            setTimeout(() => {
+                startGame();
+            }, 100);
+        }
 
         // Lock in player names on first dart
         function startScoring() {
@@ -813,7 +1045,8 @@
             
             currentPlayer.marks[number] = newMarks;
             currentPlayer.totalMarks += actualMarksAdded;
-            
+            currentPlayer.dartsThrown++;
+
             // Calculate score
             if (newMarks === 3 && opponent.marks[number] < 3) {
                 const overflow = (previousMarks + marksToAdd) - 3;
@@ -836,6 +1069,8 @@
         function handleMiss() {
             startScoring();
             gameState.currentTurn.push('MISS');
+            const currentPlayer = gameState.currentPlayer === 1 ? gameState.player1 : gameState.player2;
+            currentPlayer.dartsThrown++;
             updateDisplay();
             
             if (gameState.currentTurn.length >= 3) {
@@ -845,14 +1080,15 @@
 
         function handleUndo() {
             if (gameState.currentTurn.length === 0) return;
-            
+
+            const currentPlayer = gameState.currentPlayer === 1 ? gameState.player1 : gameState.player2;
             const lastHit = gameState.currentTurn.pop();
+            currentPlayer.dartsThrown--;
+
             if (lastHit === 'MISS') {
                 updateDisplay();
                 return;
             }
-            
-            const currentPlayer = gameState.currentPlayer === 1 ? gameState.player1 : gameState.player2;
             const opponent = gameState.currentPlayer === 1 ? gameState.player2 : gameState.player1;
             
             let number, marksToRemove;
@@ -975,10 +1211,11 @@
         }
 
         function updateStats() {
-            const p1MPR = gameState.player1.rounds > 0 ? 
-                (gameState.player1.totalMarks / gameState.player1.rounds).toFixed(1) : '0.0';
-            const p2MPR = gameState.player2.rounds > 0 ? 
-                (gameState.player2.totalMarks / gameState.player2.rounds).toFixed(1) : '0.0';
+            // MPR = (totalMarks / dartsThrown) * 3  (DartConnect formula)
+            const p1MPR = gameState.player1.dartsThrown > 0 ?
+                ((gameState.player1.totalMarks / gameState.player1.dartsThrown) * 3).toFixed(1) : '0.0';
+            const p2MPR = gameState.player2.dartsThrown > 0 ?
+                ((gameState.player2.totalMarks / gameState.player2.dartsThrown) * 3).toFixed(1) : '0.0';
             
             document.getElementById('p1-mpr').textContent = p1MPR;
             document.getElementById('p2-mpr').textContent = p2MPR;
@@ -1012,10 +1249,71 @@
 
         function showWinner(winner) {
             document.getElementById('winnerName').textContent = winner.name + ' WINS!';
-            document.getElementById('winnerStats').textContent = 
+            document.getElementById('winnerStats').textContent =
                 `Final Score: ${gameState.player1.score} - ${gameState.player2.score}`;
             document.getElementById('winnerModal').classList.add('active');
+
+            // If knockout mode, show different UI
+            if (isKnockoutMode && knockoutContext) {
+                const saveSection = document.getElementById('saveGameSection');
+                saveSection.innerHTML = `
+                    <p style="font-weight: 700; margin-bottom: 15px;">Match Complete!</p>
+                    <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                        <button class="new-game-btn" onclick="submitKnockoutResult()" style="background: #FF469A; font-size: 24px; padding: 15px 25px;">BACK TO BRACKET</button>
+                    </div>
+                    <p id="saveStatus" style="margin-top: 15px; font-size: 14px; color: #6b7280;"></p>
+                `;
+            }
         }
+
+        // Submit knockout match result
+        async function submitKnockoutResult() {
+            if (!knockoutContext) {
+                window.location.href = '/pages/knockout.html';
+                return;
+            }
+
+            const saveStatus = document.getElementById('saveStatus');
+            saveStatus.textContent = 'Submitting result...';
+
+            try {
+                // For cricket, winner is based on score (points)
+                const score1 = gameState.player1.score;
+                const score2 = gameState.player2.score;
+                const winnerIndex = score1 > score2 ? 0 : 1;
+
+                const response = await fetch(`${CLOUD_FUNCTIONS_URL}/submitKnockoutMatch`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        knockout_id: knockoutContext.knockout_id,
+                        match_number: knockoutContext.match_number,
+                        winner_index: winnerIndex,
+                        score: [1, 0] // Cricket uses 1-0 for win/loss since it's single game
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    // Clear knockout context and go back to bracket
+                    localStorage.removeItem('knockoutContext');
+                    window.location.href = `/pages/knockout.html?id=${knockoutContext.knockout_id}`;
+                } else {
+                    saveStatus.textContent = 'Error: ' + result.error;
+                    saveStatus.style.color = '#E03786';
+                }
+            } catch (error) {
+                console.error('Error submitting knockout result:', error);
+                saveStatus.textContent = 'Failed to submit. Going back to bracket...';
+                saveStatus.style.color = '#E03786';
+                // Still go back even on error
+                setTimeout(() => {
+                    window.location.href = `/pages/knockout.html?id=${knockoutContext.knockout_id}`;
+                }, 2000);
+            }
+        }
+        window.submitKnockoutResult = submitKnockoutResult;
 
         function resetGame() {
             gameState.player1 = {
@@ -1023,6 +1321,7 @@
                 score: 0,
                 marks: { 20: 0, 19: 0, 18: 0, 17: 0, 16: 0, 15: 0, 25: 0 },
                 totalMarks: 0,
+                dartsThrown: 0,
                 rounds: 0
             };
             gameState.player2 = {
@@ -1030,28 +1329,139 @@
                 score: 0,
                 marks: { 20: 0, 19: 0, 18: 0, 17: 0, 16: 0, 15: 0, 25: 0 },
                 totalMarks: 0,
+                dartsThrown: 0,
                 rounds: 0
             };
             gameState.currentPlayer = 1;
             gameState.currentTurn = [];
             gameState.lastTurn = [];
             gameState.gameStarted = false;
-            
+
             document.getElementById('lastTurn').textContent = '—';
             document.getElementById('dartCount').textContent = '0 / 3';
             document.getElementById('winnerModal').classList.remove('active');
             document.getElementById('gameScreen').style.display = 'none';
             document.getElementById('gameScreen').classList.remove('game-started');
             document.getElementById('welcomeScreen').style.display = 'flex';
+
+            // Reset save game UI
+            const saveSection = document.getElementById('saveGameSection');
+            if (saveSection) {
+                saveSection.innerHTML = `
+                    <p style="font-weight: 700; margin-bottom: 15px;">Save this game to track your stats?</p>
+                    <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                        <button class="new-game-btn" onclick="saveCricketGame()" style="background: #4CAF50; font-size: 24px; padding: 15px 25px;">SAVE GAME</button>
+                        <button class="new-game-btn" onclick="skipSaveGame()" style="background: #6b7280; font-size: 24px; padding: 15px 25px;">SKIP</button>
+                    </div>
+                    <p id="saveStatus" style="margin-top: 15px; font-size: 14px; color: #6b7280;"></p>
+                `;
+            }
+            document.getElementById('newGameBtn').style.display = 'none';
+        }
+
+        // CLOUD FUNCTION URL
+        const CLOUD_FUNCTIONS_URL = 'https://us-central1-brdc-69.cloudfunctions.net';
+
+        // Calculate cricket stats for saving
+        // MPR = (totalMarks / dartsThrown) * 3
+        function calculateCricketStats(player, isWinner) {
+            return {
+                rounds: player.rounds,
+                marks: player.totalMarks,
+                darts_thrown: player.dartsThrown,
+                mpr: player.dartsThrown > 0 ? ((player.totalMarks / player.dartsThrown) * 3).toFixed(2) : 0,
+                five_mark_rounds: 0, // Would need turn tracking
+                seven_mark_rounds: 0,
+                nine_mark_rounds: 0,
+                three_bulls: 0,
+                hat_tricks: 0
+            };
+        }
+
+        async function saveCricketGame() {
+            const saveStatus = document.getElementById('saveStatus');
+            saveStatus.textContent = 'Saving game...';
+            saveStatus.style.color = '#6b7280';
+
+            try {
+                // Use stored PIN or prompt for it
+                let player1Pin = localStorage.getItem('brdc_player_pin') || null;
+                let player2Pin = null;
+
+                // Check if players are bots
+                const player1IsBot = gameState.player1.isBot || false;
+                const player2IsBot = gameState.player2.isBot || false;
+
+                if (!player1Pin && !player1IsBot) {
+                    player1Pin = prompt(`Enter PIN for ${gameState.player1.name} to track stats (or leave blank for guest):`);
+                    if (player1Pin) localStorage.setItem('brdc_player_pin', player1Pin.toUpperCase());
+                }
+
+                if (!player2IsBot) {
+                    player2Pin = prompt(`Enter PIN for ${gameState.player2.name} to track stats (or leave blank for guest):`);
+                }
+
+                const p1AllClosed = numbers.every(n => gameState.player1.marks[n] >= 3);
+                const winnerIndex = (p1AllClosed && gameState.player1.score >= gameState.player2.score) ? 0 : 1;
+
+                const p1Stats = calculateCricketStats(gameState.player1, winnerIndex === 0);
+                const p2Stats = calculateCricketStats(gameState.player2, winnerIndex === 1);
+
+                const payload = {
+                    game_type: 'cricket',
+                    players: [
+                        { pin: player1Pin?.toUpperCase() || null, name: gameState.player1.name, is_bot: player1IsBot },
+                        { pin: player2Pin?.toUpperCase() || null, name: gameState.player2.name, is_bot: player2IsBot }
+                    ],
+                    winner_index: winnerIndex,
+                    legs: [{
+                        winner: winnerIndex === 0 ? 'player1' : 'player2',
+                        player1_stats: p1Stats,
+                        player2_stats: p2Stats
+                    }],
+                    match_config: {
+                        bestOfLegs: 1,
+                        bestOfSets: 1
+                    }
+                };
+
+                const response = await fetch(`${CLOUD_FUNCTIONS_URL}/savePickupGame`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    saveStatus.textContent = 'Game saved! Stats updated.';
+                    saveStatus.style.color = '#4CAF50';
+                } else {
+                    throw new Error(result.error || 'Failed to save');
+                }
+            } catch (error) {
+                console.error('Error saving game:', error);
+                saveStatus.textContent = 'Failed to save: ' + error.message;
+                saveStatus.style.color = '#E03786';
+            }
+
+            document.getElementById('saveGameSection').innerHTML = '';
+            document.getElementById('newGameBtn').style.display = 'block';
+        }
+
+        function skipSaveGame() {
+            document.getElementById('saveGameSection').innerHTML = '';
+            document.getElementById('newGameBtn').style.display = 'block';
         }
 
         // Initialize
         initGame();
-        
+
         // Hide Safari address bar on iOS
         window.addEventListener('load', function() {
             setTimeout(() => window.scrollTo(0, 1), 0);
         });
     </script>
+<script src="/js/feedback.js"></script>
 </body>
 </html>

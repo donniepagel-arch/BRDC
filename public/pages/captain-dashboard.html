@@ -32,8 +32,7 @@
         .header-logo {
             width: 40px;
             height: 40px;
-            mix-blend-mode: multiply;
-            filter: drop-shadow(0 0 8px rgba(255, 70, 154, 0.5));
+            
         }
         .header-title {
             font-family: 'Bebas Neue', cursive;
@@ -379,16 +378,17 @@
 <body>
     <div class="header-bar">
         <button class="back-btn" onclick="window.location.href='/pages/dashboard.html'">← BACK</button>
-        <img src="/images/white_logo.jpg" alt="BRDC" class="header-logo">
+        <img src="/images/gold_logo.png" alt="BRDC" class="header-logo">
         <span class="header-title">CAPTAIN DASHBOARD</span>
     </div>
 
-    <!-- Login Modal -->
-    <div class="modal-overlay active" id="loginModal">
+    <!-- Login Modal - hidden by default, shown only if no valid session -->
+    <div class="modal-overlay" id="loginModal">
         <div class="modal-content">
             <div class="modal-title">Captain Login</div>
             <input type="email" id="loginEmail" placeholder="Email Address" class="brdc-input" style="margin-bottom: 15px;">
             <button class="brdc-btn" onclick="captainLogin()" style="width: 100%;">LOGIN</button>
+            <button class="brdc-btn brdc-btn-secondary" onclick="window.location.href='/pages/dashboard.html'" style="width: 100%; margin-top: 10px;">CANCEL</button>
         </div>
     </div>
 
@@ -513,13 +513,40 @@
         const params = new URLSearchParams(window.location.search);
         currentLeagueId = params.get('league_id');
 
+        // Check for saved session FIRST before showing login
         const savedSession = localStorage.getItem('captainSession');
         if (savedSession) {
             const session = JSON.parse(savedSession);
             captainEmail = session.email;
             currentTeamId = session.teamId;
             currentLeagueId = session.leagueId || currentLeagueId;
-            loadDashboard();
+
+            // Validate the session
+            (async () => {
+                try {
+                    const result = await callFunction('getCaptainDashboard', {
+                        league_id: currentLeagueId,
+                        team_id: currentTeamId,
+                        captain_email: captainEmail
+                    });
+                    if (result.success) {
+                        dashboardData = result;
+                        document.getElementById('dashboardContent').style.display = 'block';
+                        renderDashboard();
+                        return; // Session valid, don't show login
+                    }
+                } catch (error) {
+                    console.error('Session check failed:', error);
+                }
+                // Session invalid, clear it and show login
+                localStorage.removeItem('captainSession');
+                captainEmail = null;
+                currentTeamId = null;
+                document.getElementById('loginModal').classList.add('active');
+            })();
+        } else {
+            // No saved session, show login modal
+            document.getElementById('loginModal').classList.add('active');
         }
 
         window.captainLogin = async function() {
@@ -702,9 +729,9 @@
                         <div class="player-position">POSITION ${posLabel}</div>
                         <div class="player-name-roster">${player.name}</div>
                         <div class="player-stats-mini">
-                            <div class="stat-mini"><div class="stat-mini-label">501 Avg</div><div class="stat-mini-value">${stats.x01_avg || '-'}</div></div>
-                            <div class="stat-mini"><div class="stat-mini-label">MPR</div><div class="stat-mini-value">${stats.cricket_mpr || '-'}</div></div>
-                            <div class="stat-mini"><div class="stat-mini-label">180s</div><div class="stat-mini-value">${stats.x01_ton_eighties || 0}</div></div>
+                            <div class="stat-mini"><div class="stat-mini-label">501 Avg</div><div class="stat-mini-value">${format3DA(stats)}</div></div>
+                            <div class="stat-mini"><div class="stat-mini-label">MPR</div><div class="stat-mini-value">${formatMPR(stats)}</div></div>
+                            <div class="stat-mini"><div class="stat-mini-label">180s</div><div class="stat-mini-value">${stats.x01_tons_180 || stats.x01_ton_eighties || 0}</div></div>
                             <div class="stat-mini"><div class="stat-mini-label">High CO</div><div class="stat-mini-value">${stats.x01_high_checkout || '-'}</div></div>
                         </div>
                         <div class="player-actions">
@@ -841,5 +868,7 @@
 
         document.getElementById('loginEmail').addEventListener('keypress', (e) => { if (e.key === 'Enter') captainLogin(); });
     </script>
+<script src="/js/stats-helpers.js"></script>
+<script src="/js/feedback.js"></script>
 </body>
 </html>

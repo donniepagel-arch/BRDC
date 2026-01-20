@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Bracket - Matchmaker Tournament</title>
+    <link rel="icon" type="image/png" href="/images/favicon.png">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700;800&display=swap');
+
+        :root {
+            --pink: #FF469A;
+            --teal: #91D7EB;
+            --yellow: #FDD835;
+            --black: #1a1a2e;
+            --blue-dark: #0f0f1a;
+            --bg-panel: #16213e;
+            --text-light: #ffffff;
+            --text-dim: #a0a0b0;
+            --success: #22c55e;
+            --danger: #ef4444;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, var(--black) 0%, var(--blue-dark) 100%);
+            min-height: 100vh;
+            color: var(--text-light);
+        }
+
+        .header-bar {
+            background: var(--bg-panel);
+            border-bottom: 3px solid var(--pink);
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .back-btn {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border: 2px solid rgba(255,255,255,0.3);
+            padding: 10px 16px;
+            font-weight: 700;
+            cursor: pointer;
+            border-radius: 6px;
+        }
+
+        .header-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 24px;
+            letter-spacing: 2px;
+            color: var(--pink);
+            flex: 1;
+        }
+
+        .container { max-width: 1400px; margin: 0 auto; padding: 30px 20px; }
+
+        /* Bracket Toggle */
+        .bracket-toggle {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 25px;
+            background: var(--bg-panel);
+            padding: 8px;
+            border-radius: 10px;
+            border: 3px solid #000;
+            width: fit-content;
+        }
+
+        .toggle-btn {
+            padding: 12px 25px;
+            background: transparent;
+            color: var(--text-dim);
+            border: none;
+            cursor: pointer;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 16px;
+            letter-spacing: 1px;
+            border-radius: 6px;
+        }
+
+        .toggle-btn.active {
+            background: linear-gradient(135deg, var(--pink), #cc3879);
+            color: white;
+        }
+
+        .toggle-btn.losers.active {
+            background: linear-gradient(135deg, var(--danger), #dc2626);
+        }
+
+        /* Bracket Container */
+        .bracket-section {
+            display: none;
+        }
+
+        .bracket-section.active {
+            display: block;
+        }
+
+        .bracket-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 28px;
+            letter-spacing: 3px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .bracket-title .icon { font-size: 30px; }
+        .bracket-title.winners { color: var(--yellow); }
+        .bracket-title.losers { color: var(--danger); }
+
+        /* Bracket Grid */
+        .bracket-grid {
+            display: flex;
+            gap: 30px;
+            overflow-x: auto;
+            padding-bottom: 20px;
+        }
+
+        .bracket-round {
+            min-width: 280px;
+            flex-shrink: 0;
+        }
+
+        .round-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 16px;
+            letter-spacing: 2px;
+            color: var(--text-dim);
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        /* Match Card */
+        .match-card {
+            background: var(--bg-panel);
+            border: 3px solid #000;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            overflow: hidden;
+            box-shadow: 5px 5px 0 rgba(0,0,0,0.4);
+        }
+
+        .match-header {
+            background: rgba(255,255,255,0.1);
+            padding: 8px 12px;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-dim);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .match-body { padding: 0; }
+
+        .team-slot {
+            display: flex;
+            align-items: center;
+            padding: 12px 15px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .team-slot:last-child { border-bottom: none; }
+
+        .team-slot:hover { background: rgba(255,255,255,0.05); }
+
+        .team-slot.winner {
+            background: rgba(34, 197, 94, 0.15);
+            border-left: 4px solid var(--success);
+        }
+
+        .team-slot.loser {
+            background: rgba(239, 68, 68, 0.1);
+            opacity: 0.7;
+        }
+
+        .team-seed {
+            width: 28px;
+            height: 28px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 12px;
+            margin-right: 12px;
+            flex-shrink: 0;
+        }
+
+        .team-name {
+            flex: 1;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .team-score {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 22px;
+            min-width: 30px;
+            text-align: center;
+        }
+
+        .team-slot.winner .team-score { color: var(--success); }
+
+        /* Empty slot */
+        .team-slot.empty {
+            opacity: 0.4;
+            cursor: default;
+        }
+
+        .team-slot.empty .team-name {
+            font-style: italic;
+            color: var(--text-dim);
+        }
+
+        /* Breakup Indicator */
+        .breakup-badge {
+            background: var(--danger);
+            color: white;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 700;
+            margin-left: 10px;
+        }
+
+        /* Breakup Modal */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .modal-content {
+            background: var(--bg-panel);
+            border: 4px solid #000;
+            border-radius: 15px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 10px 10px 0 rgba(0,0,0,0.5);
+            transform: scale(0.9);
+            transition: transform 0.3s;
+        }
+
+        .modal-overlay.active .modal-content {
+            transform: scale(1);
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, var(--danger), #dc2626);
+            padding: 20px;
+            border-bottom: 3px solid #000;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .modal-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 24px;
+            letter-spacing: 2px;
+        }
+
+        .modal-close {
+            margin-left: auto;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 28px;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .modal-body { padding: 25px; }
+
+        .modal-team {
+            background: rgba(255,255,255,0.05);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .modal-team-name {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 22px;
+            letter-spacing: 2px;
+            margin-bottom: 8px;
+        }
+
+        .modal-players {
+            color: var(--text-dim);
+        }
+
+        .breakup-options {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .breakup-option {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px;
+            background: rgba(255,255,255,0.05);
+            border: 2px solid rgba(255,255,255,0.2);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .breakup-option:hover {
+            border-color: var(--pink);
+            background: rgba(255, 70, 154, 0.1);
+        }
+
+        .breakup-option .icon {
+            font-size: 28px;
+        }
+
+        .breakup-option .text {
+            flex: 1;
+        }
+
+        .breakup-option .title {
+            font-weight: 700;
+            margin-bottom: 3px;
+        }
+
+        .breakup-option .desc {
+            font-size: 13px;
+            color: var(--text-dim);
+        }
+
+        .stay-together {
+            background: rgba(34, 197, 94, 0.1);
+            border-color: var(--success);
+        }
+
+        .stay-together:hover {
+            background: rgba(34, 197, 94, 0.2);
+            border-color: var(--success);
+        }
+
+        /* Champion Display */
+        .champion-card {
+            background: linear-gradient(135deg, #FFD700, #FFA500);
+            border: 4px solid #000;
+            border-radius: 15px;
+            padding: 30px;
+            text-align: center;
+            margin-bottom: 30px;
+            box-shadow: 8px 8px 0 rgba(0,0,0,0.5);
+        }
+
+        .champion-icon { font-size: 60px; }
+
+        .champion-label {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 20px;
+            letter-spacing: 3px;
+            color: rgba(0,0,0,0.6);
+            margin-top: 10px;
+        }
+
+        .champion-name {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 36px;
+            letter-spacing: 3px;
+            color: #000;
+            margin-top: 5px;
+        }
+
+        /* Loading */
+        .loading {
+            text-align: center;
+            padding: 60px;
+            color: var(--text-dim);
+        }
+
+        .hidden { display: none !important; }
+
+        @media (max-width: 600px) {
+            .bracket-grid { gap: 20px; }
+            .bracket-round { min-width: 250px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header-bar">
+        <button class="back-btn" onclick="history.back()">BACK</button>
+        <span class="header-title" id="tournamentName">MATCHMAKER BRACKET</span>
+    </div>
+
+    <div class="container">
+        <!-- Champion Display (hidden until tournament complete) -->
+        <div class="champion-card hidden" id="championCard">
+            <div class="champion-icon">🏆</div>
+            <div class="champion-label">CHAMPIONS</div>
+            <div class="champion-name" id="championName">-</div>
+        </div>
+
+        <!-- Bracket Toggle -->
+        <div class="bracket-toggle">
+            <button class="toggle-btn active" onclick="showBracket('winners')">WINNERS</button>
+            <button class="toggle-btn losers" onclick="showBracket('losers')">LOSERS</button>
+            <button class="toggle-btn" onclick="showBracket('finals')">FINALS</button>
+        </div>
+
+        <!-- Winners Bracket -->
+        <div class="bracket-section active" id="winners-bracket">
+            <div class="bracket-title winners">
+                <span class="icon">🏆</span>
+                WINNERS BRACKET
+            </div>
+            <div class="bracket-grid" id="winnersGrid">
+                <div class="loading">Loading bracket...</div>
+            </div>
+        </div>
+
+        <!-- Losers Bracket -->
+        <div class="bracket-section" id="losers-bracket">
+            <div class="bracket-title losers">
+                <span class="icon">💔</span>
+                LOSERS BRACKET
+            </div>
+            <div class="bracket-grid" id="losersGrid">
+                <div class="loading">Loading bracket...</div>
+            </div>
+        </div>
+
+        <!-- Finals -->
+        <div class="bracket-section" id="finals-bracket">
+            <div class="bracket-title winners">
+                <span class="icon">⭐</span>
+                GRAND FINALS
+            </div>
+            <div class="bracket-grid" id="finalsGrid">
+                <div class="loading">Loading bracket...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Breakup Modal -->
+    <div class="modal-overlay" id="breakupModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span style="font-size: 28px;">💔</span>
+                <span class="modal-title">BREAKUP TIME?</span>
+                <button class="modal-close" onclick="closeBreakupModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-team">
+                    <div class="modal-team-name" id="modalTeamName">Team Name</div>
+                    <div class="modal-players" id="modalPlayers">Player 1 & Player 2</div>
+                </div>
+
+                <p style="margin-bottom: 20px; color: var(--text-dim); text-align: center;">
+                    Your team lost and is dropping to the losers bracket.<br>
+                    Either player can trigger a breakup to get a new partner.
+                </p>
+
+                <div class="breakup-options">
+                    <div class="breakup-option" onclick="triggerBreakup('player1')">
+                        <span class="icon">💔</span>
+                        <div class="text">
+                            <div class="title" id="breakupPlayer1">Player 1 breaks up</div>
+                            <div class="desc">Get a new partner for losers bracket</div>
+                        </div>
+                    </div>
+
+                    <div class="breakup-option" onclick="triggerBreakup('player2')">
+                        <span class="icon">💔</span>
+                        <div class="text">
+                            <div class="title" id="breakupPlayer2">Player 2 breaks up</div>
+                            <div class="desc">Get a new partner for losers bracket</div>
+                        </div>
+                    </div>
+
+                    <div class="breakup-option stay-together" onclick="stayTogether()">
+                        <span class="icon">💑</span>
+                        <div class="text">
+                            <div class="title">Stay Together</div>
+                            <div class="desc">Continue as a team in losers bracket</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { db, doc, getDoc, collection, getDocs, onSnapshot, callFunction } from '/js/firebase-config.js';
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const tournamentId = urlParams.get('id');
+
+        let tournamentData = null;
+        let bracketData = null;
+        let teams = [];
+        let currentBreakupTeam = null;
+
+        window.onload = async function() {
+            if (!tournamentId) {
+                document.getElementById('winnersGrid').innerHTML = '<div class="loading">Tournament not found</div>';
+                return;
+            }
+
+            await loadTournament();
+            await loadTeams();
+            renderBracket();
+
+            // Set up real-time listener for bracket updates
+            // onSnapshot(doc(db, 'tournaments', tournamentId), (doc) => {
+            //     if (doc.exists()) {
+            //         tournamentData = doc.data();
+            //         renderBracket();
+            //     }
+            // });
+        };
+
+        async function loadTournament() {
+            try {
+                const tournamentDoc = await getDoc(doc(db, 'tournaments', tournamentId));
+                if (tournamentDoc.exists()) {
+                    tournamentData = tournamentDoc.data();
+                    document.getElementById('tournamentName').textContent = tournamentData.tournament_name;
+
+                    if (tournamentData.champion) {
+                        document.getElementById('championCard').classList.remove('hidden');
+                        document.getElementById('championName').textContent = tournamentData.champion;
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading tournament:', error);
+            }
+        }
+
+        async function loadTeams() {
+            try {
+                const result = await callFunction('getMatchmakerTeams', { tournament_id: tournamentId });
+                if (result.success) {
+                    teams = result.teams;
+                }
+            } catch (error) {
+                console.error('Error loading teams:', error);
+            }
+        }
+
+        function renderBracket() {
+            if (teams.length === 0) {
+                document.getElementById('winnersGrid').innerHTML = '<div class="loading">No teams registered yet</div>';
+                document.getElementById('losersGrid').innerHTML = '<div class="loading">-</div>';
+                document.getElementById('finalsGrid').innerHTML = '<div class="loading">-</div>';
+                return;
+            }
+
+            // For now, create a sample bracket structure
+            // In production, this would be loaded from the tournament document
+            const numTeams = teams.length;
+            const rounds = Math.ceil(Math.log2(numTeams));
+
+            // Render Winners Bracket
+            let winnersHtml = '';
+            for (let r = 0; r < rounds; r++) {
+                const matchesInRound = Math.pow(2, rounds - r - 1);
+                const roundName = r === rounds - 1 ? 'WINNERS FINAL' : r === rounds - 2 ? 'WINNERS SEMI' : `ROUND ${r + 1}`;
+
+                winnersHtml += `<div class="bracket-round"><div class="round-title">${roundName}</div>`;
+
+                for (let m = 0; m < matchesInRound; m++) {
+                    const matchNum = m + 1;
+                    const team1Index = r === 0 ? m * 2 : null;
+                    const team2Index = r === 0 ? m * 2 + 1 : null;
+
+                    const team1 = team1Index !== null && team1Index < teams.length ? teams[team1Index] : null;
+                    const team2 = team2Index !== null && team2Index < teams.length ? teams[team2Index] : null;
+
+                    winnersHtml += `
+                        <div class="match-card">
+                            <div class="match-header">
+                                <span>Match ${matchNum}</span>
+                                <span>Bo${tournamentData?.winners_best_of || 5}</span>
+                            </div>
+                            <div class="match-body">
+                                <div class="team-slot ${team1 ? '' : 'empty'}" onclick="handleTeamClick('${team1?.id || ''}', 'winners')">
+                                    <span class="team-seed">${team1Index !== null ? team1Index + 1 : '-'}</span>
+                                    <span class="team-name">${team1?.team_name || 'TBD'}</span>
+                                    <span class="team-score">-</span>
+                                </div>
+                                <div class="team-slot ${team2 ? '' : 'empty'}" onclick="handleTeamClick('${team2?.id || ''}', 'winners')">
+                                    <span class="team-seed">${team2Index !== null ? team2Index + 1 : '-'}</span>
+                                    <span class="team-name">${team2?.team_name || 'TBD'}</span>
+                                    <span class="team-score">-</span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                winnersHtml += '</div>';
+            }
+            document.getElementById('winnersGrid').innerHTML = winnersHtml;
+
+            // Render Losers Bracket (simplified for now)
+            let losersHtml = '<div class="bracket-round"><div class="round-title">LOSERS ROUND 1</div>';
+            losersHtml += `
+                <div class="match-card">
+                    <div class="match-header">
+                        <span>Match L1</span>
+                        <span>Bo${tournamentData?.losers_best_of || 1}</span>
+                    </div>
+                    <div class="match-body">
+                        <div class="team-slot empty">
+                            <span class="team-seed">-</span>
+                            <span class="team-name">Loser of W1</span>
+                            <span class="team-score">-</span>
+                        </div>
+                        <div class="team-slot empty">
+                            <span class="team-seed">-</span>
+                            <span class="team-name">Loser of W2</span>
+                            <span class="team-score">-</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            losersHtml += '</div>';
+            document.getElementById('losersGrid').innerHTML = losersHtml;
+
+            // Render Finals
+            let finalsHtml = '<div class="bracket-round"><div class="round-title">GRAND FINALS</div>';
+            finalsHtml += `
+                <div class="match-card">
+                    <div class="match-header">
+                        <span>Grand Final</span>
+                        <span>Bo${tournamentData?.winners_best_of || 5}</span>
+                    </div>
+                    <div class="match-body">
+                        <div class="team-slot empty">
+                            <span class="team-seed">W</span>
+                            <span class="team-name">Winners Champion</span>
+                            <span class="team-score">-</span>
+                        </div>
+                        <div class="team-slot empty">
+                            <span class="team-seed">L</span>
+                            <span class="team-name">Losers Champion</span>
+                            <span class="team-score">-</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            finalsHtml += '</div>';
+            document.getElementById('finalsGrid').innerHTML = finalsHtml;
+        }
+
+        window.showBracket = function(type) {
+            document.querySelectorAll('.toggle-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.textContent.toLowerCase().includes(type.substring(0, 4)));
+            });
+            document.querySelectorAll('.bracket-section').forEach(section => {
+                section.classList.toggle('active', section.id === `${type}-bracket`);
+            });
+        };
+
+        window.handleTeamClick = function(teamId, bracket) {
+            if (!teamId) return;
+
+            const team = teams.find(t => t.id === teamId);
+            if (!team) return;
+
+            // For demo, show breakup modal when clicking a team
+            // In production, this would only show after a loss
+            currentBreakupTeam = team;
+            document.getElementById('modalTeamName').textContent = team.team_name;
+            document.getElementById('modalPlayers').textContent = `${team.player1.name} & ${team.player2.name}`;
+            document.getElementById('breakupPlayer1').textContent = `${team.player1.name} breaks up`;
+            document.getElementById('breakupPlayer2').textContent = `${team.player2.name} breaks up`;
+            document.getElementById('breakupModal').classList.add('active');
+        };
+
+        window.closeBreakupModal = function() {
+            document.getElementById('breakupModal').classList.remove('active');
+            currentBreakupTeam = null;
+        };
+
+        window.triggerBreakup = async function(player) {
+            if (!currentBreakupTeam) return;
+
+            const playerId = player === 'player1' ?
+                (currentBreakupTeam.player1.player_id || currentBreakupTeam.player1.name) :
+                (currentBreakupTeam.player2.player_id || currentBreakupTeam.player2.name);
+
+            // In production, this would call the breakup function
+            alert(`💔 ${player === 'player1' ? currentBreakupTeam.player1.name : currentBreakupTeam.player2.name} triggered a breakup!\n\nBoth players will be added to the re-matching pool.`);
+            closeBreakupModal();
+        };
+
+        window.stayTogether = function() {
+            alert('💑 Team staying together for losers bracket!');
+            closeBreakupModal();
+        };
+    </script>
+</body>
+</html>

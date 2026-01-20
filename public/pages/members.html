@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Members - BRDC</title>
+    <link rel="icon" type="image/png" href="/images/favicon.png">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#FF469A">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700;800&display=swap');
+
+        :root {
+            --pink: #FF469A;
+            --teal: #91D7EB;
+            --yellow: #FDD835;
+            --bg-dark: #1a1a2e;
+            --bg-panel: #16213e;
+            --bg-card: #1e2a47;
+            --text-light: #ffffff;
+            --text-dim: #a0a0b0;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-light);
+            min-height: 100vh;
+        }
+
+        /* Header */
+        .header {
+            background: var(--bg-panel);
+            border-bottom: 3px solid var(--pink);
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .back-btn {
+            background: none;
+            border: none;
+            color: var(--pink);
+            font-size: 24px;
+            cursor: pointer;
+            padding: 5px;
+        }
+
+        .header-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 24px;
+            letter-spacing: 2px;
+            color: var(--pink);
+        }
+
+        .header-logo {
+            width: 40px;
+            height: 40px;
+        }
+
+        /* Controls bar */
+        .controls-bar {
+            padding: 15px 20px;
+            background: var(--bg-panel);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .search-input {
+            flex: 1;
+            min-width: 150px;
+            padding: 10px 15px;
+            background: var(--bg-card);
+            border: 2px solid transparent;
+            border-radius: 8px;
+            color: var(--text-light);
+            font-size: 14px;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--pink);
+        }
+
+        .search-input::placeholder {
+            color: var(--text-dim);
+        }
+
+        .sort-select {
+            padding: 10px 15px;
+            background: var(--bg-card);
+            border: 2px solid var(--teal);
+            border-radius: 8px;
+            color: var(--teal);
+            font-size: 14px;
+            font-family: 'Bebas Neue', cursive;
+            letter-spacing: 1px;
+            cursor: pointer;
+        }
+
+        .sort-select:focus {
+            outline: none;
+            border-color: var(--pink);
+        }
+
+        .sort-select option {
+            background: var(--bg-dark);
+            color: var(--text-light);
+        }
+
+        .member-count {
+            font-family: 'Bebas Neue', cursive;
+            color: var(--text-dim);
+            font-size: 14px;
+            letter-spacing: 1px;
+        }
+
+        /* Table */
+        .members-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .members-table th {
+            background: var(--bg-panel);
+            padding: 12px 10px;
+            text-align: left;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 13px;
+            letter-spacing: 1px;
+            color: var(--teal);
+            border-bottom: 2px solid var(--pink);
+            cursor: pointer;
+            user-select: none;
+            white-space: nowrap;
+        }
+
+        .members-table th:hover {
+            color: var(--pink);
+        }
+
+        .members-table th.sorted-asc::after {
+            content: ' ▲';
+            font-size: 10px;
+        }
+
+        .members-table th.sorted-desc::after {
+            content: ' ▼';
+            font-size: 10px;
+        }
+
+        .members-table td {
+            padding: 12px 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            font-size: 14px;
+        }
+
+        .members-table tr {
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .members-table tbody tr:hover {
+            background: rgba(255, 70, 154, 0.1);
+        }
+
+        .member-name-cell {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .member-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: var(--bg-panel);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            font-weight: 700;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+        .member-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .member-name {
+            font-weight: 600;
+        }
+
+        .captain-badge {
+            display: inline-block;
+            background: var(--teal);
+            color: var(--bg-dark);
+            font-size: 9px;
+            padding: 2px 6px;
+            border-radius: 8px;
+            font-weight: 700;
+            margin-left: 8px;
+            vertical-align: middle;
+        }
+
+        .stat-cell {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 16px;
+            letter-spacing: 1px;
+        }
+
+        .stat-cell.ppd { color: var(--pink); }
+        .stat-cell.mpr { color: var(--teal); }
+        .stat-cell.marks { color: var(--yellow); }
+        .stat-cell.winpct { color: var(--text-light); }
+        .stat-cell.empty { color: var(--text-dim); }
+
+        /* Loading */
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-dim);
+        }
+
+        .loading::after {
+            content: '';
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--pink);
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-dim);
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+
+        /* Responsive */
+        @media (max-width: 600px) {
+            .members-table th, .members-table td {
+                padding: 10px 6px;
+                font-size: 12px;
+            }
+
+            .stat-cell {
+                font-size: 14px;
+            }
+
+            .member-avatar {
+                width: 30px;
+                height: 30px;
+                font-size: 14px;
+            }
+
+            .captain-badge {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-left">
+            <button class="back-btn" onclick="window.location.href='/'">&#8592;</button>
+            <span class="header-title">MEMBERS</span>
+        </div>
+        <img src="/images/gold_logo.png" alt="BRDC" class="header-logo">
+    </div>
+
+    <div class="controls-bar">
+        <input type="text" class="search-input" id="searchInput" placeholder="Search..." oninput="filterMembers()">
+        <select class="sort-select" id="sortSelect" onchange="sortMembers()">
+            <option value="name-asc">NAME A-Z</option>
+            <option value="name-desc">NAME Z-A</option>
+            <option value="ppd-desc">PPD HIGH-LOW</option>
+            <option value="ppd-asc">PPD LOW-HIGH</option>
+            <option value="mpr-desc">MPR HIGH-LOW</option>
+            <option value="mpr-asc">MPR LOW-HIGH</option>
+            <option value="winpct-desc">WIN% HIGH-LOW</option>
+            <option value="winpct-asc">WIN% LOW-HIGH</option>
+            <option value="ninemarks-desc">9-MARKS HIGH-LOW</option>
+        </select>
+        <span class="member-count" id="memberCount">-</span>
+    </div>
+
+    <div id="membersContainer">
+        <div class="loading">Loading members</div>
+    </div>
+
+    <script type="module">
+        import { db, collection, getDocs, query, orderBy, callFunction } from '/js/firebase-config.js';
+
+        let allMembers = [];
+        let searchTerm = '';
+        let currentSort = 'name-asc';
+
+        // Load members only from triples league
+        async function loadMembers() {
+            try {
+                const membersMap = new Map();
+
+                // Get all leagues
+                const leaguesSnap = await getDocs(collection(db, 'leagues'));
+
+                for (const leagueDoc of leaguesSnap.docs) {
+                    const league = leagueDoc.data();
+                    const leagueId = leagueDoc.id;
+
+                    // Skip completed leagues
+                    if (league.status === 'completed') continue;
+
+                    // Get players from this league's players subcollection
+                    const playersSnap = await getDocs(collection(db, 'leagues', leagueId, 'players'));
+
+                    for (const playerDoc of playersSnap.docs) {
+                        const player = playerDoc.data();
+
+                        // Skip bots
+                        if (player.isBot) continue;
+                        if ((player.name || '').toLowerCase().includes('bot')) continue;
+
+                        const key = (player.name || '').toLowerCase() || playerDoc.id;
+
+                        if (!membersMap.has(key)) {
+                            membersMap.set(key, {
+                                id: playerDoc.id,
+                                name: player.name || 'Unknown',
+                                team_name: player.team_name || '',
+                                is_captain: player.is_captain || false,
+                                level: player.preferred_level || '',
+                                league_id: leagueId,
+                                tournament_id: null,
+                                source: 'league',
+                                stats: null,
+                                ppd: null,
+                                mpr: null,
+                                winpct: null,
+                                ninemarks: 0
+                            });
+                        }
+                    }
+                }
+
+                // Also load tournament players
+                const tournamentsSnap = await getDocs(collection(db, 'tournaments'));
+
+                for (const tournamentDoc of tournamentsSnap.docs) {
+                    const tournament = tournamentDoc.data();
+                    const tournamentId = tournamentDoc.id;
+
+                    // Get players from tournament (stored as a map or subcollection)
+                    const players = tournament.players || {};
+
+                    for (const [playerId, playerData] of Object.entries(players)) {
+                        const playerName = typeof playerData === 'string' ? playerData : (playerData.name || 'Unknown');
+
+                        // Skip bots
+                        if (playerName.toLowerCase().includes('bot')) continue;
+
+                        const key = playerName.toLowerCase();
+
+                        if (!membersMap.has(key)) {
+                            membersMap.set(key, {
+                                id: playerId,
+                                name: playerName,
+                                team_name: '',
+                                is_captain: false,
+                                level: '',
+                                league_id: null,
+                                tournament_id: tournamentId,
+                                source: 'tournament',
+                                stats: null,
+                                ppd: null,
+                                mpr: null,
+                                winpct: null,
+                                ninemarks: 0
+                            });
+                        }
+                    }
+                }
+
+                allMembers = Array.from(membersMap.values())
+                    .sort((a, b) => a.name.localeCompare(b.name));
+
+                // Update count
+                document.getElementById('memberCount').textContent = `${allMembers.length} MEMBERS`;
+
+                // Render members first without stats
+                renderMembers();
+
+                // Then load stats in background
+                loadMemberStats();
+
+            } catch (error) {
+                console.error('Error loading members:', error);
+                document.getElementById('membersContainer').innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">!</div>
+                        <div>Error loading members</div>
+                    </div>
+                `;
+            }
+        }
+
+        // Load stats for members - get all stats at once and match by name
+        async function loadMemberStats() {
+            // Group members by league
+            const membersByLeague = {};
+            allMembers.forEach(m => {
+                if (m.league_id) {
+                    if (!membersByLeague[m.league_id]) {
+                        membersByLeague[m.league_id] = [];
+                    }
+                    membersByLeague[m.league_id].push(m);
+                }
+            });
+
+            // Load all stats for each league
+            for (const leagueId of Object.keys(membersByLeague)) {
+                try {
+                    // Get all stats for this league at once
+                    const result = await callFunction('getPlayerStats', {
+                        league_id: leagueId
+                        // No player_id = get all stats
+                    });
+
+                    if (result.success && result.stats && Array.isArray(result.stats)) {
+                        // Create lookup by player name (lowercase)
+                        const statsLookup = {};
+                        result.stats.forEach(s => {
+                            if (s.player_name) {
+                                statsLookup[s.player_name.toLowerCase()] = s;
+                            }
+                            // Also store by ID
+                            if (s.player_id) {
+                                statsLookup[s.player_id] = s;
+                            }
+                        });
+
+                        // Match stats to members
+                        membersByLeague[leagueId].forEach(member => {
+                            // Try matching by ID first, then by name
+                            let s = statsLookup[member.id] || statsLookup[member.name.toLowerCase()];
+
+                            if (s) {
+                                member.stats = s;
+
+                                // Calculate PPD
+                                member.ppd = s.x01_total_darts > 0
+                                    ? parseFloat((s.x01_total_points / s.x01_total_darts * 3).toFixed(1))
+                                    : null;
+
+                                // Calculate MPR
+                                member.mpr = s.cricket_total_rounds > 0
+                                    ? parseFloat((s.cricket_total_marks / s.cricket_total_rounds).toFixed(2))
+                                    : null;
+
+                                // 9-mark rounds
+                                member.ninemarks = s.cricket_nine_mark_rounds || 0;
+
+                                // Set winning %
+                                const x01Legs = s.x01_legs_played || 0;
+                                const cricketLegs = s.cricket_legs_played || 0;
+                                const totalLegs = x01Legs + cricketLegs;
+                                if (totalLegs > 0) {
+                                    const totalWins = (s.x01_legs_won || 0) + (s.cricket_legs_won || 0);
+                                    member.winpct = parseFloat(((totalWins / totalLegs) * 100).toFixed(0));
+                                }
+                            }
+                        });
+
+                        // Re-render after loading each league's stats
+                        renderMembers();
+                    }
+                } catch (e) {
+                    console.error('Error loading stats for league', leagueId, e);
+                }
+            }
+        }
+
+        window.filterMembers = function() {
+            searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            renderMembers();
+        };
+
+        window.sortMembers = function() {
+            currentSort = document.getElementById('sortSelect').value;
+            renderMembers();
+        };
+
+        function renderMembers() {
+            let filtered = allMembers;
+
+            // Apply search filter
+            if (searchTerm) {
+                filtered = filtered.filter(m =>
+                    m.name.toLowerCase().includes(searchTerm) ||
+                    (m.team_name && m.team_name.toLowerCase().includes(searchTerm))
+                );
+            }
+
+            // Apply sorting
+            const [sortField, sortDir] = currentSort.split('-');
+            filtered = [...filtered].sort((a, b) => {
+                let aVal, bVal;
+
+                switch (sortField) {
+                    case 'name':
+                        aVal = a.name.toLowerCase();
+                        bVal = b.name.toLowerCase();
+                        break;
+                    case 'ppd':
+                        aVal = a.ppd ?? -1;
+                        bVal = b.ppd ?? -1;
+                        break;
+                    case 'mpr':
+                        aVal = a.mpr ?? -1;
+                        bVal = b.mpr ?? -1;
+                        break;
+                    case 'winpct':
+                        aVal = a.winpct ?? -1;
+                        bVal = b.winpct ?? -1;
+                        break;
+                    case 'ninemarks':
+                        aVal = a.ninemarks ?? 0;
+                        bVal = b.ninemarks ?? 0;
+                        break;
+                    default:
+                        aVal = a.name.toLowerCase();
+                        bVal = b.name.toLowerCase();
+                }
+
+                if (sortDir === 'asc') {
+                    return aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+                } else {
+                    return aVal > bVal ? -1 : aVal < bVal ? 1 : 0;
+                }
+            });
+
+            // Update count
+            document.getElementById('memberCount').textContent = `${filtered.length} MEMBERS`;
+
+            if (filtered.length === 0) {
+                document.getElementById('membersContainer').innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">🔍</div>
+                        <div>No members found</div>
+                    </div>
+                `;
+                return;
+            }
+
+            const rows = filtered.map(member => {
+                const captainBadge = member.is_captain ? '<span class="captain-badge">CAPTAIN</span>' : '';
+
+                // Format name as "Last, First"
+                const nameParts = member.name.trim().split(' ');
+                let displayName = member.name;
+                if (nameParts.length >= 2) {
+                    const lastName = nameParts[nameParts.length - 1];
+                    const firstName = nameParts.slice(0, -1).join(' ');
+                    displayName = `${lastName}, ${firstName}`;
+                }
+
+                const ppdDisplay = member.ppd !== null ? member.ppd.toFixed(1) : '-';
+                const mprDisplay = member.mpr !== null ? member.mpr.toFixed(2) : '-';
+                const winpctDisplay = member.winpct !== null ? member.winpct + '%' : '-';
+                const ninemarksDisplay = member.ninemarks || '-';
+
+                return `
+                    <tr onclick="viewMember('${member.id}', '${member.league_id || ''}', '${member.tournament_id || ''}')">
+                        <td>
+                            <span class="member-name">${displayName}${captainBadge}</span>
+                        </td>
+                        <td class="stat-cell ppd ${member.ppd === null ? 'empty' : ''}">${ppdDisplay}</td>
+                        <td class="stat-cell mpr ${member.mpr === null ? 'empty' : ''}">${mprDisplay}</td>
+                        <td class="stat-cell marks ${!member.ninemarks ? 'empty' : ''}">${ninemarksDisplay}</td>
+                        <td class="stat-cell winpct ${member.winpct === null ? 'empty' : ''}">${winpctDisplay}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            document.getElementById('membersContainer').innerHTML = `
+                <table class="members-table">
+                    <thead>
+                        <tr>
+                            <th onclick="setSort('name')">NAME</th>
+                            <th onclick="setSort('ppd')">PPD</th>
+                            <th onclick="setSort('mpr')">MPR</th>
+                            <th onclick="setSort('ninemarks')">9s</th>
+                            <th onclick="setSort('winpct')">WIN%</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rows}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        window.setSort = function(field) {
+            const select = document.getElementById('sortSelect');
+            const currentValue = select.value;
+            const [currentField, currentDir] = currentValue.split('-');
+
+            if (currentField === field) {
+                // Toggle direction
+                select.value = `${field}-${currentDir === 'asc' ? 'desc' : 'asc'}`;
+            } else {
+                // Default to desc for stats, asc for name
+                select.value = field === 'name' ? `${field}-asc` : `${field}-desc`;
+            }
+            sortMembers();
+        };
+
+        window.viewMember = function(playerId, leagueId, tournamentId) {
+            let url = `/pages/player-public.html?player_id=${playerId}`;
+            if (leagueId) {
+                url += `&league_id=${leagueId}`;
+            }
+            if (tournamentId) {
+                url += `&tournament_id=${tournamentId}`;
+            }
+            window.location.href = url;
+        };
+
+        // Initialize
+        loadMembers();
+    </script>
+<script src="/js/feedback.js"></script>
+</body>
+</html>

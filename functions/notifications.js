@@ -4,6 +4,9 @@
  */
 
 const functions = require('firebase-functions');
+const { onSchedule } = require('firebase-functions/scheduler');
+const { onDocumentCreated } = require('firebase-functions/v2/firestore');
+const { logger } = require('firebase-functions');
 const admin = require('firebase-admin');
 
 const db = admin.firestore();
@@ -87,10 +90,7 @@ async function sendEmail(to, subject, html, text) {
  * Monday Match Reminder - Runs every Monday at 10 AM
  * Sends text and email to all players with upcoming matches this week
  */
-exports.mondayMatchReminder = functions.pubsub
-    .schedule('0 10 * * 1')  // Every Monday at 10:00 AM
-    .timeZone('America/New_York')
-    .onRun(async (context) => {
+exports.mondayMatchReminder = onSchedule('0 10 * * 1', async (event) => {
         console.log('Running Monday match reminders...');
 
         const today = new Date();
@@ -207,10 +207,7 @@ exports.mondayMatchReminder = functions.pubsub
  * Morning-of Match Reminder - Runs daily at 8 AM
  * Sends reminder to players with matches TODAY
  */
-exports.morningMatchReminder = functions.pubsub
-    .schedule('0 8 * * *')  // Every day at 8:00 AM
-    .timeZone('America/New_York')
-    .onRun(async (context) => {
+exports.morningMatchReminder = onSchedule('0 8 * * *', async (event) => {
         console.log('Running morning match reminders...');
 
         const today = new Date();
@@ -303,11 +300,13 @@ exports.morningMatchReminder = functions.pubsub
  * Send match results email after a match is completed
  * Triggered when match_results document is created
  */
-exports.sendMatchResultsEmail = functions.firestore
-    .document('leagues/{leagueId}/match_results/{matchId}')
-    .onCreate(async (snap, context) => {
+exports.sendMatchResultsEmail = onDocumentCreated(
+    'leagues/{leagueId}/match_results/{matchId}',
+    async (event) => {
+        const snap = event.data;
+        if (!snap) return null;
         const result = snap.data();
-        const { leagueId, matchId } = context.params;
+        const { leagueId, matchId } = event.params;
 
         try {
             const leagueDoc = await db.collection('leagues').doc(leagueId).get();
@@ -409,7 +408,8 @@ exports.sendMatchResultsEmail = functions.firestore
             console.error('Match results email error:', error);
             return null;
         }
-    });
+    }
+);
 
 /**
  * Handle incoming SMS replies (Twilio webhook)
@@ -667,7 +667,8 @@ exports.notifyLeaguePlayers = functions.https.onRequest((req, res) => {
             });
 
             const results = { sent: 0, failed: 0, skipped: 0, details: [] };
-            const dashboardUrl = `https://brdc-v2.web.app/pages/player-dashboard.html`;
+            // Use shorter URL format - full URLs with https:// often trigger carrier spam filters
+            const dashboardUrl = `brdc-v2.web.app`;
 
             for (const player of players) {
                 // Skip if no phone

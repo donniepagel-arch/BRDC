@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Leagues - BRDC</title>
+    <link rel="icon" type="image/png" href="/images/favicon.png">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#FF469A">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700;800&display=swap');
+
+        :root {
+            --pink: #FF469A;
+            --teal: #91D7EB;
+            --yellow: #FDD835;
+            --bg-dark: #1a1a2e;
+            --bg-panel: #16213e;
+            --bg-card: #1e2a47;
+            --text-light: #ffffff;
+            --text-dim: #a0a0b0;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-light);
+            min-height: 100vh;
+        }
+
+        .header {
+            background: var(--bg-panel);
+            border-bottom: 3px solid var(--pink);
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .back-btn {
+            background: none;
+            border: none;
+            color: var(--pink);
+            font-size: 24px;
+            cursor: pointer;
+            padding: 5px;
+        }
+
+        .header-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 24px;
+            letter-spacing: 2px;
+            color: var(--pink);
+        }
+
+        .header-logo {
+            width: 40px;
+            height: 40px;
+        }
+
+        .create-btn {
+            display: inline-block;
+            padding: 10px 20px;
+            background: var(--yellow);
+            color: var(--bg-dark);
+            font-family: 'Bebas Neue', cursive;
+            font-size: 16px;
+            letter-spacing: 1px;
+            text-decoration: none;
+            border-radius: 8px;
+            border: 2px solid #000;
+            transition: all 0.2s;
+        }
+
+        .create-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(253, 216, 53, 0.3);
+        }
+
+        .container {
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .section {
+            margin-bottom: 30px;
+        }
+
+        .section-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 22px;
+            letter-spacing: 2px;
+            color: var(--teal);
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid rgba(145, 215, 235, 0.3);
+        }
+
+        .league-card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .league-card:hover {
+            border-color: var(--pink);
+            transform: translateX(5px);
+        }
+
+        .league-name {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 20px;
+            letter-spacing: 1px;
+            color: var(--pink);
+            margin-bottom: 8px;
+        }
+
+        .league-info {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            font-size: 14px;
+            color: var(--text-dim);
+        }
+
+        .league-info span {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .status-badge.registration { background: rgba(253, 216, 53, 0.2); color: var(--yellow); }
+        .status-badge.active { background: rgba(255, 70, 154, 0.2); color: var(--pink); }
+        .status-badge.draft { background: rgba(145, 215, 235, 0.2); color: var(--teal); }
+        .status-badge.completed { background: rgba(255, 255, 255, 0.1); color: var(--text-dim); }
+        .status-badge.setup { background: rgba(255, 255, 255, 0.1); color: var(--text-dim); }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-dim);
+        }
+
+        .empty-icon { font-size: 48px; margin-bottom: 15px; }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-dim);
+        }
+
+        .loading::after {
+            content: '';
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--pink);
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-left">
+            <button class="back-btn" onclick="window.location.href='/'">&#8592;</button>
+            <span class="header-title">LEAGUES</span>
+        </div>
+        <a href="/pages/create-league.html" class="create-btn">+ CREATE</a>
+    </div>
+
+    <div class="container">
+        <div class="section">
+            <div class="section-title">CURRENT LEAGUES</div>
+            <div id="currentList">
+                <div class="loading">Loading leagues</div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">PAST LEAGUES</div>
+            <div id="pastList">
+                <div class="loading">Loading</div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { db, collection, getDocs, query, orderBy } from '/js/firebase-config.js';
+
+        async function loadLeagues() {
+            try {
+                const leaguesSnap = await getDocs(collection(db, 'leagues'));
+                const leagues = leaguesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+                const current = [];
+                const past = [];
+
+                leagues.forEach(l => {
+                    if (l.status === 'completed') {
+                        past.push(l);
+                    } else {
+                        current.push(l);
+                    }
+                });
+
+                // Sort current by start date, past by end date
+                current.sort((a, b) => {
+                    const dateA = a.start_date?.toDate?.() || new Date(a.start_date || 0);
+                    const dateB = b.start_date?.toDate?.() || new Date(b.start_date || 0);
+                    return dateA - dateB;
+                });
+
+                past.sort((a, b) => {
+                    const dateA = a.end_date?.toDate?.() || new Date(a.end_date || 0);
+                    const dateB = b.end_date?.toDate?.() || new Date(b.end_date || 0);
+                    return dateB - dateA;
+                });
+
+                renderLeagues(current, 'currentList', 'No current leagues');
+                renderLeagues(past, 'pastList', 'No past leagues');
+
+            } catch (error) {
+                console.error('Error loading leagues:', error);
+                document.getElementById('currentList').innerHTML = '<div class="empty-state"><div class="empty-icon">!</div><div>Error loading leagues</div></div>';
+            }
+        }
+
+        function renderLeagues(leagues, containerId, emptyMessage) {
+            const container = document.getElementById(containerId);
+
+            if (leagues.length === 0) {
+                container.innerHTML = `<div class="empty-state"><div class="empty-icon">🎯</div><div>${emptyMessage}</div></div>`;
+                return;
+            }
+
+            const html = leagues.map(l => {
+                const teamCount = l.teams?.length || 0;
+                const status = l.status || 'setup';
+                const season = l.season || '';
+
+                return `
+                    <div class="league-card" onclick="window.location.href='/pages/league-view.html?league_id=${l.id}'">
+                        <div class="league-name">${l.league_name || 'League'}</div>
+                        <div class="league-info">
+                            ${season ? `<span>📅 ${season}</span>` : ''}
+                            <span>👥 ${teamCount} teams</span>
+                            <span class="status-badge ${status}">${status}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            container.innerHTML = html;
+        }
+
+        loadLeagues();
+    </script>
+<script src="/js/feedback.js"></script>
+</body>
+</html>

@@ -1,11 +1,13 @@
 /**
  * Submit Match Result Cloud Function
  * REFACTORED to work with new unified structure
+ * Now includes stats aggregation for player leaderboards
  */
 
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 const cors = require('cors')({origin: true});
+const { processTournamentMatchStats, recalculateTournamentStats } = require('./stats');
 
 exports.submitMatchResult = functions.https.onRequest(async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
@@ -104,11 +106,22 @@ exports.submitMatchResult = functions.https.onRequest(async (req, res) => {
         await tournamentRef.update({
             bracket: bracket,
             completed: tournamentComplete,
-            ...(tournamentComplete && { 
+            ...(tournamentComplete && {
                 completedAt: admin.firestore.FieldValue.serverTimestamp(),
                 winner: finalMatch.winner
             })
         });
+
+        // Process stats if game_stats provided
+        if (game_stats) {
+            const format = game_stats.format || tournamentData.format || '501';
+            await processTournamentMatchStats(
+                tournament_id,
+                bracket.matches[matchIndex],
+                game_stats,
+                format
+            );
+        }
 
         res.json({
             success: true,
@@ -119,6 +132,41 @@ exports.submitMatchResult = functions.https.onRequest(async (req, res) => {
 
     } catch (error) {
         console.error('Error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * Recalculate all stats for a tournament
+ * POST /recalculateTournamentStats
+ * Body: { tournament_id: string }
+ */
+exports.recalculateTournamentStats = functions.https.onRequest(async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+
+    if (req.method === 'OPTIONS') {
+        res.set('Access-Control-Allow-Methods', 'POST');
+        res.set('Access-Control-Allow-Headers', 'Content-Type');
+        return res.status(204).send('');
+    }
+
+    try {
+        const { tournament_id } = req.body;
+
+        if (!tournament_id) {
+            return res.status(400).json({ error: 'Missing tournament_id' });
+        }
+
+        const result = await recalculateTournamentStats(tournament_id);
+
+        res.json({
+            success: true,
+            matchesProcessed: result.matchesProcessed,
+            playersUpdated: result.playersUpdated
+        });
+
+    } catch (error) {
+        console.error('Error recalculating tournament stats:', error);
         res.status(500).json({ error: error.message });
     }
 });

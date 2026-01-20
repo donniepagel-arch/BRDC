@@ -102,6 +102,18 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Team roster subcollection
+    match /leagues/{leagueId}/teams/{teamId}/roster/{playerId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Aggregated stats for league players
+    match /leagues/{leagueId}/aggregated_stats/{playerId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
     match /leagues/{leagueId}/matches/{matchId} {
       allow read: if true;
       allow write: if false;
@@ -119,6 +131,11 @@ service cloud.firestore {
     }
 
     match /leagues/{leagueId}/fillin_requests/{requestId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /leagues/{leagueId}/stats/{statId} {
       allow read: if true;
       allow write: if false;
     }
@@ -159,6 +176,164 @@ service cloud.firestore {
     match /tournament_drafts/{draftId} {
       allow read: if true;
       allow write: if false;
+    }
+
+    // ===== MESSAGING SYSTEM =====
+
+    // Direct message conversations
+    match /conversations/{conversationId} {
+      allow read: if true;  // Filtered by cloud functions
+      allow write: if false; // Only cloud functions
+    }
+
+    // Conversation messages subcollection
+    match /conversations/{conversationId}/messages/{messageId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Chat rooms (league, team, match)
+    match /chat_rooms/{roomId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Chat room messages subcollection
+    match /chat_rooms/{roomId}/messages/{messageId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Message notifications for SMS digest
+    match /message_notifications/{notificationId} {
+      allow read, write: if false; // Only cloud functions
+    }
+
+    // ===== PHASE 2: PRESENCE SYSTEM =====
+
+    // Presence heartbeats
+    match /presence_heartbeats/{playerId} {
+      allow read: if true;  // Anyone can see online status
+      allow write: if false; // Only cloud functions
+    }
+
+    // ===== PHASE 3: SOCIAL FEATURES =====
+
+    // Cheers collection
+    match /cheers/{cheerId} {
+      allow read: if true;
+      allow write: if false; // Only cloud functions
+    }
+
+    // Achievement definitions (if stored in DB)
+    match /achievements/{achievementId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // ===== PHASE 4: ONLINE PLAY =====
+
+    // Challenges between players
+    match /challenges/{challengeId} {
+      allow read: if true;
+      allow write: if false; // Only cloud functions
+    }
+
+    // Online matches
+    match /online_matches/{matchId} {
+      allow read: if true;
+      allow write: if false; // Only cloud functions
+    }
+
+    // Online match legs subcollection
+    match /online_matches/{matchId}/legs/{legId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // ===== PHASE 5: MINI TOURNAMENTS =====
+
+    // Mini tournaments (quick brackets in scorer)
+    match /mini_tournaments/{tournamentId} {
+      allow read: if true;
+      allow write: if false; // Only cloud functions
+    }
+
+    // Mini tournament matches
+    match /mini_tournament_matches/{matchId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // ===== PHASE 6: ADVANCED FEATURES =====
+
+    // Public challenge board
+    match /challenge_board/{challengeId} {
+      allow read: if true;
+      allow write: if false; // Only cloud functions
+    }
+
+    // Bounty board
+    match /bounty_board/{bountyId} {
+      allow read: if true;
+      allow write: if false; // Only cloud functions
+    }
+
+    // Match replays
+    match /match_replays/{replayId} {
+      allow read: if true;
+      allow write: if false; // Only cloud functions
+    }
+
+    // Spectate logs
+    match /spectate_logs/{logId} {
+      allow read: if true;
+      allow write: if false; // Only cloud functions
+    }
+
+    // ===== PHASE 7: STATS UNIFICATION =====
+
+    // Season rankings
+    match /season_rankings/{seasonId} {
+      allow read: if true;
+      allow write: if false; // Only cloud functions (admin only)
+    }
+
+    // Practice sessions
+    match /practice_sessions/{sessionId} {
+      allow read: if true;  // Filtered by player_id via cloud functions
+      allow write: if false;
+    }
+
+    // ===== LIVE STREAMING =====
+
+    // Streaming sessions for WebRTC signaling
+    match /streaming_sessions/{sessionId} {
+      allow read, write: if true;  // Open for real-time signaling
+    }
+
+    // Streaming session subcollections (offers, answers, ICE candidates)
+    match /streaming_sessions/{sessionId}/{subcollection}/{docId} {
+      allow read, write: if true;  // Open for real-time signaling
+    }
+
+    // ===== GENERAL =====
+
+    // Notifications
+    match /notifications/{notificationId} {
+      allow read: if true;  // Filtered by recipient_id via cloud functions
+      allow write: if false;
+    }
+
+    // FCM tokens for push notifications
+    match /fcm_tokens/{tokenId} {
+      allow read: if true;
+      allow write: if true;  // Allow clients to save their tokens
+    }
+
+    // Player FCM tokens subcollection
+    match /players/{playerId}/fcm_tokens/{tokenId} {
+      allow read, write: if true;  // Allow clients to manage their tokens
     }
   }
 }

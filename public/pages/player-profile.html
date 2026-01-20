@@ -6,7 +6,13 @@
     <title>Player Profile - BRDC</title>
     <link rel="icon" type="image/png" href="/images/favicon.png">
     <link rel="stylesheet" href="/css/brdc-styles.css">
+    <link rel="stylesheet" href="/css/messaging.css">
     <style>
+        html, body {
+            overflow-x: hidden;
+            width: 100%;
+        }
+
         body::before {
             content: '';
             position: fixed;
@@ -389,6 +395,91 @@
         }
         .fillin-submit-btn:disabled { background: #666; cursor: not-allowed; }
 
+        /* League/Tournament Cards */
+        .league-card, .tournament-card {
+            background: rgba(0,0,0,0.3);
+            border: 3px solid var(--black);
+            margin-bottom: 15px;
+            box-shadow: 4px 4px 0 rgba(0,0,0,0.5);
+            overflow: hidden;
+        }
+        .league-card-header, .tournament-card-header {
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+        }
+        .league-card-header { background: linear-gradient(135deg, var(--teal), #147a94); }
+        .tournament-card-header { background: linear-gradient(135deg, var(--yellow), #d4a813); color: #000; }
+        .tournament-card-header.past { background: linear-gradient(135deg, #666, #444); color: #fff; }
+        .league-team-name, .tournament-name {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 22px;
+            color: #000;
+        }
+        .tournament-card-header.past .tournament-name { color: #ccc; }
+        .league-name {
+            font-size: 14px;
+            opacity: 0.8;
+        }
+        .card-stats-badge {
+            background: rgba(0,0,0,0.3);
+            padding: 4px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .league-card-body, .tournament-card-body {
+            padding: 15px;
+            display: none;
+        }
+        .league-card-body.expanded, .tournament-card-body.expanded { display: block; }
+        .teammate-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: rgba(255,255,255,0.05);
+            margin-bottom: 5px;
+            border-radius: 5px;
+        }
+        .teammate-row:hover { background: rgba(255,255,255,0.1); }
+        .teammate-name {
+            font-weight: 600;
+            color: white;
+            cursor: pointer;
+        }
+        .teammate-name:hover { color: var(--yellow); text-decoration: underline; }
+        .teammate-level {
+            background: var(--teal);
+            color: #000;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: bold;
+            margin-left: 8px;
+        }
+        .teammate-stats {
+            font-size: 13px;
+            color: #aaa;
+        }
+        .teammate-stats span { margin-left: 10px; }
+        .view-team-btn {
+            display: block;
+            text-align: center;
+            padding: 12px;
+            margin-top: 10px;
+            background: var(--pink);
+            color: white;
+            text-decoration: none;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 16px;
+            letter-spacing: 1px;
+            border: 2px solid #000;
+        }
+        .view-team-btn:hover { background: #cc3879; }
+
         @media (max-width: 600px) {
             .profile-header { flex-direction: column; align-items: center; text-align: center; }
             .player-name { font-size: 36px; }
@@ -399,13 +490,23 @@
 <body>
     <div class="header-bar">
         <button class="back-btn" onclick="window.location.href='/pages/dashboard.html'">← BACK</button>
-        <img src="/images/white_logo.jpg" alt="BRDC" class="header-logo">
+        <img src="/images/gold_logo.png" alt="BRDC" class="header-logo">
         <span class="header-title">PLAYER PROFILE</span>
-        <a href="/pages/admin.html" style="margin-left: auto; padding: 8px 16px; background: rgba(255,255,255,0.1); border: 2px solid var(--yellow); border-radius: 6px; color: var(--yellow); font-family: 'Bebas Neue', cursive; font-size: 14px; text-decoration: none; letter-spacing: 1px;">⚙️ ADMIN</a>
     </div>
 
+    <!-- Loading Overlay (shown when checking session) -->
+    <div class="login-overlay" id="loadingOverlay" style="display: none;">
+        <div style="text-align: center;">
+            <div style="font-family: 'Bebas Neue', cursive; font-size: 36px; color: var(--yellow); margin-bottom: 20px;">LOADING...</div>
+            <div class="spinner" style="width: 50px; height: 50px; border: 5px solid rgba(255,255,255,0.1); border-top-color: var(--yellow); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto;"></div>
+        </div>
+    </div>
+    <style>
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+
     <!-- Login Overlay -->
-    <div class="login-overlay" id="loginOverlay">
+    <div class="login-overlay" id="loginOverlay" style="display: none;">
         <div class="login-card" id="loginCard">
             <h2>Player Login</h2>
             <input type="password" id="loginPin" placeholder="Enter 8-Digit PIN" maxlength="8" pattern="[0-9]{8}" inputmode="numeric" style="font-size: 24px; letter-spacing: 8px; text-align: center;">
@@ -446,6 +547,8 @@
                         <div class="player-name" id="playerName">Loading...</div>
                         <div class="player-team" id="playerTeam">-</div>
                         <div class="player-badges" id="playerBadges"></div>
+                            <div id="hotStreakContainer"></div>
+                            <div id="statusMessageContainer"></div>
                         <div style="font-size: 14px; color: #aaa;">
                             <div>Email: <span id="playerEmail">-</span></div>
                             <div>Phone: <span id="playerPhone">-</span></div>
@@ -454,26 +557,54 @@
                     </div>
                 </div>
 
-                <!-- Management Links Section - Always visible -->
-                <div id="managementLinksSection" style="margin-bottom: 20px; padding: 15px; background: rgba(255, 70, 154, 0.1); border: 2px solid var(--pink); border-radius: 10px;">
-                    <div style="font-family: 'Bebas Neue', cursive; font-size: 18px; color: var(--pink); margin-bottom: 12px; letter-spacing: 1px;">MANAGEMENT</div>
-                    <div id="managementLinksList" style="display: flex; flex-wrap: wrap; gap: 10px;">
-                        <a href="/pages/admin.html" style="display: inline-flex; align-items: center; gap: 6px; padding: 10px 20px; background: var(--yellow); color: #000; border: 3px solid #000; border-radius: 8px; font-family: 'Bebas Neue', cursive; font-size: 16px; text-decoration: none; letter-spacing: 1px; box-shadow: 3px 3px 0 rgba(0,0,0,0.3);">
-                            ⚙️ ADMIN DASHBOARD
-                        </a>
-                    </div>
-                    <div id="directorLinksList" style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px;"></div>
+                <!-- Management Links Section - Shows leagues/tournaments player is directing -->
+                <div id="managementLinksSection" style="display: none; margin-bottom: 20px; padding: 15px; background: rgba(255, 255, 255, 0.05); border: 2px solid rgba(255,255,255,0.2); border-radius: 10px;">
+                    <div style="font-family: 'Bebas Neue', cursive; font-size: 18px; color: var(--teal); margin-bottom: 12px; letter-spacing: 1px;">DIRECTING</div>
+                    <div id="directorLinksList" style="display: flex; flex-wrap: wrap; gap: 10px;"></div>
                 </div>
 
                 <!-- Dashboard Tabs -->
                 <div class="dashboard-tabs" id="dashboardTabs">
                     <div class="dash-tab active" onclick="switchDashTab('profile')">PROFILE</div>
-                    <div class="dash-tab" onclick="switchDashTab('schedule')">SCHEDULE</div>
+                    <div class="dash-tab" onclick="switchDashTab('social')">SOCIAL</div>
+                    <div class="dash-tab" onclick="switchDashTab('leagues')">LEAGUES</div>
+                    <div class="dash-tab" onclick="switchDashTab('tournaments')">TOURNAMENTS</div>
                     <div class="dash-tab" id="captainTabBtn" style="display: none;" onclick="switchDashTab('captain')">CAPTAIN</div>
                 </div>
 
                 <!-- PROFILE TAB -->
                 <div id="profileTab" class="dash-tab-content active">
+
+                <!-- Stats Source Toggle -->
+                <div class="stats-source-toggle" style="display: flex; gap: 5px; margin-bottom: 20px; flex-wrap: wrap;">
+                    <button class="source-btn active" data-source="combined" onclick="switchStatsSource('combined')">COMBINED</button>
+                    <button class="source-btn" data-source="league" onclick="switchStatsSource('league')">LEAGUE</button>
+                    <button class="source-btn" data-source="tournament" onclick="switchStatsSource('tournament')">TOURNAMENT</button>
+                    <button class="source-btn" data-source="social" onclick="switchStatsSource('social')">SOCIAL</button>
+                </div>
+                <style>
+                    .stats-source-toggle .source-btn {
+                        padding: 10px 18px;
+                        background: rgba(255,255,255,0.05);
+                        border: 2px solid rgba(255,255,255,0.2);
+                        color: #aaa;
+                        font-family: 'Bebas Neue', cursive;
+                        font-size: 14px;
+                        letter-spacing: 1px;
+                        cursor: pointer;
+                        transition: all 0.2s;
+                        border-radius: 6px;
+                    }
+                    .stats-source-toggle .source-btn:hover {
+                        background: rgba(255,255,255,0.1);
+                        color: white;
+                    }
+                    .stats-source-toggle .source-btn.active {
+                        background: var(--pink);
+                        border-color: var(--pink);
+                        color: white;
+                    }
+                </style>
 
                 <!-- Quick Stats -->
                 <div class="stats-grid">
@@ -578,13 +709,70 @@
 
                 </div><!-- End Profile Tab -->
 
-                <!-- SCHEDULE TAB -->
-                <div id="scheduleTab" class="dash-tab-content">
-                    <div class="section-title">UPCOMING MATCHES</div>
-                    <div class="schedule-list" id="scheduleList">
-                        <div style="text-align: center; color: #aaa; padding: 20px;">Loading schedule...</div>
+                <!-- SOCIAL TAB -->
+                <div id="socialTab" class="dash-tab-content">
+                    <div class="section-title">🏆 ACHIEVEMENTS</div>
+                    <div id="achievementsShowcase" class="profile-section">
+                        <div style="text-align: center; color: #aaa; padding: 20px;">Loading achievements...</div>
                     </div>
-                </div><!-- End Schedule Tab -->
+
+                    <div class="section-title">👏 BIGGEST FANS</div>
+                    <div id="biggestFansSection" class="profile-section">
+                        <div style="text-align: center; color: #aaa; padding: 20px;">Loading fans...</div>
+                    </div>
+
+                    <div class="section-title">📊 STREAK</div>
+                    <div id="streakSection" class="profile-section">
+                        <div class="profile-field">
+                            <span class="profile-label">Current Win Streak</span>
+                            <span class="profile-value" id="currentStreak">0</span>
+                        </div>
+                        <div class="profile-field">
+                            <span class="profile-label">Best Win Streak</span>
+                            <span class="profile-value" id="bestStreak">0</span>
+                        </div>
+                    </div>
+
+                    <div class="section-title">📝 EDIT PROFILE</div>
+                    <div class="profile-section">
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; font-size: 13px; color: var(--text-dim); margin-bottom: 5px;">Status Message</label>
+                            <input type="text" id="editStatusMessage" maxlength="100" placeholder="What's on your mind?" style="width: 100%; padding: 10px; background: rgba(255,255,255,0.05); border: 2px solid var(--border); border-radius: 6px; color: white; font-size: 14px;">
+                        </div>
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; font-size: 13px; color: var(--text-dim); margin-bottom: 5px;">Bio</label>
+                            <textarea id="editBio" maxlength="250" placeholder="Tell us about yourself..." rows="3" style="width: 100%; padding: 10px; background: rgba(255,255,255,0.05); border: 2px solid var(--border); border-radius: 6px; color: white; font-size: 14px; resize: vertical;"></textarea>
+                        </div>
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; font-size: 13px; color: var(--text-dim); margin-bottom: 5px;">Favorite Game</label>
+                            <select id="editFavoriteGame" style="width: 100%; padding: 10px; background: rgba(255,255,255,0.05); border: 2px solid var(--border); border-radius: 6px; color: white; font-size: 14px;">
+                                <option value="">Not specified</option>
+                                <option value="x01">501</option>
+                                <option value="cricket">Cricket</option>
+                                <option value="both">Both</option>
+                            </select>
+                        </div>
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; font-size: 13px; color: var(--text-dim); margin-bottom: 5px;">Home Bar</label>
+                            <input type="text" id="editHomeBar" maxlength="100" placeholder="Where do you usually play?" style="width: 100%; padding: 10px; background: rgba(255,255,255,0.05); border: 2px solid var(--border); border-radius: 6px; color: white; font-size: 14px;">
+                        </div>
+                        <button class="brdc-btn" onclick="saveProfile()" style="width: 100%;">SAVE PROFILE</button>
+                    </div>
+                </div><!-- End Social Tab -->
+
+                <!-- LEAGUES TAB -->
+                <div id="leaguesTab" class="dash-tab-content">
+                    <div id="leaguesContent">
+                        <div style="text-align: center; color: #aaa; padding: 20px;">Loading leagues...</div>
+                    </div>
+                </div><!-- End Leagues Tab -->
+
+                <!-- TOURNAMENTS TAB -->
+                <div id="tournamentsTab" class="dash-tab-content">
+                    <div id="tournamentsContent">
+                        <div style="text-align: center; color: #aaa; padding: 20px;">Loading tournaments...</div>
+                    </div>
+                </div><!-- End Tournaments Tab -->
 
                 <!-- CAPTAIN TAB -->
                 <div id="captainTab" class="dash-tab-content">
@@ -601,21 +789,100 @@
         </div>
     </div>
 
+    <script src="/js/presence.js"></script>
+    <script src="/js/social.js"></script>
     <script type="module">
-        import { callFunction, db, storage } from '/js/firebase-config.js';
-        import { ref, uploadBytes, getDownloadURL } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js';
-        import { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, orderBy } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+        import { callFunction, db, storage, ref, uploadBytes, getDownloadURL, doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, orderBy } from '/js/firebase-config.js';
 
         let currentPlayer = null;
         let currentLeagueId = null;
+        let captainingTeams = []; // Teams where player is captain
 
-        // Check for existing session
-        const savedSession = localStorage.getItem('playerSession');
-        if (savedSession) {
-            const session = JSON.parse(savedSession);
-            currentPlayer = session.player;
-            currentLeagueId = session.leagueId;
-            showProfile();
+        // Check URL params for player_id
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlPlayerId = urlParams.get('player_id');
+        const urlLeagueId = urlParams.get('league_id');
+
+        // Check for existing session - try brdc_session first, then playerSession
+        const brdcSession = localStorage.getItem('brdc_session');
+        const playerSession = localStorage.getItem('playerSession');
+
+        // Determine if we have a valid session
+        let hasSession = false;
+
+        if (brdcSession) {
+            try {
+                const session = JSON.parse(brdcSession);
+                // If URL has player_id and it matches session, or no URL player_id, use session
+                if (!urlPlayerId || urlPlayerId === session.player_id) {
+                    currentPlayer = {
+                        id: session.player_id,
+                        player_id: session.player_id,
+                        name: session.name,
+                        source_type: session.source_type,
+                        league_id: session.league_id
+                    };
+                    currentLeagueId = session.league_id || urlLeagueId;
+                    hasSession = true;
+                    // Show loading overlay while fetching data
+                    document.getElementById('loadingOverlay').style.display = 'flex';
+                    loadPlayerData(session.player_id, currentLeagueId);
+                } else if (urlPlayerId) {
+                    // Viewing someone else's profile - load their data
+                    hasSession = true;
+                    document.getElementById('loadingOverlay').style.display = 'flex';
+                    loadPlayerData(urlPlayerId, urlLeagueId);
+                }
+            } catch (e) {
+                console.error('Session parse error:', e);
+            }
+        } else if (playerSession) {
+            try {
+                const session = JSON.parse(playerSession);
+                currentPlayer = session.player;
+                currentLeagueId = session.leagueId;
+                hasSession = true;
+                // Show loading overlay while fetching data
+                document.getElementById('loadingOverlay').style.display = 'flex';
+                // Fetch captain status since session might not have it
+                loadPlayerData(currentPlayer.id || currentPlayer.player_id, currentLeagueId);
+            } catch (e) {
+                console.error('Session parse error:', e);
+            }
+        }
+
+        // If no valid session, show login overlay
+        if (!hasSession) {
+            document.getElementById('loginOverlay').style.display = 'flex';
+        }
+
+        // Load player data from backend
+        async function loadPlayerData(playerId, leagueId) {
+            try {
+                const result = await callFunction('getDashboardData', {
+                    player_id: playerId,
+                    source_type: leagueId ? 'league' : 'global',
+                    league_id: leagueId
+                });
+
+                if (result.success) {
+                    currentPlayer = result.dashboard.player;
+                    currentPlayer.player_id = currentPlayer.id;
+                    currentLeagueId = leagueId;
+                    // Store captaining teams from dashboard roles
+                    captainingTeams = result.dashboard.roles?.captaining || [];
+                    currentPlayer.is_captain = captainingTeams.length > 0;
+                    showProfile();
+                } else {
+                    // Show login if we couldn't load data
+                    document.getElementById('loadingOverlay').style.display = 'none';
+                    document.getElementById('loginOverlay').style.display = 'flex';
+                }
+            } catch (error) {
+                console.error('Failed to load player:', error);
+                document.getElementById('loadingOverlay').style.display = 'none';
+                document.getElementById('loginOverlay').style.display = 'flex';
+            }
         }
 
         window.login = async function() {
@@ -633,6 +900,21 @@
                 if (result.success) {
                     currentPlayer = result.player;
                     currentLeagueId = result.league_id;
+
+                    // Fetch captain status from dashboard data
+                    try {
+                        const dashResult = await callFunction('getDashboardData', {
+                            player_id: currentPlayer.id || currentPlayer.player_id,
+                            source_type: currentLeagueId ? 'league' : 'global',
+                            league_id: currentLeagueId
+                        });
+                        if (dashResult.success) {
+                            captainingTeams = dashResult.dashboard.roles?.captaining || [];
+                            currentPlayer.is_captain = captainingTeams.length > 0;
+                        }
+                    } catch (e) {
+                        console.error('Error fetching captain status:', e);
+                    }
 
                     // Save session
                     localStorage.setItem('playerSession', JSON.stringify({
@@ -684,14 +966,122 @@
         };
 
         window.logout = function() {
+            // Stop presence heartbeat and set offline
+            if (window.brdcPresence) {
+                window.brdcPresence.stopPresenceHeartbeat();
+            }
             localStorage.removeItem('playerSession');
+            localStorage.removeItem('brdc_session');
             currentPlayer = null;
             currentLeagueId = null;
+            document.getElementById('loadingOverlay').style.display = 'none';
             document.getElementById('loginOverlay').style.display = 'flex';
             document.getElementById('profileContent').style.display = 'none';
         };
 
+        // Social data loading
+        async function loadSocialData() {
+            const playerId = currentPlayer.player_id || currentPlayer.id;
+            if (!playerId) return;
+
+            try {
+                // Load player's social data
+                const result = await callFunction('getPlayerPublicProfile', {
+                    player_pin: localStorage.getItem('brdc_player_pin'),
+                    target_player_id: playerId
+                });
+
+                if (result.success && result.player) {
+                    const player = result.player;
+
+                    // Hot streak badge
+                    if (player.streaks?.is_hot) {
+                        document.getElementById('hotStreakContainer').innerHTML = window.brdcSocial?.getHotStreakBadge(player.streaks) || '';
+                    }
+
+                    // Status message
+                    if (player.profile?.status_message) {
+                        document.getElementById('statusMessageContainer').innerHTML = `<div class="status-message">"${player.profile.status_message}"</div>`;
+                    }
+
+                    // Streak stats
+                    document.getElementById('currentStreak').textContent = player.streaks?.current_win_streak || 0;
+                    document.getElementById('bestStreak').textContent = player.streaks?.best_win_streak || 0;
+
+                    // Pre-fill edit fields
+                    document.getElementById('editStatusMessage').value = player.profile?.status_message || '';
+                    document.getElementById('editBio').value = player.profile?.bio || '';
+                    document.getElementById('editFavoriteGame').value = player.profile?.favorite_game || '';
+                    document.getElementById('editHomeBar').value = player.profile?.home_bar || '';
+
+                    // Load achievements
+                    const achResult = await callFunction('getPlayerAchievements', {
+                        player_pin: localStorage.getItem('brdc_player_pin'),
+                        player_id: playerId
+                    });
+
+                    if (achResult.success) {
+                        const unlockedAchievements = achResult.achievements.filter(a => a.unlocked);
+                        if (unlockedAchievements.length > 0) {
+                            document.getElementById('achievementsShowcase').innerHTML = `
+                                <div class="achievements-showcase">
+                                    ${unlockedAchievements.slice(0, 6).map(a => window.brdcSocial?.renderAchievementBadge(a) || '').join('')}
+                                </div>
+                                <div style="text-align: center; margin-top: 15px; font-size: 14px; color: var(--text-dim);">
+                                    ${unlockedAchievements.length} of ${achResult.achievements.length} achievements unlocked
+                                    <br>
+                                    <span style="color: var(--yellow);">${achResult.total_points || 0} points</span>
+                                </div>
+                            `;
+                        } else {
+                            document.getElementById('achievementsShowcase').innerHTML = `
+                                <div class="no-achievements">No achievements unlocked yet. Keep playing!</div>
+                            `;
+                        }
+                    }
+
+                    // Load biggest fans
+                    const fans = player.social?.biggest_fans || [];
+                    document.getElementById('biggestFansSection').innerHTML = window.brdcSocial?.renderBiggestFans(fans) || '<div class="no-fans">No fans yet</div>';
+                }
+            } catch (error) {
+                console.error('Error loading social data:', error);
+            }
+        }
+
+        window.saveProfile = async function() {
+            const playerPin = localStorage.getItem('brdc_player_pin');
+            if (!playerPin) {
+                alert('Please log in again');
+                return;
+            }
+
+            try {
+                const result = await callFunction('updatePlayerProfile', {
+                    player_pin: playerPin,
+                    profile_data: {
+                        status_message: document.getElementById('editStatusMessage').value,
+                        bio: document.getElementById('editBio').value,
+                        favorite_game: document.getElementById('editFavoriteGame').value,
+                        home_bar: document.getElementById('editHomeBar').value
+                    }
+                });
+
+                if (result.success) {
+                    alert('Profile saved!');
+                    // Reload social data to show updated info
+                    await loadSocialData();
+                } else {
+                    alert(result.error || 'Failed to save profile');
+                }
+            } catch (error) {
+                console.error('Error saving profile:', error);
+                alert('Error saving profile: ' + error.message);
+            }
+        };
+
         async function showProfile() {
+            document.getElementById('loadingOverlay').style.display = 'none';
             document.getElementById('loginOverlay').style.display = 'none';
             document.getElementById('profileContent').style.display = 'block';
 
@@ -712,7 +1102,9 @@
             // Badges
             const badgesContainer = document.getElementById('playerBadges');
             badgesContainer.innerHTML = '';
-            if (currentPlayer.is_captain) {
+            // Check if player is captain (either from is_captain flag or captainingTeams array)
+            const isCaptain = currentPlayer.is_captain || captainingTeams.length > 0;
+            if (isCaptain) {
                 badgesContainer.innerHTML += '<span class="badge captain">CAPTAIN</span>';
                 // Show captain tab
                 document.getElementById('captainTabBtn').style.display = 'block';
@@ -724,15 +1116,25 @@
                 badgesContainer.innerHTML += `<span class="badge">${currentPlayer.skill_level.toUpperCase()}</span>`;
             }
 
-            // Load additional data
+            // Start presence heartbeat
+            if (window.brdcPresence) {
+                window.brdcPresence.startPresenceHeartbeat('profile');
+            }
+
+            // Load additional data - load leagues first so stats can use the league IDs
+            await loadLeagues();
+
+            // Now load stats and other data in parallel
             await Promise.all([
                 loadTeamInfo(),
                 loadStats(),
-                loadSchedule(),
+                loadTournaments(),
                 loadTeamHistory(),
                 loadMatchHistory(),
                 loadDirectorLinks(),
-                currentPlayer.is_captain ? loadCaptainContent() : Promise.resolve()
+                loadSocialData(),
+                // Load captain content if they are captaining any teams
+                (currentPlayer.is_captain || captainingTeams.length > 0) ? loadCaptainContent() : Promise.resolve()
             ]);
         }
 
@@ -740,6 +1142,7 @@
             const playerId = currentPlayer.player_id || currentPlayer.id;
             if (!playerId) return;
 
+            const section = document.getElementById('managementLinksSection');
             const linksList = document.getElementById('directorLinksList');
             const links = [];
 
@@ -748,13 +1151,15 @@
                 const leaguesSnapshot = await getDocs(
                     query(collection(db, 'leagues'), where('director_player_id', '==', playerId))
                 );
-                leaguesSnapshot.forEach(doc => {
-                    const league = doc.data();
+                leaguesSnapshot.forEach(docSnap => {
+                    const league = docSnap.data();
+                    const isPast = league.status === 'completed' || league.status === 'archived';
                     links.push({
                         type: 'league',
-                        id: doc.id,
+                        id: docSnap.id,
                         name: league.league_name || league.name || 'Unnamed League',
-                        url: `/pages/league-director.html?league_id=${doc.id}`
+                        url: `/pages/league-view.html?league_id=${docSnap.id}`,
+                        isPast
                     });
                 });
 
@@ -762,26 +1167,45 @@
                 const tournamentsSnapshot = await getDocs(
                     query(collection(db, 'tournaments'), where('director_player_id', '==', playerId))
                 );
-                tournamentsSnapshot.forEach(doc => {
-                    const tournament = doc.data();
+                tournamentsSnapshot.forEach(docSnap => {
+                    const tournament = docSnap.data();
+                    const isPast = tournament.status === 'completed';
                     links.push({
                         type: 'tournament',
-                        id: doc.id,
+                        id: docSnap.id,
                         name: tournament.tournament_name || tournament.name || 'Unnamed Tournament',
-                        url: `/pages/director-dashboard.html?tournament_id=${doc.id}`
+                        url: `/pages/tournament-bracket.html?tournament_id=${docSnap.id}`,
+                        isPast
                     });
                 });
 
                 // Display director links if any found
                 if (links.length > 0) {
-                    linksList.innerHTML = links.map(link => `
-                        <a href="${link.url}" style="display: inline-flex; align-items: center; gap: 6px; padding: 10px 20px; background: ${link.type === 'league' ? 'var(--teal)' : 'var(--pink)'}; color: ${link.type === 'league' ? '#000' : '#fff'}; border: 3px solid #000; border-radius: 8px; font-family: 'Bebas Neue', cursive; font-size: 16px; text-decoration: none; letter-spacing: 1px; box-shadow: 3px 3px 0 rgba(0,0,0,0.3);">
-                            ${link.type === 'league' ? '🏆' : '🎯'} ${link.name}
-                        </a>
-                    `).join('');
+                    section.style.display = 'block';
+                    linksList.innerHTML = links.map(link => {
+                        let bgColor, textColor;
+                        if (link.isPast) {
+                            bgColor = '#666';
+                            textColor = '#ccc';
+                        } else if (link.type === 'league') {
+                            bgColor = 'var(--teal)';
+                            textColor = '#000';
+                        } else {
+                            bgColor = 'var(--yellow)';
+                            textColor = '#000';
+                        }
+                        return `
+                            <a href="${link.url}" style="display: inline-flex; align-items: center; gap: 6px; padding: 10px 20px; background: ${bgColor}; color: ${textColor}; border: 3px solid #000; border-radius: 8px; font-family: 'Bebas Neue', cursive; font-size: 16px; text-decoration: none; letter-spacing: 1px; box-shadow: 3px 3px 0 rgba(0,0,0,0.3);">
+                                ${link.type === 'league' ? '🏆' : '🎯'} ${link.name}
+                            </a>
+                        `;
+                    }).join('');
+                } else {
+                    section.style.display = 'none';
                 }
             } catch (error) {
                 console.error('Error loading director links:', error);
+                section.style.display = 'none';
             }
         }
 
@@ -792,6 +1216,151 @@
             event.target.classList.add('active');
             document.getElementById(tabName + 'Tab').classList.add('active');
         };
+
+        // Stats source toggle - League | Tournament | Social | Combined
+        let currentStatsSource = 'combined';
+
+        window.switchStatsSource = async function(source) {
+            currentStatsSource = source;
+
+            // Update button states
+            document.querySelectorAll('.stats-source-toggle .source-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.source === source);
+            });
+
+            // Reload stats with the selected source
+            await loadStatsForSource(source);
+        };
+
+        async function loadStatsForSource(source) {
+            const playerId = currentPlayer.player_id || currentPlayer.id;
+            console.log('Loading stats for source:', source, 'playerId:', playerId);
+
+            try {
+                // Call the API with source filter
+                const result = await callFunction('getPlayerStatsFiltered', {
+                    player_id: playerId,
+                    source: source  // 'league', 'tournament', 'social', or 'combined'
+                });
+
+                if (result.success && result.stats) {
+                    displayStats(result.stats);
+                } else {
+                    // If no filtered stats API exists, fall back to showing message
+                    console.log('No stats found for source:', source);
+                    if (source !== 'combined') {
+                        // Show "no stats" for specific sources if API doesn't exist yet
+                        resetStatsDisplay();
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading stats for source:', error);
+                // Fall back to regular loadStats for combined
+                if (source === 'combined') {
+                    await loadStats();
+                } else {
+                    resetStatsDisplay();
+                }
+            }
+        }
+
+        function resetStatsDisplay() {
+            document.getElementById('stat501Avg').textContent = '-';
+            document.getElementById('statMPR').textContent = '-';
+            document.getElementById('stat180s').textContent = '0';
+            document.getElementById('statHighCO').textContent = '-';
+            document.getElementById('x01LegsPlayed').textContent = '0';
+            document.getElementById('x01LegsWon').textContent = '0';
+            document.getElementById('x01WinPct').textContent = '0%';
+            document.getElementById('x01First9').textContent = '-';
+            document.getElementById('x01BestLeg').textContent = '-';
+            document.getElementById('x01HighScore').textContent = '-';
+            document.getElementById('x01COPct').textContent = '0%';
+            document.getElementById('x01AvgCO').textContent = '-';
+            document.getElementById('x01T00').textContent = '0';
+            document.getElementById('x01T20').textContent = '0';
+            document.getElementById('x01T40').textContent = '0';
+            document.getElementById('x01T60').textContent = '0';
+            document.getElementById('x01T80').textContent = '0';
+            document.getElementById('x01171s').textContent = '0';
+            document.getElementById('x01TonCOs').textContent = '0';
+            document.getElementById('crkLegsPlayed').textContent = '0';
+            document.getElementById('crkLegsWon').textContent = '0';
+            document.getElementById('crkWinPct').textContent = '0%';
+            document.getElementById('crkMarks').textContent = '0';
+            document.getElementById('crkRounds').textContent = '0';
+            document.getElementById('crkMissPct').textContent = '0%';
+            document.getElementById('crkTBPct').textContent = '0%';
+            document.getElementById('crk5Marks').textContent = '0';
+            document.getElementById('crk7Marks').textContent = '0';
+            document.getElementById('crk8Marks').textContent = '0';
+            document.getElementById('crk9Marks').textContent = '0';
+            document.getElementById('crk3Bulls').textContent = '0';
+            document.getElementById('crkHatTricks').textContent = '0';
+        }
+
+        function displayStats(s) {
+            // Summary stats
+            const x01Points = s.x01_total_points || 0;
+            const x01Darts = s.x01_total_darts || 0;
+            const cricketMarks = s.cricket_total_marks || 0;
+            const cricketDarts = s.cricket_total_darts || 0;
+
+            const avg = x01Darts > 0 ? (x01Points / x01Darts * 3).toFixed(1) : '-';
+            const mpr = cricketDarts > 0 ? (cricketMarks / cricketDarts * 3).toFixed(2) : '-';
+
+            document.getElementById('stat501Avg').textContent = avg;
+            document.getElementById('statMPR').textContent = mpr;
+            document.getElementById('stat180s').textContent = s.x01_tons_180 || 0;
+            document.getElementById('statHighCO').textContent = s.x01_high_checkout || '-';
+
+            // Detailed 501 stats
+            document.getElementById('x01LegsPlayed').textContent = s.x01_legs_played || 0;
+            document.getElementById('x01LegsWon').textContent = s.x01_legs_won || 0;
+            const x01WinPct = s.x01_legs_played > 0 ? ((s.x01_legs_won / s.x01_legs_played) * 100).toFixed(1) : 0;
+            document.getElementById('x01WinPct').textContent = x01WinPct + '%';
+
+            const first9Avg = s.x01_first9_darts > 0 ? (s.x01_first9_points / s.x01_first9_darts * 3).toFixed(1) : '-';
+            document.getElementById('x01First9').textContent = first9Avg;
+            document.getElementById('x01BestLeg').textContent = (s.x01_best_leg && s.x01_best_leg < 999) ? s.x01_best_leg + ' darts' : '-';
+            document.getElementById('x01HighScore').textContent = s.x01_high_score || '-';
+
+            const checkoutAttempts = s.x01_checkout_opps || 0;
+            const checkoutsHit = s.x01_checkouts || 0;
+            const coPct = checkoutAttempts > 0 ? ((checkoutsHit / checkoutAttempts) * 100).toFixed(1) : 0;
+            document.getElementById('x01COPct').textContent = coPct + '%';
+            const avgCO = checkoutsHit > 0 ? ((s.x01_checkout_totals || 0) / checkoutsHit).toFixed(1) : '-';
+            document.getElementById('x01AvgCO').textContent = avgCO;
+
+            // Ton breakdown
+            document.getElementById('x01T00').textContent = s.x01_tons_100 || 0;
+            document.getElementById('x01T20').textContent = s.x01_tons_120 || 0;
+            document.getElementById('x01T40').textContent = s.x01_tons_140 || 0;
+            document.getElementById('x01T60').textContent = s.x01_tons_160 || 0;
+            document.getElementById('x01T80').textContent = s.x01_tons_180 || 0;
+            document.getElementById('x01171s').textContent = s.x01_one_seventy_ones || 0;
+            document.getElementById('x01TonCOs').textContent = s.x01_ton_plus_checkouts || 0;
+
+            // Cricket stats
+            document.getElementById('crkLegsPlayed').textContent = s.cricket_legs_played || 0;
+            document.getElementById('crkLegsWon').textContent = s.cricket_legs_won || 0;
+            const crkWinPct = s.cricket_legs_played > 0 ? ((s.cricket_legs_won / s.cricket_legs_played) * 100).toFixed(1) : 0;
+            document.getElementById('crkWinPct').textContent = crkWinPct + '%';
+            document.getElementById('crkMarks').textContent = cricketMarks;
+            document.getElementById('crkRounds').textContent = cricketDarts;
+
+            const missPct = cricketDarts > 0 ? ((s.cricket_missed_darts || 0) / cricketDarts * 100).toFixed(1) : 0;
+            document.getElementById('crkMissPct').textContent = missPct + '%';
+            const tbPct = cricketDarts > 0 ? ((s.cricket_triple_bull_darts || 0) / cricketDarts * 100).toFixed(1) : 0;
+            document.getElementById('crkTBPct').textContent = tbPct + '%';
+
+            document.getElementById('crk5Marks').textContent = s.cricket_five_mark_rounds || 0;
+            document.getElementById('crk7Marks').textContent = s.cricket_seven_mark_rounds || 0;
+            document.getElementById('crk8Marks').textContent = s.cricket_eight_mark_rounds || 0;
+            document.getElementById('crk9Marks').textContent = s.cricket_nine_mark_rounds || 0;
+            document.getElementById('crk3Bulls').textContent = s.cricket_three_bulls || 0;
+            document.getElementById('crkHatTricks').textContent = s.cricket_hat_tricks || 0;
+        }
 
         async function loadTeamInfo() {
             if (!currentPlayer.team_id || !currentLeagueId) {
@@ -811,24 +1380,138 @@
         }
 
         async function loadStats() {
-            if (!currentLeagueId) return;
+            let s = null;
+            const playerId = currentPlayer.player_id || currentPlayer.id;
+            console.log('loadStats called - playerId:', playerId, 'currentLeagueId:', currentLeagueId);
+            console.log('currentPlayer.stats:', currentPlayer.stats);
+
+            // First try to use stats from currentPlayer (already fetched)
+            if (currentPlayer.stats) {
+                const stats = currentPlayer.stats;
+                // Convert unified_stats format to the expected format
+                if (stats.totals) {
+                    s = {
+                        x01_total_points: stats.totals.x01_total_points || stats.totals.x01_points || stats.totals.total_points || 0,
+                        x01_total_darts: stats.totals.x01_total_darts || stats.totals.x01_darts || stats.totals.total_darts || 0,
+                        x01_legs_played: stats.totals.x01_legs_played || stats.totals.legs_played || 0,
+                        x01_legs_won: stats.totals.x01_legs_won || stats.totals.legs_won || 0,
+                        x01_tons_180: stats.totals.x01_tons_180 || stats.totals.ton_eighties || stats.totals['180s'] || 0,
+                        x01_high_checkout: stats.totals.x01_high_checkout || stats.totals.high_checkout || 0,
+                        x01_first9_points: stats.totals.x01_first9_points || stats.totals.first9_points || 0,
+                        x01_first9_darts: stats.totals.x01_first9_darts || stats.totals.first9_darts || 0,
+                        cricket_total_marks: stats.totals.cricket_total_marks || stats.totals.cricket_marks || stats.totals.total_marks || 0,
+                        cricket_total_darts: stats.totals.cricket_total_darts || stats.totals.cricket_darts || stats.totals.total_darts || 0,
+                        cricket_legs_played: stats.totals.cricket_legs_played || 0,
+                        cricket_legs_won: stats.totals.cricket_legs_won || 0
+                    };
+                } else if (stats.x01) {
+                    // Global player format
+                    s = {
+                        x01_total_points: stats.x01.x01_total_points || stats.x01.x01_points || stats.x01.total_points || 0,
+                        x01_total_darts: stats.x01.x01_total_darts || stats.x01.x01_darts || stats.x01.total_darts || 0,
+                        x01_legs_played: stats.x01.legs_played || 0,
+                        x01_legs_won: stats.x01.legs_won || 0,
+                        x01_tons_180: stats.x01.x01_tons_180 || stats.x01.ton_eighties || 0,
+                        x01_high_checkout: stats.x01.x01_high_checkout || stats.x01.high_checkout || 0,
+                        cricket_total_marks: stats.cricket?.cricket_total_marks || stats.cricket?.cricket_marks || stats.cricket?.total_marks || 0,
+                        cricket_total_darts: stats.cricket?.cricket_total_darts || stats.cricket?.cricket_darts || stats.cricket?.total_darts || 0,
+                        cricket_legs_played: stats.cricket?.legs_played || 0,
+                        cricket_legs_won: stats.cricket?.legs_won || 0
+                    };
+                }
+            }
+
+            // Try to get league stats - first from currentLeagueId, then from playerLeagues
+            let leagueIdToUse = currentLeagueId;
+
+            // If no currentLeagueId, use the first league from playerLeagues (now populated by loadLeagues)
+            if (!leagueIdToUse && playerLeagues && playerLeagues.length > 0) {
+                leagueIdToUse = playerLeagues[0].league_id;
+                console.log('Using league from playerLeagues:', leagueIdToUse);
+            }
+
+            if (leagueIdToUse) {
+                // First, try to find the player's league-specific ID from the team rosters
+                // The global player ID may be different from the league roster player ID
+                let leaguePlayerId = playerId;
+                const playerName = currentPlayer.name?.toLowerCase();
+                const playerEmail = currentPlayer.email?.toLowerCase();
+
+                try {
+                    // Search ALL teams in the league to find this player
+                    console.log('Searching all teams for player:', playerName);
+                    const teamsSnapshot = await getDocs(collection(db, 'leagues', leagueIdToUse, 'teams'));
+
+                    for (const teamDoc of teamsSnapshot.docs) {
+                        const team = teamDoc.data();
+                        const players = team.players || [];
+
+                        if (players.length > 0) {
+                            const rosterPlayer = players.find(p =>
+                                p.name?.toLowerCase() === playerName ||
+                                p.email?.toLowerCase() === playerEmail
+                            );
+
+                            if (rosterPlayer && rosterPlayer.id) {
+                                leaguePlayerId = rosterPlayer.id;
+                                console.log('Found player in team', team.team_name, '- roster ID:', leaguePlayerId);
+                                break;
+                            }
+                        }
+                    }
+
+                    if (leaguePlayerId === playerId) {
+                        console.log('Player not found in any team roster, using global ID');
+                    }
+                } catch (error) {
+                    console.error('Error searching team rosters:', error);
+                }
+
+                try {
+                    console.log('Calling getPlayerStats API:', { league_id: leagueIdToUse, player_id: leaguePlayerId });
+                    const result = await callFunction('getPlayerStats', {
+                        league_id: leagueIdToUse,
+                        player_id: leaguePlayerId
+                    });
+                    console.log('getPlayerStats result:', result);
+                    if (result.success && result.stats) {
+                        s = result.stats;
+                    }
+                } catch (error) {
+                    console.error('Error fetching league stats:', error);
+                }
+            } else {
+                console.log('No league ID available to fetch stats');
+            }
+
+            // If still no stats, show dashes
+            if (!s) {
+                document.getElementById('stat501Avg').textContent = '-';
+                document.getElementById('statMPR').textContent = '-';
+                document.getElementById('stat180s').textContent = '0';
+                document.getElementById('statHighCO').textContent = '-';
+                return;
+            }
 
             try {
-                const result = await callFunction('getPlayerStats', {
-                    league_id: currentLeagueId,
-                    player_id: currentPlayer.id
-                });
+                // We have stats, display them
+                console.log('Displaying stats:', s);
 
-                if (result.success && result.stats) {
-                    const s = result.stats;
+                    // Summary stats - calculate 3DA and MPR
+                    // Fields are stored as x01_total_points, x01_total_darts, cricket_total_marks, cricket_total_darts
+                    const x01Points = s.x01_total_points || s.x01_points || 0;
+                    const x01Darts = s.x01_total_darts || s.x01_darts || 0;
+                    const cricketMarks = s.cricket_total_marks || s.cricket_marks || 0;
+                    const cricketDarts = s.cricket_total_darts || s.cricket_darts || 0;
 
-                    // Summary stats
-                    const avg = s.x01_total_darts > 0 ? (s.x01_total_points / s.x01_total_darts * 3).toFixed(1) : '-';
-                    const mpr = s.cricket_total_rounds > 0 ? (s.cricket_total_marks / s.cricket_total_rounds).toFixed(2) : '-';
+                    // 3DA = (points / darts) * 3
+                    const avg = x01Darts > 0 ? (x01Points / x01Darts * 3).toFixed(1) : '-';
+                    // MPR = (marks / darts) * 3 (DartConnect formula)
+                    const mpr = cricketDarts > 0 ? (cricketMarks / cricketDarts * 3).toFixed(2) : '-';
 
                     document.getElementById('stat501Avg').textContent = avg;
                     document.getElementById('statMPR').textContent = mpr;
-                    document.getElementById('stat180s').textContent = s.x01_ton_80 || s.x01_ton_eighties || 0;
+                    document.getElementById('stat180s').textContent = s.x01_tons_180 || s.x01_ton_80 || s.x01_ton_eighties || 0;
                     document.getElementById('statHighCO').textContent = s.x01_high_checkout || '-';
 
                     // Detailed 501 stats
@@ -845,18 +1528,20 @@
                     document.getElementById('x01BestLeg').textContent = (s.x01_best_leg && s.x01_best_leg < 999) ? s.x01_best_leg + ' darts' : '-';
                     document.getElementById('x01HighScore').textContent = s.x01_high_score || '-';
 
-                    // Checkout stats
-                    const coPct = s.x01_checkout_attempts > 0 ? ((s.x01_checkouts_hit / s.x01_checkout_attempts) * 100).toFixed(1) : 0;
+                    // Checkout stats - support both old and new field names
+                    const checkoutAttempts = s.x01_checkout_opps || s.x01_checkout_attempts || 0;
+                    const checkoutsHit = s.x01_checkouts || s.x01_checkouts_hit || 0;
+                    const coPct = checkoutAttempts > 0 ? ((checkoutsHit / checkoutAttempts) * 100).toFixed(1) : 0;
                     document.getElementById('x01COPct').textContent = coPct + '%';
-                    const avgCO = s.x01_checkout_darts > 0 ? (s.x01_total_checkout_points / s.x01_checkout_darts).toFixed(1) : '-';
+                    const avgCO = checkoutsHit > 0 ? ((s.x01_checkout_totals || s.x01_total_checkout_points || 0) / checkoutsHit).toFixed(1) : '-';
                     document.getElementById('x01AvgCO').textContent = avgCO !== '-' ? avgCO : '-';
 
-                    // Ton breakdown (DartConnect style)
-                    document.getElementById('x01T00').textContent = s.x01_ton_00 || 0;
-                    document.getElementById('x01T20').textContent = s.x01_ton_20 || 0;
-                    document.getElementById('x01T40').textContent = s.x01_ton_40 || s.x01_ton_forties || 0;
-                    document.getElementById('x01T60').textContent = s.x01_ton_60 || 0;
-                    document.getElementById('x01T80').textContent = s.x01_ton_80 || s.x01_ton_eighties || 0;
+                    // Ton breakdown (DartConnect style) - support both old and new field names
+                    document.getElementById('x01T00').textContent = s.x01_tons_100 || s.x01_ton_00 || 0;
+                    document.getElementById('x01T20').textContent = s.x01_tons_120 || s.x01_ton_20 || 0;
+                    document.getElementById('x01T40').textContent = s.x01_tons_140 || s.x01_ton_40 || s.x01_ton_forties || 0;
+                    document.getElementById('x01T60').textContent = s.x01_tons_160 || s.x01_ton_60 || 0;
+                    document.getElementById('x01T80').textContent = s.x01_tons_180 || s.x01_ton_80 || s.x01_ton_eighties || 0;
                     document.getElementById('x01171s').textContent = s.x01_one_seventy_ones || 0;
                     document.getElementById('x01TonCOs').textContent = s.x01_ton_plus_checkouts || 0;
 
@@ -865,97 +1550,278 @@
                     document.getElementById('crkLegsWon').textContent = s.cricket_legs_won || 0;
                     const crkWinPct = s.cricket_legs_played > 0 ? ((s.cricket_legs_won / s.cricket_legs_played) * 100).toFixed(1) : 0;
                     document.getElementById('crkWinPct').textContent = crkWinPct + '%';
-                    document.getElementById('crkMarks').textContent = s.cricket_total_marks || 0;
-                    document.getElementById('crkRounds').textContent = s.cricket_total_rounds || 0;
+                    document.getElementById('crkMarks').textContent = cricketMarks;
+                    document.getElementById('crkRounds').textContent = cricketDarts;
 
                     // Miss % and T&B %
-                    const missPct = s.cricket_total_darts > 0 ? ((s.cricket_missed_darts / s.cricket_total_darts) * 100).toFixed(1) : 0;
+                    const missPct = cricketDarts > 0 ? ((s.cricket_missed_darts || 0) / cricketDarts * 100).toFixed(1) : 0;
                     document.getElementById('crkMissPct').textContent = missPct + '%';
-                    const tbPct = s.cricket_total_darts > 0 ? ((s.cricket_triple_bull_darts / s.cricket_total_darts) * 100).toFixed(1) : 0;
+                    const tbPct = cricketDarts > 0 ? ((s.cricket_triple_bull_darts || 0) / cricketDarts * 100).toFixed(1) : 0;
                     document.getElementById('crkTBPct').textContent = tbPct + '%';
 
                     // High mark rounds
-                    document.getElementById('crk5Marks').textContent = s.cricket_five_mark_rounds || 0;
+                    document.getElementById('crk5Marks').textContent = s.cricket_five_mark_rounds || s.cricket_5m_plus || 0;
                     document.getElementById('crk7Marks').textContent = s.cricket_seven_mark_rounds || 0;
                     document.getElementById('crk8Marks').textContent = s.cricket_eight_mark_rounds || 0;
-                    document.getElementById('crk9Marks').textContent = s.cricket_nine_mark_rounds || 0;
-                    document.getElementById('crk3Bulls').textContent = s.cricket_three_bulls || 0;
+                    document.getElementById('crk9Marks').textContent = s.cricket_nine_mark_rounds || s.cricket_high_turn || 0;
+                    document.getElementById('crk3Bulls').textContent = s.cricket_three_bulls || s.cricket_bulls || 0;
                     document.getElementById('crkHatTricks').textContent = s.cricket_hat_tricks || 0;
-                }
             } catch (error) {
                 console.error('Error loading stats:', error);
             }
         }
 
-        async function loadSchedule() {
-            if (!currentLeagueId || !currentPlayer.team_id) {
-                document.getElementById('scheduleList').innerHTML = '<div style="text-align: center; color: #aaa; padding: 20px;">No upcoming matches</div>';
-                return;
-            }
+        // Store league/team data for rendering
+        let playerLeagues = [];
+        let playerTournaments = [];
+
+        async function loadLeagues() {
+            const playerId = currentPlayer.player_id || currentPlayer.id;
+            const container = document.getElementById('leaguesContent');
 
             try {
-                const result = await callFunction('getSchedule', { league_id: currentLeagueId });
+                // Get leagues from dashboard data (already fetched roles)
+                const result = await callFunction('getDashboardData', {
+                    player_id: playerId,
+                    source_type: 'global'
+                });
 
-                if (result.success) {
-                    const teamMatches = result.matches.filter(m =>
-                        (m.home_team_id === currentPlayer.team_id || m.away_team_id === currentPlayer.team_id) &&
-                        m.status !== 'completed'
-                    ).slice(0, 5);
+                if (result.success && result.dashboard?.roles) {
+                    const { playing_on, captaining } = result.dashboard.roles;
+                    // Combine teams from both playing and captaining
+                    const allTeams = [...(playing_on || []), ...(captaining || [])];
 
-                    if (teamMatches.length === 0) {
-                        document.getElementById('scheduleList').innerHTML = '<div style="text-align: center; color: #aaa; padding: 20px;">No upcoming matches</div>';
+                    // Deduplicate by team_id
+                    const uniqueTeams = [];
+                    const seenTeamIds = new Set();
+                    for (const team of allTeams) {
+                        if (!seenTeamIds.has(team.team_id)) {
+                            seenTeamIds.add(team.team_id);
+                            uniqueTeams.push(team);
+                        }
+                    }
+
+                    if (uniqueTeams.length === 0) {
+                        container.innerHTML = '<div style="text-align: center; color: #aaa; padding: 20px;">Not on any league teams</div>';
                         return;
                     }
 
-                    const leagueDoc = await getDoc(doc(db, 'leagues', currentLeagueId));
-                    const league = leagueDoc.data();
+                    playerLeagues = uniqueTeams;
 
-                    document.getElementById('scheduleList').innerHTML = teamMatches.map(match => {
-                        const isHome = match.home_team_id === currentPlayer.team_id;
-                        const opponent = isHome ? match.away_team_name : match.home_team_name;
-                        const availability = match.player_availability?.[currentPlayer.id];
-                        const isUnavailable = availability === 'unavailable';
-
-                        return `
-                            <div class="schedule-item ${isUnavailable ? 'unavailable' : ''}">
-                                <div class="schedule-info">
-                                    <div class="schedule-date">Week ${match.week} - ${formatDate(match.match_date)}</div>
-                                    <div class="schedule-opponent">${isHome ? 'vs' : '@'} ${opponent}</div>
-                                    <div class="schedule-venue">${league?.venue_name || ''}</div>
-                                </div>
-                                <button class="availability-btn ${isUnavailable ? 'unavailable' : 'available'}"
-                                        onclick="toggleAvailability('${match.id}', ${isUnavailable})">
-                                    ${isUnavailable ? "CAN'T MAKE IT" : "I'LL BE THERE"}
-                                </button>
-                            </div>
-                        `;
-                    }).join('');
+                    // Render league cards
+                    let html = '';
+                    for (const team of uniqueTeams) {
+                        html += await renderLeagueCard(team, playerId);
+                    }
+                    container.innerHTML = html;
+                } else {
+                    container.innerHTML = '<div style="text-align: center; color: #aaa; padding: 20px;">No leagues found</div>';
                 }
             } catch (error) {
-                console.error('Error loading schedule:', error);
-                document.getElementById('scheduleList').innerHTML = '<div style="text-align: center; color: #aaa; padding: 20px;">Error loading schedule</div>';
+                console.error('Error loading leagues:', error);
+                container.innerHTML = '<div style="text-align: center; color: #aaa; padding: 20px;">Error loading leagues</div>';
             }
         }
 
-        window.toggleAvailability = async function(matchId, currentlyUnavailable) {
-            try {
-                const result = await callFunction('setPlayerAvailability', {
-                    league_id: currentLeagueId,
-                    match_id: matchId,
-                    player_id: currentPlayer.id,
-                    available: currentlyUnavailable // Toggle: if currently unavailable, mark as available
-                });
+        async function renderLeagueCard(team, currentPlayerId) {
+            const cardId = `league-${team.league_id}-${team.team_id}`;
 
-                if (result.success) {
-                    loadSchedule(); // Refresh
-                } else {
-                    alert(result.error || 'Failed to update availability');
+            // Get team details with player stats
+            let teammates = [];
+            try {
+                const teamDoc = await getDoc(doc(db, 'leagues', team.league_id, 'teams', team.team_id));
+                if (teamDoc.exists()) {
+                    const teamData = teamDoc.data();
+
+                    // Support both new (players array of objects) and old (parallel arrays) formats
+                    let normalizedPlayers = [];
+                    if (teamData.players?.length) {
+                        normalizedPlayers = teamData.players.map(p => ({
+                            id: p.id,
+                            name: p.name || 'Unknown',
+                            level: p.level || ''
+                        }));
+                    } else {
+                        const playerIds = teamData.player_ids || [];
+                        const playerNames = teamData.player_names || [];
+                        const playerLevels = teamData.player_levels || [];
+                        normalizedPlayers = playerIds.map((id, i) => ({
+                            id,
+                            name: playerNames[i] || 'Unknown',
+                            level: playerLevels[i] || ''
+                        }));
+                    }
+
+                    // Get stats for each player - use canonical field names
+                    for (const player of normalizedPlayers) {
+                        let stats = { x01_three_dart_avg: '-', cricket_mpr: '-' };
+                        try {
+                            const statsDoc = await getDoc(doc(db, 'leagues', team.league_id, 'stats', player.id));
+                            if (statsDoc.exists()) {
+                                const s = statsDoc.data();
+                                // Calculate 3DA from components if available, else use canonical/legacy fields
+                                if (s.x01_total_darts > 0) {
+                                    stats.x01_three_dart_avg = (s.x01_total_points / s.x01_total_darts * 3).toFixed(1);
+                                } else if (s.x01_three_dart_avg != null) {
+                                    stats.x01_three_dart_avg = Number(s.x01_three_dart_avg).toFixed(1);
+                                } else if (s.x01_avg != null) {
+                                    stats.x01_three_dart_avg = Number(s.x01_avg).toFixed(1);
+                                }
+                                // Calculate MPR from components if available, else use canonical/legacy fields
+                                if (s.cricket_total_rounds > 0) {
+                                    stats.cricket_mpr = (s.cricket_total_marks / s.cricket_total_rounds).toFixed(2);
+                                } else if (s.cricket_mpr != null) {
+                                    stats.cricket_mpr = Number(s.cricket_mpr).toFixed(2);
+                                } else if (s.mpr != null) {
+                                    stats.cricket_mpr = Number(s.mpr).toFixed(2);
+                                }
+                            }
+                        } catch (e) { /* ignore */ }
+
+                        teammates.push({
+                            id: player.id,
+                            name: player.name,
+                            level: player.level,
+                            ...stats,
+                            isCurrentPlayer: player.id === currentPlayerId
+                        });
+                    }
                 }
-            } catch (error) {
-                console.error('Error updating availability:', error);
-                alert('Failed to update availability');
+            } catch (e) {
+                console.error('Error loading team details:', e);
+            }
+
+            return `
+                <div class="league-card" id="${cardId}">
+                    <div class="league-card-header" onclick="toggleLeagueCard('${cardId}')">
+                        <div>
+                            <div class="league-team-name">${team.team_name}</div>
+                            <div class="league-name">${team.league_name}</div>
+                        </div>
+                        <div class="card-stats-badge">${team.record || ''}</div>
+                    </div>
+                    <div class="league-card-body" id="${cardId}-body">
+                        <div style="font-family: 'Bebas Neue', cursive; font-size: 16px; color: var(--teal); margin-bottom: 10px;">TEAMMATES</div>
+                        ${teammates.map(tm => `
+                            <div class="teammate-row" ${tm.isCurrentPlayer ? 'style="border-left: 3px solid var(--yellow);"' : ''}>
+                                <div>
+                                    <span class="teammate-name" onclick="window.location.href='/pages/player-public.html?player_id=${tm.id}'">${tm.name}</span>
+                                    ${tm.level ? `<span class="teammate-level">${tm.level}</span>` : ''}
+                                    ${tm.isCurrentPlayer ? '<span style="color: var(--yellow); font-size: 11px; margin-left: 8px;">YOU</span>' : ''}
+                                </div>
+                                <div class="teammate-stats">
+                                    <span>3DA: ${tm.x01_three_dart_avg}</span>
+                                    <span>MPR: ${tm.cricket_mpr}</span>
+                                </div>
+                            </div>
+                        `).join('')}
+                        <a href="/pages/team-public.html?league_id=${team.league_id}&team_id=${team.team_id}" class="view-team-btn">VIEW TEAM PAGE</a>
+                    </div>
+                </div>
+            `;
+        }
+
+        window.toggleLeagueCard = function(cardId) {
+            const body = document.getElementById(cardId + '-body');
+            if (body) {
+                body.classList.toggle('expanded');
             }
         };
+
+        async function loadTournaments() {
+            const playerId = currentPlayer.player_id || currentPlayer.id;
+            const container = document.getElementById('tournamentsContent');
+
+            try {
+                // Query tournaments where this player participated
+                const tournamentsSnap = await getDocs(collection(db, 'tournaments'));
+                const participatedTournaments = [];
+
+                for (const tDoc of tournamentsSnap.docs) {
+                    const tournament = tDoc.data();
+                    // Check if player is in participants array
+                    const isParticipant = tournament.participants?.some(p => p.player_id === playerId || p.id === playerId);
+                    // Also check registrations
+                    const registrationsSnap = await getDocs(collection(db, 'tournaments', tDoc.id, 'registrations'));
+                    const isRegistered = registrationsSnap.docs.some(r => r.data().player_id === playerId);
+
+                    if (isParticipant || isRegistered) {
+                        // Get player's stats for this tournament - use canonical field names
+                        let stats = { x01_three_dart_avg: '-', cricket_mpr: '-' };
+                        try {
+                            const statsDoc = await getDoc(doc(db, 'tournaments', tDoc.id, 'stats', playerId));
+                            if (statsDoc.exists()) {
+                                const s = statsDoc.data();
+                                // Calculate 3DA from components if available, else use canonical/legacy fields
+                                if (s.x01_total_darts > 0) {
+                                    stats.x01_three_dart_avg = (s.x01_total_points / s.x01_total_darts * 3).toFixed(1);
+                                } else if (s.x01_three_dart_avg != null) {
+                                    stats.x01_three_dart_avg = Number(s.x01_three_dart_avg).toFixed(1);
+                                } else if (s.x01_avg != null) {
+                                    stats.x01_three_dart_avg = Number(s.x01_avg).toFixed(1);
+                                }
+                                // Calculate MPR from components if available, else use canonical/legacy fields
+                                if (s.cricket_total_rounds > 0) {
+                                    stats.cricket_mpr = (s.cricket_total_marks / s.cricket_total_rounds).toFixed(2);
+                                } else if (s.cricket_mpr != null) {
+                                    stats.cricket_mpr = Number(s.cricket_mpr).toFixed(2);
+                                } else if (s.mpr != null) {
+                                    stats.cricket_mpr = Number(s.mpr).toFixed(2);
+                                }
+                            }
+                        } catch (e) { /* ignore */ }
+
+                        participatedTournaments.push({
+                            id: tDoc.id,
+                            name: tournament.tournament_name || tournament.name || 'Unnamed Tournament',
+                            date: tournament.start_date || tournament.created_at?.toDate?.() || null,
+                            status: tournament.status || 'active',
+                            format: tournament.format || tournament.game_type || '501',
+                            ...stats
+                        });
+                    }
+                }
+
+                if (participatedTournaments.length === 0) {
+                    container.innerHTML = '<div style="text-align: center; color: #aaa; padding: 20px;">No tournament history</div>';
+                    return;
+                }
+
+                // Sort by date (most recent first)
+                participatedTournaments.sort((a, b) => {
+                    const dateA = a.date ? new Date(a.date) : new Date(0);
+                    const dateB = b.date ? new Date(b.date) : new Date(0);
+                    return dateB - dateA;
+                });
+
+                playerTournaments = participatedTournaments;
+
+                // Render tournament cards
+                container.innerHTML = participatedTournaments.map(t => {
+                    const isPast = t.status === 'completed';
+                    const dateStr = t.date ? formatDate(t.date) : '';
+
+                    return `
+                        <div class="tournament-card">
+                            <div class="tournament-card-header ${isPast ? 'past' : ''}" onclick="window.location.href='/pages/tournament-bracket.html?tournament_id=${t.id}'">
+                                <div>
+                                    <div class="tournament-name">${t.name}</div>
+                                    <div class="league-name">${t.format.toUpperCase()} ${isPast ? '- COMPLETED' : ''}</div>
+                                </div>
+                                <div>
+                                    <div class="card-stats-badge" style="margin-bottom: 5px;">3DA: ${t.x01_three_dart_avg}</div>
+                                    <div class="card-stats-badge">MPR: ${t.cricket_mpr}</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+            } catch (error) {
+                console.error('Error loading tournaments:', error);
+                container.innerHTML = '<div style="text-align: center; color: #aaa; padding: 20px;">Error loading tournaments</div>';
+            }
+        }
 
         async function loadTeamHistory() {
             // For now, show current team only
@@ -993,10 +1859,149 @@
         }
 
         async function loadMatchHistory() {
-            // Placeholder - would need to query match results
-            document.getElementById('matchHistoryBody').innerHTML = `
-                <tr><td colspan="4" style="text-align: center; color: #aaa;">Match history coming soon</td></tr>
-            `;
+            const playerId = currentPlayer.player_id || currentPlayer.id;
+            const tbody = document.getElementById('matchHistoryBody');
+
+            try {
+                // Get leagues where player has teams
+                const result = await callFunction('getDashboardData', {
+                    player_id: playerId,
+                    source_type: 'global'
+                });
+
+                if (!result.success || !result.dashboard?.roles) {
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #aaa;">No match history</td></tr>';
+                    return;
+                }
+
+                const { playing_on, captaining } = result.dashboard.roles;
+                const allTeams = [...(playing_on || []), ...(captaining || [])];
+
+                // Get unique league IDs
+                const leagueIds = [...new Set(allTeams.map(t => t.league_id))];
+
+                if (leagueIds.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #aaa;">No match history</td></tr>';
+                    return;
+                }
+
+                // Query completed matches from each league
+                const allMatches = [];
+
+                for (const leagueId of leagueIds) {
+                    const matchesQuery = query(
+                        collection(db, 'leagues', leagueId, 'matches'),
+                        where('status', '==', 'completed'),
+                        orderBy('completed_at', 'desc')
+                    );
+
+                    const matchesSnap = await getDocs(matchesQuery);
+
+                    for (const matchDoc of matchesSnap.docs) {
+                        const match = matchDoc.data();
+                        const games = match.games_data || match.games || [];
+
+                        // Check if player participated in any game
+                        let playerParticipated = false;
+                        let playerStats = { wins: 0, losses: 0, avgTotal: 0, avgCount: 0, mprTotal: 0, mprCount: 0 };
+                        let opponentName = '';
+                        let playerTeamSide = '';
+
+                        for (const game of games) {
+                            const homePlayers = game.home_players || [];
+                            const awayPlayers = game.away_players || [];
+
+                            // Check home side
+                            const inHome = homePlayers.some(p =>
+                                (p.id === playerId || p.player_id === playerId || p.name === currentPlayer.name)
+                            );
+                            // Check away side
+                            const inAway = awayPlayers.some(p =>
+                                (p.id === playerId || p.player_id === playerId || p.name === currentPlayer.name)
+                            );
+
+                            if (inHome || inAway) {
+                                playerParticipated = true;
+                                playerTeamSide = inHome ? 'home' : 'away';
+
+                                // Track wins/losses
+                                const winner = game.winner || game.leg_winner;
+                                if (winner === playerTeamSide) {
+                                    playerStats.wins++;
+                                } else if (winner) {
+                                    playerStats.losses++;
+                                }
+
+                                // Track averages
+                                const stats = game.player_stats || {};
+                                const playerStat = stats[playerId] || stats[currentPlayer.name];
+                                if (playerStat) {
+                                    // Use canonical field names with legacy fallbacks
+                                    const avgVal = playerStat.x01_three_dart_avg || playerStat.avg || playerStat.x01_avg;
+                                    if (avgVal) {
+                                        playerStats.avgTotal += parseFloat(avgVal);
+                                        playerStats.avgCount++;
+                                    }
+                                    const mprVal = playerStat.cricket_mpr || playerStat.mpr || playerStat.marks_per_round;
+                                    if (mprVal) {
+                                        playerStats.mprTotal += parseFloat(mprVal);
+                                        playerStats.mprCount++;
+                                    }
+                                }
+                            }
+                        }
+
+                        if (playerParticipated) {
+                            // Determine opponent
+                            if (playerTeamSide === 'home') {
+                                opponentName = match.away_team_name || 'Unknown';
+                            } else {
+                                opponentName = match.home_team_name || 'Unknown';
+                            }
+
+                            allMatches.push({
+                                date: match.completed_at?.toDate?.() || match.match_date?.toDate?.() || new Date(),
+                                opponent: opponentName,
+                                wins: playerStats.wins,
+                                losses: playerStats.losses,
+                                avg: playerStats.avgCount > 0 ? (playerStats.avgTotal / playerStats.avgCount).toFixed(1) : null,
+                                mpr: playerStats.mprCount > 0 ? (playerStats.mprTotal / playerStats.mprCount).toFixed(2) : null,
+                                leagueId: leagueId,
+                                matchId: matchDoc.id
+                            });
+                        }
+                    }
+                }
+
+                // Sort by date descending and limit to 20 most recent
+                allMatches.sort((a, b) => b.date - a.date);
+                const recentMatches = allMatches.slice(0, 20);
+
+                if (recentMatches.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #aaa;">No match history yet</td></tr>';
+                    return;
+                }
+
+                // Render matches
+                tbody.innerHTML = recentMatches.map(m => {
+                    const dateStr = m.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                    const resultClass = m.wins > m.losses ? 'color: #22c55e;' : m.wins < m.losses ? 'color: #ef4444;' : 'color: var(--yellow);';
+                    const statDisplay = m.avg ? `${m.avg} avg` : m.mpr ? `${m.mpr} MPR` : '-';
+
+                    return `
+                        <tr>
+                            <td>${dateStr}</td>
+                            <td>${m.opponent}</td>
+                            <td style="${resultClass} font-weight: 700;">${m.wins}-${m.losses}</td>
+                            <td>${statDisplay}</td>
+                        </tr>
+                    `;
+                }).join('');
+
+            } catch (error) {
+                console.error('Error loading match history:', error);
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #aaa;">Error loading match history</td></tr>';
+            }
         }
 
         window.uploadPhoto = async function(input) {
@@ -1052,39 +2057,57 @@
         let selectedFillins = {}; // {matchId: [fillinIds in priority order]}
 
         async function loadCaptainContent() {
-            if (!currentPlayer.is_captain || !currentLeagueId || !currentPlayer.team_id) {
+            // Use captainingTeams array instead of checking currentPlayer properties
+            if (!captainingTeams || captainingTeams.length === 0) {
                 return;
             }
 
             try {
-                // Load team players
-                const teamDoc = await getDoc(doc(db, 'leagues', currentLeagueId, 'teams', currentPlayer.team_id));
+                // Use the first captaining team (or could loop through all)
+                const captainTeam = captainingTeams[0];
+                const leagueId = captainTeam.league_id;
+                const teamId = captainTeam.team_id;
+
+                // Load team players - support both new and old formats
+                const teamDoc = await getDoc(doc(db, 'leagues', leagueId, 'teams', teamId));
                 if (teamDoc.exists()) {
                     const team = teamDoc.data();
-                    teamPlayers = team.player_ids?.map((id, i) => ({
-                        id,
-                        name: team.player_names?.[i] || 'Unknown',
-                        level: team.player_levels?.[i] || null
-                    })) || [];
+                    if (team.players?.length) {
+                        teamPlayers = team.players.map(p => ({
+                            id: p.id,
+                            name: p.name || 'Unknown',
+                            level: p.level || null
+                        }));
+                    } else {
+                        teamPlayers = team.player_ids?.map((id, i) => ({
+                            id,
+                            name: team.player_names?.[i] || 'Unknown',
+                            level: team.player_levels?.[i] || null
+                        })) || [];
+                    }
                 }
 
                 // Load fillins
-                const leagueDoc = await getDoc(doc(db, 'leagues', currentLeagueId));
+                const leagueDoc = await getDoc(doc(db, 'leagues', leagueId));
                 const league = leagueDoc.data();
 
                 if (league.allow_fillins) {
-                    const fillinsSnap = await getDocs(collection(db, 'leagues', currentLeagueId, 'fillins'));
+                    const fillinsSnap = await getDocs(collection(db, 'leagues', leagueId, 'fillins'));
                     availableFillins = fillinsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
                 }
 
                 // Load upcoming matches for this team
-                const result = await callFunction('getSchedule', { league_id: currentLeagueId });
+                const result = await callFunction('getSchedule', { league_id: leagueId });
                 if (result.success) {
                     upcomingMatches = result.matches.filter(m =>
-                        (m.home_team_id === currentPlayer.team_id || m.away_team_id === currentPlayer.team_id) &&
+                        (m.home_team_id === teamId || m.away_team_id === teamId) &&
                         m.status !== 'completed'
                     ).slice(0, 5);
                 }
+
+                // Store the captain's league/team context for other functions
+                currentPlayer.captain_league_id = leagueId;
+                currentPlayer.captain_team_id = teamId;
 
                 renderCaptainContent();
             } catch (error) {
@@ -1095,6 +2118,7 @@
 
         function renderCaptainContent() {
             const container = document.getElementById('captainContent');
+            const captainTeamId = currentPlayer.captain_team_id;
 
             if (upcomingMatches.length === 0) {
                 container.innerHTML = '<div style="text-align: center; color: #aaa; padding: 20px;">No upcoming matches</div>';
@@ -1104,7 +2128,7 @@
             let html = '';
 
             upcomingMatches.forEach(match => {
-                const isHome = match.home_team_id === currentPlayer.team_id;
+                const isHome = match.home_team_id === captainTeamId;
                 const opponent = isHome ? match.away_team_name : match.home_team_name;
                 const playerAvailability = match.player_availability || {};
 
@@ -1230,9 +2254,9 @@
 
             try {
                 const result = await callFunction('requestFillins', {
-                    league_id: currentLeagueId,
+                    league_id: currentPlayer.captain_league_id,
                     match_id: matchId,
-                    team_id: currentPlayer.team_id,
+                    team_id: currentPlayer.captain_team_id,
                     captain_name: currentPlayer.name,
                     fillin_ids: fillinIds
                 });
@@ -1257,5 +2281,7 @@
             if (e.key === 'Enter') login();
         });
     </script>
+<script src="/js/stats-helpers.js"></script>
+<script src="/js/feedback.js"></script>
 </body>
 </html>

@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Tournaments - BRDC</title>
+    <link rel="icon" type="image/png" href="/images/favicon.png">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#FF469A">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700;800&display=swap');
+
+        :root {
+            --pink: #FF469A;
+            --teal: #91D7EB;
+            --yellow: #FDD835;
+            --bg-dark: #1a1a2e;
+            --bg-panel: #16213e;
+            --bg-card: #1e2a47;
+            --text-light: #ffffff;
+            --text-dim: #a0a0b0;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-light);
+            min-height: 100vh;
+        }
+
+        .header {
+            background: var(--bg-panel);
+            border-bottom: 3px solid var(--pink);
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .back-btn {
+            background: none;
+            border: none;
+            color: var(--pink);
+            font-size: 24px;
+            cursor: pointer;
+            padding: 5px;
+        }
+
+        .header-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 24px;
+            letter-spacing: 2px;
+            color: var(--pink);
+        }
+
+        .header-logo {
+            width: 40px;
+            height: 40px;
+        }
+
+        .create-btn {
+            display: inline-block;
+            padding: 10px 20px;
+            background: var(--yellow);
+            color: var(--bg-dark);
+            font-family: 'Bebas Neue', cursive;
+            font-size: 16px;
+            letter-spacing: 1px;
+            text-decoration: none;
+            border-radius: 8px;
+            border: 2px solid #000;
+            transition: all 0.2s;
+        }
+
+        .create-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(253, 216, 53, 0.3);
+        }
+
+        .container {
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .section {
+            margin-bottom: 30px;
+        }
+
+        .section-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 22px;
+            letter-spacing: 2px;
+            color: var(--teal);
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid rgba(145, 215, 235, 0.3);
+        }
+
+        .tournament-card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .tournament-card:hover {
+            border-color: var(--pink);
+            transform: translateX(5px);
+        }
+
+        .tournament-name {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 20px;
+            letter-spacing: 1px;
+            color: var(--pink);
+            margin-bottom: 8px;
+        }
+
+        .tournament-info {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            font-size: 14px;
+            color: var(--text-dim);
+        }
+
+        .tournament-info span {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .status-badge.upcoming { background: rgba(145, 215, 235, 0.2); color: var(--teal); }
+        .status-badge.active { background: rgba(255, 70, 154, 0.2); color: var(--pink); }
+        .status-badge.completed { background: rgba(255, 255, 255, 0.1); color: var(--text-dim); }
+        .status-badge.matchmaker { background: rgba(255, 107, 107, 0.3); color: #ff6b6b; }
+
+        .matchmaker-stats {
+            display: flex;
+            gap: 12px;
+            margin-top: 10px;
+            font-size: 13px;
+        }
+
+        .matchmaker-stat {
+            background: rgba(255, 255, 255, 0.08);
+            padding: 6px 12px;
+            border-radius: 20px;
+        }
+
+        .matchmaker-stat.teams { color: var(--yellow); }
+        .matchmaker-stat.male { color: var(--teal); }
+        .matchmaker-stat.female { color: var(--pink); }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-dim);
+        }
+
+        .empty-icon { font-size: 48px; margin-bottom: 15px; }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-dim);
+        }
+
+        .loading::after {
+            content: '';
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--pink);
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-left">
+            <button class="back-btn" onclick="window.location.href='/'">&#8592;</button>
+            <span class="header-title">TOURNAMENTS</span>
+        </div>
+        <a href="/pages/create-tournament.html" class="create-btn">+ CREATE</a>
+    </div>
+
+    <div class="container">
+        <div class="section">
+            <div class="section-title">UPCOMING TOURNAMENTS</div>
+            <div id="upcomingList">
+                <div class="loading">Loading tournaments</div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">PAST TOURNAMENTS</div>
+            <div id="pastList">
+                <div class="loading">Loading</div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { db, collection, getDocs, query, orderBy } from '/js/firebase-config.js';
+
+        async function loadTournaments() {
+            try {
+                const tournamentsSnap = await getDocs(collection(db, 'tournaments'));
+                const tournaments = tournamentsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+                const now = new Date();
+                const upcoming = [];
+                const past = [];
+
+                tournaments.forEach(t => {
+                    const tournDate = t.tournament_date?.toDate?.() || new Date(t.tournament_date);
+                    const status = t.status || '';
+
+                    // Active/registering tournaments always go to upcoming, regardless of date
+                    const isActive = ['active', 'registering', 'upcoming', 'open'].includes(status);
+                    const isCompleted = status === 'completed';
+
+                    if (isCompleted || (!isActive && tournDate < now)) {
+                        past.push({ ...t, date: tournDate });
+                    } else {
+                        upcoming.push({ ...t, date: tournDate });
+                    }
+                });
+
+                // Sort upcoming by date ascending, past by date descending
+                upcoming.sort((a, b) => a.date - b.date);
+                past.sort((a, b) => b.date - a.date);
+
+                renderTournaments(upcoming, 'upcomingList', 'No upcoming tournaments');
+                renderTournaments(past, 'pastList', 'No past tournaments');
+
+            } catch (error) {
+                console.error('Error loading tournaments:', error);
+                document.getElementById('upcomingList').innerHTML = '<div class="empty-state"><div class="empty-icon">!</div><div>Error loading tournaments</div></div>';
+            }
+        }
+
+        function renderTournaments(tournaments, containerId, emptyMessage) {
+            const container = document.getElementById(containerId);
+
+            if (tournaments.length === 0) {
+                container.innerHTML = `<div class="empty-state"><div class="empty-icon">🏆</div><div>${emptyMessage}</div></div>`;
+                return;
+            }
+
+            const html = tournaments.map(t => {
+                const dateStr = t.date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+                const playerCount = Object.keys(t.players || {}).length;
+                const status = t.status || 'upcoming';
+                const isMatchmaker = t.matchmaker_enabled === true;
+
+                // Choose the right page to link to
+                const targetPage = isMatchmaker ? 'matchmaker-view' : 'tournament-bracket';
+
+                // Matchmaker registration counts
+                const regCounts = t.registration_counts || {};
+                const matchmakerStats = isMatchmaker ? `
+                    <div class="matchmaker-stats">
+                        <span class="matchmaker-stat teams">💑 ${regCounts.teams || 0} teams</span>
+                        <span class="matchmaker-stat male">♂ ${regCounts.singles_male || 0}</span>
+                        <span class="matchmaker-stat female">♀ ${regCounts.singles_female || 0}</span>
+                    </div>
+                ` : '';
+
+                return `
+                    <div class="tournament-card" onclick="window.location.href='/pages/${targetPage}.html?id=${t.id}'">
+                        <div class="tournament-name">${t.tournament_name || 'Tournament'}</div>
+                        <div class="tournament-info">
+                            <span>📅 ${dateStr}</span>
+                            ${!isMatchmaker ? `<span>👥 ${playerCount} players</span>` : ''}
+                            <span class="status-badge ${isMatchmaker ? 'matchmaker' : status}">${isMatchmaker ? '💘 MATCHMAKER' : status}</span>
+                        </div>
+                        ${matchmakerStats}
+                    </div>
+                `;
+            }).join('');
+
+            container.innerHTML = html;
+        }
+
+        loadTournaments();
+    </script>
+<script src="/js/feedback.js"></script>
+</body>
+</html>

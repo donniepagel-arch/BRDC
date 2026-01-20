@@ -260,7 +260,7 @@
 <body>
     <div class="header-bar">
         <button class="back-btn" onclick="goBack()">< BACK</button>
-        <img src="/images/white_logo.jpg" alt="BRDC" class="header-logo">
+        <img src="/images/gold_logo.png" alt="BRDC" class="header-logo">
         <span class="header-title">TEAM PROFILE</span>
     </div>
 
@@ -272,8 +272,7 @@
     </div>
 
     <script type="module">
-        import { callFunction, db } from '/js/firebase-config.js';
-        import { doc, getDoc, collection, getDocs, query, where, orderBy } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+        import { callFunction, db, doc, getDoc, collection, getDocs, query, where, orderBy } from '/js/firebase-config.js';
 
         const urlParams = new URLSearchParams(window.location.search);
         const leagueId = urlParams.get('league_id');
@@ -326,8 +325,15 @@
                         return ((b.points_for || 0) - (b.points_against || 0)) - ((a.points_for || 0) - (a.points_against || 0));
                     });
 
-                // Load players from team data
-                if (teamData.player_ids) {
+                // Load players from team data - support both new and old formats
+                if (teamData.players?.length) {
+                    players = teamData.players.map((p, i) => ({
+                        id: p.id,
+                        name: p.name || 'Unknown',
+                        is_captain: teamData.captain_id === p.id || i === 0,
+                        level: p.level || null
+                    }));
+                } else if (teamData.player_ids) {
                     players = teamData.player_ids.map((id, i) => ({
                         id,
                         name: teamData.player_names?.[i] || 'Unknown',
@@ -560,5 +566,6 @@
 
         loadData();
     </script>
+<script src="/js/feedback.js"></script>
 </body>
 </html>

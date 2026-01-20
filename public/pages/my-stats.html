@@ -34,27 +34,53 @@
             margin-bottom: 30px;
         }
 
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse at 20% 20%, rgba(255, 70, 154, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(145, 215, 235, 0.06) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .header-bar {
+            background: var(--bg-card);
+            border-bottom: 4px solid var(--pink);
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin: -20px -20px 30px -20px;
+        }
+
+        .header-logo {
+            width: 40px;
+            height: 40px;
+        }
+
+        .header-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 28px;
+            letter-spacing: 3px;
+            color: var(--pink);
+        }
+
         .back-btn {
-            background: rgba(145, 215, 235, 0.2);
-            border: 2px solid var(--teal);
-            color: var(--teal);
-            padding: 10px 20px;
-            border-radius: 8px;
-            font-weight: 600;
+            background: rgba(255,255,255,0.1);
+            border: 2px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 14px;
             cursor: pointer;
             text-decoration: none;
         }
 
         .back-btn:hover {
-            background: var(--teal);
-            color: var(--bg-dark);
-        }
-
-        h1 {
-            font-family: 'Bebas Neue', cursive;
-            font-size: 2.5rem;
-            letter-spacing: 3px;
-            color: var(--pink);
+            background: rgba(255,255,255,0.2);
         }
 
         .stats-grid {
@@ -112,9 +138,10 @@
     </style>
 </head>
 <body>
-    <div class="header">
-        <a href="/pages/dashboard.html" class="back-btn">&larr; Back</a>
-        <h1>MY STATS</h1>
+    <div class="header-bar">
+        <a href="/pages/dashboard.html" class="back-btn">← BACK</a>
+        <img src="/images/gold_logo.png" alt="BRDC" class="header-logo">
+        <span class="header-title">MY STATS</span>
     </div>
 
     <div id="content" class="stats-grid">
@@ -126,11 +153,20 @@
         async function loadStats() {
             const content = document.getElementById('content');
 
-            // Get player ID from session/localStorage
-            const playerId = localStorage.getItem('brdc_player_id');
-            const playerPin = localStorage.getItem('brdc_player_pin');
+            // Get player from session (consistent with dashboard)
+            const sessionData = localStorage.getItem('brdc_session');
+            let playerId = null;
 
-            if (!playerId && !playerPin) {
+            if (sessionData) {
+                try {
+                    const session = JSON.parse(sessionData);
+                    playerId = session.player_id;
+                } catch (e) {
+                    console.error('Invalid session data');
+                }
+            }
+
+            if (!playerId) {
                 content.innerHTML = `
                     <div class="no-data">
                         <h3>Not logged in</h3>
@@ -142,8 +178,7 @@
 
             try {
                 const result = await callFunction('getPlayerProfile', {
-                    player_id: playerId,
-                    pin: playerPin
+                    player_id: playerId
                 });
 
                 if (result.success && result.player) {
@@ -237,5 +272,6 @@
 
         loadStats();
     </script>
+<script src="/js/feedback.js"></script>
 </body>
 </html>

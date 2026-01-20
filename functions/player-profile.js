@@ -89,6 +89,25 @@ exports.playerLogin = functions.https.onRequest(async (req, res) => {
         // Don't send PIN back to client
         delete foundPlayer.pin;
 
+        // Check if player is captain by looking at their team
+        if (foundLeagueId && foundPlayer.team_id) {
+            try {
+                const teamDoc = await db.collection('leagues').doc(foundLeagueId)
+                    .collection('teams').doc(foundPlayer.team_id).get();
+
+                if (teamDoc.exists) {
+                    const team = teamDoc.data();
+                    // Player is captain if they match captain_id OR they are level A (for triples leagues)
+                    const isCaptainById = team.captain_id === foundPlayer.id;
+                    const isLevelA = (foundPlayer.skill_level === 'A' || foundPlayer.preferred_level === 'A');
+                    foundPlayer.is_captain = isCaptainById || isLevelA;
+                    foundPlayer.team_name = team.team_name || team.name;
+                }
+            } catch (teamErr) {
+                console.error('Error checking team for captain status:', teamErr);
+            }
+        }
+
         res.json({
             success: true,
             player: foundPlayer,
@@ -231,7 +250,36 @@ exports.getPlayerProfile = functions.https.onRequest(async (req, res) => {
                 const statsDoc = await db.collection('leagues').doc(leagueId)
                     .collection('stats').doc(playerId).get();
                 if (statsDoc.exists) {
-                    stats = statsDoc.data();
+                    const rawStats = statsDoc.data();
+
+                    // Use pre-calculated values, or calculate from totals as fallback
+                    stats = {
+                        ...rawStats,
+                        // X01 calculated fields (use stored or calculate)
+                        x01_three_dart_avg: rawStats.x01_three_dart_avg ||
+                            (rawStats.x01_total_darts > 0
+                                ? parseFloat((rawStats.x01_total_points / rawStats.x01_total_darts * 3).toFixed(2))
+                                : 0),
+                        // Cricket calculated fields (use stored or calculate from darts)
+                        cricket_mpr: rawStats.cricket_mpr ||
+                            (rawStats.cricket_total_darts > 0
+                                ? parseFloat((rawStats.cricket_total_marks / rawStats.cricket_total_darts * 3).toFixed(2))
+                                : 0),
+                        // Checkout percentage
+                        checkout_pct: rawStats.x01_checkout_pct ||
+                            (rawStats.x01_checkout_opportunities > 0
+                                ? parseFloat((rawStats.x01_checkout_darts / rawStats.x01_checkout_opportunities * 100).toFixed(1))
+                                : 0),
+                        // Leg win percentages
+                        x01_leg_win_pct: rawStats.x01_leg_win_pct ||
+                            (rawStats.x01_legs_played > 0
+                                ? parseFloat((rawStats.x01_legs_won / rawStats.x01_legs_played * 100).toFixed(1))
+                                : 0),
+                        cricket_leg_win_pct: rawStats.cricket_leg_win_pct ||
+                            (rawStats.cricket_legs_played > 0
+                                ? parseFloat((rawStats.cricket_legs_won / rawStats.cricket_legs_played * 100).toFixed(1))
+                                : 0)
+                    };
                 }
 
                 // Get team
@@ -487,15 +535,18 @@ exports.getCaptainDashboard = functions.https.onRequest(async (req, res) => {
 
             if (statsDoc.exists) {
                 const stats = statsDoc.data();
-                stats.x01_avg = stats.x01_total_darts > 0
-                    ? (stats.x01_total_points / stats.x01_total_darts * 3).toFixed(1)
-                    : '-';
-                stats.cricket_mpr = stats.cricket_total_rounds > 0
-                    ? (stats.cricket_total_marks / stats.cricket_total_rounds).toFixed(2)
-                    : '-';
+                // Use pre-calculated values or calculate from totals
+                stats.x01_three_dart_avg = stats.x01_three_dart_avg ||
+                    (stats.x01_total_darts > 0
+                        ? parseFloat((stats.x01_total_points / stats.x01_total_darts * 3).toFixed(2))
+                        : 0);
+                stats.cricket_mpr = stats.cricket_mpr ||
+                    (stats.cricket_total_darts > 0
+                        ? parseFloat((stats.cricket_total_marks / stats.cricket_total_darts * 3).toFixed(2))
+                        : 0);
                 playerStats.push({ player_id: player.id, player_name: player.name, ...stats });
             } else {
-                playerStats.push({ player_id: player.id, player_name: player.name, x01_avg: '-', cricket_mpr: '-' });
+                playerStats.push({ player_id: player.id, player_name: player.name, x01_three_dart_avg: 0, cricket_mpr: 0 });
             }
         }
 
@@ -709,13 +760,21 @@ exports.searchPlayers = functions.https.onRequest(async (req, res) => {
 
                     let stats = null;
                     if (statsDoc.exists) {
-                        stats = statsDoc.data();
-                        stats.x01_avg = stats.x01_total_darts > 0
-                            ? (stats.x01_total_points / stats.x01_total_darts * 3).toFixed(1)
-                            : null;
-                        stats.mpr = stats.cricket_total_rounds > 0
-                            ? (stats.cricket_total_marks / stats.cricket_total_rounds).toFixed(2)
-                            : null;
+                        const rawStats = statsDoc.data();
+                        stats = {
+                            x01_three_dart_avg: rawStats.x01_three_dart_avg ||
+                                (rawStats.x01_total_darts > 0
+                                    ? parseFloat((rawStats.x01_total_points / rawStats.x01_total_darts * 3).toFixed(2))
+                                    : 0),
+                            cricket_mpr: rawStats.cricket_mpr ||
+                                (rawStats.cricket_total_darts > 0
+                                    ? parseFloat((rawStats.cricket_total_marks / rawStats.cricket_total_darts * 3).toFixed(2))
+                                    : 0),
+                            x01_180s: rawStats.x01_tons_180 || 0,
+                            high_checkout: rawStats.x01_high_checkout || 0,
+                            checkout_pct: rawStats.x01_checkout_pct || 0,
+                            first_9_avg: rawStats.x01_first_9_avg || 0
+                        };
                     }
 
                     results.push({
@@ -725,12 +784,7 @@ exports.searchPlayers = functions.https.onRequest(async (req, res) => {
                         league_id: leagueDoc.id,
                         league_name: league.league_name,
                         team_name: player.team_name,
-                        stats: stats ? {
-                            x01_avg: stats.x01_avg,
-                            mpr: stats.mpr,
-                            x01_180s: stats.x01_ton_eighties || 0,
-                            high_checkout: stats.x01_high_checkout || 0
-                        } : null
+                        stats: stats
                     });
 
                     if (results.length >= limit) break;
@@ -770,13 +824,19 @@ exports.getGlobalLeaderboards = functions.https.onRequest(async (req, res) => {
             for (const statDoc of statsSnapshot.docs) {
                 const stats = statDoc.data();
 
-                // Calculate averages
-                stats.x01_avg = stats.x01_total_darts > 0
-                    ? parseFloat((stats.x01_total_points / stats.x01_total_darts * 3).toFixed(2))
-                    : 0;
-                stats.mpr = stats.cricket_total_rounds > 0
-                    ? parseFloat((stats.cricket_total_marks / stats.cricket_total_rounds).toFixed(2))
-                    : 0;
+                // Use pre-calculated averages or calculate from totals
+                stats.x01_three_dart_avg = stats.x01_three_dart_avg ||
+                    (stats.x01_total_darts > 0
+                        ? parseFloat((stats.x01_total_points / stats.x01_total_darts * 3).toFixed(2))
+                        : 0);
+                stats.cricket_mpr = stats.cricket_mpr ||
+                    (stats.cricket_total_darts > 0
+                        ? parseFloat((stats.cricket_total_marks / stats.cricket_total_darts * 3).toFixed(2))
+                        : 0);
+                stats.checkout_pct = stats.x01_checkout_pct ||
+                    (stats.x01_checkout_opportunities > 0
+                        ? parseFloat((stats.x01_checkout_darts / stats.x01_checkout_opportunities * 100).toFixed(1))
+                        : 0);
 
                 allStats.push({
                     id: statDoc.id,
@@ -791,27 +851,48 @@ exports.getGlobalLeaderboards = functions.https.onRequest(async (req, res) => {
         // Build leaderboards
         const leaderboards = {
             x01_average: [...allStats]
-                .filter(s => s.x01_legs_played >= 5)
-                .sort((a, b) => b.x01_avg - a.x01_avg)
+                .filter(s => (s.x01_legs_played || 0) >= 5)
+                .sort((a, b) => (b.x01_three_dart_avg || 0) - (a.x01_three_dart_avg || 0))
+                .slice(0, 20),
+
+            x01_first_9: [...allStats]
+                .filter(s => (s.x01_first_9_avg || 0) > 0)
+                .sort((a, b) => (b.x01_first_9_avg || 0) - (a.x01_first_9_avg || 0))
                 .slice(0, 20),
 
             x01_180s: [...allStats]
-                .filter(s => s.x01_ton_eighties > 0)
-                .sort((a, b) => b.x01_ton_eighties - a.x01_ton_eighties)
+                .filter(s => (s.x01_tons_180 || 0) > 0)
+                .sort((a, b) => (b.x01_tons_180 || 0) - (a.x01_tons_180 || 0))
                 .slice(0, 20),
 
             x01_high_checkout: [...allStats]
-                .filter(s => s.x01_high_checkout > 0)
-                .sort((a, b) => b.x01_high_checkout - a.x01_high_checkout)
+                .filter(s => (s.x01_high_checkout || 0) > 0)
+                .sort((a, b) => (b.x01_high_checkout || 0) - (a.x01_high_checkout || 0))
+                .slice(0, 20),
+
+            x01_checkout_pct: [...allStats]
+                .filter(s => (s.x01_checkout_opportunities || 0) >= 10)
+                .sort((a, b) => (b.checkout_pct || 0) - (a.checkout_pct || 0))
+                .slice(0, 20),
+
+            x01_tons_100: [...allStats]
+                .filter(s => (s.x01_tons_100 || 0) > 0)
+                .sort((a, b) => (b.x01_tons_100 || 0) - (a.x01_tons_100 || 0))
                 .slice(0, 20),
 
             cricket_mpr: [...allStats]
-                .filter(s => s.cricket_legs_played >= 5)
-                .sort((a, b) => b.mpr - a.mpr)
+                .filter(s => (s.cricket_legs_played || 0) >= 5)
+                .sort((a, b) => (b.cricket_mpr || 0) - (a.cricket_mpr || 0))
+                .slice(0, 20),
+
+            cricket_bulls: [...allStats]
+                .filter(s => (s.cricket_bulls || 0) > 0)
+                .sort((a, b) => (b.cricket_bulls || 0) - (a.cricket_bulls || 0))
                 .slice(0, 20),
 
             most_legs_won: [...allStats]
-                .sort((a, b) => (b.x01_legs_won + b.cricket_legs_won) - (a.x01_legs_won + a.cricket_legs_won))
+                .sort((a, b) => ((b.x01_legs_won || 0) + (b.cricket_legs_won || 0)) -
+                    ((a.x01_legs_won || 0) + (a.cricket_legs_won || 0)))
                 .slice(0, 20)
         };
 

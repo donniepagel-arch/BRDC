@@ -1,0 +1,1089 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Online Play - BRDC</title>
+    <link rel="icon" type="image/png" href="/images/favicon.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700;800&display=swap');
+
+        :root {
+            --pink: #FF469A;
+            --teal: #91D7EB;
+            --yellow: #FDD835;
+            --bg-dark: #1a1a2e;
+            --bg-panel: #16213e;
+            --text-dim: rgba(255,255,255,0.6);
+            --green: #10b981;
+            --red: #dc2626;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            background: linear-gradient(135deg, var(--bg-dark) 0%, #0f0f23 100%);
+            color: white;
+            min-height: 100vh;
+            padding-bottom: 100px;
+        }
+
+        .header {
+            background: var(--bg-panel);
+            padding: 16px 20px;
+            border-bottom: 3px solid var(--pink);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .back-btn {
+            background: rgba(255,255,255,0.1);
+            border: 2px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-weight: 700;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .header-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 28px;
+            color: var(--pink);
+            letter-spacing: 3px;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .login-section {
+            background: var(--bg-panel);
+            border: 3px solid var(--pink);
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .login-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 24px;
+            color: var(--teal);
+            margin-bottom: 15px;
+        }
+
+        .login-row {
+            display: flex;
+            gap: 10px;
+        }
+
+        .login-input {
+            flex: 1;
+            padding: 14px;
+            background: rgba(255,255,255,0.1);
+            border: 2px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            color: white;
+            font-size: 18px;
+            text-align: center;
+            letter-spacing: 4px;
+        }
+
+        .login-input:focus {
+            outline: none;
+            border-color: var(--pink);
+        }
+
+        .login-btn {
+            padding: 14px 24px;
+            background: var(--pink);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .main-content { display: none; }
+        .main-content.visible { display: block; }
+
+        .user-bar {
+            background: var(--bg-panel);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .user-avatar {
+            width: 45px;
+            height: 45px;
+            background: var(--pink);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 18px;
+        }
+
+        .user-name {
+            font-weight: 700;
+            font-size: 16px;
+        }
+
+        .user-stats {
+            font-size: 12px;
+            color: var(--text-dim);
+        }
+
+        .streak-badge {
+            background: var(--yellow);
+            color: black;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .streak-badge.hot {
+            background: linear-gradient(90deg, #f59e0b, #ef4444);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+            overflow-x: auto;
+        }
+
+        .tab {
+            flex: 1;
+            min-width: 80px;
+            padding: 12px 8px;
+            background: rgba(255,255,255,0.05);
+            border: 2px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            color: white;
+            font-weight: 700;
+            font-size: 12px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .tab.active {
+            background: var(--pink);
+            border-color: var(--pink);
+        }
+
+        .tab .badge {
+            display: inline-block;
+            background: var(--yellow);
+            color: black;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 10px;
+            margin-left: 4px;
+        }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .section {
+            background: var(--bg-panel);
+            border: 3px solid #000;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 4px 4px 0 rgba(0,0,0,0.4);
+        }
+
+        .section-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 20px;
+            color: var(--teal);
+            margin-bottom: 15px;
+            letter-spacing: 2px;
+        }
+
+        .challenge-card {
+            background: rgba(255,255,255,0.05);
+            border: 2px solid rgba(255,255,255,0.1);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 12px;
+        }
+
+        .challenge-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+        }
+
+        .challenge-opponent {
+            font-weight: 700;
+            font-size: 16px;
+        }
+
+        .challenge-game {
+            font-size: 12px;
+            color: var(--teal);
+            margin-top: 2px;
+        }
+
+        .challenge-time {
+            font-size: 11px;
+            color: var(--text-dim);
+            text-align: right;
+        }
+
+        .challenge-message {
+            font-size: 13px;
+            color: var(--text-dim);
+            font-style: italic;
+            margin-bottom: 12px;
+            padding: 8px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 6px;
+        }
+
+        .challenge-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .challenge-btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 13px;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+
+        .btn-accept { background: var(--green); color: white; }
+        .btn-decline { background: var(--red); color: white; }
+        .btn-cancel { background: rgba(255,255,255,0.1); color: white; }
+
+        .match-card {
+            background: rgba(255,255,255,0.05);
+            border: 2px solid var(--teal);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 12px;
+        }
+
+        .match-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .match-vs {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 18px;
+            color: var(--pink);
+        }
+
+        .match-status {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .status-waiting { background: var(--yellow); color: black; }
+        .status-ready { background: var(--green); color: white; }
+        .status-live { background: var(--red); color: white; animation: pulse 1s infinite; }
+
+        .match-score {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            padding: 15px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 8px;
+            margin-bottom: 12px;
+        }
+
+        .score-player {
+            text-align: center;
+        }
+
+        .score-name {
+            font-size: 12px;
+            color: var(--text-dim);
+            margin-bottom: 4px;
+        }
+
+        .score-value {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 36px;
+            color: var(--teal);
+        }
+
+        .score-divider {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 24px;
+            color: var(--text-dim);
+        }
+
+        .match-btn {
+            width: 100%;
+            padding: 14px;
+            background: var(--pink);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+
+        .match-btn:disabled {
+            background: rgba(255,255,255,0.2);
+            cursor: not-allowed;
+        }
+
+        .form-group { margin-bottom: 15px; }
+
+        .form-label {
+            display: block;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: var(--teal);
+            margin-bottom: 6px;
+        }
+
+        .form-input, .form-select, .form-textarea {
+            width: 100%;
+            padding: 14px;
+            background: rgba(255,255,255,0.1);
+            border: 2px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            color: white;
+            font-size: 16px;
+        }
+
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
+            outline: none;
+            border-color: var(--pink);
+        }
+
+        .form-textarea {
+            resize: none;
+            height: 80px;
+        }
+
+        .search-results {
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+
+        .search-result {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            cursor: pointer;
+        }
+
+        .search-result:hover {
+            background: rgba(255,70,154,0.2);
+        }
+
+        .search-result.selected {
+            background: rgba(145,215,235,0.2);
+            border: 2px solid var(--teal);
+        }
+
+        .result-avatar {
+            width: 40px;
+            height: 40px;
+            background: var(--teal);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+        }
+
+        .result-name { font-weight: 600; }
+
+        .btn {
+            width: 100%;
+            padding: 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 700;
+            text-transform: uppercase;
+            cursor: pointer;
+        }
+
+        .btn-primary { background: var(--pink); color: white; }
+        .btn-primary:disabled { background: rgba(255,255,255,0.2); cursor: not-allowed; }
+
+        .history-card {
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .history-opponent { font-weight: 700; }
+
+        .history-result {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .result-win { background: var(--green); color: white; }
+        .result-loss { background: var(--red); color: white; }
+
+        .history-meta {
+            font-size: 12px;
+            color: var(--text-dim);
+            margin-top: 4px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-dim);
+        }
+
+        .empty-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <button class="back-btn" onclick="history.back()">BACK</button>
+        <div class="header-title">ONLINE PLAY</div>
+    </div>
+
+    <div class="container">
+        <!-- Login Section -->
+        <div class="login-section" id="loginSection">
+            <div class="login-title">ENTER YOUR PIN</div>
+            <div class="login-row">
+                <input type="password" id="loginPin" class="login-input" placeholder="••••••" maxlength="6" inputmode="numeric">
+                <button class="login-btn" onclick="login()">GO</button>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content" id="mainContent">
+            <!-- User Bar -->
+            <div class="user-bar">
+                <div class="user-info">
+                    <div class="user-avatar" id="userAvatar">?</div>
+                    <div>
+                        <div class="user-name" id="userName">Player</div>
+                        <div class="user-stats" id="userStats">0W - 0L</div>
+                    </div>
+                </div>
+                <div class="streak-badge" id="streakBadge">0 Streak</div>
+            </div>
+
+            <!-- Tabs -->
+            <div class="tabs">
+                <div class="tab active" onclick="switchTab('challenges')">
+                    CHALLENGES<span class="badge hidden" id="challengeBadge">0</span>
+                </div>
+                <div class="tab" onclick="switchTab('matches')">MATCHES</div>
+                <div class="tab" onclick="switchTab('challenge')">SEND</div>
+                <div class="tab" onclick="switchTab('history')">HISTORY</div>
+            </div>
+
+            <!-- Challenges Tab -->
+            <div id="challengesTab" class="tab-content active">
+                <div class="section">
+                    <div class="section-title">RECEIVED</div>
+                    <div id="receivedChallenges">
+                        <div class="empty-state">
+                            <div class="empty-icon">📨</div>
+                            <div>No pending challenges</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="section-title">SENT</div>
+                    <div id="sentChallenges">
+                        <div class="empty-state">
+                            <div class="empty-icon">📤</div>
+                            <div>No sent challenges</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Matches Tab -->
+            <div id="matchesTab" class="tab-content">
+                <div class="section">
+                    <div class="section-title">ACTIVE MATCHES</div>
+                    <div id="activeMatches">
+                        <div class="empty-state">
+                            <div class="empty-icon">🎯</div>
+                            <div>No active matches</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Send Challenge Tab -->
+            <div id="challengeTab" class="tab-content">
+                <div class="section">
+                    <div class="section-title">CHALLENGE A PLAYER</div>
+
+                    <div class="form-group">
+                        <label class="form-label">Search Player</label>
+                        <input type="text" id="playerSearch" class="form-input" placeholder="Type a name..." oninput="searchPlayers()">
+                    </div>
+
+                    <div class="search-results" id="searchResults"></div>
+
+                    <div class="form-group">
+                        <label class="form-label">Game Type</label>
+                        <select id="challengeGameType" class="form-select">
+                            <option value="501">501</option>
+                            <option value="301">301</option>
+                            <option value="cricket">Cricket</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Best Of</label>
+                        <select id="challengeLegs" class="form-select">
+                            <option value="3">Best of 3</option>
+                            <option value="5">Best of 5</option>
+                            <option value="7">Best of 7</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Message (Optional)</label>
+                        <textarea id="challengeMessage" class="form-textarea" placeholder="Add a message..." maxlength="200"></textarea>
+                    </div>
+
+                    <button class="btn btn-primary" id="sendChallengeBtn" onclick="sendChallenge()" disabled>SELECT A PLAYER</button>
+                </div>
+            </div>
+
+            <!-- History Tab -->
+            <div id="historyTab" class="tab-content">
+                <div class="section">
+                    <div class="section-title">MATCH HISTORY</div>
+                    <div id="matchHistory">
+                        <div class="empty-state">
+                            <div class="empty-icon">📊</div>
+                            <div>No match history</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const CLOUD_URL = 'https://us-central1-brdc-69.cloudfunctions.net';
+
+        let currentPlayer = null;
+        let playerPin = null;
+        let selectedOpponent = null;
+        let searchTimeout = null;
+
+        // Login
+        async function login() {
+            const pin = document.getElementById('loginPin').value.trim();
+            if (!pin || pin.length !== 6) {
+                alert('Please enter a valid 6-digit PIN');
+                return;
+            }
+
+            playerPin = pin.toUpperCase();
+
+            try {
+                // Load pending challenges to verify PIN and get player info
+                const response = await fetch(`${CLOUD_URL}/getPendingChallenges`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ player_pin: playerPin })
+                });
+
+                const result = await response.json();
+                if (result.success === false) {
+                    throw new Error(result.error || 'Invalid PIN');
+                }
+
+                // Get player info
+                const playerResponse = await fetch(`${CLOUD_URL}/getPlayerByPin`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pin: playerPin })
+                });
+
+                const playerResult = await playerResponse.json();
+                if (playerResult.success !== false) {
+                    currentPlayer = playerResult;
+                }
+
+                document.getElementById('loginSection').classList.add('hidden');
+                document.getElementById('mainContent').classList.add('visible');
+
+                updateUserBar();
+                loadAllData();
+
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+
+        // Update user bar
+        function updateUserBar() {
+            if (currentPlayer) {
+                const name = currentPlayer.name || 'Player';
+                document.getElementById('userName').textContent = name;
+                document.getElementById('userAvatar').textContent = name.charAt(0).toUpperCase();
+
+                const wins = currentPlayer.online_stats?.matches_won || currentPlayer.stats?.matches_won || 0;
+                const played = currentPlayer.online_stats?.matches_played || currentPlayer.stats?.matches_played || 0;
+                const losses = played - wins;
+                document.getElementById('userStats').textContent = `${wins}W - ${losses}L`;
+
+                const streak = currentPlayer.streaks?.current_win_streak || 0;
+                const streakBadge = document.getElementById('streakBadge');
+                streakBadge.textContent = `${streak} Streak`;
+                streakBadge.classList.toggle('hot', currentPlayer.streaks?.is_hot);
+            }
+        }
+
+        // Tab switching
+        function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach((t, i) => {
+                t.classList.toggle('active', ['challenges', 'matches', 'challenge', 'history'][i] === tab);
+            });
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.getElementById(tab + 'Tab').classList.add('active');
+        }
+
+        // Load all data
+        async function loadAllData() {
+            await Promise.all([
+                loadChallenges(),
+                loadMatches(),
+                loadHistory()
+            ]);
+        }
+
+        // Load challenges
+        async function loadChallenges() {
+            try {
+                const response = await fetch(`${CLOUD_URL}/getPendingChallenges`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ player_pin: playerPin })
+                });
+
+                const result = await response.json();
+                if (result.success === false) return;
+
+                const received = result.received || [];
+                const sent = result.sent || [];
+
+                // Update badge
+                const badge = document.getElementById('challengeBadge');
+                if (received.length > 0) {
+                    badge.textContent = received.length;
+                    badge.classList.remove('hidden');
+                } else {
+                    badge.classList.add('hidden');
+                }
+
+                // Render received
+                const receivedEl = document.getElementById('receivedChallenges');
+                if (received.length === 0) {
+                    receivedEl.innerHTML = '<div class="empty-state"><div class="empty-icon">📨</div><div>No pending challenges</div></div>';
+                } else {
+                    receivedEl.innerHTML = received.map(c => `
+                        <div class="challenge-card">
+                            <div class="challenge-header">
+                                <div>
+                                    <div class="challenge-opponent">${c.challenger_name}</div>
+                                    <div class="challenge-game">${c.game_type} - Best of ${c.game_settings?.legs_to_win * 2 - 1 || 3}</div>
+                                </div>
+                                <div class="challenge-time">${formatTime(c.created_at)}</div>
+                            </div>
+                            ${c.message ? `<div class="challenge-message">"${c.message}"</div>` : ''}
+                            <div class="challenge-actions">
+                                <button class="challenge-btn btn-accept" onclick="respondChallenge('${c.id}', 'accept')">ACCEPT</button>
+                                <button class="challenge-btn btn-decline" onclick="respondChallenge('${c.id}', 'decline')">DECLINE</button>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+
+                // Render sent
+                const sentEl = document.getElementById('sentChallenges');
+                if (sent.length === 0) {
+                    sentEl.innerHTML = '<div class="empty-state"><div class="empty-icon">📤</div><div>No sent challenges</div></div>';
+                } else {
+                    sentEl.innerHTML = sent.map(c => `
+                        <div class="challenge-card">
+                            <div class="challenge-header">
+                                <div>
+                                    <div class="challenge-opponent">To: ${c.opponent_name}</div>
+                                    <div class="challenge-game">${c.game_type} - Best of ${c.game_settings?.legs_to_win * 2 - 1 || 3}</div>
+                                </div>
+                                <div class="challenge-time">Waiting...</div>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+
+            } catch (error) {
+                console.error('Error loading challenges:', error);
+            }
+        }
+
+        // Respond to challenge
+        async function respondChallenge(challengeId, response) {
+            try {
+                const result = await fetch(`${CLOUD_URL}/respondToChallenge`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        player_pin: playerPin,
+                        challenge_id: challengeId,
+                        response: response
+                    })
+                });
+
+                const data = await result.json();
+                if (data.success === false) {
+                    throw new Error(data.error || 'Failed to respond');
+                }
+
+                if (response === 'accept' && data.match_id) {
+                    alert('Challenge accepted! Match created.');
+                    switchTab('matches');
+                }
+
+                loadAllData();
+
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+
+        // Load matches
+        async function loadMatches() {
+            try {
+                const response = await fetch(`${CLOUD_URL}/getActiveOnlineMatches`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ player_pin: playerPin })
+                });
+
+                const result = await response.json();
+                if (result.success === false) return;
+
+                const matches = result.matches || [];
+                const container = document.getElementById('activeMatches');
+
+                if (matches.length === 0) {
+                    container.innerHTML = '<div class="empty-state"><div class="empty-icon">🎯</div><div>No active matches</div></div>';
+                    return;
+                }
+
+                container.innerHTML = matches.map(m => {
+                    const isPlayer1 = m.player1_id === currentPlayer?.id;
+                    const opponent = isPlayer1 ? m.player2_name : m.player1_name;
+                    const myReady = isPlayer1 ? m.player1_ready : m.player2_ready;
+                    const theirReady = isPlayer1 ? m.player2_ready : m.player1_ready;
+
+                    let status = 'WAITING';
+                    let statusClass = 'status-waiting';
+                    if (m.status === 'in_progress') {
+                        status = 'LIVE';
+                        statusClass = 'status-live';
+                    } else if (myReady && theirReady) {
+                        status = 'READY';
+                        statusClass = 'status-ready';
+                    }
+
+                    return `
+                        <div class="match-card">
+                            <div class="match-header">
+                                <div class="match-vs">VS ${opponent}</div>
+                                <div class="match-status ${statusClass}">${status}</div>
+                            </div>
+                            <div class="match-score">
+                                <div class="score-player">
+                                    <div class="score-name">${m.player1_name}</div>
+                                    <div class="score-value">${m.scores?.player1_legs || 0}</div>
+                                </div>
+                                <div class="score-divider">-</div>
+                                <div class="score-player">
+                                    <div class="score-name">${m.player2_name}</div>
+                                    <div class="score-value">${m.scores?.player2_legs || 0}</div>
+                                </div>
+                            </div>
+                            <button class="match-btn" onclick="startMatch('${m.id}')" ${myReady ? 'disabled' : ''}>
+                                ${myReady ? 'WAITING FOR OPPONENT' : 'READY TO PLAY'}
+                            </button>
+                        </div>
+                    `;
+                }).join('');
+
+            } catch (error) {
+                console.error('Error loading matches:', error);
+            }
+        }
+
+        // Start match (mark ready)
+        async function startMatch(matchId) {
+            try {
+                const response = await fetch(`${CLOUD_URL}/startOnlineMatch`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        player_pin: playerPin,
+                        match_id: matchId
+                    })
+                });
+
+                const result = await response.json();
+                if (result.success === false) {
+                    throw new Error(result.error || 'Failed to start');
+                }
+
+                if (result.started && result.match_pin) {
+                    alert(`Match started! PIN: ${result.match_pin}\nUse the scorer app to play.`);
+                }
+
+                loadMatches();
+
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+
+        // Search players
+        async function searchPlayers() {
+            const query = document.getElementById('playerSearch').value.trim();
+
+            if (query.length < 2) {
+                document.getElementById('searchResults').innerHTML = '';
+                return;
+            }
+
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(async () => {
+                try {
+                    const response = await fetch(`${CLOUD_URL}/searchPlayersForMiniTournament`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            player_pin: playerPin,
+                            query: query
+                        })
+                    });
+
+                    const result = await response.json();
+                    const players = result.players || [];
+
+                    const container = document.getElementById('searchResults');
+                    if (players.length === 0) {
+                        container.innerHTML = '<div style="padding: 10px; color: var(--text-dim);">No players found</div>';
+                        return;
+                    }
+
+                    container.innerHTML = players.map(p => `
+                        <div class="search-result ${selectedOpponent?.player_id === p.player_id ? 'selected' : ''}"
+                             onclick="selectOpponent('${p.player_id}', '${p.name}')">
+                            <div class="result-avatar">${p.name.charAt(0).toUpperCase()}</div>
+                            <div class="result-name">${p.name}</div>
+                        </div>
+                    `).join('');
+
+                } catch (error) {
+                    console.error('Search error:', error);
+                }
+            }, 300);
+        }
+
+        function selectOpponent(id, name) {
+            selectedOpponent = { player_id: id, name: name };
+            document.querySelectorAll('.search-result').forEach(el => {
+                el.classList.toggle('selected', el.textContent.includes(name));
+            });
+            document.getElementById('sendChallengeBtn').disabled = false;
+            document.getElementById('sendChallengeBtn').textContent = `CHALLENGE ${name.toUpperCase()}`;
+        }
+
+        // Send challenge
+        async function sendChallenge() {
+            if (!selectedOpponent) return;
+
+            const gameType = document.getElementById('challengeGameType').value;
+            const legs = parseInt(document.getElementById('challengeLegs').value);
+            const message = document.getElementById('challengeMessage').value.trim();
+
+            try {
+                const response = await fetch(`${CLOUD_URL}/sendChallenge`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        player_pin: playerPin,
+                        opponent_id: selectedOpponent.player_id,
+                        game_type: gameType,
+                        game_settings: {
+                            starting_score: gameType === 'cricket' ? 0 : parseInt(gameType),
+                            legs_to_win: Math.ceil(legs / 2),
+                            sets_to_win: 1
+                        },
+                        message: message || null
+                    })
+                });
+
+                const result = await response.json();
+                if (result.success === false) {
+                    throw new Error(result.error || 'Failed to send challenge');
+                }
+
+                alert('Challenge sent!');
+
+                // Reset form
+                selectedOpponent = null;
+                document.getElementById('playerSearch').value = '';
+                document.getElementById('searchResults').innerHTML = '';
+                document.getElementById('challengeMessage').value = '';
+                document.getElementById('sendChallengeBtn').disabled = true;
+                document.getElementById('sendChallengeBtn').textContent = 'SELECT A PLAYER';
+
+                switchTab('challenges');
+                loadChallenges();
+
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+
+        // Load history
+        async function loadHistory() {
+            try {
+                const response = await fetch(`${CLOUD_URL}/getOnlineMatchHistory`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ player_pin: playerPin, limit: 20 })
+                });
+
+                const result = await response.json();
+                if (result.success === false) return;
+
+                const matches = result.matches || [];
+                const container = document.getElementById('matchHistory');
+
+                if (matches.length === 0) {
+                    container.innerHTML = '<div class="empty-state"><div class="empty-icon">📊</div><div>No match history</div></div>';
+                    return;
+                }
+
+                container.innerHTML = matches.map(m => {
+                    const isPlayer1 = m.player1_id === currentPlayer?.id;
+                    const opponent = isPlayer1 ? m.player2_name : m.player1_name;
+                    const won = m.winner_id === currentPlayer?.id;
+                    const myScore = isPlayer1 ? m.scores?.player1_legs : m.scores?.player2_legs;
+                    const theirScore = isPlayer1 ? m.scores?.player2_legs : m.scores?.player1_legs;
+
+                    return `
+                        <div class="history-card">
+                            <div>
+                                <div class="history-opponent">vs ${opponent}</div>
+                                <div class="history-meta">${m.game_type} - ${myScore || 0}-${theirScore || 0}</div>
+                            </div>
+                            <div class="history-result ${won ? 'result-win' : 'result-loss'}">${won ? 'WIN' : 'LOSS'}</div>
+                        </div>
+                    `;
+                }).join('');
+
+            } catch (error) {
+                console.error('Error loading history:', error);
+            }
+        }
+
+        // Format time
+        function formatTime(timestamp) {
+            if (!timestamp) return '';
+            const date = timestamp._seconds ? new Date(timestamp._seconds * 1000) : new Date(timestamp);
+            const now = new Date();
+            const diff = (now - date) / 1000 / 60; // minutes
+
+            if (diff < 60) return `${Math.floor(diff)}m ago`;
+            if (diff < 1440) return `${Math.floor(diff / 60)}h ago`;
+            return `${Math.floor(diff / 1440)}d ago`;
+        }
+
+        // Auto-login from stored PIN
+        const storedPin = localStorage.getItem('brdc_player_pin');
+        if (storedPin) {
+            document.getElementById('loginPin').value = storedPin;
+        }
+
+        // Enter key to login
+        document.getElementById('loginPin').addEventListener('keyup', (e) => {
+            if (e.key === 'Enter') login();
+        });
+    </script>
+</body>
+</html>

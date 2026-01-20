@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Team - BRDC</title>
+    <link rel="icon" type="image/png" href="/images/favicon.png">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700&display=swap');
+
+        :root {
+            --pink: #FF469A;
+            --teal: #91D7EB;
+            --yellow: #FDD835;
+            --bg-dark: #1a1a2e;
+            --bg-panel: #16213e;
+            --bg-card: #1e2a47;
+            --text-light: #f0f0f0;
+            --text-dim: #8a8aa3;
+            --border-color: rgba(255,255,255,0.15);
+            --success: #22c55e;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        body {
+            background: linear-gradient(135deg, var(--bg-dark) 0%, #0f0f23 100%);
+            color: var(--text-light);
+            min-height: 100vh;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse at 20% 20%, rgba(255, 70, 154, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(145, 215, 235, 0.06) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .header-bar {
+            background: var(--bg-panel);
+            border-bottom: 3px solid var(--teal);
+            padding: 12px 15px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .back-btn {
+            background: rgba(255,255,255,0.1);
+            border: 2px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 12px;
+            cursor: pointer;
+            text-decoration: none;
+        }
+
+        .back-btn:hover { background: rgba(255,255,255,0.2); }
+
+        .header-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 22px;
+            letter-spacing: 2px;
+            color: var(--teal);
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 15px;
+        }
+
+        /* Team Header */
+        .team-header {
+            text-align: center;
+            padding: 20px 15px;
+            margin-bottom: 15px;
+        }
+
+        .team-name {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 32px;
+            color: var(--yellow);
+            margin-bottom: 5px;
+        }
+
+        .team-league {
+            font-size: 14px;
+            color: var(--teal);
+            margin-bottom: 15px;
+        }
+
+        .team-record {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+        }
+
+        .record-item {
+            text-align: center;
+        }
+
+        .record-value {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 36px;
+            color: var(--yellow);
+        }
+
+        .record-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-dim);
+        }
+
+        /* Tabs */
+        .tab-container {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 15px;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 5px;
+            overflow-x: auto;
+        }
+
+        .tab {
+            background: rgba(0,0,0,0.3);
+            border: none;
+            padding: 10px 16px;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 14px;
+            letter-spacing: 1px;
+            color: var(--text-dim);
+            cursor: pointer;
+            border-radius: 6px 6px 0 0;
+            white-space: nowrap;
+        }
+
+        .tab:hover { color: white; background: rgba(255,255,255,0.1); }
+        .tab.active { background: var(--teal); color: #000; }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* Schedule Card */
+        .schedule-card {
+            background: var(--bg-card);
+            border: 2px solid var(--border-color);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .schedule-card.past { opacity: 0.5; }
+        .schedule-card.next { border-color: var(--teal); }
+
+        .schedule-week {
+            background: var(--pink);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 18px;
+            text-align: center;
+            min-width: 50px;
+        }
+
+        .schedule-card.past .schedule-week { background: #666; }
+        .schedule-card.next .schedule-week { background: var(--teal); color: #000; }
+
+        .schedule-info { flex: 1; }
+
+        .schedule-opponent {
+            font-weight: 600;
+            font-size: 15px;
+            margin-bottom: 4px;
+        }
+
+        .schedule-date {
+            font-size: 12px;
+            color: var(--text-dim);
+        }
+
+        .schedule-result {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 20px;
+            color: var(--yellow);
+        }
+
+        .schedule-result.win { color: var(--success); }
+        .schedule-result.loss { color: #ef4444; }
+
+        /* Roster */
+        .roster-grid {
+            display: grid;
+            gap: 10px;
+        }
+
+        .roster-card {
+            background: var(--bg-card);
+            border: 2px solid var(--border-color);
+            border-radius: 10px;
+            padding: 15px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .roster-card:hover {
+            border-color: var(--teal);
+            transform: translateX(3px);
+        }
+
+        .roster-card.captain { border-left: 3px solid var(--yellow); }
+
+        .roster-avatar {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--pink), var(--teal));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            flex-shrink: 0;
+            overflow: hidden;
+        }
+
+        .roster-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .roster-info { flex: 1; }
+
+        .roster-name {
+            font-weight: 600;
+            font-size: 15px;
+            margin-bottom: 2px;
+        }
+
+        .roster-name .captain-badge {
+            color: var(--yellow);
+            font-size: 12px;
+            margin-left: 5px;
+        }
+
+        .roster-level {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 700;
+            background: rgba(255,255,255,0.1);
+        }
+
+        .roster-level.A { background: rgba(255,70,154,0.3); color: var(--pink); }
+        .roster-level.B { background: rgba(145,215,235,0.3); color: var(--teal); }
+        .roster-level.C { background: rgba(253,216,53,0.3); color: var(--yellow); }
+
+        .roster-stats {
+            text-align: right;
+        }
+
+        .roster-stat {
+            font-size: 12px;
+            color: var(--text-dim);
+        }
+
+        .roster-stat .value {
+            color: var(--yellow);
+            font-weight: 600;
+        }
+
+        /* Stats Section */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            border: 2px solid var(--border-color);
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 28px;
+            color: var(--yellow);
+        }
+
+        .stat-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-dim);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-dim);
+        }
+
+        .empty-state .icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+
+        /* Loading */
+        .loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 200px;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255,70,154,0.3);
+            border-top-color: var(--pink);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        @media (max-width: 500px) {
+            .team-name { font-size: 26px; }
+            .record-value { font-size: 28px; }
+            .tab { padding: 8px 12px; font-size: 13px; }
+            .stats-grid { grid-template-columns: 1fr 1fr; }
+            .stat-value { font-size: 24px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header-bar">
+        <a href="/pages/dashboard.html" class="back-btn">< BACK</a>
+        <span class="header-title" id="headerTitle">TEAM</span>
+    </div>
+
+    <div class="container">
+        <div class="loading" id="loadingState">
+            <div class="spinner"></div>
+            <p style="margin-top: 15px; color: var(--text-dim);">Loading team...</p>
+        </div>
+
+        <div id="teamContent" style="display: none;">
+            <!-- Team Header -->
+            <div class="team-header">
+                <div class="team-name" id="teamName">-</div>
+                <div class="team-league" id="teamLeague">-</div>
+                <div class="team-record">
+                    <div class="record-item">
+                        <div class="record-value" id="teamWins">0</div>
+                        <div class="record-label">Wins</div>
+                    </div>
+                    <div class="record-item">
+                        <div class="record-value" id="teamLosses">0</div>
+                        <div class="record-label">Losses</div>
+                    </div>
+                    <div class="record-item">
+                        <div class="record-value" id="teamPosition">-</div>
+                        <div class="record-label">Position</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabs -->
+            <div class="tab-container">
+                <div class="tab active" onclick="switchTab('schedule')">SCHEDULE</div>
+                <div class="tab" onclick="switchTab('roster')">ROSTER</div>
+                <div class="tab" onclick="switchTab('stats')">STATS</div>
+            </div>
+
+            <!-- Schedule Tab -->
+            <div id="scheduleTab" class="tab-content active">
+                <div id="scheduleContent">
+                    <div class="empty-state">
+                        <div class="icon">📅</div>
+                        <p>No matches scheduled</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Roster Tab -->
+            <div id="rosterTab" class="tab-content">
+                <div class="roster-grid" id="rosterContent">
+                    <div class="empty-state">
+                        <div class="icon">👥</div>
+                        <p>No players found</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stats Tab -->
+            <div id="statsTab" class="tab-content">
+                <div class="stats-grid" id="statsContent">
+                    <div class="stat-card">
+                        <div class="stat-value" id="teamAvg">-</div>
+                        <div class="stat-label">Team 501 Avg</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="teamMpr">-</div>
+                        <div class="stat-label">Team MPR</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="team180s">0</div>
+                        <div class="stat-label">180s</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="teamHighOut">-</div>
+                        <div class="stat-label">High Checkout</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script type="module">
+import { db, collection, doc, getDoc, getDocs, query, where, orderBy } from '/js/firebase-config.js';
+
+const params = new URLSearchParams(window.location.search);
+const leagueId = params.get('league_id');
+const teamId = params.get('team_id');
+
+if (!leagueId || !teamId) {
+    document.getElementById('loadingState').innerHTML = `
+        <div class="empty-state">
+            <div class="icon">⚠️</div>
+            <p>Missing league or team ID</p>
+            <a href="/pages/dashboard.html" style="color: var(--teal); margin-top: 10px; display: inline-block;">Go to Dashboard</a>
+        </div>
+    `;
+} else {
+    loadTeamData();
+}
+
+async function loadTeamData() {
+    try {
+        // Get league info
+        const leagueDoc = await getDoc(doc(db, 'leagues', leagueId));
+        const league = leagueDoc.exists() ? leagueDoc.data() : {};
+        const leagueName = league.league_name || league.name || 'League';
+
+        // Get team info
+        const teamDoc = await getDoc(doc(db, 'leagues', leagueId, 'teams', teamId));
+        if (!teamDoc.exists()) {
+            throw new Error('Team not found');
+        }
+
+        const team = teamDoc.data();
+        const teamName = team.team_name || team.name || 'Team';
+
+        // Update header
+        document.getElementById('headerTitle').textContent = teamName.toUpperCase();
+        document.getElementById('teamName').textContent = teamName;
+        document.getElementById('teamLeague').textContent = leagueName;
+        document.getElementById('teamWins').textContent = team.wins || 0;
+        document.getElementById('teamLosses').textContent = team.losses || 0;
+
+        // Calculate position (would need standings data)
+        // For now just show record-based position
+        document.getElementById('teamPosition').textContent = '-';
+
+        // Load schedule
+        await loadSchedule(team);
+
+        // Load roster
+        await loadRoster(team);
+
+        // Load stats
+        await loadTeamStats(team);
+
+        // Show content
+        document.getElementById('loadingState').style.display = 'none';
+        document.getElementById('teamContent').style.display = 'block';
+
+    } catch (error) {
+        console.error('Error loading team:', error);
+        document.getElementById('loadingState').innerHTML = `
+            <div class="empty-state">
+                <div class="icon">⚠️</div>
+                <p>Error loading team data</p>
+                <a href="/pages/dashboard.html" style="color: var(--teal); margin-top: 10px; display: inline-block;">Go to Dashboard</a>
+            </div>
+        `;
+    }
+}
+
+async function loadSchedule(team) {
+    const container = document.getElementById('scheduleContent');
+
+    try {
+        const matchesSnap = await getDocs(
+            query(collection(db, 'leagues', leagueId, 'matches'),
+                orderBy('week', 'asc'))
+        );
+
+        const teamMatches = [];
+        const today = new Date();
+
+        matchesSnap.forEach(docSnap => {
+            const match = docSnap.data();
+            // Check if this team is involved
+            if (match.home_team_id === teamId || match.away_team_id === teamId) {
+                const isHome = match.home_team_id === teamId;
+                const opponent = isHome ? (match.away_team_name || 'TBD') : (match.home_team_name || 'TBD');
+                const matchDate = match.date || match.match_date;
+                const isPast = matchDate ? new Date(matchDate) < today : false;
+
+                let result = null;
+                if (match.status === 'completed') {
+                    const teamScore = isHome ? match.home_score : match.away_score;
+                    const oppScore = isHome ? match.away_score : match.home_score;
+                    result = { teamScore, oppScore, win: teamScore > oppScore };
+                }
+
+                teamMatches.push({
+                    week: match.week || '?',
+                    opponent,
+                    date: matchDate,
+                    isPast,
+                    result,
+                    isHome
+                });
+            }
+        });
+
+        if (teamMatches.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <div class="icon">📅</div>
+                    <p>No matches scheduled</p>
+                </div>
+            `;
+            return;
+        }
+
+        // Find next match
+        const nextMatchIndex = teamMatches.findIndex(m => !m.isPast && !m.result);
+
+        container.innerHTML = teamMatches.map((match, i) => `
+            <div class="schedule-card ${match.isPast ? 'past' : ''} ${i === nextMatchIndex ? 'next' : ''}">
+                <div class="schedule-week">W${match.week}</div>
+                <div class="schedule-info">
+                    <div class="schedule-opponent">${match.isHome ? 'vs' : '@'} ${match.opponent}</div>
+                    <div class="schedule-date">${match.date ? formatDate(match.date) : 'TBD'}</div>
+                </div>
+                ${match.result ? `
+                    <div class="schedule-result ${match.result.win ? 'win' : 'loss'}">
+                        ${match.result.teamScore} - ${match.result.oppScore}
+                    </div>
+                ` : (i === nextMatchIndex ? '<span style="color: var(--teal); font-size: 12px;">NEXT</span>' : '')}
+            </div>
+        `).join('');
+
+    } catch (error) {
+        console.error('Error loading schedule:', error);
+        container.innerHTML = '<div class="empty-state"><p>Error loading schedule</p></div>';
+    }
+}
+
+async function loadRoster(team) {
+    const container = document.getElementById('rosterContent');
+
+    try {
+        // Get players from team data
+        let players = [];
+        if (team.players?.length) {
+            players = team.players;
+        } else if (team.player_ids?.length) {
+            players = team.player_ids.map((id, i) => ({
+                id,
+                name: team.player_names?.[i] || 'Unknown',
+                level: team.player_levels?.[i] || ''
+            }));
+        }
+
+        if (players.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <div class="icon">👥</div>
+                    <p>No players on roster</p>
+                </div>
+            `;
+            return;
+        }
+
+        // Get stats for each player
+        const playersWithStats = [];
+        for (const player of players) {
+            let stats = { x01_three_dart_avg: '-', cricket_mpr: '-' };
+            try {
+                const statsDoc = await getDoc(doc(db, 'leagues', leagueId, 'stats', player.id));
+                if (statsDoc.exists()) {
+                    const s = statsDoc.data();
+                    // Calculate 3DA from components if available, else use canonical/legacy fields
+                    if (s.x01_total_darts > 0) {
+                        stats.x01_three_dart_avg = (s.x01_total_points / s.x01_total_darts * 3).toFixed(1);
+                    } else if (s.x01_three_dart_avg != null) {
+                        stats.x01_three_dart_avg = Number(s.x01_three_dart_avg).toFixed(1);
+                    } else if (s.x01_avg != null) {
+                        stats.x01_three_dart_avg = Number(s.x01_avg).toFixed(1);
+                    }
+                    // Calculate MPR from components if available, else use canonical/legacy fields
+                    if (s.cricket_total_rounds > 0) {
+                        stats.cricket_mpr = (s.cricket_total_marks / s.cricket_total_rounds).toFixed(2);
+                    } else if (s.cricket_mpr != null) {
+                        stats.cricket_mpr = Number(s.cricket_mpr).toFixed(2);
+                    } else if (s.mpr != null) {
+                        stats.cricket_mpr = Number(s.mpr).toFixed(2);
+                    }
+                }
+            } catch (e) { /* ignore */ }
+
+            playersWithStats.push({
+                ...player,
+                isCaptain: player.id === team.captain_id,
+                stats
+            });
+        }
+
+        // Sort: captain first, then by level
+        playersWithStats.sort((a, b) => {
+            if (a.isCaptain) return -1;
+            if (b.isCaptain) return 1;
+            const levelOrder = { 'A': 1, 'B': 2, 'C': 3, '': 4 };
+            return (levelOrder[a.level] || 4) - (levelOrder[b.level] || 4);
+        });
+
+        container.innerHTML = playersWithStats.map(player => `
+            <div class="roster-card ${player.isCaptain ? 'captain' : ''}" onclick="viewPlayer('${player.id}')">
+                <div class="roster-avatar">${player.name.charAt(0).toUpperCase()}</div>
+                <div class="roster-info">
+                    <div class="roster-name">
+                        ${player.name}
+                        ${player.isCaptain ? '<span class="captain-badge">Captain</span>' : ''}
+                    </div>
+                    ${player.level ? `<span class="roster-level ${player.level}">${player.level}</span>` : ''}
+                </div>
+                <div class="roster-stats">
+                    <div class="roster-stat">501: <span class="value">${player.stats.x01_three_dart_avg}</span></div>
+                    <div class="roster-stat">MPR: <span class="value">${player.stats.cricket_mpr}</span></div>
+                </div>
+            </div>
+        `).join('');
+
+    } catch (error) {
+        console.error('Error loading roster:', error);
+        container.innerHTML = '<div class="empty-state"><p>Error loading roster</p></div>';
+    }
+}
+
+async function loadTeamStats(team) {
+    try {
+        // Get players from team
+        let playerIds = [];
+        if (team.players?.length) {
+            playerIds = team.players.map(p => p.id);
+        } else if (team.player_ids?.length) {
+            playerIds = team.player_ids;
+        }
+
+        if (playerIds.length === 0) return;
+
+        // Aggregate stats from all players
+        let totalPoints = 0, totalDarts = 0;
+        let totalMarks = 0, totalRounds = 0;
+        let total180s = 0;
+        let highOut = 0;
+
+        for (const playerId of playerIds) {
+            try {
+                const statsDoc = await getDoc(doc(db, 'leagues', leagueId, 'stats', playerId));
+                if (statsDoc.exists()) {
+                    const s = statsDoc.data();
+                    totalPoints += s.x01_total_points || 0;
+                    totalDarts += s.x01_total_darts || 0;
+                    totalMarks += s.cricket_total_marks || 0;
+                    totalRounds += s.cricket_total_rounds || 0;
+                    total180s += s.x01_tons_180 || s.x01_ton_80 || 0;
+                    if ((s.x01_high_checkout || 0) > highOut) {
+                        highOut = s.x01_high_checkout;
+                    }
+                }
+            } catch (e) { /* ignore */ }
+        }
+
+        // Calculate averages
+        const teamAvg = totalDarts > 0 ? (totalPoints / totalDarts * 3).toFixed(1) : '-';
+        const teamMpr = totalRounds > 0 ? (totalMarks / totalRounds).toFixed(2) : '-';
+
+        document.getElementById('teamAvg').textContent = teamAvg;
+        document.getElementById('teamMpr').textContent = teamMpr;
+        document.getElementById('team180s').textContent = total180s;
+        document.getElementById('teamHighOut').textContent = highOut > 0 ? highOut : '-';
+
+    } catch (error) {
+        console.error('Error loading team stats:', error);
+    }
+}
+
+function formatDate(dateStr) {
+    try {
+        const date = new Date(dateStr + 'T12:00:00');
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    } catch (e) {
+        return dateStr;
+    }
+}
+
+window.switchTab = function(tabName) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    event.target.classList.add('active');
+    document.getElementById(tabName + 'Tab').classList.add('active');
+};
+
+window.viewPlayer = function(playerId) {
+    window.location.href = `/pages/player-profile.html?player_id=${playerId}&league_id=${leagueId}`;
+};
+</script>
+</body>
+</html>

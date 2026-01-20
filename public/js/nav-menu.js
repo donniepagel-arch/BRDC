@@ -8,6 +8,7 @@
     const menuItems = [
         { label: 'HOME', href: '/', icon: '&#127968;' },
         { label: 'DASHBOARD', href: '/pages/dashboard.html', icon: '&#128100;' },
+        { label: 'MESSAGES', href: '/pages/messages.html', icon: '&#128172;', hasBadge: true },
         { label: 'SCORER', href: '/pages/scorer-hub.html', icon: '&#127919;' },
         { label: 'LIVE', href: '/pages/live-scoreboard.html', icon: '&#128308;' },
         { label: 'CREATE LEAGUE', href: '/pages/create-league.html', icon: '&#128203;' },
@@ -26,7 +27,6 @@
         }
         .nav-home-link:hover .header-logo {
             transform: scale(1.1);
-            filter: invert(1) brightness(2) drop-shadow(0 0 15px rgba(255, 70, 154, 0.8));
         }
         .header-logo {
             transition: all 0.2s ease;
@@ -160,6 +160,25 @@
             background: var(--pink, #FF469A);
             color: white;
         }
+
+        .nav-badge {
+            background: var(--pink, #FF469A);
+            color: white;
+            min-width: 20px;
+            height: 20px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-family: 'Inter', sans-serif;
+            font-weight: 700;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 0 6px;
+            margin-left: auto;
+        }
+        .nav-badge.visible {
+            display: flex;
+        }
     `;
     document.head.appendChild(styles);
 
@@ -178,6 +197,7 @@
             <a href="${item.href}" class="nav-menu-item">
                 <span class="nav-icon">${item.icon}</span>
                 <span>${item.label}</span>
+                ${item.hasBadge ? '<span class="nav-badge" id="navMessageBadge">0</span>' : ''}
             </a>
         `).join('');
         document.body.appendChild(menu);
@@ -272,8 +292,39 @@
     function init() {
         createMenu();
         updateHeader();
+        loadUnreadCount();
+    }
+
+    // Load unread message count if player is logged in
+    async function loadUnreadCount() {
+        const playerPin = localStorage.getItem('brdc_player_pin');
+        if (!playerPin) return;
+
+        try {
+            // Dynamic import for firebase
+            const { callFunction } = await import('/js/firebase-config.js');
+            const result = await callFunction('getUnreadCount', { player_pin: playerPin });
+
+            if (result.success && result.total_unread > 0) {
+                updateMessageBadge(result.total_unread);
+            }
+        } catch (error) {
+            console.log('Could not load unread count:', error.message);
+        }
+    }
+
+    function updateMessageBadge(count) {
+        const badge = document.getElementById('navMessageBadge');
+        if (badge) {
+            if (count > 0) {
+                badge.textContent = count > 99 ? '99+' : count;
+                badge.classList.add('visible');
+            } else {
+                badge.classList.remove('visible');
+            }
+        }
     }
 
     // Export for manual use
-    window.brdcNav = { toggleMenu, closeMenu };
+    window.brdcNav = { toggleMenu, closeMenu, updateMessageBadge };
 })();

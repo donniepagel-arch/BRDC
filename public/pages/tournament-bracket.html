@@ -1,0 +1,1141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tournament - BRDC</title>
+    <link rel="icon" type="image/png" href="/images/favicon.png">
+    <link rel="stylesheet" href="/css/brdc-styles.css">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="BRDC">
+    <link rel="apple-touch-icon" href="/images/gold_logo.png">
+    <meta name="theme-color" content="#91D7EB">
+    <style>
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse at 20% 20%, rgba(145, 215, 235, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(255, 70, 154, 0.06) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: -1;
+        }
+        .header-bar {
+            background: var(--bg-panel);
+            border-bottom: 3px solid var(--teal);
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+        }
+        .header-logo {
+            width: 40px;
+            height: 40px;
+        }
+        .header-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 28px;
+            letter-spacing: 3px;
+            color: var(--teal);
+        }
+
+        .tab-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .tab {
+            background: var(--bg-card);
+            border: 3px solid var(--border-color);
+            padding: 12px 24px;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 18px;
+            cursor: pointer;
+            box-shadow: 4px 4px 0 rgba(0,0,0,0.5);
+            transition: all 0.2s;
+            border-radius: 8px;
+            color: var(--text-light);
+        }
+
+        .tab:hover {
+            transform: translateY(-2px);
+            box-shadow: 6px 6px 0 rgba(0,0,0,0.5);
+            border-color: var(--teal);
+        }
+
+        .tab.active {
+            background: var(--teal);
+            color: var(--bg-dark);
+            border-color: var(--teal);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Event Cards */
+        .events-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .event-card {
+            background: var(--bg-panel);
+            border: 3px solid var(--border-color);
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 6px 6px 0 rgba(0,0,0,0.5);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .event-card:hover {
+            transform: translate(-3px, -3px);
+            border-color: var(--teal);
+        }
+
+        .event-header {
+            padding: 20px;
+            color: var(--bg-dark);
+        }
+
+        .event-header.singles { background: linear-gradient(135deg, var(--pink), #cc3879); }
+        .event-header.doubles { background: linear-gradient(135deg, var(--teal), #5ab8d4); }
+        .event-header.triples { background: linear-gradient(135deg, var(--yellow), #e6c200); }
+        .event-header.other { background: linear-gradient(135deg, #9333ea, #7c3aed); color: white; }
+
+        .event-name {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 24px;
+            letter-spacing: 2px;
+        }
+
+        .event-body {
+            padding: 15px;
+        }
+
+        .event-detail {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            font-size: 14px;
+        }
+
+        .event-detail:last-child { border-bottom: none; }
+
+        .event-detail-label { color: var(--text-dim); }
+        .event-detail-value { font-weight: 600; }
+
+        .event-status {
+            padding: 10px;
+            text-align: center;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 14px;
+            letter-spacing: 1px;
+        }
+
+        .event-status.upcoming { background: rgba(145, 215, 235, 0.2); color: var(--teal); }
+        .event-status.active { background: rgba(255, 70, 154, 0.2); color: var(--pink); }
+        .event-status.completed { background: rgba(255, 255, 255, 0.1); color: var(--text-dim); }
+
+        /* DartConnect-style Leaderboard Table */
+        .leaderboard-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            min-width: 900px;
+        }
+
+        .leaderboard-table .section-header {
+            padding: 12px 8px;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 16px;
+            letter-spacing: 1px;
+            text-align: center;
+            color: white;
+        }
+
+        .leaderboard-table .section-players {
+            background: linear-gradient(180deg, #2d5a4a 0%, #1e3d32 100%);
+        }
+
+        .leaderboard-table .section-performance {
+            background: linear-gradient(180deg, #1a4a6e 0%, #0f3350 100%);
+        }
+
+        .leaderboard-table .section-record {
+            background: linear-gradient(180deg, #8b3a3a 0%, #5c2626 100%);
+        }
+
+        .carousel-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+
+        .carousel-btn:hover {
+            background: rgba(255,255,255,0.4);
+        }
+
+        .leaderboard-table th {
+            background: #1e3a50;
+            color: #8fc4e8;
+            padding: 8px 6px;
+            text-align: center;
+            font-weight: 600;
+            font-size: 11px;
+            text-transform: uppercase;
+            cursor: pointer;
+            white-space: nowrap;
+            border-bottom: 2px solid #0d2233;
+        }
+
+        .leaderboard-table th:hover {
+            background: #264a63;
+        }
+
+        .leaderboard-table th.col-players {
+            background: #2d5a4a;
+            color: #a8d8c8;
+        }
+
+        .leaderboard-table th.col-performance {
+            background: #1a4a6e;
+            color: #8fc4e8;
+        }
+
+        .leaderboard-table th.col-record {
+            background: #5c2626;
+            color: #e8a8a8;
+        }
+
+        .leaderboard-table th.sorted-asc::after { content: ' ^'; font-size: 9px; }
+        .leaderboard-table th.sorted-desc::after { content: ' v'; font-size: 9px; }
+
+        .leaderboard-table td {
+            padding: 8px 6px;
+            text-align: center;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .leaderboard-table tbody tr {
+            background: #1a2a3a;
+        }
+
+        .leaderboard-table tbody tr:nth-child(-n+10) {
+            background: #1e3345;
+        }
+
+        .leaderboard-table tbody tr:hover {
+            background: rgba(145, 215, 235, 0.15);
+        }
+
+        .leaderboard-table tbody tr.top-3 {
+            background: #243d52;
+        }
+
+        .leaderboard-table .col-rank {
+            font-weight: 700;
+            color: var(--yellow);
+            width: 40px;
+        }
+
+        .leaderboard-table .col-name {
+            text-align: left;
+            font-weight: 600;
+            color: #5dade2;
+            cursor: pointer;
+            max-width: 150px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .leaderboard-table .col-name:hover {
+            color: var(--teal);
+            text-decoration: underline;
+        }
+
+        .leaderboard-table .col-3da {
+            font-weight: 700;
+            color: #f5d742;
+        }
+
+        .leaderboard-table .col-perf {
+            color: #8fc4e8;
+        }
+
+        .leaderboard-table .col-rec {
+            color: #e8a8a8;
+        }
+
+        /* Alphabet Filter */
+        .alpha-btn {
+            width: 26px;
+            height: 26px;
+            border: 1px solid #3a4a5a;
+            background: #1e2a3a;
+            color: #8fc4e8;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .alpha-btn:hover, .alpha-btn.active {
+            background: var(--teal);
+            border-color: var(--teal);
+            color: var(--bg-dark);
+        }
+
+        .alpha-btn.has-players {
+            background: #2a3a4a;
+        }
+
+        /* Players List */
+        .players-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .player-card {
+            background: var(--bg-panel);
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            padding: 15px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .player-card:hover {
+            border-color: var(--teal);
+            transform: translateY(-2px);
+        }
+
+        .player-name {
+            font-weight: 700;
+            color: var(--text-light);
+            margin-bottom: 5px;
+        }
+
+        .player-stats {
+            font-size: 13px;
+            color: var(--text-dim);
+        }
+    </style>
+</head>
+<body>
+    <div class="header-bar">
+        <button class="back-btn" onclick="history.back()">← BACK</button>
+        <img src="/images/gold_logo.png" alt="BRDC" class="header-logo">
+        <span class="header-title">TOURNAMENT</span>
+    </div>
+
+    <div class="container">
+        <div class="brdc-card" style="max-width: 1200px; margin: 40px auto;">
+            <div class="brdc-card-header" style="background: linear-gradient(135deg, var(--teal) 0%, #5ab8d4 100%);">
+                <h1 class="brdc-title" style="font-size: 42px; color: var(--bg-dark);" id="tournamentName">Loading...</h1>
+                <p class="brdc-subtitle" style="color: var(--bg-dark); margin-top: 10px; opacity: 0.8;" id="tournamentInfo"></p>
+            </div>
+
+            <div style="padding: 40px;">
+                <div class="tab-container">
+                    <div class="tab active" onclick="switchTab('events')">Events</div>
+                    <div class="tab" onclick="switchTab('leaderboard')">Leaderboard</div>
+                    <div class="tab" onclick="switchTab('players')">Players</div>
+                </div>
+
+                <div id="eventsTab" class="tab-content active">
+                    <div id="eventsContainer">
+                        <div style="text-align: center; padding: 40px;">
+                            <div class="brdc-spinner"></div>
+                            <p style="margin-top: 20px;">Loading events...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="leaderboardTab" class="tab-content">
+                    <!-- Game Type Filter -->
+                    <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; align-items: center;">
+                        <select id="gameTypeFilter" onchange="renderLeaderboardTable()" style="padding: 8px 12px; background: var(--bg-card); border: 2px solid var(--border-color); border-radius: 6px; color: var(--text-light); font-family: 'Bebas Neue', cursive;">
+                            <option value="501">501</option>
+                            <option value="cricket">Cricket</option>
+                        </select>
+                    </div>
+
+                    <!-- A-Z Alphabet Filter -->
+                    <div id="alphabetFilter" style="display: flex; gap: 4px; margin-bottom: 15px; flex-wrap: wrap;">
+                        <span style="font-size: 12px; color: var(--text-dim); margin-right: 8px; align-self: center;">Search by alphabet:</span>
+                    </div>
+
+                    <!-- Leaderboard Table Container -->
+                    <div style="overflow-x: auto;">
+                        <table id="leaderboardTable" class="leaderboard-table">
+                            <thead>
+                                <tr>
+                                    <!-- Players Section (Fixed) -->
+                                    <th colspan="3" class="section-header section-players">Players</th>
+                                    <!-- Performance Section (Carousel) -->
+                                    <th colspan="5" class="section-header section-performance">
+                                        <div style="display: flex; align-items: center; justify-content: space-between;">
+                                            <button class="carousel-btn" onclick="changePerformanceView(-1)">&lt;</button>
+                                            <span id="performanceTitle">Performance</span>
+                                            <button class="carousel-btn" onclick="changePerformanceView(1)">&gt;</button>
+                                        </div>
+                                    </th>
+                                    <!-- Record Section (Carousel) -->
+                                    <th colspan="5" class="section-header section-record">
+                                        <div style="display: flex; align-items: center; justify-content: space-between;">
+                                            <button class="carousel-btn" onclick="changeRecordView(-1)">&lt;</button>
+                                            <span id="recordTitle">Match / Leg Record</span>
+                                            <button class="carousel-btn" onclick="changeRecordView(1)">&gt;</button>
+                                        </div>
+                                    </th>
+                                </tr>
+                                <tr id="columnHeaders">
+                                    <!-- Will be populated by JS -->
+                                </tr>
+                            </thead>
+                            <tbody id="leaderboardBody">
+                                <tr>
+                                    <td colspan="13" style="text-align: center; padding: 40px; color: var(--text-dim);">
+                                        Loading leaderboard...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Legend -->
+                    <div id="legendContainer" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 20px; font-size: 12px; color: var(--text-dim);">
+                    </div>
+                </div>
+
+                <div id="playersTab" class="tab-content">
+                    <div id="playersContainer">
+                        <div style="text-align: center; padding: 40px;">
+                            <div class="brdc-spinner"></div>
+                            <p style="margin-top: 20px;">Loading players...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { db, collection, query, orderBy, onSnapshot, doc, getDoc, getDocs } from '/js/firebase-config.js';
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const tournamentId = urlParams.get('id') || urlParams.get('tournament_id');
+
+        let tournamentData = null;
+        let eventsData = [];
+        let playersData = [];
+
+        window.onload = async function() {
+            if (!tournamentId) {
+                document.getElementById('tournamentName').textContent = 'Error';
+                document.getElementById('tournamentInfo').textContent = 'Missing tournament ID in URL';
+                return;
+            }
+            await loadTournamentData();
+        };
+
+        async function loadTournamentData() {
+            try {
+                // Load tournament document
+                const tournamentDoc = await getDoc(doc(db, 'tournaments', tournamentId));
+                if (!tournamentDoc.exists()) {
+                    throw new Error('Tournament not found');
+                }
+
+                tournamentData = { id: tournamentId, ...tournamentDoc.data() };
+
+                // Update header
+                document.getElementById('tournamentName').textContent = tournamentData.tournament_name || tournamentData.name || 'Tournament';
+
+                const dateStr = tournamentData.tournament_date || tournamentData.date;
+                const formattedDate = dateStr ? new Date(dateStr).toLocaleDateString('en-US', {
+                    weekday: 'long', month: 'long', day: 'numeric', year: 'numeric'
+                }) : '';
+                document.getElementById('tournamentInfo').textContent =
+                    `${tournamentData.venue_name || tournamentData.venue || ''} ${formattedDate ? '• ' + formattedDate : ''}`;
+
+                // Load events
+                await loadEvents();
+
+                // Load players
+                await loadPlayers();
+
+            } catch (error) {
+                console.error('Error loading tournament:', error);
+                document.getElementById('tournamentName').textContent = 'Error';
+                document.getElementById('tournamentInfo').textContent = error.message;
+            }
+        }
+
+        async function loadEvents() {
+            try {
+                const eventsRef = collection(db, 'tournaments', tournamentId, 'events');
+                const eventsSnap = await getDocs(eventsRef);
+                eventsData = eventsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+                // If no events subcollection, check for events array in tournament doc
+                if (eventsData.length === 0 && tournamentData.events) {
+                    eventsData = tournamentData.events.map((e, i) => ({ id: `event_${i}`, ...e }));
+                }
+
+                renderEvents();
+            } catch (error) {
+                console.error('Error loading events:', error);
+                eventsData = [];
+                renderEvents();
+            }
+        }
+
+        async function loadPlayers() {
+            try {
+                // Try to load from players subcollection
+                const playersRef = collection(db, 'tournaments', tournamentId, 'players');
+                const playersSnap = await getDocs(playersRef);
+                playersData = playersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+                // If no players subcollection, check for players object in tournament doc
+                if (playersData.length === 0 && tournamentData.players) {
+                    playersData = Object.entries(tournamentData.players).map(([id, data]) => ({
+                        id,
+                        ...(typeof data === 'object' ? data : { name: data })
+                    }));
+                }
+
+                renderPlayers();
+            } catch (error) {
+                console.error('Error loading players:', error);
+                playersData = [];
+                renderPlayers();
+            }
+        }
+
+        function renderEvents() {
+            const container = document.getElementById('eventsContainer');
+
+            if (eventsData.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 40px;">
+                        <p style="font-size: 48px; margin-bottom: 15px;">🎯</p>
+                        <p style="font-size: 18px; font-weight: 600;">No events yet</p>
+                        <p style="margin-top: 10px; color: var(--text-dim);">Events will appear when the tournament is set up</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const html = `
+                <div class="events-grid">
+                    ${eventsData.map(event => {
+                        const eventType = getEventType(event.name || event.event_name);
+                        const status = event.status || 'upcoming';
+                        return `
+                            <div class="event-card" onclick="viewEvent('${event.id}')">
+                                <div class="event-header ${eventType}">
+                                    <div class="event-name">${event.name || event.event_name || 'Event'}</div>
+                                </div>
+                                <div class="event-body">
+                                    <div class="event-detail">
+                                        <span class="event-detail-label">Format</span>
+                                        <span class="event-detail-value">${event.format || event.game_type || '501'}</span>
+                                    </div>
+                                    <div class="event-detail">
+                                        <span class="event-detail-label">Bracket</span>
+                                        <span class="event-detail-value">${event.bracket_type || 'Double Elim'}</span>
+                                    </div>
+                                    <div class="event-detail">
+                                        <span class="event-detail-label">Players</span>
+                                        <span class="event-detail-value">${event.player_count || Object.keys(event.players || {}).length || 0}</span>
+                                    </div>
+                                </div>
+                                <div class="event-status ${status}">${status.toUpperCase()}</div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+
+            container.innerHTML = html;
+        }
+
+        function renderPlayers() {
+            const container = document.getElementById('playersContainer');
+
+            if (playersData.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 40px;">
+                        <p style="font-size: 48px; margin-bottom: 15px;">👥</p>
+                        <p style="font-size: 18px; font-weight: 600;">No players registered</p>
+                        <p style="margin-top: 10px; color: var(--text-dim);">Players will appear after registration</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Sort alphabetically by name
+            const sorted = [...playersData].sort((a, b) =>
+                (a.name || a.player_name || '').localeCompare(b.name || b.player_name || '')
+            );
+
+            const html = `
+                <div class="players-grid">
+                    ${sorted.map(player => {
+                        const name = player.name || player.player_name || 'Unknown';
+                        return `
+                            <div class="player-card" onclick="viewPlayer('${encodeURIComponent(name)}')">
+                                <div class="player-name">${formatName(name)}</div>
+                                <div class="player-stats">
+                                    ${player.x01_three_dart_avg || player.ppd ? `PPD: ${(player.x01_three_dart_avg || player.ppd).toFixed(2)}` : ''}
+                                    ${player.cricket_mpr || player.mpr ? ` • MPR: ${(player.cricket_mpr || player.mpr).toFixed(2)}` : ''}
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+
+            container.innerHTML = html;
+        }
+
+        function getEventType(name) {
+            const lower = (name || '').toLowerCase();
+            if (lower.includes('single')) return 'singles';
+            if (lower.includes('double')) return 'doubles';
+            if (lower.includes('triple') || lower.includes('team')) return 'triples';
+            return 'other';
+        }
+
+        function formatName(name) {
+            if (!name) return 'Unknown';
+            const parts = name.trim().split(' ');
+            if (parts.length >= 2) {
+                const lastName = parts[parts.length - 1];
+                const firstName = parts.slice(0, -1).join(' ');
+                return `${lastName}, ${firstName}`;
+            }
+            return name;
+        }
+
+        window.switchTab = function(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+            // Show selected tab
+            event.target.classList.add('active');
+            document.getElementById(tabName + 'Tab').classList.add('active');
+
+            // Load leaderboard when switching to leaderboard tab
+            if (tabName === 'leaderboard') {
+                loadLeaderboards();
+            }
+        };
+
+        window.viewEvent = function(eventId) {
+            window.location.href = `/pages/event-view.html?tournament_id=${tournamentId}&event_id=${eventId}`;
+        };
+
+        window.viewPlayer = function(playerName) {
+            window.location.href = `/pages/player-public.html?name=${playerName}&tournament_id=${tournamentId}`;
+        };
+
+        // ============ DARTCONNECT-STYLE LEADERBOARD ============
+        let playerStatsData = [];
+        let leaderboardsLoaded = false;
+        let currentPerformanceView = 0;
+        let currentRecordView = 0;
+        let currentSort = { field: '3da', dir: 'desc' };
+        let alphabetFilter = null;
+
+        // 501 Performance Views
+        const performanceViews501 = [
+            { title: "All '01 Ton % (1 of 7)", cols: ['first9', 'avgFin', 'ton100pct', 'ton140pct', 'ton180pct'], labels: ['First 9', 'Avg Fin.', '100+', '140+', '180'] },
+            { title: "All '01 Ton Per Leg (2 of 7)", cols: ['first9', 'avgFin', 'ton100pl', 'ton140pl', 'ton180pl'], labels: ['First 9', 'Avg Fin.', '100+', '140+', '180'] },
+            { title: "All '01 Ton Counts (3 of 7)", cols: ['first9', 'avgFin', 'ton100', 'ton140', 'ton180'], labels: ['First 9', 'Avg Fin.', '100+', '140+', '180'] },
+            { title: "All '01 Total Ton Points (4 of 7)", cols: ['first9', 'avgFin', 'ton100', 'tonPoints'], labels: ['First 9', 'Avg Fin.', '100+', 'Ton Points'] },
+            { title: "All '01 High Turns (5 of 7)", cols: ['highTurn', 'highSI', 'highDIT', 'highDI', 'highDO'], labels: ['HTurn', 'HSI', 'HDIT', 'HDI', 'HDO'] },
+            { title: "All '01 Ton Breakdown (6 of 7)", cols: ['t00', 't20', 't40', 't60', 't80'], labels: ['T00', 'T20', 'T40', 'T60', 'T80'] },
+            { title: "All '01 Check Outs (7 of 7)", cols: ['avgFin', 'coTurnPct', 'coDartsPct'], labels: ['Avg Fin.', 'CO Turn %', 'CO Darts %'] }
+        ];
+
+        // 501 Record Views
+        const recordViews501 = [
+            { title: "All '01 Record (1 of 5)", cols: ['matches', 'legs', 'legsWinPct', 'opp3da', 'highFinish'], labels: ['Matches', 'Legs', 'Legs Win', 'O-3DA', 'HF'] },
+            { title: "All '01 Start Record (2 of 5)", cols: ['legs', 'legsWithDarts', 'withDartsPct', 'legsAgainstDarts', 'againstDartsPct'], labels: ['Legs', 'LWD', 'WD%', 'LAD', 'AD%'] },
+            { title: "All Legs Record (3 of 5)", cols: ['matches', 'legs', 'legsWon', 'legsLost', 'legsWinPct'], labels: ['Matches', 'Legs', 'LWon', 'LLost', 'Legs Win'] },
+            { title: "All Sets Record (4 of 5)", cols: ['sets', 'setsWon', 'setsLost', 'setsTied', 'setsWinPct'], labels: ['Sets', 'SWon', 'SLost', 'STied', 'SW%'] },
+            { title: "All Matches Record (5 of 5)", cols: ['matches', 'matchesWon', 'matchesLost', 'matchesTied', 'matchesWinPct'], labels: ['Matches', 'MWon', 'MLost', 'MTied', 'MW%'] }
+        ];
+
+        // Cricket Performance Views
+        const performanceViewsCricket = [
+            { title: "Cricket MPR (1 of 4)", cols: ['mpr', 'totalMarks', 'totalRounds', 'marksPerLeg'], labels: ['MPR', 'Marks', 'Rounds', 'M/Leg'] },
+            { title: "Cricket Mark Rounds (2 of 4)", cols: ['nine', 'eight', 'seven', 'six', 'five'], labels: ['9-Mark', '8-Mark', '7-Mark', '6-Mark', '5-Mark'] },
+            { title: "Cricket Highlights (3 of 4)", cols: ['whiteHorse', 'hatTrick', 'highMark', 'lowRounds'], labels: ['W.Horse', 'Hat Trick', 'High Mark', 'Low Rnds'] },
+            { title: "Cricket Win Stats (4 of 4)", cols: ['legsWon', 'legsLost', 'legsWinPct'], labels: ['Won', 'Lost', 'Win %'] }
+        ];
+
+        // Cricket Record Views
+        const recordViewsCricket = [
+            { title: "Cricket Legs Record (1 of 3)", cols: ['matches', 'legs', 'legsWon', 'legsLost', 'legsWinPct'], labels: ['Matches', 'Legs', 'LWon', 'LLost', 'Win%'] },
+            { title: "Cricket Sets Record (2 of 3)", cols: ['sets', 'setsWon', 'setsLost', 'setsTied', 'setsWinPct'], labels: ['Sets', 'SWon', 'SLost', 'STied', 'SW%'] },
+            { title: "Cricket Matches Record (3 of 3)", cols: ['matches', 'matchesWon', 'matchesLost', 'matchesTied', 'matchesWinPct'], labels: ['Matches', 'MWon', 'MLost', 'MTied', 'MW%'] }
+        ];
+
+        async function loadLeaderboards() {
+            if (leaderboardsLoaded) return;
+
+            try {
+                // Try loading from tournament stats subcollection
+                const statsRef = collection(db, 'tournaments', tournamentId, 'stats');
+                const statsSnap = await getDocs(statsRef);
+                playerStatsData = statsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+                // If no stats subcollection, try player_stats
+                if (playerStatsData.length === 0) {
+                    const playerStatsRef = collection(db, 'tournaments', tournamentId, 'player_stats');
+                    const playerStatsSnap = await getDocs(playerStatsRef);
+                    playerStatsData = playerStatsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+                }
+
+                // If still no stats, try to build from players data
+                if (playerStatsData.length === 0 && playersData.length > 0) {
+                    playerStatsData = playersData.map(p => ({
+                        id: p.id,
+                        player_name: p.name || p.player_name,
+                        ...p
+                    }));
+                }
+
+                console.log('Loaded tournament stats:', playerStatsData.length, 'players');
+
+                buildAlphabetFilter();
+                renderLeaderboardTable();
+                leaderboardsLoaded = true;
+            } catch (error) {
+                console.error('Error loading leaderboards:', error);
+            }
+        }
+
+        function buildAlphabetFilter() {
+            const container = document.getElementById('alphabetFilter');
+            const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+            const usedLetters = new Set(playerStatsData.map(p => ((p.player_name || '')[0] || '').toUpperCase()));
+
+            let html = '<span style="font-size: 12px; color: var(--text-dim); margin-right: 8px; align-self: center;">Search by alphabet:</span>';
+            letters.forEach(letter => {
+                const hasPlayers = usedLetters.has(letter);
+                html += `<button class="alpha-btn ${hasPlayers ? 'has-players' : ''}" onclick="filterByLetter('${letter}')">${letter}</button>`;
+            });
+            container.innerHTML = html;
+        }
+
+        window.filterByLetter = function(letter) {
+            if (alphabetFilter === letter) {
+                alphabetFilter = null;
+                document.querySelectorAll('.alpha-btn').forEach(b => b.classList.remove('active'));
+            } else {
+                alphabetFilter = letter;
+                document.querySelectorAll('.alpha-btn').forEach(b => {
+                    b.classList.toggle('active', b.textContent === letter);
+                });
+            }
+            renderLeaderboardTable();
+        };
+
+        window.changePerformanceView = function(delta) {
+            const gameType = document.getElementById('gameTypeFilter').value;
+            const views = gameType === 'cricket' ? performanceViewsCricket : performanceViews501;
+            currentPerformanceView = (currentPerformanceView + delta + views.length) % views.length;
+            renderLeaderboardTable();
+        };
+
+        window.changeRecordView = function(delta) {
+            const gameType = document.getElementById('gameTypeFilter').value;
+            const views = gameType === 'cricket' ? recordViewsCricket : recordViews501;
+            currentRecordView = (currentRecordView + delta + views.length) % views.length;
+            renderLeaderboardTable();
+        };
+
+        window.sortBy = function(field) {
+            if (currentSort.field === field) {
+                currentSort.dir = currentSort.dir === 'desc' ? 'asc' : 'desc';
+            } else {
+                currentSort.field = field;
+                currentSort.dir = 'desc';
+            }
+            renderLeaderboardTable();
+        };
+
+        function getPlayerStats501(p) {
+            const legs = p.x01_legs_played || 0;
+            const darts = p.x01_total_darts || 0;
+            const points = p.x01_total_points || 0;
+            const won = p.x01_legs_won || 0;
+
+            return {
+                // Use canonical field x01_three_dart_avg with legacy fallbacks
+                '3da': darts > 0 ? (points / darts * 3) : (p.x01_three_dart_avg || p.ppd || 0),
+                first9: p.x01_first9_avg || 0,
+                avgFin: p.x01_avg_finish || 0,
+                ton100: p.x01_tons || 0,
+                ton140: p.x01_ton_forties || 0,
+                ton180: p.x01_ton_eighties || 0,
+                ton100pct: legs > 0 ? ((p.x01_tons || 0) / legs * 100) : 0,
+                ton140pct: legs > 0 ? ((p.x01_ton_forties || 0) / legs * 100) : 0,
+                ton180pct: legs > 0 ? ((p.x01_ton_eighties || 0) / legs * 100) : 0,
+                ton100pl: legs > 0 ? ((p.x01_tons || 0) / legs) : 0,
+                ton140pl: legs > 0 ? ((p.x01_ton_forties || 0) / legs) : 0,
+                ton180pl: legs > 0 ? ((p.x01_ton_eighties || 0) / legs) : 0,
+                tonPoints: (p.x01_tons || 0) * 100 + (p.x01_ton_forties || 0) * 140 + (p.x01_ton_eighties || 0) * 180,
+                highTurn: p.x01_high_turn || 0,
+                highSI: p.x01_high_straight_in || 0,
+                highDIT: p.x01_high_double_in_turn || 0,
+                highDI: p.x01_high_double_in || 0,
+                highDO: p.x01_high_checkout || 0,
+                t00: p.x01_ton_00 || 0,
+                t20: p.x01_ton_20 || 0,
+                t40: p.x01_ton_forties || 0,
+                t60: p.x01_ton_60 || 0,
+                t80: p.x01_ton_eighties || 0,
+                coTurnPct: p.x01_checkout_turn_pct || 0,
+                coDartsPct: p.x01_checkout_darts_pct || 0,
+                matches: p.x01_matches_played || 0,
+                legs: legs,
+                legsWon: won,
+                legsLost: (legs - won),
+                legsWinPct: legs > 0 ? (won / legs * 100) : 0,
+                opp3da: p.x01_opp_3da || 0,
+                highFinish: p.x01_high_checkout || 0,
+                legsWithDarts: p.x01_legs_with_darts || 0,
+                withDartsPct: p.x01_with_darts_pct || 0,
+                legsAgainstDarts: p.x01_legs_against_darts || 0,
+                againstDartsPct: p.x01_against_darts_pct || 0,
+                sets: p.x01_sets_played || 0,
+                setsWon: p.x01_sets_won || 0,
+                setsLost: p.x01_sets_lost || 0,
+                setsTied: p.x01_sets_tied || 0,
+                setsWinPct: (p.x01_sets_played || 0) > 0 ? ((p.x01_sets_won || 0) / p.x01_sets_played * 100) : 0,
+                matchesWon: p.x01_matches_won || 0,
+                matchesLost: p.x01_matches_lost || 0,
+                matchesTied: p.x01_matches_tied || 0,
+                matchesWinPct: (p.x01_matches_played || 0) > 0 ? ((p.x01_matches_won || 0) / p.x01_matches_played * 100) : 0
+            };
+        }
+
+        function getPlayerStatsCricket(p) {
+            const legs = p.cricket_legs_played || 0;
+            const won = p.cricket_legs_won || 0;
+            const rounds = p.cricket_total_rounds || 0;
+            const marks = p.cricket_total_marks || 0;
+
+            return {
+                // Use canonical field cricket_mpr with legacy fallbacks
+                '3da': rounds > 0 ? (marks / rounds) : (p.cricket_mpr || p.mpr || 0),
+                mpr: rounds > 0 ? (marks / rounds) : (p.cricket_mpr || p.mpr || 0),
+                totalMarks: marks,
+                totalRounds: rounds,
+                marksPerLeg: legs > 0 ? (marks / legs) : 0,
+                nine: p.cricket_nine_mark_rounds || 0,
+                eight: p.cricket_eight_mark_rounds || 0,
+                seven: p.cricket_seven_mark_rounds || 0,
+                six: p.cricket_six_mark_rounds || 0,
+                five: p.cricket_five_mark_rounds || 0,
+                whiteHorse: p.cricket_white_horse || 0,
+                hatTrick: p.cricket_hat_tricks || 0,
+                highMark: p.cricket_high_mark || 0,
+                lowRounds: p.cricket_low_rounds || '-',
+                matches: p.cricket_matches_played || 0,
+                legs: legs,
+                legsWon: won,
+                legsLost: (legs - won),
+                legsWinPct: legs > 0 ? (won / legs * 100) : 0,
+                sets: p.cricket_sets_played || 0,
+                setsWon: p.cricket_sets_won || 0,
+                setsLost: p.cricket_sets_lost || 0,
+                setsTied: p.cricket_sets_tied || 0,
+                setsWinPct: (p.cricket_sets_played || 0) > 0 ? ((p.cricket_sets_won || 0) / p.cricket_sets_played * 100) : 0,
+                matchesWon: p.cricket_matches_won || 0,
+                matchesLost: p.cricket_matches_lost || 0,
+                matchesTied: p.cricket_matches_tied || 0,
+                matchesWinPct: (p.cricket_matches_played || 0) > 0 ? ((p.cricket_matches_won || 0) / p.cricket_matches_played * 100) : 0
+            };
+        }
+
+        function formatValue(val, col) {
+            if (val === null || val === undefined || val === '-') return '-';
+            if (typeof val === 'number') {
+                if (col.includes('pct') || col.includes('Pct') || col === 'legsWinPct' || col === 'setsWinPct' || col === 'matchesWinPct') {
+                    return val.toFixed(0) + '%';
+                }
+                if (col === '3da' || col === 'mpr' || col === 'first9' || col === 'avgFin' || col.includes('pl')) {
+                    return val.toFixed(2);
+                }
+                if (Number.isInteger(val)) return val.toString();
+                return val.toFixed(1);
+            }
+            return val;
+        }
+
+        window.renderLeaderboardTable = function() {
+            const gameType = document.getElementById('gameTypeFilter').value;
+            const perfViews = gameType === 'cricket' ? performanceViewsCricket : performanceViews501;
+            const recViews = gameType === 'cricket' ? recordViewsCricket : recordViews501;
+
+            // Clamp view indices
+            if (currentPerformanceView >= perfViews.length) currentPerformanceView = 0;
+            if (currentRecordView >= recViews.length) currentRecordView = 0;
+
+            const perfView = perfViews[currentPerformanceView];
+            const recView = recViews[currentRecordView];
+
+            // Update titles
+            document.getElementById('performanceTitle').textContent = perfView.title;
+            document.getElementById('recordTitle').textContent = recView.title;
+
+            // Build column headers
+            const headerRow = document.getElementById('columnHeaders');
+            let headerHtml = `
+                <th class="col-players" onclick="sortBy('rank')">Rnk</th>
+                <th class="col-players" onclick="sortBy('name')">Name</th>
+                <th class="col-players" onclick="sortBy('3da')">${gameType === 'cricket' ? 'MPR' : '3DA'}</th>
+            `;
+            perfView.labels.forEach((label, i) => {
+                headerHtml += `<th class="col-performance" onclick="sortBy('perf_${i}')">${label}</th>`;
+            });
+            // Pad performance columns to 5
+            for (let i = perfView.labels.length; i < 5; i++) {
+                headerHtml += `<th class="col-performance"></th>`;
+            }
+            recView.labels.forEach((label, i) => {
+                headerHtml += `<th class="col-record" onclick="sortBy('rec_${i}')">${label}</th>`;
+            });
+            // Pad record columns to 5
+            for (let i = recView.labels.length; i < 5; i++) {
+                headerHtml += `<th class="col-record"></th>`;
+            }
+            headerRow.innerHTML = headerHtml;
+
+            // Filter and process players
+            let players = playerStatsData.filter(p => {
+                if (alphabetFilter) {
+                    const firstLetter = ((p.player_name || '')[0] || '').toUpperCase();
+                    if (firstLetter !== alphabetFilter) return false;
+                }
+                return true;
+            });
+
+            // Get stats for each player
+            players = players.map(p => {
+                const stats = gameType === 'cricket' ? getPlayerStatsCricket(p) : getPlayerStats501(p);
+                return {
+                    ...p,
+                    stats,
+                    perfValues: perfView.cols.map(col => stats[col]),
+                    recValues: recView.cols.map(col => stats[col])
+                };
+            });
+
+            // Sort
+            players.sort((a, b) => {
+                let aVal, bVal;
+                if (currentSort.field === 'name') {
+                    aVal = (a.player_name || '').toLowerCase();
+                    bVal = (b.player_name || '').toLowerCase();
+                } else if (currentSort.field === '3da') {
+                    aVal = a.stats['3da'] || 0;
+                    bVal = b.stats['3da'] || 0;
+                } else if (currentSort.field.startsWith('perf_')) {
+                    const idx = parseInt(currentSort.field.split('_')[1]);
+                    aVal = a.perfValues[idx] || 0;
+                    bVal = b.perfValues[idx] || 0;
+                } else if (currentSort.field.startsWith('rec_')) {
+                    const idx = parseInt(currentSort.field.split('_')[1]);
+                    aVal = a.recValues[idx] || 0;
+                    bVal = b.recValues[idx] || 0;
+                } else {
+                    aVal = a.stats['3da'] || 0;
+                    bVal = b.stats['3da'] || 0;
+                }
+
+                if (currentSort.dir === 'asc') {
+                    return aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+                } else {
+                    return aVal > bVal ? -1 : aVal < bVal ? 1 : 0;
+                }
+            });
+
+            // Render body
+            const tbody = document.getElementById('leaderboardBody');
+            if (players.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="13" style="text-align: center; padding: 40px; color: var(--text-dim);">No players found. Stats will appear after matches are played.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = players.map((p, i) => {
+                const rank = i + 1;
+                const name = formatName(p.player_name);
+                const mainStat = formatValue(p.stats['3da'], '3da');
+                const escapedName = (p.player_name || '').replace(/'/g, "\\'");
+
+                let perfCells = perfView.cols.map((col, ci) =>
+                    `<td class="col-perf">${formatValue(p.perfValues[ci], col)}</td>`
+                ).join('');
+                // Pad
+                for (let ci = perfView.cols.length; ci < 5; ci++) {
+                    perfCells += `<td class="col-perf"></td>`;
+                }
+
+                let recCells = recView.cols.map((col, ci) =>
+                    `<td class="col-rec">${formatValue(p.recValues[ci], col)}</td>`
+                ).join('');
+                // Pad
+                for (let ci = recView.cols.length; ci < 5; ci++) {
+                    recCells += `<td class="col-rec"></td>`;
+                }
+
+                return `
+                    <tr class="${rank <= 3 ? 'top-3' : ''}">
+                        <td class="col-rank">${rank}</td>
+                        <td class="col-name" onclick="viewPlayer('${escapedName}')">${name}</td>
+                        <td class="col-3da">${mainStat}</td>
+                        ${perfCells}
+                        ${recCells}
+                    </tr>
+                `;
+            }).join('');
+
+            // Update legend
+            updateLegend(gameType, perfView, recView);
+        };
+
+        function updateLegend(gameType, perfView, recView) {
+            const container = document.getElementById('legendContainer');
+
+            const playerLegend = `
+                <div>
+                    <h4 style="color: #a8d8c8; margin-bottom: 8px;">PLAYERS</h4>
+                    <p><strong>${gameType === 'cricket' ? 'MPR' : '3DA'}:</strong> ${gameType === 'cricket' ? 'Marks Per Round' : '3 Dart Average'}</p>
+                </div>
+            `;
+
+            const perfLegend = `
+                <div>
+                    <h4 style="color: #8fc4e8; margin-bottom: 8px;">PERFORMANCE</h4>
+                    ${perfView.labels.map((l, i) => `<p><strong>${l}:</strong> ${getPerfDescription(perfView.cols[i], gameType)}</p>`).join('')}
+                </div>
+            `;
+
+            const recLegend = `
+                <div>
+                    <h4 style="color: #e8a8a8; margin-bottom: 8px;">RECORD</h4>
+                    ${recView.labels.map((l, i) => `<p><strong>${l}:</strong> ${getRecDescription(recView.cols[i])}</p>`).join('')}
+                </div>
+            `;
+
+            container.innerHTML = playerLegend + perfLegend + recLegend;
+        }
+
+        function getPerfDescription(col, gameType) {
+            const descs = {
+                first9: 'Average of First 9 Darts',
+                avgFin: 'Average Finish',
+                ton100: 'Turns of 100 or more',
+                ton140: 'Turns of 140 or more',
+                ton180: 'Turns scoring 180',
+                ton100pct: '100+ percentage',
+                ton140pct: '140+ percentage',
+                ton180pct: '180 percentage',
+                ton100pl: '100+ per leg',
+                ton140pl: '140+ per leg',
+                ton180pl: '180 per leg',
+                tonPoints: 'Total points from ton+ turns',
+                highTurn: 'High Turn',
+                highSI: 'High Straight In',
+                highDIT: 'High Double In Turn',
+                highDI: 'High Double In',
+                highDO: 'High Double Out',
+                t00: '100-119 turns',
+                t20: '120-139 turns',
+                t40: '140-159 turns',
+                t60: '160-179 turns',
+                t80: '180 turns',
+                coTurnPct: 'Checkout Turn %',
+                coDartsPct: 'Checkout Darts %',
+                mpr: 'Marks Per Round',
+                totalMarks: 'Total Marks',
+                totalRounds: 'Total Rounds',
+                marksPerLeg: 'Marks Per Leg',
+                nine: '9-Mark Rounds',
+                eight: '8-Mark Rounds',
+                seven: '7-Mark Rounds',
+                six: '6-Mark Rounds',
+                five: '5-Mark Rounds',
+                whiteHorse: 'White Horse (3 different triples)',
+                hatTrick: 'Hat Tricks (3 bulls)',
+                highMark: 'Highest single round marks',
+                lowRounds: 'Lowest rounds to close'
+            };
+            return descs[col] || col;
+        }
+
+        function getRecDescription(col) {
+            const descs = {
+                matches: 'Matches Played',
+                legs: 'Legs Played',
+                legsWon: 'Legs Won',
+                legsLost: 'Legs Lost',
+                legsWinPct: 'Leg Win %',
+                opp3da: 'Opponent 3 Dart Avg',
+                highFinish: 'High Finish',
+                legsWithDarts: 'Legs "With" Darts',
+                withDartsPct: '"With" Darts Win %',
+                legsAgainstDarts: 'Legs "Against" Darts',
+                againstDartsPct: '"Against" Darts Win %',
+                sets: 'Sets Played',
+                setsWon: 'Sets Won',
+                setsLost: 'Sets Lost',
+                setsTied: 'Sets Tied',
+                setsWinPct: 'Set Win %',
+                matchesWon: 'Matches Won',
+                matchesLost: 'Matches Lost',
+                matchesTied: 'Matches Tied',
+                matchesWinPct: 'Match Win %'
+            };
+            return descs[col] || col;
+        }
+    </script>
+    <script src="/js/nav-menu.js"></script>
+<script src="/js/feedback.js"></script>
+</body>
+</html>

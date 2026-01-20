@@ -122,7 +122,7 @@ exports.createLeague = functions.https.onRequest(async (req, res) => {
 });
 
 /**
- * Generate unique 5-digit PIN
+ * Generate unique 8-digit PIN
  */
 async function generateUniquePin() {
     let pin;
@@ -130,7 +130,7 @@ async function generateUniquePin() {
     const maxAttempts = 100;
 
     while (attempts < maxAttempts) {
-        pin = Math.floor(10000 + Math.random() * 90000).toString();
+        pin = Math.floor(10000000 + Math.random() * 90000000).toString();
 
         // Check if PIN exists in any player collection
         const existingPlayer = await admin.firestore()
@@ -165,7 +165,7 @@ exports.registerForLeague = functions.https.onRequest(async (req, res) => {
     if (req.method === 'OPTIONS') return res.status(204).send('');
 
     try {
-        const { league_id, full_name, email, phone, skill_level, sms_opt_in, payment_method, member_pin } = req.body;
+        const { league_id, full_name, email, phone, skill_level, sms_opt_in, payment_method, member_pin, photo_url } = req.body;
 
         // Check if league exists
         const leagueDoc = await admin.firestore().collection('leagues').doc(league_id).get();
@@ -229,6 +229,7 @@ exports.registerForLeague = functions.https.onRequest(async (req, res) => {
             amount_owed: entryFee,
             waitlist: isWaitlist,
             status: 'active',
+            photo_url: photo_url || null,
             created_at: admin.firestore.FieldValue.serverTimestamp()
         };
 
@@ -486,7 +487,7 @@ exports.updateTeamName = functions.https.onRequest(async (req, res) => {
     if (req.method === 'OPTIONS') return res.status(204).send('');
 
     try {
-        const { league_id, team_id, captain_email, team_name } = req.body;
+        const { league_id, team_id, captain_id, captain_email, team_name } = req.body;
 
         if (!league_id || !team_id || !team_name) {
             return res.status(400).json({ success: false, error: 'league_id, team_id, and team_name required' });
@@ -502,12 +503,67 @@ exports.updateTeamName = functions.https.onRequest(async (req, res) => {
 
         const team = teamDoc.data();
 
-        // Verify captain authorization
-        if (captain_email && team.captain_email !== captain_email.toLowerCase()) {
+        // Verify captain authorization - check multiple sources
+        let isCaptain = false;
+
+        // Check 1: team.captain_id matches
+        if (captain_id && team.captain_id === captain_id) {
+            isCaptain = true;
+        }
+
+        // Check 2: captain_email matches
+        if (!isCaptain && captain_email && team.captain_email === captain_email.toLowerCase()) {
+            isCaptain = true;
+        }
+
+        // Check 3: Check players collection for is_captain or position 1
+        if (!isCaptain && captain_id) {
+            const playersCheck = await db.collection('leagues').doc(league_id).collection('players')
+                .where('player_id', '==', captain_id)
+                .where('team_id', '==', team_id)
+                .limit(1).get();
+
+            if (!playersCheck.empty) {
+                const playerData = playersCheck.docs[0].data();
+                if (playerData.is_captain === true || playerData.position === 1 || playerData.preferred_level === 'A') {
+                    isCaptain = true;
+                }
+            }
+
+            // Check by name if player_id check failed
+            if (!isCaptain) {
+                const globalPlayer = await db.collection('players').doc(captain_id).get();
+                if (globalPlayer.exists) {
+                    const playerName = globalPlayer.data().name;
+                    const playersCheckByName = await db.collection('leagues').doc(league_id).collection('players')
+                        .where('name', '==', playerName)
+                        .where('team_id', '==', team_id)
+                        .limit(1).get();
+
+                    if (!playersCheckByName.empty) {
+                        const playerData = playersCheckByName.docs[0].data();
+                        if (playerData.is_captain === true || playerData.position === 1 || playerData.preferred_level === 'A') {
+                            isCaptain = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Check 4: team.players array
+        if (!isCaptain && captain_id && team.players) {
+            const playerInTeam = team.players.find(p => p.id === captain_id);
+            if (playerInTeam && (playerInTeam.is_captain || playerInTeam.position === 1)) {
+                isCaptain = true;
+            }
+        }
+
+        if (!isCaptain) {
             return res.status(403).json({ success: false, error: 'Only the captain can update team name' });
         }
 
         await teamRef.update({
+            team_name: team_name,
             name: team_name,
             updated_at: admin.firestore.FieldValue.serverTimestamp()
         });
@@ -982,7 +1038,7 @@ exports.registerFillin = functions.https.onRequest(async (req, res) => {
     if (req.method === 'OPTIONS') return res.status(204).send('');
 
     try {
-        const { league_id, full_name, email, phone, preferred_level, avg_501, avg_cricket, sms_opt_in, member_pin } = req.body;
+        const { league_id, full_name, email, phone, preferred_level, avg_501, avg_cricket, sms_opt_in, member_pin, photo_url } = req.body;
 
         // Check if league exists and allows fill-ins
         const leagueDoc = await admin.firestore().collection('leagues').doc(league_id).get();
@@ -1027,6 +1083,7 @@ exports.registerFillin = functions.https.onRequest(async (req, res) => {
             pin: playerPin,
             status: 'available',
             times_filled_in: 0,
+            photo_url: photo_url || null,
             created_at: admin.firestore.FieldValue.serverTimestamp()
         };
 
@@ -1800,11 +1857,10 @@ exports.sendSMS = functions.https.onRequest(async (req, res) => {
             return res.status(400).json({ success: false, error: 'Missing to or message' });
         }
 
-        // Get Twilio config
-        const twilioConfig = functions.config().twilio || {};
-        const accountSid = twilioConfig.sid;
-        const authToken = twilioConfig.token;
-        const fromNumber = twilioConfig.from;
+        // Get Twilio config from environment
+        const accountSid = process.env.TWILIO_ACCOUNT_SID;
+        const authToken = process.env.TWILIO_AUTH_TOKEN;
+        const fromNumber = process.env.TWILIO_PHONE_NUMBER;
 
         let twilioResult = null;
         let status = 'pending';
@@ -1881,11 +1937,10 @@ exports.sendBulkSMS = functions.https.onRequest(async (req, res) => {
             return res.status(400).json({ success: false, error: 'Message required' });
         }
 
-        // Get Twilio config
-        const twilioConfig = functions.config().twilio || {};
-        const accountSid = twilioConfig.sid;
-        const authToken = twilioConfig.token;
-        const fromNumber = twilioConfig.from;
+        // Get Twilio config from environment
+        const accountSid = process.env.TWILIO_ACCOUNT_SID;
+        const authToken = process.env.TWILIO_AUTH_TOKEN;
+        const fromNumber = process.env.TWILIO_PHONE_NUMBER;
 
         let client = null;
         if (accountSid && authToken && fromNumber) {
@@ -2021,7 +2076,8 @@ exports.notifyLeaguePlayers = functions.https.onRequest(async (req, res) => {
         });
 
         const results = { sent: 0, failed: 0, skipped: 0, details: [] };
-        const dashboardUrl = `https://brdc-v2.web.app/pages/player-dashboard.html`;
+        // Use shorter URL format - full URLs with https:// often trigger carrier spam filters
+        const dashboardUrl = `brdc-v2.web.app`;
 
         // Initialize Twilio
         const twilioSid = process.env.TWILIO_ACCOUNT_SID;
@@ -2223,7 +2279,8 @@ exports.sendCustomLeagueMessage = functions.https.onRequest(async (req, res) => 
         });
 
         const results = { sent: 0, failed: 0, skipped: 0, details: [] };
-        const dashboardUrl = `https://brdc-v2.web.app/pages/player-dashboard.html`;
+        // Use shorter URL format - full URLs with https:// often trigger carrier spam filters
+        const dashboardUrl = `brdc-v2.web.app`;
 
         // Initialize Twilio
         const twilioSid = process.env.TWILIO_ACCOUNT_SID;
@@ -2418,6 +2475,170 @@ exports.getTeamSchedule = functions.https.onRequest(async (req, res) => {
 });
 
 /**
+ * Enhanced team schedule with rosters and player stats
+ */
+exports.getTeamScheduleEnhanced = functions.https.onRequest(async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+    if (req.method === 'OPTIONS') return res.status(204).send('');
+
+    try {
+        const { league_id, team_id, player_id } = req.body;
+
+        if (!league_id || !team_id) {
+            return res.status(400).json({ success: false, error: 'league_id and team_id required' });
+        }
+
+        const db = admin.firestore();
+
+        // Get league info
+        const leagueDoc = await db.collection('leagues').doc(league_id).get();
+        const league = leagueDoc.exists ? leagueDoc.data() : {};
+
+        // Get all teams with their rosters
+        const teamsSnap = await db.collection('leagues').doc(league_id).collection('teams').get();
+        const teamsMap = {};
+        teamsSnap.forEach(doc => {
+            teamsMap[doc.id] = { id: doc.id, ...doc.data() };
+        });
+
+        // Get stats for all players in the league
+        const statsSnap = await db.collection('leagues').doc(league_id).collection('stats').get();
+        const statsMap = {};
+        statsSnap.forEach(doc => {
+            statsMap[doc.id] = doc.data();
+        });
+
+        // Helper to build roster with stats
+        const buildRosterWithStats = (team) => {
+            if (!team) return [];
+            const playerIds = team.player_ids || [];
+            const playerNames = team.player_names || [];
+            const playerLevels = team.player_levels || [];
+
+            return playerIds.map((pid, idx) => {
+                const stats = statsMap[pid] || {};
+                const x01Avg = stats.x01_total_darts > 0
+                    ? (stats.x01_total_points / stats.x01_total_darts * 3).toFixed(1)
+                    : '-';
+                const mpr = stats.cricket_total_rounds > 0
+                    ? (stats.cricket_total_marks / stats.cricket_total_rounds).toFixed(2)
+                    : '-';
+
+                return {
+                    id: pid,
+                    name: playerNames[idx] || 'Unknown',
+                    level: playerLevels[idx] || '',
+                    x01_three_dart_avg: x01Avg,
+                    cricket_mpr: mpr
+                };
+            });
+        };
+
+        // Get your team data
+        const myTeam = teamsMap[team_id];
+        const myTeamRoster = buildRosterWithStats(myTeam);
+        const myTeamRecord = myTeam ? `${myTeam.wins || 0}-${myTeam.losses || 0}` : '0-0';
+
+        // Get all matches for this team
+        const matchesSnap = await db.collection('leagues').doc(league_id).collection('matches')
+            .where('home_team_id', '==', team_id).get();
+        const awayMatchesSnap = await db.collection('leagues').doc(league_id).collection('matches')
+            .where('away_team_id', '==', team_id).get();
+
+        const matches = [];
+        matchesSnap.forEach(doc => matches.push({ id: doc.id, ...doc.data() }));
+        awayMatchesSnap.forEach(doc => {
+            if (!matches.find(m => m.id === doc.id)) {
+                matches.push({ id: doc.id, ...doc.data() });
+            }
+        });
+
+        // Sort by week
+        matches.sort((a, b) => (a.week || 0) - (b.week || 0));
+
+        // Separate into upcoming and past
+        const upcoming = [];
+        const past = [];
+
+        for (const m of matches) {
+            const isHome = m.home_team_id === team_id;
+            const opponentId = isHome ? m.away_team_id : m.home_team_id;
+            const opponentTeam = teamsMap[opponentId];
+            const opponentRoster = buildRosterWithStats(opponentTeam);
+            const opponentRecord = opponentTeam ? `${opponentTeam.wins || 0}-${opponentTeam.losses || 0}` : '0-0';
+
+            // Get all player availability for this match
+            const availability = m.player_availability || {};
+
+            // Build availability map for my team
+            const myTeamAvailability = {};
+            myTeamRoster.forEach(p => {
+                myTeamAvailability[p.id] = availability[p.id] || 'unknown';
+            });
+
+            const matchData = {
+                id: m.id,
+                week: m.week,
+                match_date: m.match_date ? (m.match_date.toDate ? m.match_date.toDate().toISOString() : m.match_date) : null,
+                is_home: isHome,
+                completed: m.completed || false,
+                in_progress: m.in_progress || false,
+                my_team: {
+                    id: team_id,
+                    name: myTeam?.team_name || 'My Team',
+                    record: myTeamRecord,
+                    roster: myTeamRoster,
+                    availability: myTeamAvailability
+                },
+                opponent: {
+                    id: opponentId,
+                    name: opponentTeam?.team_name || 'TBD',
+                    record: opponentRecord,
+                    roster: opponentRoster
+                },
+                my_availability: player_id ? (availability[player_id] || 'unknown') : 'unknown',
+                home_score: m.home_score || 0,
+                away_score: m.away_score || 0,
+                // For completed matches, include match stats if available
+                match_stats: m.completed ? (m.player_stats || null) : null
+            };
+
+            if (m.completed) {
+                // Calculate if we won
+                const myScore = isHome ? m.home_score : m.away_score;
+                const theirScore = isHome ? m.away_score : m.home_score;
+                matchData.won = myScore > theirScore;
+                matchData.my_score = myScore;
+                matchData.their_score = theirScore;
+                past.push(matchData);
+            } else {
+                upcoming.push(matchData);
+            }
+        }
+
+        res.json({
+            success: true,
+            league_id,
+            league_name: league.league_name || 'League',
+            my_team: {
+                id: team_id,
+                name: myTeam?.team_name || 'My Team',
+                record: myTeamRecord
+            },
+            upcoming,
+            past
+        });
+
+    } catch (error) {
+        console.error('Error getting enhanced team schedule:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
  * Update player availability for a match and notify captain if unavailable
  */
 exports.updatePlayerAvailability = functions.https.onRequest(async (req, res) => {
@@ -2547,44 +2768,177 @@ exports.getCaptainTeamData = functions.https.onRequest(async (req, res) => {
         const teamDoc = await db.collection('leagues').doc(league_id).collection('teams').doc(team_id).get();
         const team = teamDoc.data();
 
-        // Verify captain (optional)
+        // Verify captain (optional) - check multiple sources
         if (captain_id && team.captain_id !== captain_id) {
-            // Check if they're still a captain by checking is_captain flag
-            const captainCheck = await db.collection('leagues').doc(league_id).collection('registrations')
+            let isCaptain = false;
+            const debugInfo = { captain_id, team_id, team_captain_id: team.captain_id };
+
+            // Check 1: registrations collection with is_captain flag
+            const regCheck = await db.collection('leagues').doc(league_id).collection('registrations')
                 .where('player_id', '==', captain_id)
                 .where('team_id', '==', team_id)
                 .where('is_captain', '==', true)
                 .limit(1).get();
+            if (!regCheck.empty) isCaptain = true;
+            debugInfo.regCheck = !regCheck.empty;
 
-            if (captainCheck.empty) {
-                return res.status(403).json({ success: false, error: 'Not authorized as captain for this team' });
+            // Check 2: players collection with is_captain flag or position 1 (by player_id)
+            if (!isCaptain) {
+                const playersCheck = await db.collection('leagues').doc(league_id).collection('players')
+                    .where('player_id', '==', captain_id)
+                    .where('team_id', '==', team_id)
+                    .limit(1).get();
+
+                if (!playersCheck.empty) {
+                    const playerData = playersCheck.docs[0].data();
+                    debugInfo.playerData = { is_captain: playerData.is_captain, position: playerData.position, preferred_level: playerData.preferred_level };
+                    if (playerData.is_captain === true || playerData.position === 1 || playerData.preferred_level === 'A') {
+                        isCaptain = true;
+                    }
+                }
+                debugInfo.playersCheckById = !playersCheck.empty;
+            }
+
+            // Check 2b: players collection by name match (fallback)
+            if (!isCaptain) {
+                // Get player name from global players collection
+                const globalPlayer = await db.collection('players').doc(captain_id).get();
+                if (globalPlayer.exists) {
+                    const playerName = globalPlayer.data().name;
+                    debugInfo.playerName = playerName;
+
+                    const playersCheckByName = await db.collection('leagues').doc(league_id).collection('players')
+                        .where('name', '==', playerName)
+                        .where('team_id', '==', team_id)
+                        .limit(1).get();
+
+                    if (!playersCheckByName.empty) {
+                        const playerData = playersCheckByName.docs[0].data();
+                        debugInfo.playerDataByName = { is_captain: playerData.is_captain, position: playerData.position, preferred_level: playerData.preferred_level };
+                        if (playerData.is_captain === true || playerData.position === 1 || playerData.preferred_level === 'A') {
+                            isCaptain = true;
+                        }
+                    }
+                    debugInfo.playersCheckByName = !playersCheckByName.empty;
+                }
+            }
+
+            // Check 3: team.players array for captain
+            if (!isCaptain && team.players) {
+                const playerInTeam = team.players.find(p => p.id === captain_id);
+                if (playerInTeam && (playerInTeam.is_captain || playerInTeam.position === 1)) {
+                    isCaptain = true;
+                }
+                debugInfo.teamPlayersCheck = !!playerInTeam;
+            }
+
+            if (!isCaptain) {
+                console.log('Captain auth failed:', debugInfo);
+                return res.status(403).json({ success: false, error: 'Not authorized as captain for this team', debug: debugInfo });
             }
         }
 
-        // Get roster (players on this team)
+        // Get roster (players on this team) - check multiple sources
+        const roster = [];
+        const addedPlayerIds = new Set();
+
+        // Get stats from stats collection for roster players
+        const rosterStatsSnap = await db.collection('leagues').doc(league_id).collection('stats').get();
+        const rosterStatsMap = {};
+        rosterStatsSnap.forEach(doc => {
+            rosterStatsMap[doc.id] = doc.data();
+        });
+
+        // Helper to calculate stats from stats collection or embedded data
+        const getPlayerStats = (playerId, embeddedStats) => {
+            const stats = rosterStatsMap[playerId] || embeddedStats || {};
+            let x01Avg = '-';
+            let mpr = '-';
+
+            if (stats.x01_total_darts > 0) {
+                x01Avg = ((stats.x01_total_points / stats.x01_total_darts) * 3).toFixed(1);
+            } else if (stats.x01?.total_darts > 0) {
+                x01Avg = ((stats.x01.total_points / stats.x01.total_darts) * 3).toFixed(1);
+            }
+
+            if (stats.cricket_total_rounds > 0) {
+                mpr = (stats.cricket_total_marks / stats.cricket_total_rounds).toFixed(2);
+            } else if (stats.cricket?.total_rounds > 0) {
+                mpr = (stats.cricket.total_marks / stats.cricket.total_rounds).toFixed(2);
+            }
+
+            return { x01_three_dart_avg: x01Avg, cricket_mpr: mpr };
+        };
+
+        // Source 1: registrations collection
         const rosterSnap = await db.collection('leagues').doc(league_id).collection('registrations')
             .where('team_id', '==', team_id).get();
 
-        const roster = [];
         rosterSnap.forEach(doc => {
             const p = doc.data();
-            if (!p.isBot && !p.is_sub) {
+            const playerId = p.player_id || doc.id;
+            if (!p.isBot && !p.is_sub && !addedPlayerIds.has(playerId)) {
+                addedPlayerIds.add(playerId);
+                const playerStats = getPlayerStats(playerId, p.stats);
                 roster.push({
-                    id: p.player_id || doc.id,
+                    id: playerId,
                     name: p.full_name || p.name,
                     position: p.position || 0,
                     is_captain: p.is_captain || false,
                     phone: p.phone,
                     email: p.email,
-                    x01_avg: p.stats?.x01?.total_darts > 0
-                        ? ((p.stats.x01.total_points / p.stats.x01.total_darts) * 3).toFixed(1)
-                        : '-',
-                    mpr: p.stats?.cricket?.total_rounds > 0
-                        ? (p.stats.cricket.total_marks / p.stats.cricket.total_rounds).toFixed(2)
-                        : '-'
+                    preferred_level: p.preferred_level,
+                    x01_three_dart_avg: playerStats.x01_three_dart_avg,
+                    cricket_mpr: playerStats.cricket_mpr
                 });
             }
         });
+
+        // Source 2: players collection (fallback)
+        if (roster.length === 0) {
+            const playersSnap = await db.collection('leagues').doc(league_id).collection('players')
+                .where('team_id', '==', team_id).get();
+
+            playersSnap.forEach(doc => {
+                const p = doc.data();
+                const playerId = p.player_id || doc.id;
+                if (!addedPlayerIds.has(playerId)) {
+                    addedPlayerIds.add(playerId);
+                    const playerStats = getPlayerStats(playerId, p.stats);
+                    roster.push({
+                        id: playerId,
+                        name: p.name || p.full_name,
+                        position: p.position || 0,
+                        is_captain: p.is_captain || false,
+                        phone: p.phone,
+                        email: p.email,
+                        preferred_level: p.preferred_level,
+                        x01_three_dart_avg: playerStats.x01_three_dart_avg,
+                        cricket_mpr: playerStats.cricket_mpr
+                    });
+                }
+            });
+        }
+
+        // Source 3: team.players array (fallback)
+        if (roster.length === 0 && team.players && team.players.length > 0) {
+            for (const p of team.players) {
+                const playerId = p.id || p.player_id;
+                if (!addedPlayerIds.has(playerId)) {
+                    addedPlayerIds.add(playerId);
+                    const playerStats = getPlayerStats(playerId, null);
+                    roster.push({
+                        id: playerId,
+                        name: p.name,
+                        position: p.position || 0,
+                        is_captain: p.is_captain || false,
+                        preferred_level: p.level || p.preferred_level,
+                        x01_three_dart_avg: playerStats.x01_three_dart_avg,
+                        cricket_mpr: playerStats.cricket_mpr
+                    });
+                }
+            }
+        }
 
         roster.sort((a, b) => (a.position || 0) - (b.position || 0));
 
@@ -2621,8 +2975,69 @@ exports.getCaptainTeamData = functions.https.onRequest(async (req, res) => {
 
         matches.sort((a, b) => (a.week || 0) - (b.week || 0));
 
+        // Get all teams for opponent roster lookup
+        const teamsSnap = await db.collection('leagues').doc(league_id).collection('teams').get();
+        const teamsMap = {};
+        teamsSnap.forEach(doc => { teamsMap[doc.id] = { id: doc.id, ...doc.data() }; });
+
+        // Get all players in league for opponent rosters
+        const allPlayersSnap = await db.collection('leagues').doc(league_id).collection('players').get();
+
+        // Also get stats from the stats collection
+        const statsSnap = await db.collection('leagues').doc(league_id).collection('stats').get();
+        const statsMap = {};
+        statsSnap.forEach(doc => {
+            statsMap[doc.id] = doc.data();
+        });
+
+        const playersByTeam = {};
+        allPlayersSnap.forEach(doc => {
+            const p = doc.data();
+            const tid = p.team_id;
+            const playerId = p.player_id || doc.id;
+
+            // Get stats from stats collection (preferred) or embedded stats
+            const playerStats = statsMap[playerId] || p.stats || {};
+
+            if (tid) {
+                if (!playersByTeam[tid]) playersByTeam[tid] = [];
+
+                // Calculate X01 average
+                let x01Avg = '-';
+                if (playerStats.x01_total_darts > 0) {
+                    x01Avg = ((playerStats.x01_total_points / playerStats.x01_total_darts) * 3).toFixed(1);
+                } else if (playerStats.x01?.total_darts > 0) {
+                    x01Avg = ((playerStats.x01.total_points / playerStats.x01.total_darts) * 3).toFixed(1);
+                }
+
+                // Calculate MPR
+                let mpr = '-';
+                if (playerStats.cricket_total_rounds > 0) {
+                    mpr = (playerStats.cricket_total_marks / playerStats.cricket_total_rounds).toFixed(2);
+                } else if (playerStats.cricket?.total_rounds > 0) {
+                    mpr = (playerStats.cricket.total_marks / playerStats.cricket.total_rounds).toFixed(2);
+                }
+
+                playersByTeam[tid].push({
+                    id: playerId,
+                    name: p.name || p.full_name,
+                    position: p.position || 0,
+                    is_captain: p.is_captain || false,
+                    preferred_level: p.preferred_level,
+                    x01_three_dart_avg: x01Avg,
+                    cricket_mpr: mpr
+                });
+            }
+        });
+
+        // Sort each team's roster by position
+        Object.values(playersByTeam).forEach(players => {
+            players.sort((a, b) => (a.position || 0) - (b.position || 0));
+        });
+
         const schedule = matches.map(m => {
             const isHome = m.home_team_id === team_id;
+            const opponentTeamId = isHome ? m.away_team_id : m.home_team_id;
             const opponentName = isHome ? m.away_team_name : m.home_team_name;
 
             // Calculate availability summary
@@ -2633,16 +3048,48 @@ exports.getCaptainTeamData = functions.https.onRequest(async (req, res) => {
                 summary[status] = (summary[status] || 0) + 1;
             });
 
+            // Get lineup data - use stored lineup if exists, otherwise use roster
+            const homeTeamId = m.home_team_id;
+            const awayTeamId = m.away_team_id;
+
+            // Build home lineup with availability/sub status
+            let homeLineup = m.home_lineup || playersByTeam[homeTeamId] || [];
+            homeLineup = homeLineup.map(p => {
+                const avail = availability[p.id] || (homeTeamId === team_id ? 'unknown' : null);
+                return {
+                    ...p,
+                    availability: avail,
+                    is_sub: p.is_sub || false,
+                    needs_fillin: avail === 'unavailable'
+                };
+            });
+
+            // Build away lineup with availability/sub status
+            let awayLineup = m.away_lineup || playersByTeam[awayTeamId] || [];
+            awayLineup = awayLineup.map(p => {
+                const avail = availability[p.id] || (awayTeamId === team_id ? 'unknown' : null);
+                return {
+                    ...p,
+                    availability: avail,
+                    is_sub: p.is_sub || false,
+                    needs_fillin: avail === 'unavailable'
+                };
+            });
+
             return {
                 id: m.id,
                 week: m.week,
                 match_date: m.match_date ? (m.match_date.toDate ? m.match_date.toDate().toISOString() : m.match_date) : null,
+                home_team_name: m.home_team_name || teamsMap[homeTeamId]?.team_name || 'Home',
+                away_team_name: m.away_team_name || teamsMap[awayTeamId]?.team_name || 'Away',
                 opponent_name: opponentName,
                 is_home: isHome,
                 completed: m.completed || false,
                 in_progress: m.in_progress || false,
                 availability_summary: summary,
-                format: m.format || league.match_format
+                format: m.format || league.match_format,
+                home_lineup: homeLineup,
+                away_lineup: awayLineup
             };
         });
 
@@ -2672,7 +3119,7 @@ exports.sendCaptainMessage = functions.https.onRequest(async (req, res) => {
     if (req.method === 'OPTIONS') return res.status(204).send('');
 
     try {
-        const { league_id, team_id, captain_id, message, recipients } = req.body;
+        const { league_id, team_id, captain_id, message, recipients, send_sms } = req.body;
 
         if (!league_id || !team_id || !message) {
             return res.status(400).json({ success: false, error: 'league_id, team_id, and message required' });
@@ -2738,7 +3185,53 @@ exports.sendCaptainMessage = functions.https.onRequest(async (req, res) => {
 
         let sent = 0;
         let failed = 0;
+        let smsSent = 0;
 
+        // Get captain info for the message
+        const captainDoc = await db.collection('players').doc(captain_id).get();
+        const captainData = captainDoc.exists ? captainDoc.data() : { name: 'Captain' };
+        const captainName = captainData.name || 'Captain';
+
+        // Try to find or create team chat room for in-app messages
+        let teamChatRoomId = null;
+        const chatRoomsSnap = await db.collection('chat_rooms')
+            .where('type', '==', 'team')
+            .where('team_id', '==', team_id)
+            .where('league_id', '==', league_id)
+            .limit(1).get();
+
+        if (!chatRoomsSnap.empty) {
+            teamChatRoomId = chatRoomsSnap.docs[0].id;
+        }
+
+        // Send in-app message to team chat room if it exists
+        if (teamChatRoomId) {
+            const chatMessage = message
+                .replace(/\[first_name\]/gi, 'Team')
+                .replace(/\[full_name\]/gi, 'Team')
+                .replace(/\[next_match_date\]/gi, nextMatchDate);
+
+            await db.collection('chat_rooms').doc(teamChatRoomId).collection('messages').add({
+                sender_id: captain_id,
+                sender_name: captainName,
+                text: chatMessage,
+                timestamp: admin.firestore.FieldValue.serverTimestamp(),
+                type: 'announcement'
+            });
+
+            // Update room's last_message
+            await db.collection('chat_rooms').doc(teamChatRoomId).update({
+                last_message: {
+                    text: chatMessage.substring(0, 100),
+                    sender_id: captain_id,
+                    sender_name: captainName,
+                    timestamp: admin.firestore.FieldValue.serverTimestamp()
+                },
+                updated_at: admin.firestore.FieldValue.serverTimestamp()
+            });
+        }
+
+        // Send to individual players
         for (const player of players) {
             // Replace variables
             const fullName = player.full_name || player.name || 'Player';
@@ -2749,29 +3242,28 @@ exports.sendCaptainMessage = functions.https.onRequest(async (req, res) => {
                 .replace(/\[full_name\]/gi, fullName)
                 .replace(/\[next_match_date\]/gi, nextMatchDate);
 
-            // Format phone
-            const digits = player.phone.replace(/\D/g, '');
-            const formattedPhone = digits.length === 10 ? '+1' + digits : '+' + digits;
+            sent++; // Count as sent (in-app via chat room)
 
-            try {
-                if (twilioClient) {
+            // Only send SMS if requested
+            if (send_sms && player.phone && twilioClient) {
+                const digits = player.phone.replace(/\D/g, '');
+                const formattedPhone = digits.length === 10 ? '+1' + digits : '+' + digits;
+
+                try {
                     await twilioClient.messages.create({
                         body: personalizedMsg,
                         to: formattedPhone,
                         from: twilioPhone
                     });
-                    sent++;
-                } else {
-                    console.log('SMS (simulated):', { to: formattedPhone, message: personalizedMsg });
-                    sent++;
+                    smsSent++;
+                } catch (smsError) {
+                    console.error('SMS error:', smsError);
+                    failed++;
                 }
-            } catch (smsError) {
-                console.error('SMS error:', smsError);
-                failed++;
             }
         }
 
-        res.json({ success: true, sent, failed });
+        res.json({ success: true, sent, smsSent, failed });
 
     } catch (error) {
         console.error('Error sending captain message:', error);

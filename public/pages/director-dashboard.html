@@ -83,8 +83,7 @@
         .header-logo {
             width: 40px;
             height: 40px;
-            mix-blend-mode: multiply;
-            filter: drop-shadow(0 0 8px rgba(255, 70, 154, 0.5));
+            
         }
 
         .header-title {
@@ -544,9 +543,7 @@
             box-shadow: 0 0 15px rgba(255,70,154,0.3);
         }
         .pin-field::placeholder {
-            color: rgba(255,255,255,0.3);
-            font-size: 14px;
-            letter-spacing: 0;
+            color: rgba(253, 216, 53, 0.4);
         }
 
         /* RESPONSIVE */
@@ -604,10 +601,11 @@
     <!-- Login Overlay -->
     <div id="loginOverlay" class="login-overlay">
         <div class="login-card">
+            <img src="/images/gold_logo.png" alt="BRDC" style="width: 80px; margin-bottom: 15px;">
             <div class="login-title">🎯 TOURNAMENT DIRECTOR</div>
             <p class="login-subtitle">Enter your 8-digit PIN to access the dashboard</p>
             <div class="pin-input">
-                <input type="text" id="pinInput" maxlength="8" class="pin-field" inputmode="numeric" placeholder="Enter 8-digit PIN">
+                <input type="password" id="pinInput" maxlength="8" class="pin-field" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="••••••••">
             </div>
             <button id="loginBtn" class="btn btn-primary" style="width: 100%; justify-content: center;">ENTER DASHBOARD</button>
             <p id="loginError" style="color: var(--pink); margin-top: 20px; display: none; font-weight: 600;"></p>
@@ -620,7 +618,7 @@
     <!-- STICKY HEADER BAR -->
     <div class="header-bar">
         <button class="back-btn" onclick="window.location.href='/pages/dashboard.html'">← BACK</button>
-        <img src="/images/white_logo.jpg" alt="BRDC" class="header-logo">
+        <img src="/images/gold_logo.png" alt="BRDC" class="header-logo">
         <span class="header-title">TOURNAMENT DIRECTOR</span>
     </div>
 
@@ -1089,6 +1087,13 @@
                     return;
                 }
 
+                // Check if this is a matchmaker tournament - redirect to matchmaker dashboard
+                const foundTournament = tournamentSnapshot.docs[0];
+                if (foundTournament.data().matchmaker_enabled) {
+                    window.location.href = `matchmaker-director.html?id=${foundTournament.id}`;
+                    return;
+                }
+
                 tournamentId = pin;
                 window.history.replaceState({}, '', `?pin=${pin}`);
 
@@ -1145,7 +1150,13 @@
                 const tournamentDoc = tournamentSnapshot.docs[0];
                 dashboardData.tournament = { id: tournamentDoc.id, ...tournamentDoc.data() };
                 const actualTournamentId = tournamentDoc.id;
-                
+
+                // Check if this is a matchmaker tournament - redirect to matchmaker dashboard
+                if (dashboardData.tournament.matchmaker_enabled) {
+                    window.location.href = `matchmaker-director.html?id=${actualTournamentId}`;
+                    return;
+                }
+
                 // Load events
                 const eventsQuery = query(
                     collection(db, 'tournaments', actualTournamentId, 'events')
@@ -1310,8 +1321,6 @@
         function renderOverview() {
             const tournament = dashboardData.tournament;
             if (tournament) {
-                document.getElementById('tournamentName').textContent = tournament.tournament_name || '';
-                
                 const date = tournament.tournament_date ? 
                     new Date(tournament.tournament_date).toLocaleDateString() : 'N/A';
                 
@@ -1905,4 +1914,5 @@
 
 
 <script src="/js/nav-menu.js"></script>
+<script src="/js/feedback.js"></script>
 </body></html>
