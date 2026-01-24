@@ -87,6 +87,76 @@ function setCorsHeaders(res) {
 }
 
 // ============================================================================
+// AUDIT TRAIL LOGGING
+// ============================================================================
+
+/**
+ * Log an audit event for director/admin actions
+ * Creates a record in leagues/{leagueId}/audit_log/{logId}
+ *
+ * @param {string} leagueId - The league ID
+ * @param {object} eventData - Audit event data
+ * @param {string} eventData.action - Action type: 'match_correction', 'level_change', 'forfeit', 'reschedule', etc.
+ * @param {string} eventData.actor_id - Player ID of who performed the action
+ * @param {string} eventData.actor_name - Display name of actor (denormalized)
+ * @param {string} eventData.target_type - Type of entity affected: 'match', 'player', 'team', 'league'
+ * @param {string} eventData.target_id - ID of affected entity
+ * @param {string} eventData.target_name - Display name of target (denormalized)
+ * @param {object} eventData.changes - Before/after values: { field: { before: any, after: any } }
+ * @param {string} eventData.reason - Optional reason/notes for the action
+ * @returns {Promise<string>} - The created audit log document ID
+ */
+async function logAuditEvent(leagueId, eventData) {
+    try {
+        const auditEntry = {
+            action: eventData.action,
+            actor_id: eventData.actor_id || null,
+            actor_name: eventData.actor_name || 'Unknown',
+            timestamp: admin.firestore.FieldValue.serverTimestamp(),
+            target_type: eventData.target_type,
+            target_id: eventData.target_id,
+            target_name: eventData.target_name || null,
+            changes: eventData.changes || {},
+            reason: eventData.reason || null
+        };
+
+        const docRef = await db.collection('leagues').doc(leagueId)
+            .collection('audit_log').add(auditEntry);
+
+        console.log(`Audit logged: ${eventData.action} on ${eventData.target_type}/${eventData.target_id} by ${eventData.actor_name}`);
+        return docRef.id;
+    } catch (error) {
+        // Log the error but don't throw - audit logging should not break main operations
+        console.error('Error logging audit event:', error);
+        return null;
+    }
+}
+
+/**
+ * Helper to get actor info from a PIN
+ * Returns { actor_id, actor_name }
+ */
+async function getActorFromPin(pin) {
+    if (!pin) return { actor_id: null, actor_name: 'Unknown' };
+
+    try {
+        const playerQuery = await db.collection('players').where('pin', '==', pin).limit(1).get();
+        if (playerQuery.empty) {
+            return { actor_id: null, actor_name: 'Unknown' };
+        }
+        const playerDoc = playerQuery.docs[0];
+        const playerData = playerDoc.data();
+        return {
+            actor_id: playerDoc.id,
+            actor_name: playerData.name || playerData.first_name + ' ' + playerData.last_name || 'Unknown'
+        };
+    } catch (error) {
+        console.error('Error getting actor from PIN:', error);
+        return { actor_id: null, actor_name: 'Unknown' };
+    }
+}
+
+// ============================================================================
 // PLAYER STATS UPDATE HELPERS
 // ============================================================================
 
@@ -5375,7 +5445,7 @@ exports.correctMatchResult = functions.https.onRequest(async (req, res) => {
             correction_reason: reason || 'Score corrected by director'
         });
 
-        // Log the correction
+        // Log the correction (legacy log)
         const correctionLog = {
             match_id: match_id,
             corrected_at: admin.firestore.FieldValue.serverTimestamp(),
@@ -5389,6 +5459,31 @@ exports.correctMatchResult = functions.https.onRequest(async (req, res) => {
 
         await db.collection('leagues').doc(league_id)
             .collection('corrections_log').add(correctionLog);
+
+        // Get team names for audit log
+        const homeTeamDoc = await db.collection('leagues').doc(league_id)
+            .collection('teams').doc(matchData.home_team_id).get();
+        const awayTeamDoc = await db.collection('leagues').doc(league_id)
+            .collection('teams').doc(matchData.away_team_id).get();
+        const homeTeamName = homeTeamDoc.exists ? homeTeamDoc.data().team_name : 'Unknown';
+        const awayTeamName = awayTeamDoc.exists ? awayTeamDoc.data().team_name : 'Unknown';
+
+        // Add to unified audit log
+        const actor = await getActorFromPin(director_pin);
+        await logAuditEvent(league_id, {
+            action: 'match_correction',
+            actor_id: actor.actor_id,
+            actor_name: actor.actor_name,
+            target_type: 'match',
+            target_id: match_id,
+            target_name: `Week ${matchData.week}: ${homeTeamName} vs ${awayTeamName}`,
+            changes: {
+                home_score: { before: oldHomeScore, after: parseInt(home_score) },
+                away_score: { before: oldAwayScore, after: parseInt(away_score) },
+                winner: { before: matchData.winner || 'none', after: newWinner }
+            },
+            reason: reason || 'Score corrected by director'
+        });
 
         // Recalculate team standings
         await recalculateTeamStandings(league_id);
@@ -5470,6 +5565,22 @@ exports.setPlayerLevel = functions.https.onRequest(async (req, res) => {
         else if (level === 'C') updateData.position = 3;
 
         await playerRef.update(updateData);
+
+        // Add to audit log
+        const actor = await getActorFromPin(director_pin);
+        await logAuditEvent(league_id, {
+            action: 'level_change',
+            actor_id: actor.actor_id,
+            actor_name: actor.actor_name,
+            target_type: 'player',
+            target_id: player_id,
+            target_name: playerData.name,
+            changes: {
+                level: { before: oldLevel, after: level || 'Unassigned' },
+                position: { before: playerData.position || null, after: updateData.position || null }
+            },
+            reason: 'Player level adjusted by director'
+        });
 
         res.json({
             success: true,
@@ -5562,6 +5673,23 @@ exports.rescheduleMatch = functions.https.onRequest(async (req, res) => {
             console.log(`Would notify captains of ${homeTeamName} and ${awayTeamName} about reschedule`);
             notificationSent = true;
         }
+
+        // Add to audit log
+        const oldDateStr = oldDate?.toDate ? oldDate.toDate().toISOString() : (oldDate || 'Not set');
+        const actor = await getActorFromPin(director_pin);
+        await logAuditEvent(league_id, {
+            action: 'reschedule',
+            actor_id: actor.actor_id,
+            actor_name: actor.actor_name,
+            target_type: 'match',
+            target_id: match_id,
+            target_name: `Week ${matchData.week}: ${homeTeamName} vs ${awayTeamName}`,
+            changes: {
+                match_date: { before: oldDateStr, after: newMatchDate.toISOString() },
+                is_makeup: { before: matchData.is_makeup || false, after: is_makeup === true }
+            },
+            reason: is_makeup ? 'Match rescheduled as makeup' : 'Match rescheduled by director'
+        });
 
         res.json({
             success: true,
@@ -5660,3 +5788,726 @@ async function recalculateTeamStandings(leagueId) {
     await batch.commit();
     console.log(`Recalculated standings for league ${leagueId}: ${Object.keys(teamStats).length} teams updated`);
 }
+
+/**
+ * Record a forfeit for a league match
+ * Handles full forfeits and partial forfeits (some games played)
+ * Updates match status, awards points, and logs the forfeit
+ *
+ * POST /recordForfeit
+ * Body: {
+ *   league_id: string,
+ *   match_id: string,
+ *   forfeiting_team: 'home' | 'away',
+ *   reason: string (optional) - 'no_show', 'insufficient_players', 'other'
+ *   notes: string (optional) - additional details
+ *   partial: boolean - if some games were played
+ *   partial_home_score: number (if partial)
+ *   partial_away_score: number (if partial)
+ *   director_pin: string
+ * }
+ */
+exports.recordForfeit = functions.https.onRequest(async (req, res) => {
+    setCorsHeaders(res);
+    if (req.method === 'OPTIONS') return res.status(204).send('');
+
+    try {
+        const {
+            league_id,
+            match_id,
+            forfeiting_team,
+            reason,
+            notes,
+            partial,
+            partial_home_score,
+            partial_away_score,
+            director_pin
+        } = req.body;
+
+        // Validate required fields
+        if (!league_id || !match_id || !forfeiting_team || !director_pin) {
+            return res.status(400).json({
+                success: false,
+                error: 'Missing required fields: league_id, match_id, forfeiting_team, director_pin'
+            });
+        }
+
+        // Validate forfeiting_team value
+        if (forfeiting_team !== 'home' && forfeiting_team !== 'away') {
+            return res.status(400).json({
+                success: false,
+                error: 'forfeiting_team must be "home" or "away"'
+            });
+        }
+
+        // Verify league exists and check director access
+        const leagueDoc = await db.collection('leagues').doc(league_id).get();
+        if (!leagueDoc.exists) {
+            return res.status(404).json({ success: false, error: 'League not found' });
+        }
+
+        const league = leagueDoc.data();
+        if (!(await checkLeagueAccess(league, director_pin))) {
+            return res.status(403).json({ success: false, error: 'Invalid PIN - Director access required' });
+        }
+
+        // Get director player ID for logging
+        const directorQuery = await db.collection('players').where('pin', '==', director_pin).limit(1).get();
+        const directorId = directorQuery.empty ? null : directorQuery.docs[0].id;
+
+        // Get the match
+        const matchRef = db.collection('leagues').doc(league_id).collection('matches').doc(match_id);
+        const matchDoc = await matchRef.get();
+        if (!matchDoc.exists) {
+            return res.status(404).json({ success: false, error: 'Match not found' });
+        }
+
+        const matchData = matchDoc.data();
+
+        // Check if match is already completed or forfeited
+        if (matchData.status === 'completed' || matchData.status === 'forfeit') {
+            return res.status(400).json({
+                success: false,
+                error: `Match is already ${matchData.status}. Use correctMatchResult if you need to modify a completed match.`
+            });
+        }
+
+        // Get team info
+        const homeTeamDoc = await db.collection('leagues').doc(league_id)
+            .collection('teams').doc(matchData.home_team_id).get();
+        const awayTeamDoc = await db.collection('leagues').doc(league_id)
+            .collection('teams').doc(matchData.away_team_id).get();
+
+        const homeTeamName = homeTeamDoc.exists ? homeTeamDoc.data().team_name : 'Unknown';
+        const awayTeamName = awayTeamDoc.exists ? awayTeamDoc.data().team_name : 'Unknown';
+        const forfeitingTeamName = forfeiting_team === 'home' ? homeTeamName : awayTeamName;
+        const winningTeamName = forfeiting_team === 'home' ? awayTeamName : homeTeamName;
+
+        // Calculate scores
+        let homeScore, awayScore;
+
+        if (partial && (partial_home_score !== undefined || partial_away_score !== undefined)) {
+            // Partial forfeit - use the scores from games that were played
+            homeScore = partial_home_score || 0;
+            awayScore = partial_away_score || 0;
+        } else {
+            // Full forfeit - award configured forfeit points (default: 9-0 for triples league, 2-0 for standard)
+            // Check league settings for forfeit_win_score, default to match format
+            const forfeitWinScore = league.forfeit_win_score || 9; // 9 sets for triples draft
+            homeScore = forfeiting_team === 'home' ? 0 : forfeitWinScore;
+            awayScore = forfeiting_team === 'away' ? 0 : forfeitWinScore;
+        }
+
+        // Determine winner
+        const winner = forfeiting_team === 'home' ? 'away' : 'home';
+
+        // Build the forfeit record
+        const forfeitRecord = {
+            forfeiting_team: forfeiting_team,
+            forfeiting_team_id: forfeiting_team === 'home' ? matchData.home_team_id : matchData.away_team_id,
+            forfeiting_team_name: forfeitingTeamName,
+            reason: reason || 'unspecified',
+            notes: notes || null,
+            partial: partial === true,
+            original_status: matchData.status,
+            recorded_by: directorId,
+            recorded_at: admin.firestore.FieldValue.serverTimestamp()
+        };
+
+        // Update the match
+        const updateData = {
+            status: 'forfeit',
+            home_score: homeScore,
+            away_score: awayScore,
+            winner: winner,
+            forfeit: forfeitRecord,
+            completed_at: admin.firestore.FieldValue.serverTimestamp()
+        };
+
+        await matchRef.update(updateData);
+
+        // Update team standings
+        // The winning team gets +1 win, forfeiting team gets +1 loss
+        // Use recalculateTeamStandings to ensure consistency
+        await recalculateTeamStandings(league_id);
+
+        // Log the forfeit for audit purposes (legacy log)
+        await db.collection('leagues').doc(league_id).collection('forfeit_log').add({
+            match_id: match_id,
+            week: matchData.week,
+            home_team_id: matchData.home_team_id,
+            away_team_id: matchData.away_team_id,
+            home_team_name: homeTeamName,
+            away_team_name: awayTeamName,
+            forfeiting_team: forfeiting_team,
+            forfeiting_team_name: forfeitingTeamName,
+            reason: reason || 'unspecified',
+            notes: notes || null,
+            partial: partial === true,
+            final_score: `${homeScore} - ${awayScore}`,
+            recorded_by: directorId,
+            recorded_at: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        // Add to unified audit log
+        const actor = await getActorFromPin(director_pin);
+        await logAuditEvent(league_id, {
+            action: 'forfeit',
+            actor_id: actor.actor_id,
+            actor_name: actor.actor_name,
+            target_type: 'match',
+            target_id: match_id,
+            target_name: `Week ${matchData.week}: ${homeTeamName} vs ${awayTeamName}`,
+            changes: {
+                status: { before: matchData.status, after: 'forfeit' },
+                home_score: { before: matchData.home_score || 0, after: homeScore },
+                away_score: { before: matchData.away_score || 0, after: awayScore },
+                forfeiting_team: { before: null, after: forfeitingTeamName }
+            },
+            reason: notes || reason || 'Forfeit recorded'
+        });
+
+        console.log(`Forfeit recorded: ${forfeitingTeamName} forfeited vs ${winningTeamName} (${homeScore}-${awayScore})`);
+
+        res.json({
+            success: true,
+            message: 'Forfeit recorded successfully',
+            forfeit: {
+                match_id: match_id,
+                week: matchData.week,
+                forfeiting_team: forfeitingTeamName,
+                winning_team: winningTeamName,
+                final_score: `${homeScore} - ${awayScore}`,
+                reason: reason || 'unspecified',
+                partial: partial === true
+            }
+        });
+
+    } catch (error) {
+        console.error('Error recording forfeit:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// ============================================================================
+// BULK PLAYER ACTIONS FOR DIRECTORS
+// ============================================================================
+
+/**
+ * Bulk Set Player Levels - Update multiple players' levels at once
+ * Used by directors to efficiently manage player skill levels
+ *
+ * @param {string} league_id - League ID
+ * @param {array} player_updates - Array of {player_id, level} objects
+ * @param {string} director_pin - Director PIN for authentication
+ */
+exports.bulkSetPlayerLevels = functions.https.onRequest(async (req, res) => {
+    setCorsHeaders(res);
+    if (req.method === 'OPTIONS') return res.status(204).send('');
+
+    try {
+        const { league_id, player_updates, director_pin } = req.body;
+
+        // Validate required fields
+        if (!league_id || !player_updates || !Array.isArray(player_updates) || player_updates.length === 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'Missing required fields: league_id, player_updates (array of {player_id, level})'
+            });
+        }
+
+        // Validate level values
+        const validLevels = ['A', 'B', 'C', ''];
+        for (const update of player_updates) {
+            if (!update.player_id) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Each update must have a player_id'
+                });
+            }
+            if (update.level !== undefined && !validLevels.includes(update.level)) {
+                return res.status(400).json({
+                    success: false,
+                    error: `Invalid level "${update.level}" for player ${update.player_id}. Must be A, B, C, or empty`
+                });
+            }
+        }
+
+        // Verify league exists and check director access
+        const leagueDoc = await db.collection('leagues').doc(league_id).get();
+        if (!leagueDoc.exists) {
+            return res.status(404).json({ success: false, error: 'League not found' });
+        }
+
+        const league = leagueDoc.data();
+        if (!(await checkLeagueAccess(league, director_pin))) {
+            return res.status(403).json({ success: false, error: 'Invalid PIN - Director access required' });
+        }
+
+        // Use batch write for efficiency
+        const batch = db.batch();
+        const results = [];
+        const errors = [];
+
+        for (const update of player_updates) {
+            const playerRef = db.collection('leagues').doc(league_id).collection('players').doc(update.player_id);
+            const playerDoc = await playerRef.get();
+
+            if (!playerDoc.exists) {
+                errors.push({ player_id: update.player_id, error: 'Player not found' });
+                continue;
+            }
+
+            const playerData = playerDoc.data();
+            const oldLevel = playerData.level || 'Unassigned';
+            const newLevel = update.level || null;
+
+            // Build update data
+            const updateData = {
+                level: newLevel,
+                level_updated_at: admin.firestore.FieldValue.serverTimestamp()
+            };
+
+            // Set position based on level
+            if (update.level === 'A') updateData.position = 1;
+            else if (update.level === 'B') updateData.position = 2;
+            else if (update.level === 'C') updateData.position = 3;
+
+            batch.update(playerRef, updateData);
+            results.push({
+                player_id: update.player_id,
+                player_name: playerData.name,
+                old_level: oldLevel,
+                new_level: update.level || 'Unassigned'
+            });
+        }
+
+        await batch.commit();
+
+        console.log(`Bulk level update: ${results.length} players updated, ${errors.length} errors`);
+
+        res.json({
+            success: true,
+            message: `Updated ${results.length} player levels`,
+            updated: results,
+            errors: errors.length > 0 ? errors : undefined
+        });
+
+    } catch (error) {
+        console.error('Error bulk setting player levels:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * Bulk Move Players to Team - Move multiple players to a single team at once
+ * Used by directors to quickly build or reorganize teams
+ *
+ * @param {string} league_id - League ID
+ * @param {array} player_ids - Array of player IDs to move
+ * @param {string} target_team_id - Team ID to move players to (or null to unassign)
+ * @param {string} director_pin - Director PIN for authentication
+ */
+exports.bulkMovePlayersToTeam = functions.https.onRequest(async (req, res) => {
+    setCorsHeaders(res);
+    if (req.method === 'OPTIONS') return res.status(204).send('');
+
+    try {
+        const { league_id, player_ids, target_team_id, director_pin } = req.body;
+
+        // Validate required fields
+        if (!league_id || !player_ids || !Array.isArray(player_ids) || player_ids.length === 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'Missing required fields: league_id, player_ids (array)'
+            });
+        }
+
+        // Verify league exists and check director access
+        const leagueDoc = await db.collection('leagues').doc(league_id).get();
+        if (!leagueDoc.exists) {
+            return res.status(404).json({ success: false, error: 'League not found' });
+        }
+
+        const league = leagueDoc.data();
+        if (!(await checkLeagueAccess(league, director_pin))) {
+            return res.status(403).json({ success: false, error: 'Invalid PIN - Director access required' });
+        }
+
+        // Verify target team exists (if specified)
+        let targetTeamName = null;
+        if (target_team_id) {
+            const teamDoc = await db.collection('leagues').doc(league_id).collection('teams').doc(target_team_id).get();
+            if (!teamDoc.exists) {
+                return res.status(404).json({ success: false, error: 'Target team not found' });
+            }
+            targetTeamName = teamDoc.data().team_name;
+        }
+
+        // Use batch write for efficiency
+        const batch = db.batch();
+        const results = [];
+        const errors = [];
+
+        for (const playerId of player_ids) {
+            const playerRef = db.collection('leagues').doc(league_id).collection('players').doc(playerId);
+            const playerDoc = await playerRef.get();
+
+            if (!playerDoc.exists) {
+                errors.push({ player_id: playerId, error: 'Player not found' });
+                continue;
+            }
+
+            const playerData = playerDoc.data();
+            const oldTeamId = playerData.team_id || null;
+
+            // Build update data
+            const updateData = {
+                team_id: target_team_id || null,
+                team_updated_at: admin.firestore.FieldValue.serverTimestamp()
+            };
+
+            // If moving to a team, mark as not a sub; if unassigning, could be either
+            if (target_team_id) {
+                updateData.is_sub = false;
+            }
+
+            batch.update(playerRef, updateData);
+            results.push({
+                player_id: playerId,
+                player_name: playerData.name,
+                old_team_id: oldTeamId,
+                new_team_id: target_team_id || null
+            });
+        }
+
+        await batch.commit();
+
+        console.log(`Bulk team move: ${results.length} players moved to ${targetTeamName || 'unassigned'}, ${errors.length} errors`);
+
+        res.json({
+            success: true,
+            message: target_team_id
+                ? `Moved ${results.length} players to team "${targetTeamName}"`
+                : `Unassigned ${results.length} players from teams`,
+            target_team: targetTeamName,
+            moved: results,
+            errors: errors.length > 0 ? errors : undefined
+        });
+
+    } catch (error) {
+        console.error('Error bulk moving players to team:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * Bulk Notify Players - Send notifications to multiple players at once
+ * Supports SMS, Email, and Push notifications
+ *
+ * @param {string} league_id - League ID
+ * @param {array} player_ids - Array of player IDs to notify
+ * @param {string} message - Message content to send
+ * @param {array} channels - Array of channels: ['sms', 'email', 'push']
+ * @param {string} director_pin - Director PIN for authentication
+ */
+exports.bulkNotifyPlayers = functions.https.onRequest(async (req, res) => {
+    setCorsHeaders(res);
+    if (req.method === 'OPTIONS') return res.status(204).send('');
+
+    try {
+        const { league_id, player_ids, message, channels, director_pin } = req.body;
+
+        // Validate required fields
+        if (!league_id || !player_ids || !Array.isArray(player_ids) || player_ids.length === 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'Missing required fields: league_id, player_ids (array)'
+            });
+        }
+
+        if (!message || message.trim().length === 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'Message is required and cannot be empty'
+            });
+        }
+
+        // Validate channels
+        const validChannels = ['sms', 'email', 'push'];
+        const selectedChannels = channels && Array.isArray(channels) ? channels : ['push']; // Default to push
+        for (const channel of selectedChannels) {
+            if (!validChannels.includes(channel)) {
+                return res.status(400).json({
+                    success: false,
+                    error: `Invalid channel "${channel}". Must be one of: sms, email, push`
+                });
+            }
+        }
+
+        // Verify league exists and check director access
+        const leagueDoc = await db.collection('leagues').doc(league_id).get();
+        if (!leagueDoc.exists) {
+            return res.status(404).json({ success: false, error: 'League not found' });
+        }
+
+        const league = leagueDoc.data();
+        if (!(await checkLeagueAccess(league, director_pin))) {
+            return res.status(403).json({ success: false, error: 'Invalid PIN - Director access required' });
+        }
+
+        // Collect player contact info
+        const notificationResults = {
+            sms: { sent: 0, failed: 0, skipped: 0 },
+            email: { sent: 0, failed: 0, skipped: 0 },
+            push: { sent: 0, failed: 0, skipped: 0 }
+        };
+        const playerResults = [];
+
+        for (const playerId of player_ids) {
+            // Get league player data
+            const leaguePlayerDoc = await db.collection('leagues').doc(league_id)
+                .collection('players').doc(playerId).get();
+
+            if (!leaguePlayerDoc.exists) {
+                playerResults.push({ player_id: playerId, error: 'Player not found in league' });
+                continue;
+            }
+
+            const leaguePlayer = leaguePlayerDoc.data();
+
+            // Get global player data for contact info
+            const globalPlayerDoc = await db.collection('players').doc(playerId).get();
+            const globalPlayer = globalPlayerDoc.exists ? globalPlayerDoc.data() : {};
+
+            // Merge contact info (league-specific overrides global)
+            const phone = leaguePlayer.phone || globalPlayer.phone || null;
+            const email = leaguePlayer.email || globalPlayer.email || null;
+            const fcmToken = globalPlayer.fcm_token || null;
+
+            const playerResult = {
+                player_id: playerId,
+                player_name: leaguePlayer.name,
+                channels: {}
+            };
+
+            // Send SMS if selected and phone available
+            if (selectedChannels.includes('sms')) {
+                if (phone) {
+                    // Note: Actual SMS sending would require Twilio or similar integration
+                    // For now, we log the notification to a queue collection for async processing
+                    try {
+                        await db.collection('notification_queue').add({
+                            type: 'sms',
+                            recipient_phone: phone,
+                            recipient_id: playerId,
+                            recipient_name: leaguePlayer.name,
+                            message: message,
+                            league_id: league_id,
+                            league_name: league.name,
+                            created_at: admin.firestore.FieldValue.serverTimestamp(),
+                            status: 'pending'
+                        });
+                        notificationResults.sms.sent++;
+                        playerResult.channels.sms = 'queued';
+                    } catch (e) {
+                        notificationResults.sms.failed++;
+                        playerResult.channels.sms = 'failed';
+                    }
+                } else {
+                    notificationResults.sms.skipped++;
+                    playerResult.channels.sms = 'no_phone';
+                }
+            }
+
+            // Send Email if selected and email available
+            if (selectedChannels.includes('email')) {
+                if (email) {
+                    try {
+                        await db.collection('notification_queue').add({
+                            type: 'email',
+                            recipient_email: email,
+                            recipient_id: playerId,
+                            recipient_name: leaguePlayer.name,
+                            subject: `${league.name}: Message from Director`,
+                            message: message,
+                            league_id: league_id,
+                            league_name: league.name,
+                            created_at: admin.firestore.FieldValue.serverTimestamp(),
+                            status: 'pending'
+                        });
+                        notificationResults.email.sent++;
+                        playerResult.channels.email = 'queued';
+                    } catch (e) {
+                        notificationResults.email.failed++;
+                        playerResult.channels.email = 'failed';
+                    }
+                } else {
+                    notificationResults.email.skipped++;
+                    playerResult.channels.email = 'no_email';
+                }
+            }
+
+            // Send Push if selected and FCM token available
+            if (selectedChannels.includes('push')) {
+                if (fcmToken) {
+                    try {
+                        await db.collection('notification_queue').add({
+                            type: 'push',
+                            fcm_token: fcmToken,
+                            recipient_id: playerId,
+                            recipient_name: leaguePlayer.name,
+                            title: `${league.name}`,
+                            body: message,
+                            league_id: league_id,
+                            league_name: league.name,
+                            created_at: admin.firestore.FieldValue.serverTimestamp(),
+                            status: 'pending'
+                        });
+                        notificationResults.push.sent++;
+                        playerResult.channels.push = 'queued';
+                    } catch (e) {
+                        notificationResults.push.failed++;
+                        playerResult.channels.push = 'failed';
+                    }
+                } else {
+                    notificationResults.push.skipped++;
+                    playerResult.channels.push = 'no_token';
+                }
+            }
+
+            playerResults.push(playerResult);
+        }
+
+        // Calculate total notifications
+        const totalQueued = notificationResults.sms.sent + notificationResults.email.sent + notificationResults.push.sent;
+
+        console.log(`Bulk notify: ${totalQueued} notifications queued for ${player_ids.length} players`);
+
+        res.json({
+            success: true,
+            message: `Queued ${totalQueued} notifications for ${player_ids.length} players`,
+            summary: notificationResults,
+            channels_used: selectedChannels,
+            player_results: playerResults
+        });
+
+    } catch (error) {
+        console.error('Error bulk notifying players:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// ============================================================================
+// AUDIT LOG RETRIEVAL
+// ============================================================================
+
+/**
+ * Get audit log for a league
+ * Returns paginated audit log entries for director review
+ *
+ * POST /getAuditLog
+ * Body: {
+ *   league_id: string,
+ *   director_pin: string,
+ *   limit: number (optional, default 50, max 100),
+ *   action_filter: string (optional) - filter by action type,
+ *   start_after_timestamp: number (optional) - timestamp in ms for pagination
+ * }
+ */
+exports.getAuditLog = functions.https.onRequest(async (req, res) => {
+    setCorsHeaders(res);
+    if (req.method === 'OPTIONS') return res.status(204).send('');
+
+    try {
+        const {
+            league_id,
+            director_pin,
+            limit = 50,
+            action_filter,
+            start_after_timestamp
+        } = req.body;
+
+        // Validate required fields
+        if (!league_id) {
+            return res.status(400).json({
+                success: false,
+                error: 'Missing required field: league_id'
+            });
+        }
+
+        // Verify league exists and check director access
+        const leagueDoc = await db.collection('leagues').doc(league_id).get();
+        if (!leagueDoc.exists) {
+            return res.status(404).json({ success: false, error: 'League not found' });
+        }
+
+        const league = leagueDoc.data();
+        if (!(await checkLeagueAccess(league, director_pin))) {
+            return res.status(403).json({ success: false, error: 'Invalid PIN - Director access required' });
+        }
+
+        // Build query
+        let auditQuery = db.collection('leagues').doc(league_id)
+            .collection('audit_log')
+            .orderBy('timestamp', 'desc');
+
+        // Apply action filter if provided
+        if (action_filter) {
+            auditQuery = auditQuery.where('action', '==', action_filter);
+        }
+
+        // Apply pagination if start_after_timestamp is provided
+        if (start_after_timestamp) {
+            const startAfterDate = new Date(start_after_timestamp);
+            auditQuery = auditQuery.startAfter(admin.firestore.Timestamp.fromDate(startAfterDate));
+        }
+
+        // Limit results (max 100)
+        const queryLimit = Math.min(parseInt(limit) || 50, 100);
+        auditQuery = auditQuery.limit(queryLimit);
+
+        const auditSnapshot = await auditQuery.get();
+        const entries = [];
+        let lastTimestamp = null;
+
+        auditSnapshot.forEach(doc => {
+            const data = doc.data();
+            const timestamp = data.timestamp?.toDate?.() || data.timestamp;
+
+            entries.push({
+                id: doc.id,
+                action: data.action,
+                actor_id: data.actor_id,
+                actor_name: data.actor_name,
+                timestamp: timestamp ? timestamp.toISOString() : null,
+                timestamp_ms: timestamp ? timestamp.getTime() : null,
+                target_type: data.target_type,
+                target_id: data.target_id,
+                target_name: data.target_name,
+                changes: data.changes || {},
+                reason: data.reason
+            });
+
+            // Track last timestamp for pagination
+            if (timestamp) {
+                lastTimestamp = timestamp.getTime();
+            }
+        });
+
+        // Check if there are more results
+        const hasMore = entries.length === queryLimit;
+
+        res.json({
+            success: true,
+            entries: entries,
+            count: entries.length,
+            has_more: hasMore,
+            next_cursor: hasMore ? lastTimestamp : null
+        });
+
+    } catch (error) {
+        console.error('Error getting audit log:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});

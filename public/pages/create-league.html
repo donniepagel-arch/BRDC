@@ -770,6 +770,174 @@
             border: 0;
         }
 
+        /* Tooltip Styles */
+        .label-with-tooltip {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .tooltip-trigger {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 18px;
+            height: 18px;
+            background: rgba(145, 215, 235, 0.2);
+            border: 1px solid var(--teal);
+            border-radius: 50%;
+            color: var(--teal);
+            font-size: 11px;
+            font-weight: 700;
+            cursor: help;
+            position: relative;
+        }
+
+        .tooltip-trigger:hover .tooltip-content {
+            display: block;
+        }
+
+        .tooltip-content {
+            display: none;
+            position: absolute;
+            bottom: calc(100% + 8px);
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--bg-panel);
+            border: 2px solid var(--teal);
+            border-radius: 8px;
+            padding: 10px 12px;
+            min-width: 220px;
+            max-width: 280px;
+            font-family: 'Inter', sans-serif;
+            font-size: 12px;
+            font-weight: 400;
+            color: var(--text-primary);
+            line-height: 1.5;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+            text-align: left;
+        }
+
+        .tooltip-content::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 6px solid transparent;
+            border-top-color: var(--teal);
+        }
+
+        /* Warning Box Styles */
+        .cork-warning {
+            background: rgba(253, 216, 53, 0.1);
+            border: 2px solid var(--yellow);
+            border-radius: 8px;
+            padding: 12px 14px;
+            margin-top: 16px;
+            display: none;
+        }
+
+        .cork-warning.show {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        .cork-warning-icon {
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+
+        .cork-warning-text {
+            font-size: 13px;
+            color: var(--yellow);
+            line-height: 1.4;
+        }
+
+        /* Preview Panel Styles */
+        .cork-preview-panel {
+            background: var(--bg-card);
+            border: 2px solid var(--border-color);
+            border-radius: 10px;
+            padding: 16px;
+            margin-top: 20px;
+        }
+
+        .cork-preview-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 14px;
+            letter-spacing: 1px;
+            color: var(--teal);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .cork-preview-title::before {
+            content: '';
+            display: inline-block;
+            width: 4px;
+            height: 14px;
+            background: var(--teal);
+            border-radius: 2px;
+        }
+
+        .cork-preview-example {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            color: var(--text-secondary);
+            line-height: 1.8;
+            background: rgba(0,0,0,0.2);
+            padding: 12px;
+            border-radius: 6px;
+        }
+
+        .cork-preview-step {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            margin-bottom: 4px;
+        }
+
+        .cork-preview-arrow {
+            color: var(--pink);
+            font-weight: 700;
+        }
+
+        .cork-preview-highlight {
+            color: var(--yellow);
+        }
+
+        /* Contextual field visibility */
+        .cork-field-group {
+            transition: opacity 0.2s, max-height 0.3s;
+            overflow: hidden;
+        }
+
+        .cork-field-group.hidden-field {
+            opacity: 0.4;
+            pointer-events: none;
+        }
+
+        .cork-field-group.hidden-field select {
+            background: rgba(0,0,0,0.2);
+        }
+
+        .cork-field-note {
+            font-size: 11px;
+            color: var(--text-dim);
+            font-style: italic;
+            margin-top: 4px;
+        }
+
+        .cork-field-note.active-note {
+            color: var(--teal);
+            font-style: normal;
+        }
+
         /* Focus Indicators */
         :focus-visible {
             outline: 2px solid var(--yellow);
@@ -1012,9 +1180,21 @@
                     </button>
                 </div>
 
+                <!-- Cork Rules Section -->
                 <div class="form-group" style="margin-top: 20px;">
-                    <label>Cork Rules (Who Throws First)</label>
-                    <select name="cork_rule">
+                    <label class="label-with-tooltip">
+                        Start Rules
+                        <span class="tooltip-trigger">?
+                            <span class="tooltip-content">
+                                <strong>Who throws first each leg:</strong><br>
+                                - Cork every leg: Cork to determine first throw each leg<br>
+                                - Alternate: Take turns throwing first<br>
+                                - Loser starts: Previous leg loser throws first<br>
+                                - Winner starts: Previous leg winner throws first
+                            </span>
+                        </span>
+                    </label>
+                    <select name="cork_rule" id="corkRuleSelect" onchange="updateCorkPreview()">
                         <option value="cork_every_leg">Cork every leg</option>
                         <option value="alternate_cork_first_deciding">Alternate, cork first/deciding</option>
                         <option value="loser_starts_cork_first_deciding">Loser starts, cork first/deciding</option>
@@ -1023,6 +1203,66 @@
                 </div>
 
                 <div class="form-group">
+                    <label class="label-with-tooltip">
+                        Cork Option Rules
+                        <span class="tooltip-trigger">?
+                            <span class="tooltip-content">
+                                <strong>Who gets to choose throw order:</strong><br>
+                                When corking, the winner doesn't always want to throw first. This determines who gets to pick.<br><br>
+                                - Alternate: Take turns having the choice<br>
+                                - Winner chooses: Cork winner picks order<br>
+                                - Loser chooses: Cork loser picks order
+                            </span>
+                        </span>
+                    </label>
+                    <select name="cork_option" id="corkOptionSelect" onchange="updateCorkPreview()">
+                        <option value="alternate_random_first_last">Alternate (random first/last)</option>
+                        <option value="winner_chooses">Cork winner chooses</option>
+                        <option value="loser_chooses">Cork loser chooses</option>
+                    </select>
+                </div>
+
+                <div class="form-group cork-field-group" id="corkWinnerGetsGroup">
+                    <label class="label-with-tooltip">
+                        Cork Winner Gets (Corks Choice)
+                        <span class="tooltip-trigger">?
+                            <span class="tooltip-content">
+                                <strong>For Corks Choice games only:</strong><br>
+                                When the format is "Corks Choice", the cork winner picks the game type.<br><br>
+                                - Game AND Start: Winner picks game type and throw order<br>
+                                - Game Only: Winner picks game type, other rules determine throw order
+                            </span>
+                        </span>
+                    </label>
+                    <select name="cork_winner_gets" id="corkWinnerGetsSelect" onchange="updateCorkPreview()">
+                        <option value="choose-and-start">Choose game AND throw order</option>
+                        <option value="choose-only">Choose game only</option>
+                    </select>
+                    <div class="cork-field-note" id="corkWinnerGetsNote">This applies to Corks Choice games only</div>
+                </div>
+
+                <!-- Cork Warning Box -->
+                <div class="cork-warning" id="corkWarning">
+                    <span class="cork-warning-icon">&#9888;</span>
+                    <span class="cork-warning-text" id="corkWarningText"></span>
+                </div>
+
+                <!-- Cork Preview Panel -->
+                <div class="cork-preview-panel" id="corkPreviewPanel">
+                    <div class="cork-preview-title">How It Works</div>
+                    <div class="cork-preview-example" id="corkPreviewExample">
+                        <div class="cork-preview-step">
+                            <span class="cork-preview-arrow">1.</span>
+                            <span>Players cork to start each leg</span>
+                        </div>
+                        <div class="cork-preview-step">
+                            <span class="cork-preview-arrow">2.</span>
+                            <span>Cork winner <span class="cork-preview-highlight">throws first</span></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-top: 20px;">
                     <label>Tiebreaker Rules (drag to reorder)</label>
                     <div class="tiebreaker-list" id="tiebreakerList">
                         <div class="tiebreaker-item" data-value="head_to_head" draggable="true">
@@ -1044,8 +1284,6 @@
                 </div>
 
                 <input type="hidden" name="point_system" value="game_based">
-                <input type="hidden" name="cork_option" value="alternate_random_first_last">
-                <input type="hidden" name="cork_winner_gets" value="choose-and-start">
                 <input type="hidden" name="level_rules" value="flexible">
                 <input type="hidden" name="playoff_format" value="none">
                 <input type="hidden" name="bye_points" value="average">
@@ -1697,6 +1935,143 @@
         }
 
         addRound();
+
+        // Cork Rules Validation and Preview Functions
+        function hasCorkChoiceRounds() {
+            return rounds.some(r => r.game_type === 'corks_choice');
+        }
+
+        function updateCorkWinnerGetsVisibility() {
+            const group = document.getElementById('corkWinnerGetsGroup');
+            const note = document.getElementById('corkWinnerGetsNote');
+            const hasCorksChoice = hasCorkChoiceRounds();
+
+            if (hasCorksChoice) {
+                group.classList.remove('hidden-field');
+                note.textContent = 'This applies to Corks Choice games only';
+                note.classList.add('active-note');
+            } else {
+                group.classList.add('hidden-field');
+                note.textContent = 'Add a "Corks Choice" round to enable this setting';
+                note.classList.remove('active-note');
+            }
+        }
+
+        function checkCorkWarnings() {
+            const warningEl = document.getElementById('corkWarning');
+            const warningText = document.getElementById('corkWarningText');
+            const startRule = document.getElementById('corkRuleSelect').value;
+            const optionRule = document.getElementById('corkOptionSelect').value;
+
+            let warnings = [];
+
+            // Check for potentially confusing combinations
+            if (startRule === 'winner_starts_cork_first_deciding' && optionRule === 'loser_chooses') {
+                warnings.push('Unusual combination: Winner starts each leg but loser chooses throw order at cork. This may cause confusion.');
+            }
+
+            if (startRule === 'loser_starts_cork_first_deciding' && optionRule === 'winner_chooses') {
+                warnings.push('Note: Loser starts each leg, but winner chooses at cork. The cork choice only applies to first/deciding legs.');
+            }
+
+            // Check for single-leg sets with "cork every leg"
+            if (startRule === 'cork_every_leg') {
+                const singleLegSets = rounds.filter(r => r.best_of === 1);
+                if (singleLegSets.length === rounds.length && rounds.length > 0) {
+                    warnings.push('Tip: All rounds are single-leg (Best of 1). Consider "Alternate" to save time on corks.');
+                }
+            }
+
+            if (warnings.length > 0) {
+                warningText.innerHTML = warnings.join('<br><br>');
+                warningEl.classList.add('show');
+            } else {
+                warningEl.classList.remove('show');
+            }
+        }
+
+        window.updateCorkPreview = function() {
+            const startRule = document.getElementById('corkRuleSelect').value;
+            const optionRule = document.getElementById('corkOptionSelect').value;
+            const winnerGets = document.getElementById('corkWinnerGetsSelect').value;
+            const hasCorksChoice = hasCorkChoiceRounds();
+
+            // Update Cork Winner Gets visibility
+            updateCorkWinnerGetsVisibility();
+
+            // Check for warnings
+            checkCorkWarnings();
+
+            // Build preview scenario
+            const previewEl = document.getElementById('corkPreviewExample');
+            let steps = [];
+
+            // Determine start rule description
+            let startDesc = '';
+            switch (startRule) {
+                case 'cork_every_leg':
+                    startDesc = 'Players cork to start <span class="cork-preview-highlight">every leg</span>';
+                    break;
+                case 'alternate_cork_first_deciding':
+                    startDesc = 'Players <span class="cork-preview-highlight">alternate</span> throwing first (cork for first & deciding legs)';
+                    break;
+                case 'loser_starts_cork_first_deciding':
+                    startDesc = '<span class="cork-preview-highlight">Loser</span> of previous leg throws first (cork for first & deciding)';
+                    break;
+                case 'winner_starts_cork_first_deciding':
+                    startDesc = '<span class="cork-preview-highlight">Winner</span> of previous leg throws first (cork for first & deciding)';
+                    break;
+            }
+            steps.push(startDesc);
+
+            // Cork option description (only if corking happens)
+            if (startRule === 'cork_every_leg' || startRule.includes('cork_first_deciding')) {
+                let optionDesc = '';
+                switch (optionRule) {
+                    case 'alternate_random_first_last':
+                        optionDesc = 'Players alternate who gets to <span class="cork-preview-highlight">choose throw order</span>';
+                        break;
+                    case 'winner_chooses':
+                        optionDesc = 'Cork <span class="cork-preview-highlight">winner chooses</span> whether to throw first or second';
+                        break;
+                    case 'loser_chooses':
+                        optionDesc = 'Cork <span class="cork-preview-highlight">loser chooses</span> whether to throw first or second';
+                        break;
+                }
+                steps.push(optionDesc);
+            }
+
+            // Corks Choice description (only if relevant)
+            if (hasCorksChoice) {
+                let choiceDesc = '';
+                if (winnerGets === 'choose-and-start') {
+                    choiceDesc = 'In Corks Choice rounds: Cork winner <span class="cork-preview-highlight">picks the game AND throw order</span>';
+                } else {
+                    choiceDesc = 'In Corks Choice rounds: Cork winner <span class="cork-preview-highlight">picks the game only</span>';
+                }
+                steps.push(choiceDesc);
+            }
+
+            // Render preview
+            previewEl.innerHTML = steps.map((step, i) => `
+                <div class="cork-preview-step">
+                    <span class="cork-preview-arrow">${i + 1}.</span>
+                    <span>${step}</span>
+                </div>
+            `).join('');
+        };
+
+        // Override renderRounds to also update cork visibility
+        const originalRenderRounds = renderRounds;
+        renderRounds = function() {
+            originalRenderRounds();
+            updateCorkWinnerGetsVisibility();
+            checkCorkWarnings();
+            updateCorkPreview();
+        };
+
+        // Initial cork preview update
+        updateCorkPreview();
 
         const tiebreakerList = document.getElementById('tiebreakerList');
         let draggedItem = null;
