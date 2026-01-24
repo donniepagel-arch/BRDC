@@ -891,6 +891,18 @@
             }
         }
 
+        @media (max-width: 480px) {
+            .form-card { padding: 16px; margin: 10px; }
+            .form-section { padding: 16px; margin-bottom: 16px; }
+            .form-section-title { font-size: 18px; }
+            .form-label { font-size: 13px; }
+            .config-select, .form-input, .toggle-btn { min-height: 44px; }
+            .toggle-btn { padding: 10px 12px; font-size: 12px; }
+            .back-btn { min-height: 44px; padding: 10px 16px; }
+            .header-bar { padding: 12px 15px; }
+            .header-title { font-size: 22px; }
+        }
+
         /* Success Page */
         .success-page {
             min-height: 100vh;
@@ -966,6 +978,38 @@
             box-shadow: 5px 5px 0 rgba(0,0,0,0.4);
             margin-top: 20px;
         }
+
+        /* Form Validation Styles */
+        input.invalid, select.invalid, textarea.invalid {
+            border-color: var(--danger) !important;
+            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2) !important;
+        }
+
+        input.valid, select.valid {
+            border-color: var(--success) !important;
+        }
+
+        .error-message {
+            color: var(--danger);
+            font-size: 12px;
+            font-weight: 600;
+            margin-top: 4px;
+            display: none;
+        }
+
+        .error-message.visible {
+            display: block;
+        }
+
+        .form-group.has-error .error-message {
+            display: block;
+        }
+
+        .form-group.has-error input,
+        .form-group.has-error select,
+        .form-group.has-error textarea {
+            border-color: var(--danger) !important;
+        }
     </style>
 </head>
 <body>
@@ -1032,6 +1076,16 @@
                     </div>
                 </div>
                 <div class="form-grid">
+                    <!-- Tournament Format Preset Selector -->
+                    <div class="form-group full-width">
+                        <label>Tournament Format Preset</label>
+                        <select id="tournamentPreset" onchange="applyTournamentPreset()" style="background: var(--bg-card); border: 2px solid var(--border-color); color: var(--text-light); padding: 12px; border-radius: 8px; font-size: 14px; cursor: pointer;">
+                            <option value="">-- Custom / Standard --</option>
+                            <option value="heartbreaker">💔 Heartbreaker (Mixed Doubles Matchmaker)</option>
+                        </select>
+                        <span class="helper-text" id="presetDescription" style="display: none; color: var(--yellow); margin-top: 8px;"></span>
+                    </div>
+
                     <div class="form-group full-width">
                         <label>Tournament Name <span class="required">*</span></label>
                         <input type="text" name="tournament_name" required placeholder="Weekly Tournament">
@@ -1138,6 +1192,137 @@ const eventImageFiles = {}; // Map of eventId -> File
 // State for each event's leg configuration
 const eventConfigs = {};
 
+// ===== FORM VALIDATION =====
+
+// Set minimum date to today
+document.addEventListener('DOMContentLoaded', () => {
+    const dateInput = document.querySelector('[name="tournament_date"]');
+    if (dateInput) {
+        const today = new Date().toISOString().split('T')[0];
+        dateInput.min = today;
+    }
+    setupValidation();
+});
+
+// Setup real-time validation
+function setupValidation() {
+    // Tournament name validation (min 3 chars)
+    const nameInput = document.querySelector('[name="tournament_name"]');
+    if (nameInput) {
+        nameInput.addEventListener('input', () => validateField(nameInput, validateTournamentName));
+        nameInput.addEventListener('blur', () => validateField(nameInput, validateTournamentName));
+    }
+
+    // Date validation (must be in future)
+    const dateInput = document.querySelector('[name="tournament_date"]');
+    if (dateInput) {
+        dateInput.addEventListener('change', () => validateField(dateInput, validateFutureDate));
+    }
+
+    // Email validation
+    const emailInput = document.querySelector('[name="director_email"]');
+    if (emailInput) {
+        emailInput.addEventListener('blur', () => validateField(emailInput, validateEmail));
+    }
+
+    // Entry fee validation (added to each event dynamically)
+}
+
+function validateTournamentName(value) {
+    if (!value || value.trim().length < 3) {
+        return 'Tournament name must be at least 3 characters';
+    }
+    return null;
+}
+
+function validateFutureDate(value) {
+    if (!value) {
+        return 'Please select a date';
+    }
+    const selected = new Date(value + 'T00:00:00');
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (selected < today) {
+        return 'Date must be today or in the future';
+    }
+    return null;
+}
+
+function validateEmail(value) {
+    if (!value) return null; // Required handled by HTML
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(value)) {
+        return 'Please enter a valid email address';
+    }
+    return null;
+}
+
+function validateField(input, validatorFn) {
+    const value = input.value;
+    const error = validatorFn(value);
+    const formGroup = input.closest('.form-group');
+
+    // Find or create error message element
+    let errorEl = formGroup?.querySelector('.error-message');
+    if (!errorEl && formGroup) {
+        errorEl = document.createElement('div');
+        errorEl.className = 'error-message';
+        formGroup.appendChild(errorEl);
+    }
+
+    if (error) {
+        input.classList.add('invalid');
+        input.classList.remove('valid');
+        if (errorEl) {
+            errorEl.textContent = error;
+            errorEl.classList.add('visible');
+        }
+        return false;
+    } else {
+        input.classList.remove('invalid');
+        if (value) input.classList.add('valid');
+        if (errorEl) {
+            errorEl.textContent = '';
+            errorEl.classList.remove('visible');
+        }
+        return true;
+    }
+}
+
+// Validate entire form before submit
+window.validateForm = function() {
+    let isValid = true;
+
+    // Validate tournament name
+    const nameInput = document.querySelector('[name="tournament_name"]');
+    if (nameInput && !validateField(nameInput, validateTournamentName)) {
+        isValid = false;
+    }
+
+    // Validate date
+    const dateInput = document.querySelector('[name="tournament_date"]');
+    if (dateInput && !validateField(dateInput, validateFutureDate)) {
+        isValid = false;
+    }
+
+    // Validate email
+    const emailInput = document.querySelector('[name="director_email"]');
+    if (emailInput && !validateField(emailInput, validateEmail)) {
+        isValid = false;
+    }
+
+    // Validate entry fees for all events are non-negative
+    document.querySelectorAll('[id^="entryFee_"]').forEach(input => {
+        const value = parseFloat(input.value);
+        if (isNaN(value) || value < 0) {
+            input.classList.add('invalid');
+            isValid = false;
+        }
+    });
+
+    return isValid;
+};
+
 // Tournament image handling
 const tournamentImageInput = document.getElementById('tournamentImageInput');
 tournamentImageInput.addEventListener('change', (e) => {
@@ -1231,8 +1416,6 @@ window.removeEventImage = function(eventId) {
                 document.getElementById('directorEmail').value = player.email || '';
                 document.getElementById('directorPhone').value = player.phone || '';
                 document.getElementById('directorPlayerId').value = player.player_id || '';
-
-                console.log('Session restored for:', player.first_name || player.name);
 
                 // Apply permission limits after DOM is ready
                 setTimeout(() => applyPermissionLimits(), 100);
@@ -1348,6 +1531,47 @@ window.lookupDirector = async function() {
     } catch (error) {
         statusEl.textContent = 'Lookup failed. Please try again.';
         statusEl.className = 'pin-signin-status error';
+    }
+};
+
+// Apply Tournament Preset
+window.applyTournamentPreset = function() {
+    const presetSelect = document.getElementById('tournamentPreset');
+    const preset = presetSelect.value;
+    const descriptionEl = document.getElementById('presetDescription');
+
+    if (preset === 'heartbreaker') {
+        // Show description
+        descriptionEl.textContent = '💔 Heartbreaker: Mixed doubles matchmaker tournament with partner matching, breakup mechanics after Winners Round 1, cricket (best of 3) in winners bracket, 501 (best of 1) in losers bracket. Perfect for social darts with a competitive edge!';
+        descriptionEl.style.display = 'block';
+
+        // Auto-populate venue (default)
+        const venueNameField = document.querySelector('[name="venue_name"]');
+        if (venueNameField && !venueNameField.value) {
+            venueNameField.value = 'Rookies';
+        }
+
+        // Auto-populate tournament details
+        const detailsField = document.querySelector('[name="tournament_details"]');
+        if (detailsField && !detailsField.value) {
+            detailsField.value = 'Heartbreaker Format:\n\n' +
+                '• Mixed Doubles (register as team or single - singles get matched)\n' +
+                '• Double Elimination bracket\n' +
+                '• Winners Bracket: Cricket (best of 3)\n' +
+                '• Losers Bracket: 501 (best of 1)\n' +
+                '• Breakup mechanic: After losing in Winners Round 1, players can opt to switch partners during the mingle period\n' +
+                '• Savage loss summaries enabled\n' +
+                '• 12 boards available';
+        }
+
+        // Note: The actual matchmaker settings (partner_matching, breakup_enabled, etc.)
+        // will be handled by the backend createHeartbreakerTournament function
+        // This frontend preset just provides helpful context for the tournament director
+
+    } else {
+        // Clear description
+        descriptionEl.textContent = '';
+        descriptionEl.style.display = 'none';
     }
 };
 
@@ -2118,6 +2342,19 @@ window.updateMixedLeg = function(eventId, legIndex, property, value) {
 // Submit tournament
 window.submitTournament = async function() {
     const form = document.getElementById('tournamentForm');
+
+    // Custom validation
+    if (!window.validateForm()) {
+        // Scroll to first error
+        const firstError = document.querySelector('.invalid');
+        if (firstError) {
+            firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            firstError.focus();
+        }
+        return;
+    }
+
+    // HTML5 validation as backup
     if (!form.checkValidity()) {
         form.reportValidity();
         return;
@@ -2163,10 +2400,13 @@ window.submitTournament = async function() {
         venue_address: formData.get('venue_address') || '',
         tournament_details: formData.get('tournament_details') || '',
         full_name: formData.get('director_first') + ' ' + formData.get('director_last'),
+        director_name: formData.get('director_first') + ' ' + formData.get('director_last'),
         email: formData.get('director_email'),
         phone: formData.get('director_phone') || '',
+        director_phone: formData.get('director_phone') || '',
         director_pin: window.directorPin || null, // 8-digit player PIN for dashboard access
         max_players: maxPlayers, // Permission-based player limit
+        boards_available: 12, // Default for Heartbreaker, can be customized
         events: []
     };
 
@@ -2260,9 +2500,15 @@ window.submitTournament = async function() {
     btn.disabled = true;
     btn.textContent = 'CREATING...';
 
+    // Check if Heartbreaker preset is selected
+    const presetSelect = document.getElementById('tournamentPreset');
+    const isHeartbreaker = presetSelect && presetSelect.value === 'heartbreaker';
+
     showLoading('Creating tournament...');
     try {
-        const result = await callFunction('createTournament', data);
+        // Route to appropriate backend function based on preset
+        const functionName = isHeartbreaker ? 'createHeartbreakerTournament' : 'createTournament';
+        const result = await callFunction(functionName, data);
         hideLoading();
 
         if (result.success) {
@@ -2295,8 +2541,8 @@ window.submitTournament = async function() {
 
     } catch (error) {
         hideLoading();
-        alert('Error creating tournament: ' + error.message);
-        console.error('Error:', error);
+        console.error('Error creating tournament:', error);
+        alert('Something went wrong. Please try again.');
         btn.disabled = false;
         btn.textContent = 'CREATE TOURNAMENT';
     }
@@ -2473,7 +2719,7 @@ window.saveAsTemplate = async function() {
         }
     } catch (error) {
         console.error('Error saving template:', error);
-        alert('Error saving template: ' + error.message);
+        alert('Something went wrong. Please try again.');
     }
 };
 
@@ -2539,7 +2785,7 @@ window.loadTemplate = async function(templateId) {
         }
     } catch (error) {
         console.error('Error loading template:', error);
-        alert('Error loading template: ' + error.message);
+        alert('Unable to load template. Check your connection and try again.');
     }
 };
 
@@ -2560,7 +2806,7 @@ window.deleteTemplate = async function(templateId) {
         }
     } catch (error) {
         console.error('Error deleting template:', error);
-        alert('Error deleting template: ' + error.message);
+        alert('Something went wrong. Please try again.');
     }
 };
 
@@ -2586,7 +2832,7 @@ window.saveAsDraft = async function() {
         }
     } catch (error) {
         console.error('Error saving draft:', error);
-        alert('Error saving draft: ' + error.message);
+        alert('Something went wrong. Please try again.');
     }
 };
 

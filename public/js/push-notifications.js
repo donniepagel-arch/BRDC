@@ -40,7 +40,6 @@ async function initializeMessaging() {
 
         // Set up foreground message handler
         onMessage(messagingInstance, (payload) => {
-            console.log('Foreground message received:', payload);
             handleForegroundMessage(payload);
         });
 
@@ -225,29 +224,24 @@ function updateMessagesBadge() {
 async function requestNotificationPermission() {
     // Check if notifications are supported
     if (!('Notification' in window)) {
-        console.log('Notifications not supported');
         return null;
     }
 
     // Check if service worker is supported
     if (!('serviceWorker' in navigator)) {
-        console.log('Service workers not supported');
         return null;
     }
 
     try {
         // Request permission
         const permission = await Notification.requestPermission();
-        console.log('Notification permission:', permission);
 
         if (permission !== 'granted') {
-            console.log('Notification permission denied');
             return null;
         }
 
         // Register service worker
         const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
-        console.log('Service worker registered:', registration.scope);
 
         // Initialize messaging
         const messaging = await initializeMessaging();
@@ -264,7 +258,6 @@ async function requestNotificationPermission() {
             serviceWorkerRegistration: registration
         });
 
-        console.log('FCM token obtained:', token ? 'Yes' : 'No');
         return token;
 
     } catch (error) {
@@ -293,7 +286,6 @@ async function saveFCMToken(playerId, fcmToken) {
             notifications_enabled: true
         });
 
-        console.log('FCM token saved for player:', playerId);
         return true;
 
     } catch (error) {

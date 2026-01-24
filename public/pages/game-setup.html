@@ -2684,24 +2684,8 @@ window.toggleKnockoutMode = function() {
     updateStartButton();
 };
 
-function renderKnockoutTeamsGrid() {
-    const grid = document.getElementById('knockoutTeamsGrid');
-    grid.innerHTML = '';
-
-    for (let i = 1; i <= 8; i++) {
-        const card = document.createElement('div');
-        card.className = 'knockout-team-card';
-        card.innerHTML = `
-            <div class="knockout-team-number">TEAM ${i}</div>
-            <input type="text" class="knockout-team-name-input" id="koTeam${i}Name" placeholder="Team name">
-            <div class="knockout-player-inputs">
-                <input type="text" class="knockout-player-input" id="koTeam${i}P1" placeholder="Player 1 (optional)">
-                <input type="text" class="knockout-player-input" id="koTeam${i}P2" placeholder="Player 2 (optional)">
-            </div>
-        `;
-        grid.appendChild(card);
-    }
-}
+// NOTE: renderKnockoutTeamsGrid removed - knockout mode uses team badges on player cards instead
+// Teams are assigned via playerPool[].teamId and built in goToBracket()
 
 window.goToBracket = async function() {
     const startBtn = document.getElementById('startBtn');
@@ -2765,6 +2749,19 @@ window.goToBracket = async function() {
         startBtn.textContent = 'GO TO BRACKET';
     }
 };
+
+// Check URL params for auto-enable knockout mode
+(function() {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('mode') === 'knockout') {
+        // Auto-enable knockout mode after DOM is ready
+        setTimeout(() => {
+            if (!knockoutModeEnabled) {
+                toggleKnockoutMode();
+            }
+        }, 100);
+    }
+})();
 </script>
 <!-- Nav menu disabled while under construction -->
 <!-- <script src="/js/nav-menu.js"></script> -->

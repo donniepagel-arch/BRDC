@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Heartbreaker Mingle - BRDC</title>
+    <link rel="icon" type="image/png" href="/images/favicon.png">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Archivo+Black&family=Inter:wght@400;600;700;800&display=swap');
+
+        :root {
+            --pink: #FF469A;
+            --teal: #91D7EB;
+            --yellow: #FDD835;
+            --black: #000000;
+            --bg-dark: #1a1a2e;
+            --blue-dark: #0f0f1a;
+            --bg-panel: #16213e;
+            --text-light: #ffffff;
+            --text-dim: #a0a0b0;
+            --heart: #ff6b6b;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, var(--bg-dark) 0%, var(--blue-dark) 100%);
+            min-height: 100vh;
+            color: var(--text-light);
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse at 20% 20%, rgba(255, 70, 154, 0.1) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(255, 107, 107, 0.08) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        /* Header with countdown */
+        .header-bar {
+            background: var(--bg-panel);
+            border-bottom: 3px solid var(--pink);
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .header-logo { width: 40px; height: 40px; }
+
+        .header-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 24px;
+            letter-spacing: 2px;
+            color: var(--pink);
+        }
+
+        .header-countdown {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+        }
+
+        .countdown-timer {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 42px;
+            color: var(--yellow);
+            line-height: 1;
+        }
+
+        .countdown-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-dim);
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 30px 20px;
+        }
+
+        /* Processing Heartbreak Overlay */
+        .processing-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.95);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            transition: opacity 0.5s;
+        }
+
+        .processing-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .broken-heart {
+            font-size: 120px;
+            animation: heartBreak 2s ease-in-out infinite;
+            margin-bottom: 30px;
+        }
+
+        @keyframes heartBreak {
+            0%, 100% { transform: scale(1) rotate(0deg); }
+            25% { transform: scale(1.1) rotate(-5deg); }
+            50% { transform: scale(0.9) rotate(5deg); }
+            75% { transform: scale(1.05) rotate(-3deg); }
+        }
+
+        .processing-text {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 36px;
+            letter-spacing: 3px;
+            color: var(--pink);
+            margin-bottom: 20px;
+        }
+
+        .processing-subtext {
+            font-size: 16px;
+            color: var(--text-dim);
+        }
+
+        /* Savage Summary */
+        .savage-summary {
+            background: var(--bg-panel);
+            border: 4px solid #000;
+            box-shadow: 10px 10px 0 rgba(0, 0, 0, 0.5);
+            margin-bottom: 30px;
+            overflow: hidden;
+        }
+
+        .savage-header {
+            background: linear-gradient(135deg, var(--heart), #e53935);
+            padding: 25px 30px;
+            text-align: center;
+        }
+
+        .savage-title {
+            font-family: 'Archivo Black', sans-serif;
+            font-size: 32px;
+            text-transform: uppercase;
+            color: white;
+            text-shadow: 3px 3px 0 rgba(0, 0, 0, 0.3);
+            margin-bottom: 10px;
+        }
+
+        .savage-text {
+            font-size: 18px;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.95);
+            line-height: 1.6;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            padding: 30px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-dim);
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 42px;
+            line-height: 1;
+        }
+
+        .stat-value.you { color: var(--teal); }
+        .stat-value.partner { color: var(--pink); }
+
+        /* Breakup Decision */
+        .decision-card {
+            background: var(--bg-panel);
+            border: 4px solid #000;
+            box-shadow: 10px 10px 0 rgba(0, 0, 0, 0.5);
+            padding: 40px 30px;
+            margin-bottom: 30px;
+        }
+
+        .decision-title {
+            font-family: 'Archivo Black', sans-serif;
+            font-size: 28px;
+            text-align: center;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+        }
+
+        .decision-subtitle {
+            text-align: center;
+            font-size: 16px;
+            color: var(--text-dim);
+            margin-bottom: 10px;
+        }
+
+        .anonymity-badge {
+            background: rgba(145, 215, 235, 0.2);
+            border: 2px solid var(--teal);
+            border-radius: 8px;
+            padding: 12px 20px;
+            text-align: center;
+            margin: 20px 0 30px;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--teal);
+        }
+
+        .decision-buttons {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+
+        .decision-btn {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 24px;
+            letter-spacing: 2px;
+            padding: 30px 20px;
+            border: 4px solid #000;
+            cursor: pointer;
+            box-shadow: 6px 6px 0 rgba(0, 0, 0, 0.5);
+            transition: transform 0.2s, box-shadow 0.2s;
+            text-align: center;
+            position: relative;
+        }
+
+        .decision-btn:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: 8px 8px 0 rgba(0, 0, 0, 0.5);
+        }
+
+        .decision-btn:active {
+            transform: translate(2px, 2px);
+            box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.5);
+        }
+
+        .decision-btn.breakup {
+            background: linear-gradient(135deg, var(--pink), #cc3879);
+            color: white;
+        }
+
+        .decision-btn.stay {
+            background: linear-gradient(135deg, var(--teal), #5ab8d4);
+            color: #000;
+        }
+
+        .decision-btn.selected {
+            border-color: var(--yellow);
+            box-shadow: 0 0 0 4px var(--yellow), 6px 6px 0 rgba(0, 0, 0, 0.5);
+        }
+
+        .decision-btn .emoji {
+            font-size: 48px;
+            display: block;
+            margin-bottom: 10px;
+        }
+
+        .current-choice {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 14px;
+            color: var(--text-dim);
+        }
+
+        .current-choice strong {
+            color: var(--yellow);
+        }
+
+        /* Nudge System */
+        .nudge-section {
+            background: var(--bg-panel);
+            border: 4px solid #000;
+            box-shadow: 10px 10px 0 rgba(0, 0, 0, 0.5);
+            margin-bottom: 30px;
+        }
+
+        .nudge-header {
+            background: linear-gradient(135deg, var(--pink), #cc3879);
+            padding: 20px 30px;
+            border-bottom: 3px solid #000;
+        }
+
+        .nudge-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 24px;
+            letter-spacing: 2px;
+            color: white;
+            margin-bottom: 5px;
+        }
+
+        .nudge-subtitle {
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .nudge-body {
+            padding: 30px;
+        }
+
+        .nudge-stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .nudge-stat-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .nudge-stat-value {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 48px;
+            color: var(--yellow);
+            line-height: 1;
+        }
+
+        .nudge-stat-label {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-dim);
+            margin-top: 8px;
+        }
+
+        .nudge-targets-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 20px;
+            letter-spacing: 2px;
+            margin-bottom: 15px;
+        }
+
+        .nudge-targets {
+            display: grid;
+            gap: 15px;
+        }
+
+        .nudge-target {
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s;
+        }
+
+        .nudge-target:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: var(--pink);
+        }
+
+        .nudge-target-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .nudge-target-emoji {
+            font-size: 36px;
+        }
+
+        .nudge-target-name {
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .nudge-target-level {
+            font-size: 14px;
+            color: var(--text-dim);
+        }
+
+        .nudge-btn {
+            background: linear-gradient(135deg, var(--pink), #cc3879);
+            color: white;
+            border: 3px solid #000;
+            padding: 12px 24px;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 18px;
+            letter-spacing: 2px;
+            cursor: pointer;
+            box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.5);
+            transition: all 0.2s;
+        }
+
+        .nudge-btn:hover:not(:disabled) {
+            transform: translate(-1px, -1px);
+            box-shadow: 5px 5px 0 rgba(0, 0, 0, 0.5);
+        }
+
+        .nudge-btn:active:not(:disabled) {
+            transform: translate(1px, 1px);
+            box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.5);
+        }
+
+        .nudge-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .nudge-empty {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-dim);
+            font-size: 16px;
+        }
+
+        /* Loading spinner */
+        .spinner {
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top: 3px solid var(--pink);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .hidden { display: none !important; }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header-countdown { display: none; }
+            .decision-buttons { grid-template-columns: 1fr; }
+            .stats-grid { grid-template-columns: 1fr; }
+            .nudge-stats { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Processing Heartbreak Overlay -->
+    <div class="processing-overlay" id="processingOverlay">
+        <div class="broken-heart">💔</div>
+        <div class="processing-text">PROCESSING HEARTBREAK...</div>
+        <div class="processing-subtext">Calculating the damage...</div>
+    </div>
+
+    <!-- Header -->
+    <div class="header-bar">
+        <div class="header-left">
+            <img src="/images/gold_logo.png" alt="BRDC" class="header-logo">
+            <div class="header-title">HEARTBREAKER MINGLE</div>
+        </div>
+        <div class="header-countdown">
+            <div class="countdown-timer" id="countdownTimer">--:--</div>
+            <div class="countdown-label">MINGLE TIME REMAINING</div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Savage Summary -->
+        <div class="savage-summary" id="savageSummary" style="display: none;">
+            <div class="savage-header">
+                <div class="savage-title" id="savageHeadline">Sorry, you lost.</div>
+                <div class="savage-text" id="savageText">Loading your devastating stats...</div>
+            </div>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">YOUR AVERAGE</div>
+                    <div class="stat-value you" id="yourAvg">--</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">PARTNER'S AVERAGE</div>
+                    <div class="stat-value partner" id="partnerAvg">--</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">YOUR TONS</div>
+                    <div class="stat-value you" id="yourTons">--</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">PARTNER'S TONS</div>
+                    <div class="stat-value partner" id="partnerTons">--</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Breakup Decision -->
+        <div class="decision-card" id="decisionCard" style="display: none;">
+            <div class="decision-title">What's Your Move?</div>
+            <div class="decision-subtitle">Choose wisely - you can change your mind anytime during the mingle period</div>
+
+            <div class="anonymity-badge">
+                🔒 100% ANONYMOUS - Your choice is completely private
+            </div>
+
+            <div class="decision-buttons">
+                <button class="decision-btn breakup" id="breakupBtn" onclick="makeDecision(true)">
+                    <span class="emoji">💔</span>
+                    FIND NEW PARTNER
+                </button>
+                <button class="decision-btn stay" id="stayBtn" onclick="makeDecision(false)">
+                    <span class="emoji">❤️</span>
+                    STAY TOGETHER
+                </button>
+            </div>
+
+            <div class="current-choice" id="currentChoice"></div>
+        </div>
+
+        <!-- Nudge System (only visible after breakup decision) -->
+        <div class="nudge-section" id="nudgeSection" style="display: none;">
+            <div class="nudge-header">
+                <div class="nudge-title">💘 SEND A NUDGE</div>
+                <div class="nudge-subtitle">Let someone know you're interested (anonymously, of course)</div>
+            </div>
+            <div class="nudge-body">
+                <div class="nudge-stats">
+                    <div class="nudge-stat-card">
+                        <div class="nudge-stat-value" id="nudgesReceived">0</div>
+                        <div class="nudge-stat-label">Nudges Received</div>
+                    </div>
+                    <div class="nudge-stat-card">
+                        <div class="nudge-stat-value" id="nudgesSent">0</div>
+                        <div class="nudge-stat-label">Nudges Sent (Max 3)</div>
+                    </div>
+                </div>
+
+                <div class="nudge-targets-title">Available Players:</div>
+                <div class="nudge-targets" id="nudgeTargets">
+                    <div class="spinner"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+    <script src="/js/firebase-init.js"></script>
+
+    <script>
+        const db = firebase.firestore();
+        const urlParams = new URLSearchParams(window.location.search);
+        const tournamentId = urlParams.get('tournament_id');
+        const playerId = urlParams.get('player_id');
+        const teamId = urlParams.get('team_id');
+
+        let countdownInterval = null;
+        let currentDecision = null;
+        let nudgesSentCount = 0;
+
+        // Show processing overlay for 20 seconds
+        setTimeout(() => {
+            document.getElementById('processingOverlay').classList.add('hidden');
+            document.getElementById('savageSummary').style.display = 'block';
+            document.getElementById('decisionCard').style.display = 'block';
+        }, 20000);
+
+        async function init() {
+            if (!tournamentId || !playerId || !teamId) {
+                alert('Missing required parameters');
+                return;
+            }
+
+            await loadSavageSummary();
+            await loadCurrentDecision();
+            await updateMingleCountdown();
+            await loadNudgeCount();
+
+            // Set up real-time listener for mingle status
+            setupMingleListener();
+        }
+
+        async function loadSavageSummary() {
+            try {
+                const heartbrokenDoc = await db.collection('tournaments')
+                    .doc(tournamentId)
+                    .collection('heartbroken')
+                    .doc(teamId)
+                    .get();
+
+                if (!heartbrokenDoc.exists) {
+                    console.error('Heartbroken data not found');
+                    return;
+                }
+
+                const data = heartbrokenDoc.data();
+                const summary = data.savage_summary_player1?.player_id === playerId
+                    ? data.savage_summary_player1
+                    : data.savage_summary_player2;
+
+                if (summary) {
+                    document.getElementById('savageHeadline').textContent = summary.headline || 'Sorry, you lost.';
+                    document.getElementById('savageText').textContent = summary.savage_text || 'Better luck next time.';
+                    document.getElementById('yourAvg').textContent = (summary.your_stats?.avg || 0).toFixed(1);
+                    document.getElementById('partnerAvg').textContent = (summary.partner_stats?.avg || 0).toFixed(1);
+                    document.getElementById('yourTons').textContent = summary.your_stats?.tons || 0;
+                    document.getElementById('partnerTons').textContent = summary.partner_stats?.tons || 0;
+                }
+            } catch (error) {
+                console.error('Error loading savage summary:', error);
+            }
+        }
+
+        async function loadCurrentDecision() {
+            try {
+                const decisionDoc = await db.collection('tournaments')
+                    .doc(tournamentId)
+                    .collection('breakup_decisions')
+                    .doc(playerId)
+                    .get();
+
+                if (decisionDoc.exists) {
+                    const decision = decisionDoc.data();
+                    currentDecision = decision.wants_breakup;
+                    updateDecisionUI(currentDecision);
+                }
+            } catch (error) {
+                console.error('Error loading decision:', error);
+            }
+        }
+
+        async function makeDecision(wantsBreakup) {
+            try {
+                const response = await fetch('https://us-central1-brdc-v2.cloudfunctions.net/submitBreakupDecision', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        tournament_id: tournamentId,
+                        player_id: playerId,
+                        wants_breakup: wantsBreakup
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    currentDecision = wantsBreakup;
+                    updateDecisionUI(wantsBreakup);
+
+                    // Show nudge section if opted for breakup
+                    if (wantsBreakup) {
+                        document.getElementById('nudgeSection').style.display = 'block';
+                        await loadAvailableTargets();
+                    } else {
+                        document.getElementById('nudgeSection').style.display = 'none';
+                    }
+                } else {
+                    alert('Error submitting decision: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error making decision:', error);
+                alert('Failed to submit decision');
+            }
+        }
+
+        function updateDecisionUI(wantsBreakup) {
+            const breakupBtn = document.getElementById('breakupBtn');
+            const stayBtn = document.getElementById('stayBtn');
+            const choiceText = document.getElementById('currentChoice');
+
+            breakupBtn.classList.toggle('selected', wantsBreakup === true);
+            stayBtn.classList.toggle('selected', wantsBreakup === false);
+
+            if (wantsBreakup === true) {
+                choiceText.innerHTML = 'Current choice: <strong>FIND NEW PARTNER</strong> 💔';
+            } else if (wantsBreakup === false) {
+                choiceText.innerHTML = 'Current choice: <strong>STAY TOGETHER</strong> ❤️';
+            } else {
+                choiceText.innerHTML = 'No decision made yet';
+            }
+        }
+
+        async function loadNudgeCount() {
+            try {
+                const response = await fetch(
+                    `https://us-central1-brdc-v2.cloudfunctions.net/getNudgeCount?tournament_id=${tournamentId}&player_id=${playerId}`
+                );
+                const result = await response.json();
+
+                if (result.success) {
+                    document.getElementById('nudgesReceived').textContent = result.nudge_count || 0;
+                }
+            } catch (error) {
+                console.error('Error loading nudge count:', error);
+            }
+        }
+
+        async function loadAvailableTargets() {
+            try {
+                const response = await fetch(
+                    `https://us-central1-brdc-v2.cloudfunctions.net/getAvailableNudgeTargets?tournament_id=${tournamentId}&player_id=${playerId}`
+                );
+                const result = await response.json();
+
+                const targetsContainer = document.getElementById('nudgeTargets');
+
+                if (result.success && result.targets && result.targets.length > 0) {
+                    nudgesSentCount = result.your_nudges_sent || 0;
+                    document.getElementById('nudgesSent').textContent = nudgesSentCount;
+
+                    targetsContainer.innerHTML = result.targets.map(target => `
+                        <div class="nudge-target">
+                            <div class="nudge-target-info">
+                                <div class="nudge-target-emoji">${target.gender === 'male' ? '👨' : '👩'}</div>
+                                <div>
+                                    <div class="nudge-target-name">${target.name}</div>
+                                    <div class="nudge-target-level">Level ${target.level || 'Unknown'}</div>
+                                </div>
+                            </div>
+                            <button
+                                class="nudge-btn"
+                                onclick="sendNudge('${target.player_id}')"
+                                ${nudgesSentCount >= 3 ? 'disabled' : ''}
+                            >
+                                SEND NUDGE 💘
+                            </button>
+                        </div>
+                    `).join('');
+                } else {
+                    targetsContainer.innerHTML = `
+                        <div class="nudge-empty">
+                            No available players to nudge right now.<br>
+                            Check back as more people opt in!
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error loading targets:', error);
+                document.getElementById('nudgeTargets').innerHTML = `
+                    <div class="nudge-empty">Error loading available players</div>
+                `;
+            }
+        }
+
+        async function sendNudge(targetPlayerId) {
+            if (nudgesSentCount >= 3) {
+                alert('You\'ve already sent 3 nudges (maximum allowed)');
+                return;
+            }
+
+            try {
+                const response = await fetch('https://us-central1-brdc-v2.cloudfunctions.net/sendNudge', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        tournament_id: tournamentId,
+                        sender_player_id: playerId,
+                        target_player_id: targetPlayerId
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    nudgesSentCount++;
+                    document.getElementById('nudgesSent').textContent = nudgesSentCount;
+                    await loadAvailableTargets(); // Refresh to update button states
+                    alert('Nudge sent! 💘');
+                } else {
+                    alert('Error sending nudge: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error sending nudge:', error);
+                alert('Failed to send nudge');
+            }
+        }
+
+        async function updateMingleCountdown() {
+            try {
+                const response = await fetch(
+                    `https://us-central1-brdc-v2.cloudfunctions.net/getMingleStatus?tournament_id=${tournamentId}`
+                );
+                const result = await response.json();
+
+                if (result.success && result.mingle_active && result.mingle_end_time) {
+                    const endTime = new Date(result.mingle_end_time._seconds * 1000);
+                    startCountdown(endTime);
+                } else {
+                    document.getElementById('countdownTimer').textContent = 'ENDED';
+                }
+            } catch (error) {
+                console.error('Error fetching mingle status:', error);
+            }
+        }
+
+        function startCountdown(endTime) {
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
+            }
+
+            countdownInterval = setInterval(() => {
+                const now = new Date();
+                const remaining = Math.max(0, Math.floor((endTime - now) / 1000));
+
+                const minutes = Math.floor(remaining / 60);
+                const seconds = remaining % 60;
+
+                document.getElementById('countdownTimer').textContent =
+                    `${minutes}:${seconds.toString().padStart(2, '0')}`;
+
+                if (remaining <= 0) {
+                    clearInterval(countdownInterval);
+                    document.getElementById('countdownTimer').textContent = 'ENDED';
+                    // Optionally redirect or show a message
+                }
+            }, 1000);
+        }
+
+        function setupMingleListener() {
+            db.collection('tournaments').doc(tournamentId)
+                .onSnapshot((doc) => {
+                    if (doc.exists) {
+                        const data = doc.data();
+                        if (data.mingle_period_active && data.mingle_end_time) {
+                            const endTime = data.mingle_end_time.toDate();
+                            startCountdown(endTime);
+                        } else {
+                            document.getElementById('countdownTimer').textContent = 'ENDED';
+                            if (countdownInterval) {
+                                clearInterval(countdownInterval);
+                            }
+                        }
+                    }
+                });
+        }
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
+            }
+        });
+
+        // Initialize on load
+        init();
+    </script>
+</body>
+</html>

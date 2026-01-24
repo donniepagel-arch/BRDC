@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BRDC - Browse Events</title>
+    <title>BRDC - Leagues & Tournaments</title>
     <link rel="icon" type="image/png" href="/images/favicon.png">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700;800&display=swap');
@@ -155,7 +155,34 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
         }
+
+        .event-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .meta-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 4px 10px;
+            border-radius: 6px;
+            background: rgba(255,255,255,0.1);
+            color: var(--text-light);
+        }
+
+        .meta-badge.format { background: rgba(145, 215, 235, 0.2); color: var(--teal); }
+        .meta-badge.fee { background: rgba(253, 216, 53, 0.2); color: var(--yellow); }
+        .meta-badge.spots { background: rgba(34, 197, 94, 0.2); color: #22c55e; }
+        .meta-badge.spots.limited { background: rgba(255, 152, 0, 0.2); color: #FF9800; }
+        .meta-badge.spots.full { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
 
         .status-badge {
             font-size: 0.8rem;
@@ -202,12 +229,33 @@
             color: var(--text-dim);
             grid-column: 1 / -1;
         }
+
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            body { padding: 15px; }
+            .header { gap: 12px; margin-bottom: 20px; }
+            h1 { font-size: 2rem; }
+            .filters { margin-left: 0; width: 100%; flex-wrap: wrap; }
+            .events-grid { grid-template-columns: 1fr; gap: 15px; }
+        }
+
+        @media (max-width: 480px) {
+            body { padding: 10px; }
+            h1 { font-size: 1.6rem; }
+            .back-btn { padding: 10px 16px; min-height: 44px; }
+            .filter-btn { padding: 10px 14px; min-height: 44px; font-size: 13px; }
+            .event-header { padding: 15px; }
+            .event-name { font-size: 1.3rem; }
+            .event-body { padding: 15px; }
+            .event-footer { padding: 12px 15px; flex-wrap: wrap; gap: 10px; }
+            .register-btn { min-height: 44px; padding: 12px 20px; }
+        }
     </style>
 </head>
 <body>
     <div class="header">
         <a href="/pages/dashboard.html" class="back-btn">&larr; Back</a>
-        <h1>BROWSE EVENTS</h1>
+        <h1>LEAGUES & TOURNAMENTS</h1>
         <div class="filters">
             <button class="filter-btn active" data-filter="all">All</button>
             <button class="filter-btn" data-filter="league">Leagues</button>
@@ -219,8 +267,8 @@
         <div class="loading">Loading events...</div>
     </div>
 
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
     <script src="/js/firebase-config.js"></script>
     <script>
         let allEvents = [];
@@ -279,9 +327,18 @@
 
             grid.innerHTML = filtered.map(event => {
                 const name = event.league_name || event.tournament_name || 'Unnamed Event';
-                const date = event.start_date || event.tournament_date || '';
+                const date = formatDate(event.start_date || event.tournament_date);
                 const venue = event.venue_name || 'TBD';
                 const status = event.status || 'unknown';
+
+                // Get format info
+                const format = getEventFormat(event);
+
+                // Get entry fee (tournaments)
+                const entryFee = getEntryFee(event);
+
+                // Get spots info
+                const spotsInfo = getSpotsInfo(event);
 
                 return `
                     <div class="event-card" onclick="viewEvent('${event.type}', '${event.id}')">
@@ -295,7 +352,7 @@
                                     <svg fill="currentColor" viewBox="0 0 16 16">
                                         <path d="M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5zM1 4v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4H1z"/>
                                     </svg>
-                                    <span>${date || 'Date TBD'}</span>
+                                    <span>${date}</span>
                                 </div>
                                 <div class="info-row">
                                     <svg fill="currentColor" viewBox="0 0 16 16">
@@ -304,9 +361,14 @@
                                     <span>${escapeHtml(venue)}</span>
                                 </div>
                             </div>
+                            <div class="event-meta">
+                                ${format ? `<span class="meta-badge format">${format}</span>` : ''}
+                                ${entryFee ? `<span class="meta-badge fee">$${entryFee}</span>` : ''}
+                                ${spotsInfo.html}
+                            </div>
                         </div>
                         <div class="event-footer">
-                            <span class="status-badge ${status}">${status}</span>
+                            <span class="status-badge ${status}">${formatStatus(status)}</span>
                             ${status === 'registration' ? '<button class="register-btn">Register</button>' : ''}
                         </div>
                     </div>
@@ -318,6 +380,96 @@
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
+        }
+
+        function formatDate(dateValue) {
+            if (!dateValue) return 'Date TBD';
+            try {
+                const date = dateValue.toDate ? dateValue.toDate() : new Date(dateValue);
+                return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+            } catch {
+                return dateValue || 'Date TBD';
+            }
+        }
+
+        function formatStatus(status) {
+            const labels = {
+                'registration': 'Registration Open',
+                'active': 'In Progress',
+                'draft': 'Draft Phase',
+                'created': 'Coming Soon',
+                'completed': 'Completed'
+            };
+            return labels[status] || status;
+        }
+
+        function getEventFormat(event) {
+            if (event.type === 'tournament') {
+                // Check events array for tournament formats
+                if (event.events && event.events.length > 0) {
+                    const formats = event.events.map(e => e.game_type || e.format).filter(Boolean);
+                    if (formats.length > 0) return formats.join(', ').toUpperCase();
+                }
+                return event.format || null;
+            } else {
+                // League format
+                if (event.schedule_format) {
+                    const formats = { 'round_robin': 'Round Robin', 'double_round_robin': 'Double Round Robin' };
+                    return formats[event.schedule_format] || event.schedule_format;
+                }
+                return null;
+            }
+        }
+
+        function getEntryFee(event) {
+            if (event.type === 'tournament') {
+                // Check events array for entry fees
+                if (event.events && event.events.length > 0) {
+                    const fees = event.events.map(e => parseFloat(e.entry_fee) || 0).filter(f => f > 0);
+                    if (fees.length > 0) return Math.min(...fees);
+                }
+                return event.entry_fee || null;
+            }
+            return event.registration_fee || null;
+        }
+
+        function getSpotsInfo(event) {
+            let html = '';
+            let spotsClass = 'spots';
+
+            if (event.type === 'tournament') {
+                const maxPlayers = event.max_players;
+                const registered = event.registered_count || 0;
+                if (maxPlayers && maxPlayers > 0) {
+                    const remaining = maxPlayers - registered;
+                    if (remaining <= 0) {
+                        spotsClass += ' full';
+                        html = `<span class="meta-badge ${spotsClass}">Full</span>`;
+                    } else if (remaining <= 5) {
+                        spotsClass += ' limited';
+                        html = `<span class="meta-badge ${spotsClass}">${remaining} spots left</span>`;
+                    } else {
+                        html = `<span class="meta-badge ${spotsClass}">${remaining} spots</span>`;
+                    }
+                }
+            } else {
+                const maxTeams = event.max_teams;
+                const registered = event.team_count || 0;
+                if (maxTeams && maxTeams > 0) {
+                    const remaining = maxTeams - registered;
+                    if (remaining <= 0) {
+                        spotsClass += ' full';
+                        html = `<span class="meta-badge ${spotsClass}">Full</span>`;
+                    } else if (remaining <= 2) {
+                        spotsClass += ' limited';
+                        html = `<span class="meta-badge ${spotsClass}">${remaining} team spots left</span>`;
+                    } else {
+                        html = `<span class="meta-badge ${spotsClass}">${remaining} team spots</span>`;
+                    }
+                }
+            }
+
+            return { html };
         }
 
         function viewEvent(type, id) {

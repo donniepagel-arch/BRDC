@@ -1,0 +1,1810 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Live Match - BRDC</title>
+    <link rel="icon" type="image/png" href="/images/favicon.png">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#FF469A">
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700;800&family=Orbitron:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #1a1a2e;
+            --bg-panel: #16213e;
+            --bg-card: #1e2a47;
+            --pink: #FF469A;
+            --teal: #91D7EB;
+            --yellow: #FDD835;
+            --green: #10b981;
+            --red: #ef4444;
+            --orange: #f97316;
+            --text-primary: #f0f0f0;
+            --text-dim: #8a8aa3;
+            --text-muted: #666;
+            --border: rgba(255, 255, 255, 0.1);
+            --border-strong: #000;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        html, body {
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, var(--bg-dark) 0%, #0f0f23 100%);
+            color: var(--text-primary);
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse at 20% 20%, rgba(255, 70, 154, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(145, 215, 235, 0.06) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        /* ========== MAIN LAYOUT ========== */
+        .live-match-app {
+            display: flex;
+            height: 100vh;
+            width: 100%;
+        }
+
+        /* ========== LEFT: SCOREBOARD + MATCH ========== */
+        .main-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            overflow: hidden;
+        }
+
+        /* ========== HEADER BAR ========== */
+        .header-bar {
+            background: var(--bg-panel);
+            border-bottom: 3px solid var(--pink);
+            padding: 10px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-shrink: 0;
+        }
+
+        .header-logo { width: 32px; height: 32px; }
+
+        .header-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 20px;
+            letter-spacing: 2px;
+            color: var(--pink);
+            flex: 1;
+        }
+
+        .live-badge {
+            background: var(--red);
+            color: white;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-weight: 800;
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            animation: pulseLive 1.5s ease-in-out infinite;
+        }
+
+        .live-dot {
+            width: 8px;
+            height: 8px;
+            background: white;
+            border-radius: 50%;
+            animation: blink 1s ease-in-out infinite;
+        }
+
+        @keyframes pulseLive {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .viewer-count {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: var(--text-dim);
+            background: rgba(0,0,0,0.3);
+            padding: 6px 12px;
+            border-radius: 16px;
+        }
+
+        .viewer-count .icon { font-size: 14px; }
+
+        .header-btn {
+            background: var(--bg-card);
+            border: 2px solid var(--text-dim);
+            color: var(--text-dim);
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .header-btn:hover {
+            border-color: var(--teal);
+            color: var(--teal);
+        }
+
+        /* ========== SCOREBOARD SECTION ========== */
+        .scoreboard-section {
+            background: linear-gradient(180deg, rgba(0,0,0,0.4) 0%, transparent 100%);
+            padding: 16px;
+            flex-shrink: 0;
+        }
+
+        .scoreboard-card {
+            background: var(--bg-panel);
+            border: 3px solid var(--border-strong);
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 6px 6px 0 rgba(0,0,0,0.4);
+        }
+
+        .teams-row {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            align-items: center;
+            padding: 16px 20px;
+            gap: 16px;
+        }
+
+        .team-side {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .team-side.home { align-items: flex-end; text-align: right; }
+        .team-side.away { align-items: flex-start; text-align: left; }
+
+        .team-name {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 24px;
+            letter-spacing: 1px;
+        }
+
+        .team-side.home .team-name { color: var(--pink); }
+        .team-side.away .team-name { color: var(--teal); }
+        .team-side.winning .team-name { color: var(--yellow); }
+
+        .team-stats {
+            font-size: 11px;
+            color: var(--text-dim);
+        }
+
+        .team-stats .stat-value { color: var(--yellow); font-weight: 600; }
+
+        .score-center {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .score-num {
+            font-family: 'Orbitron', monospace;
+            font-size: 48px;
+            font-weight: 900;
+            min-width: 50px;
+            text-align: center;
+        }
+
+        .score-num.home { color: var(--pink); }
+        .score-num.away { color: var(--teal); }
+        .score-num.winning { color: var(--yellow); text-shadow: 0 0 20px rgba(253, 216, 53, 0.5); }
+
+        .score-dash {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 32px;
+            color: var(--text-dim);
+        }
+
+        .match-info-row {
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+            padding: 10px 16px;
+            background: rgba(0,0,0,0.3);
+            border-top: 1px solid var(--border);
+            font-size: 12px;
+            color: var(--text-dim);
+        }
+
+        .match-info-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .match-info-item strong { color: var(--yellow); }
+
+        /* ========== CURRENT LEG SECTION ========== */
+        .current-leg-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            padding: 0 16px 16px;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+        }
+
+        .section-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 18px;
+            color: var(--teal);
+            letter-spacing: 2px;
+        }
+
+        .leg-info {
+            font-size: 11px;
+            color: var(--text-dim);
+            background: var(--bg-card);
+            padding: 4px 10px;
+            border-radius: 12px;
+        }
+
+        .leg-info .format { color: var(--yellow); font-weight: 600; }
+
+        /* Current Remaining Scores */
+        .remaining-scores {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 16px;
+            padding: 16px;
+            background: var(--bg-card);
+            border: 2px solid var(--border-strong);
+            border-radius: 12px;
+            margin-bottom: 12px;
+        }
+
+        .remaining-side {
+            text-align: center;
+        }
+
+        .remaining-side.home { text-align: right; }
+        .remaining-side.away { text-align: left; }
+
+        .remaining-label {
+            font-size: 10px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .remaining-value {
+            font-family: 'Orbitron', monospace;
+            font-size: 36px;
+            font-weight: 700;
+        }
+
+        .remaining-side.home .remaining-value { color: var(--pink); }
+        .remaining-side.away .remaining-value { color: var(--teal); }
+        .remaining-side.throwing .remaining-value { animation: pulseThrow 1s ease-in-out infinite; }
+
+        @keyframes pulseThrow {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.8; transform: scale(1.02); }
+        }
+
+        .remaining-center {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+
+        .vs-label {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 20px;
+            color: var(--text-dim);
+        }
+
+        .darts-indicator {
+            font-size: 11px;
+            color: var(--yellow);
+        }
+
+        /* Throws List */
+        .throws-container {
+            flex: 1;
+            overflow-y: auto;
+            background: var(--bg-card);
+            border: 2px solid var(--border-strong);
+            border-radius: 12px;
+        }
+
+        .throws-header {
+            display: grid;
+            grid-template-columns: 1fr 60px 40px 60px 1fr;
+            gap: 4px;
+            padding: 8px 12px;
+            background: rgba(0,0,0,0.3);
+            border-bottom: 1px solid var(--border);
+            font-size: 10px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            position: sticky;
+            top: 0;
+            z-index: 5;
+        }
+
+        .throws-header > div:first-child { text-align: left; }
+        .throws-header > div:last-child { text-align: right; }
+        .throws-header > div { text-align: center; }
+
+        .throw-row {
+            display: grid;
+            grid-template-columns: 1fr 60px 40px 60px 1fr;
+            gap: 4px;
+            padding: 8px 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            font-size: 13px;
+            align-items: center;
+        }
+
+        .throw-row:last-child { border-bottom: none; }
+
+        .throw-row .home { color: var(--pink); text-align: left; }
+        .throw-row .away { color: var(--teal); text-align: right; }
+        .throw-row .round { text-align: center; color: var(--yellow); font-weight: 700; font-size: 11px; }
+        .throw-row .score { text-align: center; font-weight: 500; }
+
+        .throw-row .notable {
+            display: inline-block;
+            background: rgba(253, 216, 53, 0.2);
+            color: var(--yellow);
+            padding: 1px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 700;
+            margin-left: 4px;
+        }
+
+        .throw-row .away .notable {
+            margin-left: 0;
+            margin-right: 4px;
+        }
+
+        .throw-row .checkout {
+            color: var(--green);
+            font-weight: 700;
+        }
+
+        /* Empty State */
+        .throws-empty {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-dim);
+        }
+
+        .throws-empty .icon { font-size: 32px; margin-bottom: 8px; }
+
+        /* ========== REACTIONS OVERLAY ========== */
+        .reactions-overlay {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 1000;
+        }
+
+        .reaction-popup {
+            position: absolute;
+            font-size: 48px;
+            animation: floatUp 2s ease-out forwards;
+            opacity: 0;
+        }
+
+        @keyframes floatUp {
+            0% { opacity: 1; transform: translateY(0) scale(1); }
+            50% { opacity: 1; transform: translateY(-50px) scale(1.2); }
+            100% { opacity: 0; transform: translateY(-100px) scale(0.8); }
+        }
+
+        /* ========== RIGHT: CHAT PANEL ========== */
+        .chat-panel {
+            width: 360px;
+            background: rgba(15, 15, 35, 0.98);
+            border-left: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+        }
+
+        .chat-header {
+            padding: 12px 16px;
+            background: var(--bg-panel);
+            border-bottom: 2px solid var(--teal);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .chat-header-icon {
+            font-size: 20px;
+        }
+
+        .chat-header-info { flex: 1; }
+
+        .chat-header-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 16px;
+            letter-spacing: 1px;
+        }
+
+        .chat-header-meta {
+            font-size: 11px;
+            color: var(--text-dim);
+        }
+
+        .chat-toggle-btn {
+            background: none;
+            border: none;
+            color: var(--text-dim);
+            font-size: 18px;
+            cursor: pointer;
+            padding: 4px 8px;
+        }
+
+        .chat-toggle-btn:hover { color: var(--teal); }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .chat-message {
+            max-width: 85%;
+            padding: 8px 12px;
+            border-radius: 12px;
+            background: rgba(255,255,255,0.08);
+            font-size: 13px;
+        }
+
+        .chat-message.sent {
+            align-self: flex-end;
+            background: var(--teal);
+            color: #000;
+            border-bottom-right-radius: 4px;
+        }
+
+        .chat-message.received {
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
+        }
+
+        .chat-message.system {
+            align-self: center;
+            background: rgba(253, 216, 53, 0.1);
+            border: 1px solid rgba(253, 216, 53, 0.3);
+            font-size: 12px;
+            color: var(--yellow);
+            max-width: 95%;
+            text-align: center;
+        }
+
+        .chat-message-sender {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--pink);
+            margin-bottom: 2px;
+        }
+
+        .chat-message.sent .chat-message-sender { display: none; }
+
+        .chat-message-time {
+            font-size: 10px;
+            opacity: 0.7;
+            margin-top: 4px;
+            text-align: right;
+        }
+
+        .chat-input-area {
+            padding: 12px;
+            background: var(--bg-panel);
+            border-top: 1px solid var(--border);
+            display: flex;
+            gap: 8px;
+            align-items: flex-end;
+        }
+
+        .chat-input {
+            flex: 1;
+            min-height: 40px;
+            max-height: 100px;
+            padding: 10px 14px;
+            background: rgba(255,255,255,0.05);
+            border: 2px solid var(--border);
+            border-radius: 20px;
+            color: var(--text-primary);
+            font-size: 14px;
+            resize: none;
+            outline: none;
+        }
+
+        .chat-input:focus { border-color: var(--teal); }
+
+        .chat-send-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--teal);
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+
+        .chat-send-btn:hover {
+            transform: scale(1.1);
+            background: var(--pink);
+        }
+
+        /* Quick Reactions Bar */
+        .quick-reactions {
+            display: flex;
+            gap: 4px;
+            padding: 8px 12px;
+            background: rgba(0,0,0,0.2);
+            border-top: 1px solid var(--border);
+        }
+
+        .quick-reaction-btn {
+            flex: 1;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 8px;
+            font-size: 18px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .quick-reaction-btn:hover {
+            background: rgba(255,255,255,0.15);
+            transform: scale(1.1);
+        }
+
+        .quick-reaction-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* ========== STATS SIDEBAR ========== */
+        .stats-sidebar {
+            width: 280px;
+            background: rgba(15, 15, 35, 0.98);
+            border-left: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            overflow-y: auto;
+        }
+
+        .stats-header {
+            padding: 12px 16px;
+            background: var(--bg-panel);
+            border-bottom: 2px solid var(--yellow);
+        }
+
+        .stats-header-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 16px;
+            letter-spacing: 1px;
+            color: var(--yellow);
+        }
+
+        .stats-content {
+            flex: 1;
+            padding: 12px;
+            overflow-y: auto;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            border: 2px solid var(--border-strong);
+            border-radius: 10px;
+            margin-bottom: 12px;
+            overflow: hidden;
+        }
+
+        .stat-card-header {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 14px;
+            padding: 8px 12px;
+            background: rgba(0,0,0,0.3);
+            color: var(--yellow);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .stat-row:last-child { border-bottom: none; }
+
+        .stat-label {
+            font-size: 11px;
+            color: var(--text-dim);
+        }
+
+        .stat-values {
+            display: flex;
+            gap: 8px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .stat-values .home { color: var(--pink); }
+        .stat-values .away { color: var(--teal); }
+        .stat-values .vs { color: var(--text-muted); font-size: 10px; }
+
+        /* Player List */
+        .player-list {
+            padding: 8px;
+        }
+
+        .player-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 10px;
+            border-radius: 8px;
+            margin-bottom: 4px;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .player-item:hover { background: rgba(255,255,255,0.05); }
+
+        .player-item.home { border-left: 3px solid var(--pink); }
+        .player-item.away { border-left: 3px solid var(--teal); }
+
+        .player-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .player-item.home .player-avatar { background: rgba(255, 70, 154, 0.2); color: var(--pink); }
+        .player-item.away .player-avatar { background: rgba(145, 215, 235, 0.2); color: var(--teal); }
+
+        .player-info { flex: 1; }
+
+        .player-name {
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .player-item.home .player-name { color: var(--pink); }
+        .player-item.away .player-name { color: var(--teal); }
+
+        .player-stat-mini {
+            font-size: 10px;
+            color: var(--text-dim);
+        }
+
+        /* ========== MOBILE LAYOUT ========== */
+        @media (max-width: 1200px) {
+            .stats-sidebar { display: none; }
+        }
+
+        @media (max-width: 900px) {
+            .chat-panel {
+                position: fixed;
+                right: 0;
+                top: 0;
+                bottom: 0;
+                width: 100%;
+                max-width: 360px;
+                z-index: 500;
+                transform: translateX(100%);
+                transition: transform 0.3s ease;
+            }
+
+            .chat-panel.open { transform: translateX(0); }
+
+            .chat-overlay {
+                position: fixed;
+                inset: 0;
+                background: rgba(0,0,0,0.7);
+                z-index: 499;
+                opacity: 0;
+                visibility: hidden;
+                transition: all 0.3s;
+            }
+
+            .chat-overlay.open {
+                opacity: 1;
+                visibility: visible;
+            }
+
+            .mobile-chat-btn {
+                display: flex;
+            }
+        }
+
+        @media (min-width: 901px) {
+            .chat-overlay { display: none; }
+            .mobile-chat-btn { display: none; }
+        }
+
+        .mobile-chat-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: var(--teal);
+            border: none;
+            cursor: pointer;
+            font-size: 24px;
+            box-shadow: 0 4px 20px rgba(145, 215, 235, 0.4);
+            z-index: 400;
+            display: none;
+        }
+
+        .mobile-chat-btn .badge {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            background: var(--red);
+            color: white;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 10px;
+            min-width: 18px;
+        }
+
+        /* Loading State */
+        .loading-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            gap: 16px;
+        }
+
+        .loading-spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid rgba(145, 215, 235, 0.2);
+            border-top-color: var(--teal);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 20px;
+            color: var(--text-dim);
+            letter-spacing: 2px;
+        }
+
+        /* Empty/Error States */
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+        }
+
+        .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+        .empty-state h3 {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 24px;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+        .empty-state p { color: var(--text-dim); font-size: 14px; }
+
+        /* Score Change Animation */
+        .score-changed { animation: scoreFlash 0.5s ease; }
+
+        @keyframes scoreFlash {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading State -->
+    <div id="loadingContainer" class="loading-container">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Loading Match...</div>
+    </div>
+
+    <!-- Main App -->
+    <div id="liveMatchApp" class="live-match-app" style="display: none;">
+        <!-- Main Panel: Scoreboard + Match Details -->
+        <div class="main-panel">
+            <!-- Header Bar -->
+            <header class="header-bar">
+                <img src="/images/gold_logo.png" alt="BRDC" class="header-logo" onerror="this.style.display='none'">
+                <div class="header-title">LIVE MATCH</div>
+                <div class="live-badge" id="liveBadge">
+                    <span class="live-dot"></span>
+                    LIVE
+                </div>
+                <div class="viewer-count" id="viewerCount">
+                    <span class="icon">👁️</span>
+                    <span id="viewerNumber">0</span> watching
+                </div>
+                <button class="header-btn" onclick="goToMatchHub()">Full Report</button>
+                <button class="header-btn mobile-chat-btn-inline" onclick="toggleChat()" style="display: none;">💬</button>
+            </header>
+
+            <!-- Scoreboard Section -->
+            <div class="scoreboard-section">
+                <div class="scoreboard-card">
+                    <div class="teams-row">
+                        <div class="team-side home" id="homeTeamSide">
+                            <div class="team-name" id="homeTeamName">Home Team</div>
+                            <div class="team-stats">
+                                3DA: <span class="stat-value" id="homeTeamAvg">-</span> |
+                                MPR: <span class="stat-value" id="homeTeamMpr">-</span>
+                            </div>
+                        </div>
+                        <div class="score-center">
+                            <div class="score-num home" id="homeScore">0</div>
+                            <div class="score-dash">-</div>
+                            <div class="score-num away" id="awayScore">0</div>
+                        </div>
+                        <div class="team-side away" id="awayTeamSide">
+                            <div class="team-name" id="awayTeamName">Away Team</div>
+                            <div class="team-stats">
+                                3DA: <span class="stat-value" id="awayTeamAvg">-</span> |
+                                MPR: <span class="stat-value" id="awayTeamMpr">-</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="match-info-row">
+                        <div class="match-info-item">
+                            <span id="leagueName">League</span>
+                        </div>
+                        <div class="match-info-item">
+                            Week <strong id="weekNum">1</strong>
+                        </div>
+                        <div class="match-info-item">
+                            Set <strong id="currentSet">1</strong> / <span id="totalSets">9</span>
+                        </div>
+                        <div class="match-info-item">
+                            <span id="matchStatus">In Progress</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Current Leg Section -->
+            <div class="current-leg-section">
+                <div class="section-header">
+                    <div class="section-title">CURRENT LEG</div>
+                    <div class="leg-info">
+                        <span class="format" id="legFormat">501</span> -
+                        Leg <span id="legNum">1</span>
+                    </div>
+                </div>
+
+                <!-- Remaining Scores for X01 -->
+                <div class="remaining-scores" id="remainingScores">
+                    <div class="remaining-side home" id="homeSide">
+                        <div class="remaining-label">Remaining</div>
+                        <div class="remaining-value" id="homeRemaining">501</div>
+                    </div>
+                    <div class="remaining-center">
+                        <div class="vs-label">VS</div>
+                        <div class="darts-indicator" id="dartsIndicator">Round 1</div>
+                    </div>
+                    <div class="remaining-side away" id="awaySide">
+                        <div class="remaining-label">Remaining</div>
+                        <div class="remaining-value" id="awayRemaining">501</div>
+                    </div>
+                </div>
+
+                <!-- Throws List -->
+                <div class="throws-container" id="throwsContainer">
+                    <div class="throws-header">
+                        <div>Home</div>
+                        <div>Score</div>
+                        <div>Rnd</div>
+                        <div>Score</div>
+                        <div>Away</div>
+                    </div>
+                    <div id="throwsList">
+                        <div class="throws-empty">
+                            <div class="icon">🎯</div>
+                            <div>Waiting for throws...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat Panel -->
+        <aside class="chat-panel" id="chatPanel">
+            <div class="chat-header">
+                <span class="chat-header-icon">💬</span>
+                <div class="chat-header-info">
+                    <div class="chat-header-title">Match Chat</div>
+                    <div class="chat-header-meta" id="chatMemberCount">0 members</div>
+                </div>
+                <button class="chat-toggle-btn" onclick="toggleChat()">✕</button>
+            </div>
+
+            <!-- Quick Reactions -->
+            <div class="quick-reactions">
+                <button class="quick-reaction-btn" onclick="sendReaction('🎯')" title="Bullseye!">🎯</button>
+                <button class="quick-reaction-btn" onclick="sendReaction('🔥')" title="On Fire!">🔥</button>
+                <button class="quick-reaction-btn" onclick="sendReaction('👏')" title="Nice!">👏</button>
+                <button class="quick-reaction-btn" onclick="sendReaction('😮')" title="Wow!">😮</button>
+                <button class="quick-reaction-btn" onclick="sendReaction('💯')" title="180!">💯</button>
+            </div>
+
+            <div class="chat-messages" id="chatMessages">
+                <div class="empty-state">
+                    <div class="icon">💬</div>
+                    <h3>Match Chat</h3>
+                    <p>Be the first to say something!</p>
+                </div>
+            </div>
+
+            <div class="chat-input-area">
+                <textarea class="chat-input" id="chatInput" placeholder="Type a message..." rows="1" onkeydown="handleChatKeydown(event)"></textarea>
+                <button class="chat-send-btn" onclick="sendChatMessage()">➤</button>
+            </div>
+        </aside>
+
+        <!-- Stats Sidebar -->
+        <aside class="stats-sidebar" id="statsSidebar">
+            <div class="stats-header">
+                <div class="stats-header-title">MATCH STATS</div>
+            </div>
+            <div class="stats-content">
+                <!-- Current Set Stats -->
+                <div class="stat-card">
+                    <div class="stat-card-header">CURRENT SET</div>
+                    <div class="stat-row">
+                        <span class="stat-label">3-Dart Avg</span>
+                        <div class="stat-values">
+                            <span class="home" id="setHomeAvg">-</span>
+                            <span class="vs">vs</span>
+                            <span class="away" id="setAwayAvg">-</span>
+                        </div>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Legs Won</span>
+                        <div class="stat-values">
+                            <span class="home" id="setHomeLegs">0</span>
+                            <span class="vs">-</span>
+                            <span class="away" id="setAwayLegs">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Match Stats -->
+                <div class="stat-card">
+                    <div class="stat-card-header">MATCH TOTALS</div>
+                    <div class="stat-row">
+                        <span class="stat-label">Total Legs</span>
+                        <div class="stat-values">
+                            <span class="home" id="matchHomeLegs">0</span>
+                            <span class="vs">-</span>
+                            <span class="away" id="matchAwayLegs">0</span>
+                        </div>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">180s</span>
+                        <div class="stat-values">
+                            <span class="home" id="home180s">0</span>
+                            <span class="vs">-</span>
+                            <span class="away" id="away180s">0</span>
+                        </div>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">140+</span>
+                        <div class="stat-values">
+                            <span class="home" id="home140s">0</span>
+                            <span class="vs">-</span>
+                            <span class="away" id="away140s">0</span>
+                        </div>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">High Out</span>
+                        <div class="stat-values">
+                            <span class="home" id="homeHighOut">-</span>
+                            <span class="vs">|</span>
+                            <span class="away" id="awayHighOut">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Players -->
+                <div class="stat-card">
+                    <div class="stat-card-header">PLAYERS</div>
+                    <div class="player-list" id="playerList">
+                        <!-- Players populated by JS -->
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Mobile Chat Overlay -->
+    <div class="chat-overlay" id="chatOverlay" onclick="toggleChat()"></div>
+
+    <!-- Mobile Chat FAB -->
+    <button class="mobile-chat-btn" id="mobileChatBtn" onclick="toggleChat()">
+        💬
+        <span class="badge" id="unreadBadge" style="display: none;">0</span>
+    </button>
+
+    <!-- Reactions Overlay -->
+    <div class="reactions-overlay" id="reactionsOverlay"></div>
+
+    <!-- Firebase -->
+    <script type="module">
+        import { db, collection, doc, getDoc, getDocs, query, where, orderBy, onSnapshot, callFunction } from '/js/firebase-config.js';
+
+        // State
+        let leagueId = null;
+        let matchId = null;
+        let matchData = null;
+        let chatRoomId = null;
+        let playerPin = null;
+        let currentPlayerId = null;
+        let teams = {};
+        let players = {};
+        let stats = {};
+        let unsubscribeMatch = null;
+        let unsubscribeChat = null;
+        let unsubscribePresence = null;
+        let viewerCount = 0;
+        let unreadCount = 0;
+        let isChatOpen = false;
+
+        // Get params from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        leagueId = urlParams.get('league_id');
+        matchId = urlParams.get('match_id');
+
+        // Initialize
+        window.addEventListener('DOMContentLoaded', async () => {
+            playerPin = localStorage.getItem('brdc_player_pin');
+
+            if (!leagueId || !matchId) {
+                showError('Missing match parameters');
+                return;
+            }
+
+            await loadMatchData();
+            setupPresence();
+            setupRealtimeListeners();
+
+            // Check mobile layout
+            checkMobileLayout();
+            window.addEventListener('resize', checkMobileLayout);
+        });
+
+        // Load initial match data
+        async function loadMatchData() {
+            try {
+                // Load match
+                const matchDoc = await getDoc(doc(db, 'leagues', leagueId, 'matches', matchId));
+                if (!matchDoc.exists()) {
+                    showError('Match not found');
+                    return;
+                }
+                matchData = { id: matchDoc.id, ...matchDoc.data() };
+
+                // Load league info
+                const leagueDoc = await getDoc(doc(db, 'leagues', leagueId));
+                const leagueData = leagueDoc.exists() ? leagueDoc.data() : {};
+
+                // Load teams
+                const teamsSnap = await getDocs(collection(db, 'leagues', leagueId, 'teams'));
+                teamsSnap.forEach(d => { teams[d.id] = { id: d.id, ...d.data() }; });
+
+                // Load players
+                const playersSnap = await getDocs(collection(db, 'leagues', leagueId, 'players'));
+                playersSnap.forEach(d => { players[d.id] = { id: d.id, ...d.data() }; });
+
+                // Load stats
+                const statsSnap = await getDocs(collection(db, 'leagues', leagueId, 'stats'));
+                statsSnap.forEach(d => { stats[d.id] = d.data(); });
+
+                // Render initial state
+                renderMatch(matchData, leagueData);
+                renderPlayerList();
+
+                // Show UI
+                document.getElementById('loadingContainer').style.display = 'none';
+                document.getElementById('liveMatchApp').style.display = 'flex';
+
+                // Setup chat room
+                await setupChatRoom();
+
+            } catch (error) {
+                console.error('Error loading match:', error);
+                showError('Failed to load match');
+            }
+        }
+
+        // Render match data
+        function renderMatch(match, league) {
+            const homeTeam = teams[match.home_team_id] || {};
+            const awayTeam = teams[match.away_team_id] || {};
+
+            // Team names
+            document.getElementById('homeTeamName').textContent = homeTeam.name || 'Home';
+            document.getElementById('awayTeamName').textContent = awayTeam.name || 'Away';
+
+            // Scores
+            const homeScore = match.home_score || 0;
+            const awayScore = match.away_score || 0;
+            document.getElementById('homeScore').textContent = homeScore;
+            document.getElementById('awayScore').textContent = awayScore;
+
+            // Winning indication
+            const homeScoreEl = document.getElementById('homeScore');
+            const awayScoreEl = document.getElementById('awayScore');
+            const homeSideEl = document.getElementById('homeTeamSide');
+            const awaySideEl = document.getElementById('awayTeamSide');
+
+            homeSideEl.classList.toggle('winning', homeScore > awayScore);
+            awaySideEl.classList.toggle('winning', awayScore > homeScore);
+            homeScoreEl.classList.toggle('winning', homeScore > awayScore);
+            awayScoreEl.classList.toggle('winning', awayScore > homeScore);
+
+            // Match info
+            document.getElementById('leagueName').textContent = league.league_name || 'League';
+            document.getElementById('weekNum').textContent = match.week || '1';
+            document.getElementById('currentSet').textContent = match.current_set || '1';
+            document.getElementById('totalSets').textContent = '9';
+
+            // Status
+            const statusEl = document.getElementById('matchStatus');
+            if (match.status === 'completed') {
+                statusEl.textContent = 'FINAL';
+                document.getElementById('liveBadge').style.display = 'none';
+            } else if (match.status === 'in_progress') {
+                statusEl.textContent = 'In Progress';
+            } else {
+                statusEl.textContent = 'Scheduled';
+                document.getElementById('liveBadge').style.display = 'none';
+            }
+
+            // Calculate team averages from current players
+            updateTeamStats(match);
+
+            // Current leg info
+            updateCurrentLeg(match);
+
+            // Match stats
+            updateMatchStats(match);
+        }
+
+        // Update team stats display
+        function updateTeamStats(match) {
+            const homeTeamId = match.home_team_id;
+            const awayTeamId = match.away_team_id;
+
+            let homeAvgSum = 0, homeAvgCount = 0, homeMprSum = 0, homeMprCount = 0;
+            let awayAvgSum = 0, awayAvgCount = 0, awayMprSum = 0, awayMprCount = 0;
+
+            for (const playerId in players) {
+                const player = players[playerId];
+                const playerStats = stats[playerId] || {};
+
+                if (player.team_id === homeTeamId) {
+                    if (playerStats.x01_three_dart_avg) {
+                        homeAvgSum += playerStats.x01_three_dart_avg;
+                        homeAvgCount++;
+                    }
+                    if (playerStats.cricket_mpr) {
+                        homeMprSum += playerStats.cricket_mpr;
+                        homeMprCount++;
+                    }
+                } else if (player.team_id === awayTeamId) {
+                    if (playerStats.x01_three_dart_avg) {
+                        awayAvgSum += playerStats.x01_three_dart_avg;
+                        awayAvgCount++;
+                    }
+                    if (playerStats.cricket_mpr) {
+                        awayMprSum += playerStats.cricket_mpr;
+                        awayMprCount++;
+                    }
+                }
+            }
+
+            document.getElementById('homeTeamAvg').textContent = homeAvgCount ? (homeAvgSum / homeAvgCount).toFixed(1) : '-';
+            document.getElementById('homeTeamMpr').textContent = homeMprCount ? (homeMprSum / homeMprCount).toFixed(2) : '-';
+            document.getElementById('awayTeamAvg').textContent = awayAvgCount ? (awayAvgSum / awayAvgCount).toFixed(1) : '-';
+            document.getElementById('awayTeamMpr').textContent = awayMprCount ? (awayMprSum / awayMprCount).toFixed(2) : '-';
+        }
+
+        // Update current leg display
+        function updateCurrentLeg(match) {
+            const currentGame = match.current_game || (match.games || [])[match.games?.length - 1];
+            if (!currentGame) {
+                document.getElementById('remainingScores').style.display = 'none';
+                return;
+            }
+
+            const format = currentGame.format || '501';
+            document.getElementById('legFormat').textContent = format.toUpperCase();
+            document.getElementById('legNum').textContent = currentGame.game_in_set || '1';
+
+            // Show/hide remaining scores based on game type
+            const isX01 = format.includes('01') || format === '501' || format === '301' || format === '701';
+            document.getElementById('remainingScores').style.display = isX01 ? 'grid' : 'none';
+
+            if (isX01) {
+                const startScore = parseInt(format) || 501;
+                const homeRemaining = currentGame.home_remaining ?? startScore;
+                const awayRemaining = currentGame.away_remaining ?? startScore;
+
+                document.getElementById('homeRemaining').textContent = homeRemaining;
+                document.getElementById('awayRemaining').textContent = awayRemaining;
+
+                // Indicate who is throwing
+                const homeThrowing = currentGame.current_thrower === 'home';
+                document.getElementById('homeSide').classList.toggle('throwing', homeThrowing);
+                document.getElementById('awaySide').classList.toggle('throwing', !homeThrowing);
+
+                // Round indicator
+                const round = currentGame.current_round || 1;
+                document.getElementById('dartsIndicator').textContent = `Round ${round}`;
+            }
+
+            // Render throws
+            renderThrows(currentGame);
+        }
+
+        // Render throws list
+        function renderThrows(game) {
+            const throws = game.throws || [];
+            const container = document.getElementById('throwsList');
+
+            if (throws.length === 0) {
+                container.innerHTML = `
+                    <div class="throws-empty">
+                        <div class="icon">🎯</div>
+                        <div>Waiting for throws...</div>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '';
+            throws.forEach((t, idx) => {
+                const homeNotable = t.home?.notable ? `<span class="notable">${escapeHtml(t.home.notable)}</span>` : '';
+                const awayNotable = t.away?.notable ? `<span class="notable">${escapeHtml(t.away.notable)}</span>` : '';
+
+                const homeCheckout = t.home?.checkout ? 'checkout' : '';
+                const awayCheckout = t.away?.checkout ? 'checkout' : '';
+
+                html += `
+                    <div class="throw-row">
+                        <div class="home">
+                            ${escapeHtml(t.home?.player || '')} ${homeNotable}
+                            ${t.home?.remaining === 0 ? '<span class="checkout">OUT!</span>' : ''}
+                        </div>
+                        <div class="score ${homeCheckout}">${t.home?.score ?? '-'}</div>
+                        <div class="round">${t.round || idx + 1}</div>
+                        <div class="score ${awayCheckout}">${t.away?.score ?? '-'}</div>
+                        <div class="away">
+                            ${awayNotable} ${escapeHtml(t.away?.player || '')}
+                            ${t.away?.remaining === 0 ? '<span class="checkout">OUT!</span>' : ''}
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+            container.scrollTop = container.scrollHeight;
+        }
+
+        // Update match stats sidebar
+        function updateMatchStats(match) {
+            const games = match.games || [];
+
+            let homeLegs = 0, awayLegs = 0;
+            let home180 = 0, away180 = 0;
+            let home140 = 0, away140 = 0;
+            let homeHighOut = 0, awayHighOut = 0;
+
+            games.forEach(game => {
+                // Legs won
+                homeLegs += game.home_legs_won || 0;
+                awayLegs += game.away_legs_won || 0;
+
+                // High scores and checkouts from throws
+                (game.throws || []).forEach(t => {
+                    if (t.home?.score === 180) home180++;
+                    if (t.away?.score === 180) away180++;
+                    if (t.home?.score >= 140 && t.home?.score < 180) home140++;
+                    if (t.away?.score >= 140 && t.away?.score < 180) away140++;
+                    if (t.home?.checkout && t.home?.score > homeHighOut) homeHighOut = t.home.score;
+                    if (t.away?.checkout && t.away?.score > awayHighOut) awayHighOut = t.away.score;
+                });
+            });
+
+            document.getElementById('matchHomeLegs').textContent = homeLegs;
+            document.getElementById('matchAwayLegs').textContent = awayLegs;
+            document.getElementById('home180s').textContent = home180;
+            document.getElementById('away180s').textContent = away180;
+            document.getElementById('home140s').textContent = home140;
+            document.getElementById('away140s').textContent = away140;
+            document.getElementById('homeHighOut').textContent = homeHighOut || '-';
+            document.getElementById('awayHighOut').textContent = awayHighOut || '-';
+
+            // Current set stats
+            const currentSet = match.current_set || 1;
+            const setGames = games.filter(g => g.set === currentSet);
+            let setHomeLegs = 0, setAwayLegs = 0;
+            setGames.forEach(g => {
+                setHomeLegs += g.home_legs_won || 0;
+                setAwayLegs += g.away_legs_won || 0;
+            });
+
+            document.getElementById('setHomeLegs').textContent = setHomeLegs;
+            document.getElementById('setAwayLegs').textContent = setAwayLegs;
+        }
+
+        // Render player list
+        function renderPlayerList() {
+            const homeTeamId = matchData?.home_team_id;
+            const awayTeamId = matchData?.away_team_id;
+
+            let html = '';
+
+            // Home players
+            for (const playerId in players) {
+                const player = players[playerId];
+                if (player.team_id !== homeTeamId) continue;
+                const playerStats = stats[playerId] || {};
+                const initials = getInitials(player.name);
+
+                html += `
+                    <div class="player-item home" onclick="openPlayerProfile('${playerId}')">
+                        <div class="player-avatar">${initials}</div>
+                        <div class="player-info">
+                            <div class="player-name">${escapeHtml(player.name)}</div>
+                            <div class="player-stat-mini">
+                                ${playerStats.x01_three_dart_avg ? playerStats.x01_three_dart_avg.toFixed(1) + ' avg' : '-'}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Away players
+            for (const playerId in players) {
+                const player = players[playerId];
+                if (player.team_id !== awayTeamId) continue;
+                const playerStats = stats[playerId] || {};
+                const initials = getInitials(player.name);
+
+                html += `
+                    <div class="player-item away" onclick="openPlayerProfile('${playerId}')">
+                        <div class="player-avatar">${initials}</div>
+                        <div class="player-info">
+                            <div class="player-name">${escapeHtml(player.name)}</div>
+                            <div class="player-stat-mini">
+                                ${playerStats.x01_three_dart_avg ? playerStats.x01_three_dart_avg.toFixed(1) + ' avg' : '-'}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            document.getElementById('playerList').innerHTML = html || '<div style="padding: 12px; color: var(--text-dim); text-align: center;">No players</div>';
+        }
+
+        // Setup real-time match listener
+        function setupRealtimeListeners() {
+            // Match updates
+            unsubscribeMatch = onSnapshot(
+                doc(db, 'leagues', leagueId, 'matches', matchId),
+                (docSnap) => {
+                    if (docSnap.exists()) {
+                        const newData = { id: docSnap.id, ...docSnap.data() };
+
+                        // Check for score changes to animate
+                        if (matchData) {
+                            checkForExcitingMoments(matchData, newData);
+                        }
+
+                        matchData = newData;
+                        renderMatch(matchData, {});
+                    }
+                },
+                (error) => console.error('Match listener error:', error)
+            );
+        }
+
+        // Check for exciting moments (180s, checkouts, etc.)
+        function checkForExcitingMoments(oldMatch, newMatch) {
+            const oldGames = oldMatch.games || [];
+            const newGames = newMatch.games || [];
+
+            if (newGames.length === 0) return;
+
+            const lastGame = newGames[newGames.length - 1];
+            const lastThrows = lastGame.throws || [];
+
+            if (lastThrows.length === 0) return;
+
+            const lastThrow = lastThrows[lastThrows.length - 1];
+
+            // Check home throw
+            if (lastThrow.home?.score === 180) {
+                showReactionPopup('💯');
+            } else if (lastThrow.home?.checkout) {
+                showReactionPopup('🎯');
+            } else if (lastThrow.home?.score >= 140) {
+                showReactionPopup('🔥');
+            }
+
+            // Check away throw
+            if (lastThrow.away?.score === 180) {
+                showReactionPopup('💯');
+            } else if (lastThrow.away?.checkout) {
+                showReactionPopup('🎯');
+            } else if (lastThrow.away?.score >= 140) {
+                showReactionPopup('🔥');
+            }
+
+            // Score change animation
+            if ((newMatch.home_score || 0) !== (oldMatch.home_score || 0)) {
+                animateScoreChange('homeScore');
+            }
+            if ((newMatch.away_score || 0) !== (oldMatch.away_score || 0)) {
+                animateScoreChange('awayScore');
+            }
+        }
+
+        // Show reaction popup
+        function showReactionPopup(emoji) {
+            const overlay = document.getElementById('reactionsOverlay');
+            const popup = document.createElement('div');
+            popup.className = 'reaction-popup';
+            popup.textContent = emoji;
+            popup.style.left = (Math.random() * 100 - 50) + 'px';
+            popup.style.top = (Math.random() * 100 - 50) + 'px';
+            overlay.appendChild(popup);
+
+            setTimeout(() => popup.remove(), 2000);
+        }
+
+        // Animate score change
+        function animateScoreChange(elementId) {
+            const el = document.getElementById(elementId);
+            el.classList.add('score-changed');
+            setTimeout(() => el.classList.remove('score-changed'), 500);
+        }
+
+        // ========== CHAT FUNCTIONS ==========
+
+        async function setupChatRoom() {
+            if (!playerPin) return;
+
+            try {
+                // Create or get match chat room
+                const result = await callFunction('getOrCreateMatchChatRoom', {
+                    league_id: leagueId,
+                    match_id: matchId,
+                    player_pin: playerPin
+                });
+
+                if (result.success && result.room_id) {
+                    chatRoomId = result.room_id;
+                    currentPlayerId = result.player_id;
+                    document.getElementById('chatMemberCount').textContent = `${result.member_count || 0} members`;
+                    setupChatListener();
+                }
+            } catch (error) {
+                console.error('Chat setup error:', error);
+            }
+        }
+
+        function setupChatListener() {
+            if (!chatRoomId) return;
+
+            const messagesRef = collection(db, 'chat_rooms', chatRoomId, 'messages');
+            const q = query(messagesRef, orderBy('timestamp', 'asc'));
+
+            unsubscribeChat = onSnapshot(q, (snapshot) => {
+                const messages = [];
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    messages.push({
+                        id: doc.id,
+                        ...data,
+                        timestamp: data.timestamp?.toDate?.()?.toISOString() || null,
+                        is_own: data.sender_id === currentPlayerId
+                    });
+                });
+                renderChatMessages(messages);
+
+                // Update unread count if chat is closed
+                if (!isChatOpen && messages.length > 0) {
+                    unreadCount++;
+                    updateUnreadBadge();
+                }
+            });
+        }
+
+        function renderChatMessages(messages) {
+            const container = document.getElementById('chatMessages');
+
+            if (messages.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">💬</div>
+                        <h3>Match Chat</h3>
+                        <p>Be the first to say something!</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '';
+            messages.forEach(msg => {
+                if (msg.type === 'system' || msg.type === 'reaction') {
+                    html += `<div class="chat-message system">${escapeHtml(msg.text)}</div>`;
+                    return;
+                }
+
+                const bubbleClass = msg.is_own ? 'sent' : 'received';
+                const time = msg.timestamp ? formatTime(msg.timestamp) : '';
+
+                html += `
+                    <div class="chat-message ${bubbleClass}">
+                        ${!msg.is_own ? `<div class="chat-message-sender">${escapeHtml(msg.sender_name)}</div>` : ''}
+                        <div>${escapeHtml(msg.text)}</div>
+                        <div class="chat-message-time">${time}</div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+            container.scrollTop = container.scrollHeight;
+        }
+
+        window.sendChatMessage = async function() {
+            if (!chatRoomId || !playerPin) return;
+
+            const input = document.getElementById('chatInput');
+            const text = input.value.trim();
+            if (!text) return;
+
+            input.value = '';
+
+            try {
+                await callFunction('sendChatMessage', {
+                    room_id: chatRoomId,
+                    sender_pin: playerPin,
+                    text: text
+                });
+            } catch (error) {
+                console.error('Send message error:', error);
+            }
+        };
+
+        window.sendReaction = async function(emoji) {
+            if (!chatRoomId || !playerPin) return;
+
+            // Show local reaction popup
+            showReactionPopup(emoji);
+
+            try {
+                await callFunction('sendChatMessage', {
+                    room_id: chatRoomId,
+                    sender_pin: playerPin,
+                    text: emoji,
+                    type: 'reaction'
+                });
+            } catch (error) {
+                console.error('Send reaction error:', error);
+            }
+        };
+
+        window.handleChatKeydown = function(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendChatMessage();
+            }
+        };
+
+        window.toggleChat = function() {
+            isChatOpen = !isChatOpen;
+            document.getElementById('chatPanel').classList.toggle('open', isChatOpen);
+            document.getElementById('chatOverlay').classList.toggle('open', isChatOpen);
+
+            if (isChatOpen) {
+                unreadCount = 0;
+                updateUnreadBadge();
+                document.getElementById('chatInput').focus();
+            }
+        };
+
+        function updateUnreadBadge() {
+            const badge = document.getElementById('unreadBadge');
+            if (unreadCount > 0) {
+                badge.textContent = unreadCount > 99 ? '99+' : unreadCount;
+                badge.style.display = 'block';
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+
+        // ========== PRESENCE ==========
+
+        async function setupPresence() {
+            // Track viewer presence
+            if (typeof window.brdcPresence !== 'undefined') {
+                window.brdcPresence.startPresenceHeartbeat(`live-match-${matchId}`);
+            }
+
+            // Join as viewer if logged in
+            if (playerPin) {
+                try {
+                    await callFunction('joinMatchAsViewer', {
+                        player_pin: playerPin,
+                        match_id: matchId,
+                        league_id: leagueId
+                    });
+                } catch (e) {
+                    console.warn('Failed to join as viewer:', e);
+                }
+
+                // Leave when page unloads
+                window.addEventListener('beforeunload', () => {
+                    // Use sendBeacon for reliable cleanup
+                    const data = JSON.stringify({
+                        player_pin: playerPin,
+                        match_id: matchId
+                    });
+                    navigator.sendBeacon(
+                        'https://us-central1-brdc-v2.cloudfunctions.net/leaveMatchAsViewer',
+                        new Blob([data], { type: 'application/json' })
+                    );
+                });
+            }
+
+            // Listen to viewer count from match_viewers document
+            const viewersDocRef = doc(db, 'match_viewers', matchId);
+            unsubscribePresence = onSnapshot(viewersDocRef, (snapshot) => {
+                if (snapshot.exists()) {
+                    const data = snapshot.data();
+                    viewerCount = data.viewer_count || 0;
+                } else {
+                    viewerCount = 0;
+                }
+                document.getElementById('viewerNumber').textContent = viewerCount;
+            });
+        }
+
+        // ========== MOBILE LAYOUT ==========
+
+        function checkMobileLayout() {
+            const isMobile = window.innerWidth <= 900;
+            document.getElementById('mobileChatBtn').style.display = isMobile ? 'flex' : 'none';
+
+            if (!isMobile && isChatOpen) {
+                document.getElementById('chatPanel').classList.remove('open');
+                document.getElementById('chatOverlay').classList.remove('open');
+            }
+        }
+
+        // ========== NAVIGATION ==========
+
+        window.goToMatchHub = function() {
+            window.location.href = `/pages/match-hub.html?league_id=${leagueId}&match_id=${matchId}`;
+        };
+
+        window.openPlayerProfile = function(playerId) {
+            window.open(`/pages/player-profile.html?id=${playerId}`, '_blank');
+        };
+
+        // ========== UTILITIES ==========
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function getInitials(name) {
+            if (!name) return '?';
+            const parts = name.split(' ');
+            if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+            return name.substring(0, 2).toUpperCase();
+        }
+
+        function formatTime(isoString) {
+            if (!isoString) return '';
+            return new Date(isoString).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+        }
+
+        function showError(message) {
+            document.getElementById('loadingContainer').innerHTML = `
+                <div class="empty-state">
+                    <div class="icon">⚠️</div>
+                    <h3>Error</h3>
+                    <p>${escapeHtml(message)}</p>
+                    <button class="header-btn" onclick="history.back()" style="margin-top: 16px;">Go Back</button>
+                </div>
+            `;
+        }
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (unsubscribeMatch) unsubscribeMatch();
+            if (unsubscribeChat) unsubscribeChat();
+            if (unsubscribePresence) unsubscribePresence();
+            if (typeof window.brdcPresence !== 'undefined') {
+                window.brdcPresence.stopPresenceHeartbeat();
+            }
+        });
+    </script>
+    <script src="/js/presence.js"></script>
+    <script src="/js/nav-menu.js"></script>
+    <script src="/js/feedback.js"></script>
+</body>
+</html>

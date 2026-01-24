@@ -484,6 +484,8 @@
         .channel-icon.league { background: rgba(255, 70, 154, 0.2); }
         .channel-icon.team { background: rgba(145, 215, 235, 0.2); }
         .channel-icon.match { background: rgba(253, 216, 53, 0.2); }
+        .channel-icon.tournament { background: rgba(255, 152, 0, 0.2); }
+        .channel-icon.tournament_event { background: rgba(255, 193, 7, 0.2); }
 
         .channel-info {
             flex: 1;
@@ -516,6 +518,21 @@
             font-size: 12px;
             font-weight: 700;
             padding: 0 6px;
+        }
+
+        /* Muted room indicator */
+        .channel-item.muted {
+            opacity: 0.6;
+        }
+
+        .channel-item.muted .channel-name {
+            color: var(--text-dim, #8a8aa3);
+        }
+
+        .muted-indicator {
+            font-size: 14px;
+            color: var(--text-dim, #8a8aa3);
+            margin-left: auto;
         }
 
         /* =========== DIRECT TAB =========== */
@@ -1008,6 +1025,25 @@
             font-size: 16px;
             cursor: pointer;
         }
+
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            .online-players-grid { grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); gap: 10px; }
+            .challenge-modal-content { max-width: 95vw; }
+        }
+
+        @media (max-width: 480px) {
+            .header-bar { padding: 12px 15px; gap: 10px; }
+            .header-title { font-size: 22px; }
+            .back-btn { padding: 10px 14px; min-height: 44px; }
+            .main-tab { padding: 12px 10px; font-size: 14px; min-height: 44px; }
+            .lobby-container { padding: 12px; }
+            .online-player { padding: 10px 6px; }
+            .login-box { max-width: min(380px, 95vw); padding: 24px 20px; }
+            .form-input { font-size: 20px; padding: 14px; }
+            .game-type-option { min-height: 44px; }
+            .send-challenge-btn, .cancel-challenge-btn { min-height: 44px; }
+        }
     </style>
 </head>
 <body>
@@ -1044,7 +1080,7 @@
     <!-- Main Content -->
     <div id="mainContent" class="main-content">
         <div class="header-bar">
-            <button class="back-btn" onclick="window.location.href='/pages/dashboard.html'">< BACK</button>
+            <button class="back-btn" onclick="history.back()">← BACK</button>
             <img src="/images/gold_logo.png" alt="BRDC" class="header-logo">
             <span class="header-title">DARTS HUB</span>
         </div>
@@ -1114,6 +1150,10 @@
                 <div id="matchChannels" class="channel-group" style="display: none;">
                     <div class="channel-group-title">MATCH CHANNELS</div>
                     <div id="matchChannelsList"></div>
+                </div>
+                <div id="tournamentChannels" class="channel-group" style="display: none;">
+                    <div class="channel-group-title">TOURNAMENT CHANNELS</div>
+                    <div id="tournamentChannelsList"></div>
                 </div>
                 <div id="noChannels" class="empty-state">
                     <div class="empty-icon">...</div>
@@ -1408,7 +1448,7 @@
         async function loadOnlinePlayers() {
             // Listen for online players (active in last 5 minutes)
             const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-            const presenceRef = collection(db, 'presence');
+            const presenceRef = collection(db, 'presence_heartbeats');
             const q = query(presenceRef, where('last_seen', '>=', fiveMinutesAgo));
 
             unsubscribePresence = onSnapshot(q, (snapshot) => {
@@ -1542,6 +1582,14 @@
                 document.getElementById('matchChannelsList').innerHTML = rooms.match.map(r => renderChannelItem(r, 'match')).join('');
             }
 
+            // Tournament channels (includes tournament_event)
+            const tournamentRooms = [...(rooms.tournament || []), ...(rooms.tournament_event || [])];
+            if (tournamentRooms.length > 0) {
+                hasAny = true;
+                document.getElementById('tournamentChannels').style.display = 'block';
+                document.getElementById('tournamentChannelsList').innerHTML = tournamentRooms.map(r => renderChannelItem(r, r.type)).join('');
+            }
+
             noChannels.style.display = hasAny ? 'none' : 'block';
             if (!hasAny) {
                 noChannels.innerHTML = `
@@ -1551,7 +1599,7 @@
             }
 
             // Update badge
-            const totalUnread = [...(rooms.league || []), ...(rooms.team || []), ...(rooms.match || [])]
+            const totalUnread = [...(rooms.league || []), ...(rooms.team || []), ...(rooms.match || []), ...(rooms.tournament || []), ...(rooms.tournament_event || [])]
                 .reduce((sum, r) => sum + (r.unread_count || 0), 0);
             const badge = document.getElementById('channelsBadge');
             if (totalUnread > 0) {
@@ -1563,15 +1611,17 @@
         }
 
         function renderChannelItem(room, type) {
-            const icons = { league: '!', team: '#', match: '@' };
+            const icons = { league: '!', team: '#', match: '@', tournament: 'T', tournament_event: 'E' };
             const preview = room.last_message?.text || 'No messages yet';
+            const isMuted = room.is_muted || false;
             return `
-                <div class="channel-item ${room.unread_count > 0 ? 'unread' : ''}" onclick="openChannel('${room.id}')">
+                <div class="channel-item ${room.unread_count > 0 ? 'unread' : ''} ${isMuted ? 'muted' : ''}" onclick="openChannel('${room.id}')">
                     <div class="channel-icon ${type}">${icons[type]}</div>
                     <div class="channel-info">
                         <div class="channel-name">${room.name}</div>
                         <div class="channel-preview">${escapeHtml(preview.substring(0, 40))}${preview.length > 40 ? '...' : ''}</div>
                     </div>
+                    ${isMuted ? '<span class="muted-indicator" title="Notifications muted">🔕</span>' : ''}
                     ${room.unread_count > 0 ? `<div class="unread-badge">${room.unread_count}</div>` : ''}
                 </div>
             `;
@@ -1697,22 +1747,26 @@
             const roomsQuery = query(roomsRef, where('participants', 'array-contains', currentPlayer.id));
 
             unsubscribeChatRooms = onSnapshot(roomsQuery, (snapshot) => {
-                const rooms = { league: [], team: [], match: [] };
+                const rooms = { league: [], team: [], match: [], tournament: [], tournament_event: [] };
 
                 snapshot.forEach(doc => {
                     const data = doc.data();
+                    const mutedBy = data.muted_by || [];
                     const roomData = {
                         id: doc.id,
                         name: data.name,
                         type: data.type,
                         unread_count: data.unread_count?.[currentPlayer.id] || 0,
                         last_message: data.last_message,
-                        status: data.status
+                        status: data.status,
+                        is_muted: mutedBy.includes(currentPlayer.id)
                     };
 
                     if (data.type === 'league') rooms.league.push(roomData);
                     else if (data.type === 'team') rooms.team.push(roomData);
                     else if (data.type === 'match' && data.status === 'active') rooms.match.push(roomData);
+                    else if (data.type === 'tournament') rooms.tournament.push(roomData);
+                    else if (data.type === 'tournament_event') rooms.tournament_event.push(roomData);
                 });
 
                 renderChannels(rooms);
@@ -1825,7 +1879,7 @@
         window.viewProfile = function() {
             if (!selectedPlayer) return;
             closePlayerModal();
-            window.location.href = `/pages/player-public.html?id=${selectedPlayer.id}`;
+            window.location.href = `/pages/player-profile.html?id=${selectedPlayer.id}`;
         };
 
         window.openConversation = function(conversationId) {
@@ -1967,6 +2021,7 @@
             }
         });
     </script>
+<script src="/js/nav-menu.js"></script>
 <script src="/js/feedback.js"></script>
 </body>
 </html>

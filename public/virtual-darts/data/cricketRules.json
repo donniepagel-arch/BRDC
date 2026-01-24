@@ -1,0 +1,125 @@
+{
+  "numbers": [20, 19, 18, 17, 16, 15, "bull"],
+  "pointValues": {
+    "20": 20,
+    "19": 19,
+    "18": 18,
+    "17": 17,
+    "16": 16,
+    "15": 15,
+    "bull": 25
+  },
+  "marksToClose": 3,
+  "strategy": {
+    "openingPriority": {
+      "description": "Which numbers to close first when the game begins",
+      "order": [20, 19, 18, 17, 16, 15, "bull"],
+      "reason": "Higher numbers are worth more points - close them first to prevent opponent scoring"
+    },
+    "whenAhead": {
+      "description": "Strategy when you have more points than opponent",
+      "focus": "defense",
+      "actions": [
+        "Close opponent's open scoring numbers",
+        "Prioritize their highest open number",
+        "Don't give them opportunities to score"
+      ],
+      "reason": "Cut off their scoring while maintaining your lead"
+    },
+    "whenBehind": {
+      "description": "Strategy when opponent has more points",
+      "focus": "offense",
+      "actions": [
+        "Score on your open numbers",
+        "Prioritize your highest open number",
+        "Catch up before closing"
+      ],
+      "reason": "Need to outscore them before game ends"
+    },
+    "whenTied": {
+      "description": "Strategy when points are equal",
+      "focus": "balanced",
+      "actions": [
+        "Close numbers close to being finished",
+        "Open new numbers for scoring potential",
+        "Watch opponent's numbers"
+      ],
+      "reason": "Maintain flexibility while preventing opponent advantage"
+    }
+  },
+  "decisionTree": {
+    "checkPointDifference": {
+      "ahead": "defensiveMode",
+      "behind": "offensiveMode",
+      "tied": "balancedMode"
+    },
+    "defensiveMode": {
+      "1": "Find opponent's highest open number they can score on",
+      "2": "Calculate marks needed to close it",
+      "3": "If can close in 1 dart, close it",
+      "4": "If can close in 2 darts, start closing",
+      "5": "If can't close in turn, consider scoring instead"
+    },
+    "offensiveMode": {
+      "1": "Find your highest open number you can score on",
+      "2": "Calculate how many points behind you are",
+      "3": "Score aggressively on highest open number",
+      "4": "Each turn, reassess point difference"
+    },
+    "balancedMode": {
+      "1": "Find numbers where you have 2 marks",
+      "2": "Close these with 1 dart if possible",
+      "3": "Otherwise, work on highest unclosed number",
+      "4": "Watch opponent's progress on their 2-mark numbers"
+    }
+  },
+  "statistics": {
+    "MPR": {
+      "name": "Marks Per Round",
+      "calculation": "total_marks / total_rounds",
+      "interpretation": {
+        "3.0+": "Excellent - closing one number per turn on average",
+        "2.5-3.0": "Good - solid player",
+        "2.0-2.5": "Average",
+        "below 2.0": "Needs improvement"
+      }
+    },
+    "notableRounds": {
+      "9M": {"marks": 9, "name": "Nine-mark round", "description": "Maximum possible"},
+      "8M": {"marks": 8, "name": "Eight-mark round"},
+      "7M": {"marks": 7, "name": "Seven-mark round"},
+      "6M": {"marks": 6, "name": "Six-mark round"},
+      "5M": {"marks": 5, "name": "Five-mark round"}
+    }
+  },
+  "targets": {
+    "treble": {
+      "marks": 3,
+      "description": "Closes a number in one dart",
+      "whenToUse": "When you need to close quickly or score big"
+    },
+    "double": {
+      "marks": 2,
+      "description": "Two marks per dart",
+      "whenToUse": "Less risky than treble, good for steady progress"
+    },
+    "single": {
+      "marks": 1,
+      "description": "One mark per dart",
+      "whenToUse": "Often unintentional - usually aiming higher"
+    },
+    "bull": {
+      "doubleBull": {"marks": 2, "points": 50},
+      "singleBull": {"marks": 1, "points": 25},
+      "description": "Save bulls for last - harder to hit"
+    }
+  },
+  "tips": [
+    "Always know the point difference",
+    "Don't be afraid to score when behind",
+    "Close opponent's numbers before they can score",
+    "Triple-20 is often the best first dart in Cricket",
+    "Bulls are worth 25 points - don't ignore them when scoring",
+    "A 3.0 MPR wins most games"
+  ]
+}

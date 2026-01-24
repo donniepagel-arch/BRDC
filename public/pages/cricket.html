@@ -846,7 +846,7 @@
 
         async function loadRegisteredBots() {
             try {
-                const CLOUD_URL = 'https://us-central1-brdc-69.cloudfunctions.net';
+                const CLOUD_URL = 'https://us-central1-brdc-v2.cloudfunctions.net';
                 const response = await fetch(`${CLOUD_URL}/getBots`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -953,7 +953,7 @@
             try {
                 knockoutContext = JSON.parse(localStorage.getItem('knockoutContext'));
             } catch (e) {
-                console.log('No knockout context found');
+                // No knockout context
             }
 
             // Pre-fill player names from URL params
@@ -962,8 +962,6 @@
 
             if (p1Name) document.getElementById('player1NameInput').value = p1Name;
             if (p2Name) document.getElementById('player2NameInput').value = p2Name;
-
-            console.log('Knockout mode enabled:', knockoutContext);
 
             // Auto-start game when coming from knockout bracket
             setTimeout(() => {
@@ -1360,7 +1358,7 @@
         }
 
         // CLOUD FUNCTION URL
-        const CLOUD_FUNCTIONS_URL = 'https://us-central1-brdc-69.cloudfunctions.net';
+        const CLOUD_FUNCTIONS_URL = 'https://us-central1-brdc-v2.cloudfunctions.net';
 
         // Calculate cricket stats for saving
         // MPR = (totalMarks / dartsThrown) * 3
@@ -1461,6 +1459,15 @@
         window.addEventListener('load', function() {
             setTimeout(() => window.scrollTo(0, 1), 0);
         });
+
+        // Warn user before leaving with game in progress
+        window.onbeforeunload = function(e) {
+            const winnerModalActive = document.getElementById('winnerModal')?.classList.contains('active');
+            if (gameState.gameStarted && !winnerModalActive) {
+                e.preventDefault();
+                return "You have a game in progress. Are you sure you want to leave?";
+            }
+        };
     </script>
 <script src="/js/feedback.js"></script>
 </body>

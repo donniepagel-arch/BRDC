@@ -1545,6 +1545,7 @@
                     <button class="game-select-btn" onclick="selectCorkGame(501)">501</button>
                     <button class="game-select-btn" onclick="selectCorkGame(301)">301</button>
                     <button class="game-select-btn" onclick="selectCorkGame(701)">701</button>
+                    <button class="game-select-btn" onclick="selectCorkGame('cricket')">CRICKET</button>
                     <button class="game-select-btn" onclick="selectCorkGame('custom')">CUSTOM</button>
                 </div>
             </div>
@@ -1811,7 +1812,7 @@
 
         async function loadRegisteredBots() {
             try {
-                const CLOUD_URL = 'https://us-central1-brdc-69.cloudfunctions.net';
+                const CLOUD_URL = 'https://us-central1-brdc-v2.cloudfunctions.net';
                 const response = await fetch(`${CLOUD_URL}/getBots`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -2243,7 +2244,20 @@
             document.querySelectorAll('.game-select-btn').forEach(btn => btn.classList.remove('selected'));
             event.target.classList.add('selected');
 
-            if (game === 'custom') {
+            if (game === 'cricket') {
+                // Redirect to cricket scorer with player names
+                const params = new URLSearchParams();
+                if (gameState.player1.name && gameState.player1.name !== 'PLAYER 1') {
+                    params.set('p1', gameState.player1.name);
+                }
+                if (gameState.player2.name && gameState.player2.name !== 'PLAYER 2') {
+                    params.set('p2', gameState.player2.name);
+                }
+                // Pass who starts (opponent of cork winner)
+                params.set('starter', gameState.currentPlayer);
+                window.location.href = '/pages/cricket.html?' + params.toString();
+                return;
+            } else if (game === 'custom') {
                 const customScore = prompt('Enter custom score (must end in 01):', '901');
                 if (customScore && parseInt(customScore) % 100 === 1) {
                     gameState.currentLegGame = parseInt(customScore);
@@ -2845,7 +2859,7 @@
         }
 
         // CLOUD FUNCTION URL (update to your project)
-        const CLOUD_FUNCTIONS_URL = 'https://us-central1-brdc-69.cloudfunctions.net';
+        const CLOUD_FUNCTIONS_URL = 'https://us-central1-brdc-v2.cloudfunctions.net';
 
         async function savePickupGame() {
             const saveStatus = document.getElementById('saveStatus');
@@ -2931,6 +2945,16 @@
         window.addEventListener('load', function() {
             setTimeout(() => window.scrollTo(0, 1), 0);
         });
+
+        // Warn user before leaving with game in progress
+        window.onbeforeunload = function(e) {
+            const legsToWin = Math.ceil(gameState.bestOfLegs / 2);
+            const matchComplete = (gameState.players[0].legs >= legsToWin || gameState.players[1].legs >= legsToWin);
+            if (gameState.gameStarted && !matchComplete) {
+                e.preventDefault();
+                return "You have a game in progress. Are you sure you want to leave?";
+            }
+        };
     </script>
 <script src="/js/feedback.js"></script>
 </body>

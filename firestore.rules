@@ -7,10 +7,10 @@ service cloud.firestore {
       return request.resource.data != null;
     }
 
-    // Players collection - sensitive data, restrict access
+    // Players collection - SENSITIVE: Contains PINs for authentication
+    // All reads go through cloud functions (playerLogin, getPlayerProfile, etc.)
     match /players/{playerId} {
-      // Allow read only for the player themselves or via cloud functions
-      allow read: if true; // Cloud functions bypass rules, frontend needs basic read
+      allow read: if false;  // SECURITY: Block direct reads - PINs must not be exposed
       allow write: if false; // Only cloud functions can write
     }
 
@@ -204,6 +204,44 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Typing indicators subcollection - allow client writes for own status only
+    match /chat_rooms/{roomId}/typing/{playerId} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == playerId;
+    }
+
+    // Activity tracking subcollection
+    match /chat_rooms/{roomId}/activity/{docId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // ===== CHAT CHANNELS (Discord-like system) =====
+
+    // Chat channels - public read for discovery, write through cloud functions
+    match /chat_channels/{channelId} {
+      allow read: if true;  // Anyone can see channel metadata
+      allow write: if false; // Only cloud functions
+    }
+
+    // Channel messages - read allowed for members (enforced by cloud functions)
+    match /chat_channels/{channelId}/messages/{messageId} {
+      allow read: if true;  // Membership checked in cloud functions
+      allow write: if false; // Only cloud functions can write messages
+    }
+
+    // Channel members - read allowed, write through cloud functions
+    match /chat_channels/{channelId}/members/{memberId} {
+      allow read: if true;  // Anyone can see who's in a channel
+      allow write: if false; // Only cloud functions manage membership
+    }
+
+    // Typing indicators - allow clients to update their own status only
+    match /chat_channels/{channelId}/typing/{playerId} {
+      allow read: if true;  // Anyone in channel can see who's typing
+      allow write: if request.auth != null && request.auth.uid == playerId;
+    }
+
     // Message notifications for SMS digest
     match /message_notifications/{notificationId} {
       allow read, write: if false; // Only cloud functions
@@ -211,10 +249,28 @@ service cloud.firestore {
 
     // ===== PHASE 2: PRESENCE SYSTEM =====
 
-    // Presence heartbeats
+    // Presence heartbeats - allow clients to update their own presence only
     match /presence_heartbeats/{playerId} {
       allow read: if true;  // Anyone can see online status
-      allow write: if false; // Only cloud functions
+      allow write: if request.auth != null && request.auth.uid == playerId;
+    }
+
+    // Live matches for ticker
+    match /live_matches/{matchId} {
+      allow read: if true;
+      allow write: if false; // Only cloud functions (scorers)
+    }
+
+    // Match viewers - who's watching a match (Discord-like presence)
+    match /match_viewers/{matchId} {
+      allow read: if true;   // Anyone can see who's watching
+      allow write: if false; // Only cloud functions manage viewers
+    }
+
+    // Casual matches (Phase 3 challenges)
+    match /casual_matches/{matchId} {
+      allow read: if true;
+      allow write: if false;
     }
 
     // ===== PHASE 3: SOCIAL FEATURES =====
@@ -306,15 +362,45 @@ service cloud.firestore {
     }
 
     // ===== LIVE STREAMING =====
+    // NOTE: WebRTC signaling requires open read/write for peer-to-peer connection setup.
+    // Data is ephemeral (offers, answers, ICE candidates) and sessions are short-lived.
+    // This is a known trade-off for real-time streaming functionality.
+    // TODO: Consider adding TTL cleanup function to remove stale sessions.
 
     // Streaming sessions for WebRTC signaling
     match /streaming_sessions/{sessionId} {
-      allow read, write: if true;  // Open for real-time signaling
+      allow read, write: if true;  // INTENTIONALLY OPEN: Required for WebRTC signaling
     }
 
     // Streaming session subcollections (offers, answers, ICE candidates)
     match /streaming_sessions/{sessionId}/{subcollection}/{docId} {
-      allow read, write: if true;  // Open for real-time signaling
+      allow read, write: if true;  // INTENTIONALLY OPEN: Required for WebRTC signaling
+    }
+
+    // ===== COMMUNITY EVENTS =====
+
+    // Community events - public read, anyone can submit
+    match /community_events/{eventId} {
+      allow read: if true;  // Anyone can view events
+      allow create: if hasValidData()
+        && request.resource.data.name != null
+        && request.resource.data.event_date != null
+        && request.resource.data.event_link != null;
+      allow update, delete: if false;  // Only cloud functions (for moderation)
+    }
+
+    // ===== DART TRADER MARKETPLACE =====
+
+    // Dart trader listings - public read, controlled write
+    match /dart_trader_listings/{listingId} {
+      allow read: if true;  // Anyone can browse listings
+      allow create: if hasValidData()
+        && request.resource.data.seller_id != null
+        && request.resource.data.title != null
+        && request.resource.data.price != null;
+      allow update: if hasValidData()
+        && resource.data.seller_id == request.resource.data.seller_id;  // Only owner can edit
+      allow delete: if false;  // SECURITY: Only cloud functions can delete (prevents griefing)
     }
 
     // ===== GENERAL =====

@@ -1,0 +1,142 @@
+Working directory: C:\Users\gcfrp\brdc-firebase
+
+Permissions: Read all, Write all, Bash (npm, node, git, firebase)
+
+Model: Sonnet
+
+---
+
+## Task: Fix Missing Exports and Audit Heartbreaker Implementation
+
+The Heartbreaker tournament system has been implemented across multiple files but some functions are not properly exported. Audit the implementation and fix any issues.
+
+### Part 1: Fix Missing Exports in index.js
+
+The following functions exist in functions/tournaments/matches.js but are NOT exported from functions/index.js:
+- submitDoubleElimMatchResult
+- startDoubleElimMatch
+
+Update functions/index.js to export these functions. They should be imported from './tournaments/matches' and exported.
+
+### Part 2: Audit Implementation Status
+
+Check each of these systems and report what's implemented vs missing:
+
+**1. Double-Elimination Bracket Generator (brackets.js)**
+- generateDoubleEliminationBracket - Check if properly exported
+
+**2. Match Advancement Logic (matches.js)**
+- submitDoubleElimMatchResult - Check implementation
+- startDoubleElimMatch - Check implementation
+- advanceInWinnersBracket - Check if exists
+- dropToLosersBracket - Check if exists
+- advanceInLosersBracket - Check if exists
+
+**3. Heartbreaker System (matchmaker.js)**
+- triggerHeartbreaker - Check implementation
+- submitBreakupDecision - Check implementation
+- getHeartbrokenTeams - Check implementation
+
+**4. Nudge System (matchmaker.js)**
+- sendNudge - Check if implemented
+- getNudgeCount - Check if implemented
+- getAvailableNudgeTargets - Check if implemented
+
+**5. Mingle Period (matchmaker.js)**
+- startMinglePeriod - Check implementation
+- endMinglePeriod - Check implementation
+- runCupidShuffle - Check implementation
+- getMingleStatus - Check implementation
+
+**6. Heartbreaker Preset (matchmaker.js)**
+- createHeartbreakerTournament - Check if implemented
+
+**7. Frontend Pages**
+- Check if these files exist and have heartbreaker functionality:
+  - public/pages/matchmaker-bracket.html (TV display)
+  - public/pages/matchmaker-director.html (Director controls)
+  - public/pages/matchmaker-view.html (Player view)
+
+### Part 3: Create Missing Nudge Functions
+
+If the nudge functions don't exist, implement them in functions/matchmaker.js:
+
+sendNudge:
+- Takes tournament_id, sender_player_id, target_player_id
+- Validates sender is in mingle (opted for breakup)
+- Validates target is opposite gender and in mingle
+- Checks sender hasn't exceeded nudge_limit (default 3)
+- Stores nudge anonymously (target can see count but not who)
+- Returns success
+
+getNudgeCount:
+- Takes tournament_id, player_id
+- Returns how many nudges this player has received
+- Does NOT reveal who sent them
+
+getAvailableNudgeTargets:
+- Takes tournament_id, player_id
+- Returns list of opposite-gender players in mingle
+- Used to show who you CAN nudge
+
+### Part 4: Create Heartbreaker Preset Function
+
+If createHeartbreakerTournament doesn't exist, implement it in functions/matchmaker.js:
+
+createHeartbreakerTournament:
+- Takes: { name, date, director_id, director_pin }
+- Sets these defaults:
+  - format: 'double_elimination'
+  - entry_type: 'mixed_doubles'
+  - matchmaker_enabled: true
+  - partner_matching: true
+  - breakup_enabled: true
+  - winners_game_type: 'cricket'
+  - winners_best_of: 3
+  - losers_game_type: '501'
+  - losers_best_of: 1
+  - mingle_cutoff: 'wc_r2_last_start'
+  - savage_summaries_enabled: true
+  - nudge_limit: 3
+  - venue_name: 'Rookies'
+  - boards_available: 12
+  - status: 'registration'
+  - started: false
+  - completed: false
+- Creates tournament in Firestore
+- Returns tournament_id
+
+### Files to Modify
+- functions/index.js - Add missing exports
+- functions/matchmaker.js - Add missing functions if needed
+
+### When Done
+- Deploy: firebase deploy --only functions
+- Report findings to: docs/work-tracking/HEARTBREAKER-AUDIT.md
+
+Use this format for the report:
+
+# Heartbreaker Implementation Audit
+
+## Export Fixes Applied
+- [list what was fixed]
+
+## Implementation Status
+
+### Fully Implemented
+- [list functions that are complete]
+
+### Partially Implemented
+- [list functions with issues]
+
+### Missing/Not Implemented
+- [list functions that don't exist]
+
+### Frontend Status
+- [list what pages exist and their state]
+
+## Functions Added
+- [list any new functions you created]
+
+## Deployment Status
+- [success/failure and any errors]

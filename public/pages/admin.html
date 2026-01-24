@@ -662,6 +662,10 @@
 
         #adminContent { display: none; }
 
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
         /* Member Permission Styles */
         .member-card {
             background: rgba(0,0,0,0.3);
@@ -777,7 +781,7 @@
 </head>
 <body>
     <div class="header-bar">
-        <button class="back-btn" onclick="window.location.href='/pages/dashboard.html'">< BACK</button>
+        <button class="back-btn" onclick="history.back()">← BACK</button>
         <img src="/images/gold_logo.png" alt="BRDC" class="header-logo">
         <span class="header-title">ADMIN</span>
     </div>
@@ -787,9 +791,15 @@
         <div class="login-card">
             <img src="/images/gold_logo.png" alt="BRDC" style="width: 80px; margin-bottom: 15px;">
             <h2>🔧 ADMIN LOGIN</h2>
-            <p>Enter your admin PIN to access the dashboard</p>
-            <input type="password" id="pinInput" class="pin-input" placeholder="••••••••" maxlength="9" inputmode="numeric" pattern="[0-9]*" autocomplete="off">
-            <button class="brdc-btn" onclick="adminLogin()" style="width: 100%;">LOGIN</button>
+            <p id="loginMessage">Enter your admin PIN to access the dashboard</p>
+            <div id="loginForm">
+                <input type="password" id="pinInput" class="pin-input" placeholder="••••••••" maxlength="9" inputmode="numeric" pattern="[0-9]*" autocomplete="off">
+                <button class="brdc-btn" onclick="adminLogin()" style="width: 100%;">LOGIN</button>
+            </div>
+            <div id="loginLoading" style="display: none; text-align: center; padding: 20px;">
+                <div style="width: 32px; height: 32px; border: 3px solid rgba(255,255,255,0.1); border-top-color: var(--teal); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 10px;"></div>
+                <p style="color: var(--teal);">Verifying session...</p>
+            </div>
         </div>
     </div>
 
@@ -1207,11 +1217,42 @@
             }
         };
 
-        // Check for saved session
+        // Check for saved session - ALWAYS verify with backend first
         const savedPin = sessionStorage.getItem('adminPin');
         if (savedPin) {
-            adminPin = savedPin;
-            showDashboard();
+            // Verify the saved PIN is still valid before showing dashboard
+            verifyAndRestoreSession(savedPin);
+        }
+
+        // Verify saved PIN with backend before restoring session
+        async function verifyAndRestoreSession(pin) {
+            // Show loading state
+            document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('loginLoading').style.display = 'block';
+            document.getElementById('loginMessage').textContent = 'Restoring session...';
+
+            try {
+                const result = await callFunction('adminGetDashboard', { pin });
+                if (result.success) {
+                    adminPin = pin;
+                    showDashboard();
+                    renderDashboard(result);
+                } else {
+                    // Invalid PIN - clear storage and show login form
+                    sessionStorage.removeItem('adminPin');
+                    document.getElementById('loginForm').style.display = 'block';
+                    document.getElementById('loginLoading').style.display = 'none';
+                    document.getElementById('loginMessage').textContent = 'Session expired. Please log in again.';
+                    console.warn('Saved admin session invalid, cleared');
+                }
+            } catch (error) {
+                // Backend verification failed - show login form
+                sessionStorage.removeItem('adminPin');
+                document.getElementById('loginForm').style.display = 'block';
+                document.getElementById('loginLoading').style.display = 'none';
+                document.getElementById('loginMessage').textContent = 'Enter your admin PIN to access the dashboard';
+                console.error('Session verification failed:', error);
+            }
         }
 
         window.adminLogin = async function() {

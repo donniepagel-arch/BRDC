@@ -1,0 +1,957 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Verify Your Stats - BRDC</title>
+    <link rel="icon" type="image/png" href="/images/favicon.png">
+
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Stat Verification">
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap');
+
+        :root {
+            --pink: #FF469A;
+            --blue-light: #1F85AF;
+            --blue-dark: #001F4D;
+            --teal: #91D7EB;
+            --yellow: #FDD835;
+            --black: #000000;
+            --white: #FFFFFF;
+            --bg-dark: #1a1a2e;
+            --bg-panel: #16213e;
+            --bg-card: #1e2a47;
+            --success: #22c55e;
+            --danger: #ef4444;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background: linear-gradient(135deg, var(--bg-dark) 0%, #0f0f23 100%);
+            min-height: 100vh;
+            color: white;
+        }
+
+        /* Header */
+        .header-bar {
+            background: var(--bg-panel);
+            border-bottom: 3px solid var(--pink);
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-logo {
+            width: 32px;
+            height: 32px;
+        }
+
+        .header-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 22px;
+            letter-spacing: 2px;
+            color: var(--pink);
+            flex: 1;
+        }
+
+        .back-btn {
+            background: rgba(255,255,255,0.1);
+            border: 2px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 12px;
+            cursor: pointer;
+            text-decoration: none;
+        }
+
+        .back-btn:hover {
+            background: rgba(255,255,255,0.2);
+            border-color: var(--pink);
+        }
+
+        /* Container */
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Screen Management */
+        .screen {
+            display: none;
+        }
+        .screen.active {
+            display: block;
+        }
+
+        /* Info Card */
+        .info-card {
+            background: var(--bg-card);
+            border: 3px solid #000;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 20px;
+            box-shadow: 4px 4px 0 rgba(0,0,0,0.3);
+        }
+
+        .info-card h2 {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 28px;
+            color: var(--teal);
+            letter-spacing: 2px;
+            margin-bottom: 16px;
+        }
+
+        .info-card p {
+            color: rgba(255,255,255,0.8);
+            line-height: 1.6;
+            margin-bottom: 12px;
+        }
+
+        .info-list {
+            margin: 20px 0;
+            padding-left: 20px;
+        }
+
+        .info-list li {
+            color: rgba(255,255,255,0.8);
+            margin-bottom: 10px;
+            line-height: 1.5;
+        }
+
+        .info-list li strong {
+            color: var(--yellow);
+        }
+
+        .highlight-box {
+            background: rgba(145, 215, 235, 0.15);
+            border: 2px solid var(--teal);
+            border-radius: 8px;
+            padding: 16px;
+            margin: 20px 0;
+        }
+
+        .highlight-box h3 {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 18px;
+            color: var(--teal);
+            margin-bottom: 8px;
+        }
+
+        /* Player Card */
+        .player-card {
+            background: linear-gradient(135deg, rgba(145, 215, 235, 0.1) 0%, rgba(255, 70, 154, 0.1) 100%);
+            border: 2px solid var(--teal);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .player-avatar {
+            width: 50px;
+            height: 50px;
+            background: var(--pink);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 24px;
+            color: white;
+        }
+
+        .player-info h3 {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 22px;
+            color: var(--yellow);
+            letter-spacing: 1px;
+        }
+
+        .player-info p {
+            font-size: 13px;
+            color: rgba(255,255,255,0.6);
+        }
+
+        .player-info .verified-badge {
+            display: inline-block;
+            background: var(--success);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 700;
+            margin-left: 8px;
+        }
+
+        /* Bot Selection */
+        .section-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 20px;
+            color: var(--teal);
+            letter-spacing: 1px;
+            margin-bottom: 12px;
+        }
+
+        .bot-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-bottom: 24px;
+        }
+
+        .bot-option {
+            background: var(--bg-card);
+            border: 3px solid rgba(255,255,255,0.2);
+            border-radius: 10px;
+            padding: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .bot-option:hover {
+            border-color: var(--teal);
+            background: rgba(145, 215, 235, 0.1);
+        }
+
+        .bot-option.selected {
+            border-color: var(--pink);
+            background: rgba(255, 70, 154, 0.15);
+        }
+
+        .bot-option-name {
+            font-weight: 700;
+            color: white;
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        .bot-option-info {
+            font-size: 11px;
+            color: rgba(255,255,255,0.6);
+        }
+
+        .bot-diff {
+            display: inline-block;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-right: 6px;
+        }
+
+        .bot-diff.easy { background: #22c55e; color: #000; }
+        .bot-diff.medium { background: var(--yellow); color: #000; }
+        .bot-diff.league { background: var(--teal); color: #000; }
+        .bot-diff.hard { background: #f97316; color: #000; }
+        .bot-diff.pro { background: var(--pink); color: #fff; }
+
+        /* Launch Buttons */
+        .launch-section {
+            margin-top: 24px;
+        }
+
+        .launch-btn {
+            width: 100%;
+            padding: 20px 24px;
+            border: 3px solid #000;
+            border-radius: 12px;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 26px;
+            letter-spacing: 3px;
+            cursor: pointer;
+            box-shadow: 5px 5px 0 rgba(0,0,0,0.5);
+            transition: all 0.2s;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+        }
+
+        .launch-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 7px 7px 0 rgba(0,0,0,0.5);
+        }
+
+        .launch-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .launch-btn.x01 {
+            background: linear-gradient(135deg, var(--pink) 0%, #c4386a 100%);
+            color: white;
+        }
+
+        .launch-btn.cricket {
+            background: linear-gradient(135deg, var(--teal) 0%, #5ab8d6 100%);
+            color: #000;
+        }
+
+        .launch-btn-subtitle {
+            font-family: 'Inter', sans-serif;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0;
+            opacity: 0.8;
+        }
+
+        /* Status Cards */
+        .status-card {
+            background: var(--bg-card);
+            border: 2px solid rgba(255,255,255,0.1);
+            border-radius: 10px;
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+
+        .status-card h4 {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 16px;
+            color: var(--teal);
+            margin-bottom: 8px;
+        }
+
+        .status-card .status-value {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 28px;
+            color: var(--yellow);
+        }
+
+        .status-card .status-label {
+            font-size: 12px;
+            color: rgba(255,255,255,0.5);
+        }
+
+        .status-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        /* Progress Indicator */
+        .verification-progress {
+            background: var(--bg-card);
+            border: 2px solid var(--yellow);
+            border-radius: 10px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .progress-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 18px;
+            color: var(--yellow);
+        }
+
+        .progress-count {
+            font-size: 14px;
+            color: var(--yellow);
+            font-weight: 700;
+        }
+
+        .progress-bar {
+            height: 10px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--pink) 0%, var(--teal) 100%);
+            transition: width 0.3s ease;
+            border-radius: 5px;
+        }
+
+        /* No Bots Message */
+        .no-bots-message {
+            text-align: center;
+            padding: 24px;
+            color: rgba(255,255,255,0.6);
+        }
+
+        .no-bots-message a {
+            color: var(--teal);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        /* Login Page - matches dashboard.html */
+        .login-page {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .login-logo {
+            height: 80px;
+            margin-bottom: 16px;
+        }
+
+        .login-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 36px;
+            color: var(--pink);
+            letter-spacing: 3px;
+            margin-bottom: 30px;
+        }
+
+        .login-box {
+            background: var(--bg-panel);
+            border: 3px solid #000;
+            border-radius: 16px;
+            padding: 30px;
+            width: 100%;
+            max-width: 380px;
+            box-shadow: 8px 8px 0 rgba(0,0,0,0.4);
+        }
+
+        .login-form-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 22px;
+            color: var(--teal);
+            letter-spacing: 2px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .form-group { margin-bottom: 16px; }
+
+        .form-label {
+            display: block;
+            font-weight: 700;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: rgba(255,255,255,0.5);
+            margin-bottom: 6px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 16px;
+            background: rgba(0,0,0,0.3);
+            border: 3px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            font-size: 24px;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+            color: var(--yellow);
+            text-align: center;
+            letter-spacing: 4px;
+            transition: all 0.2s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--pink);
+            background: rgba(255,70,154,0.1);
+            box-shadow: 0 0 20px rgba(255,70,154,0.3);
+        }
+
+        .form-input::placeholder {
+            color: rgba(253, 216, 53, 0.4);
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(180deg, var(--pink) 0%, #d63384 100%);
+            border: 3px solid #000;
+            border-radius: 10px;
+            color: white;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 22px;
+            letter-spacing: 2px;
+            cursor: pointer;
+            transition: all 0.15s;
+            box-shadow: 4px 4px 0 rgba(0,0,0,0.4);
+        }
+
+        .login-btn:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: 6px 6px 0 rgba(0,0,0,0.4);
+        }
+
+        .login-btn:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .login-error {
+            background: rgba(239, 68, 68, 0.2);
+            border: 2px solid var(--danger);
+            border-radius: 8px;
+            padding: 12px;
+            color: #fca5a5;
+            font-size: 13px;
+            text-align: center;
+            margin-bottom: 16px;
+        }
+
+        .login-links {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 13px;
+        }
+
+        .login-links a {
+            color: var(--teal);
+            text-decoration: none;
+        }
+
+        .login-links a:hover { text-decoration: underline; }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+    <!-- Header (hidden on login) -->
+    <div class="header-bar" id="headerBar" style="display: none;">
+        <a href="/pages/dashboard.html">
+            <img src="/images/gold_logo.png" alt="BRDC" class="header-logo">
+        </a>
+        <span class="header-title">VERIFY YOUR STATS</span>
+        <a href="/pages/dashboard.html" class="back-btn">BACK</a>
+    </div>
+
+    <!-- Login Screen -->
+    <div class="screen active" id="loginScreen">
+        <div class="login-page">
+            <img src="/images/gold_logo.png" alt="BRDC" class="login-logo">
+            <h1 class="login-title">VERIFY YOUR STATS</h1>
+
+            <div class="login-box">
+                <div class="login-form-title">LOGIN</div>
+
+                <div class="login-error hidden" id="loginError"></div>
+
+                <div class="form-group">
+                    <label class="form-label">Your 8-Digit PIN</label>
+                    <input type="password" class="form-input" id="pinInput" placeholder="••••••••" maxlength="8" inputmode="numeric" pattern="[0-9]*" autocomplete="off">
+                </div>
+
+                <button class="login-btn" onclick="loginWithPin()">LOGIN</button>
+
+                <div class="login-links">
+                    <a href="/pages/dashboard.html">Back to Dashboard</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Setup Screen -->
+    <div class="screen" id="setupScreen">
+        <div class="container">
+            <!-- Player Card -->
+            <div class="player-card">
+                <div class="player-avatar" id="playerAvatar">?</div>
+                <div class="player-info">
+                    <h3 id="playerName">Player Name</h3>
+                    <p id="playerStatus">Verification Status: Unverified</p>
+                </div>
+            </div>
+
+            <!-- Current Progress (if any) -->
+            <div class="verification-progress hidden" id="progressSection">
+                <div class="progress-header">
+                    <span class="progress-title" id="progressTitle">501 VERIFICATION</span>
+                    <span class="progress-count" id="progressCount">0 of 5 legs</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <!-- Info Card -->
+            <div class="info-card">
+                <h2>HOW IT WORKS</h2>
+                <ul class="info-list">
+                    <li>Play <strong>5 legs of 501</strong> vs a bot opponent</li>
+                    <li>Play <strong>5 legs of Cricket</strong> vs a bot opponent</li>
+                    <li>Your <strong>best 3 legs</strong> of each game count</li>
+                    <li>Must <strong>win at least 2</strong> of your counting legs</li>
+                </ul>
+                <p style="font-size: 13px; color: rgba(255,255,255,0.6);">Your verified stats display with a checkmark, giving captains confidence in your skill level.</p>
+            </div>
+
+            <!-- Bot Selection -->
+            <div class="section-title">SELECT YOUR OPPONENT</div>
+            <div class="bot-grid" id="botGrid">
+                <!-- Bots populated by JS -->
+            </div>
+
+            <!-- Launch Buttons -->
+            <div class="launch-section">
+                <button class="launch-btn x01" id="launchX01Btn" onclick="launchVerification('501')" disabled>
+                    VERIFY 501 STATS
+                </button>
+
+                <button class="launch-btn cricket" id="launchCricketBtn" onclick="launchVerification('cricket')" disabled>
+                    VERIFY CRICKET STATS
+                </button>
+            </div>
+
+            <!-- Current Verification Status -->
+            <div class="status-row" id="currentStats" style="margin-top: 20px;">
+                <div class="status-card">
+                    <h4>CURRENT 501 AVG</h4>
+                    <div class="status-value" id="current3DA">--</div>
+                    <div class="status-label" id="status3DA">Not verified</div>
+                </div>
+                <div class="status-card">
+                    <h4>CURRENT MPR</h4>
+                    <div class="status-value" id="currentMPR">--</div>
+                    <div class="status-label" id="statusMPR">Not verified</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { callFunction } from '/js/firebase-config.js';
+
+        // State
+        let currentPlayer = null;
+        let selectedBot = null;
+        let registeredBots = [];
+        let verificationSession = null;
+
+        const BOT_AVG_LABELS = {
+            easy: '~40 avg',
+            medium: '~55 avg',
+            league: '~65 avg',
+            hard: '~75 avg',
+            pro: '~90 avg'
+        };
+
+        // Screen management
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(screenId).classList.add('active');
+
+            // Show/hide header
+            document.getElementById('headerBar').style.display =
+                screenId === 'loginScreen' ? 'none' : 'flex';
+        }
+
+        // Login
+        window.loginWithPin = async function() {
+            const pin = document.getElementById('pinInput').value.trim();
+            const errorEl = document.getElementById('loginError');
+
+            if (!pin || pin.length < 5) {
+                errorEl.textContent = 'Please enter a valid PIN';
+                errorEl.classList.remove('hidden');
+                return;
+            }
+
+            const btn = document.querySelector('.login-btn');
+            btn.disabled = true;
+            btn.textContent = 'LOGGING IN...';
+
+            try {
+                // Look up player via Cloud Function
+                const result = await callFunction('getPlayerByPin', { pin });
+
+                if (!result.success || !result.player) {
+                    errorEl.textContent = 'Player not found. Check your PIN.';
+                    errorEl.classList.remove('hidden');
+                    btn.disabled = false;
+                    btn.textContent = 'LOGIN';
+                    return;
+                }
+
+                currentPlayer = result.player;
+                currentPlayer.pin = pin;
+
+                // Store in session for scorer pages
+                sessionStorage.setItem('verificationPlayer', JSON.stringify({
+                    id: currentPlayer.id,
+                    name: currentPlayer.name,
+                    pin: pin
+                }));
+
+                // Update UI
+                document.getElementById('playerName').textContent = currentPlayer.name || 'Player';
+                document.getElementById('playerAvatar').textContent =
+                    (currentPlayer.name || 'P').charAt(0).toUpperCase();
+
+                // Check verification status
+                await checkVerificationStatus();
+
+                // Load bots
+                await loadBots();
+
+                // Check for in-progress verification
+                checkVerificationProgress();
+
+                showScreen('setupScreen');
+
+            } catch (err) {
+                console.error('Login error:', err);
+                errorEl.textContent = 'Error logging in: ' + (err.message || 'Unknown error');
+                errorEl.classList.remove('hidden');
+                btn.disabled = false;
+                btn.textContent = 'LOGIN';
+            }
+        };
+
+        // Check verification status
+        async function checkVerificationStatus() {
+            try {
+                const result = await callFunction('getVerificationStatus', {
+                    player_id: currentPlayer.id
+                });
+
+                if (result.success) {
+                    if (result.status === 'verified') {
+                        document.getElementById('playerStatus').innerHTML =
+                            `<span class="verified-badge">VERIFIED</span> Expires: ${new Date(result.expires_at).toLocaleDateString()}`;
+                        document.getElementById('current3DA').textContent = result.verified_3da?.toFixed(1) || '--';
+                        document.getElementById('currentMPR').textContent = result.verified_mpr?.toFixed(2) || '--';
+                        document.getElementById('status3DA').textContent = 'Verified';
+                        document.getElementById('statusMPR').textContent = 'Verified';
+                    } else if (result.status === 'expired') {
+                        document.getElementById('playerStatus').textContent = 'Verification expired - please re-verify';
+                        document.getElementById('current3DA').textContent = result.verified_3da?.toFixed(1) || '--';
+                        document.getElementById('currentMPR').textContent = result.verified_mpr?.toFixed(2) || '--';
+                        document.getElementById('status3DA').textContent = 'Expired';
+                        document.getElementById('statusMPR').textContent = 'Expired';
+                    } else {
+                        document.getElementById('playerStatus').textContent = 'Not yet verified';
+                    }
+                }
+            } catch (err) {
+                console.error('Error checking verification status:', err);
+            }
+        }
+
+        // Load bots
+        async function loadBots() {
+            try {
+                const result = await callFunction('getBots', {});
+                registeredBots = result.bots || [];
+                renderBots();
+            } catch (err) {
+                console.error('Error loading bots:', err);
+                renderBots();
+            }
+        }
+
+        // Render bot grid
+        function renderBots() {
+            const grid = document.getElementById('botGrid');
+
+            if (registeredBots.length === 0) {
+                grid.innerHTML = `
+                    <div class="no-bots-message" style="grid-column: span 2;">
+                        No bots available. <a href="/pages/bot-management.html">Create some bots</a> first.
+                    </div>
+                `;
+                return;
+            }
+
+            grid.innerHTML = registeredBots.map(bot => {
+                const avgLabel = BOT_AVG_LABELS[bot.difficulty] || '~55 avg';
+                const isSelected = selectedBot && selectedBot.id === bot.id;
+                return `
+                    <div class="bot-option ${isSelected ? 'selected' : ''}" onclick="selectBot('${bot.id}')">
+                        <div class="bot-option-name">${escapeHtml(bot.name)}</div>
+                        <div class="bot-option-info">
+                            <span class="bot-diff ${bot.difficulty}">${bot.difficulty}</span>
+                            ${avgLabel}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            updateLaunchButtons();
+        }
+
+        // Select bot
+        window.selectBot = function(botId) {
+            selectedBot = registeredBots.find(b => b.id === botId);
+
+            // Store selected bot for scorer
+            if (selectedBot) {
+                sessionStorage.setItem('verificationBot', JSON.stringify(selectedBot));
+            }
+
+            renderBots();
+        };
+
+        // Update launch buttons
+        function updateLaunchButtons() {
+            const canLaunch = selectedBot !== null;
+            document.getElementById('launchX01Btn').disabled = !canLaunch;
+            document.getElementById('launchCricketBtn').disabled = !canLaunch;
+        }
+
+        // Check for in-progress verification
+        function checkVerificationProgress() {
+            const session = sessionStorage.getItem('verificationSession');
+            if (session) {
+                verificationSession = JSON.parse(session);
+
+                // Show progress
+                const progressSection = document.getElementById('progressSection');
+                progressSection.classList.remove('hidden');
+
+                const gameType = verificationSession.game_type;
+                const legsComplete = verificationSession.legs_complete || 0;
+
+                document.getElementById('progressTitle').textContent =
+                    `${gameType.toUpperCase()} VERIFICATION IN PROGRESS`;
+                document.getElementById('progressCount').textContent =
+                    `${legsComplete} of 5 legs complete`;
+                document.getElementById('progressFill').style.width =
+                    `${(legsComplete / 5) * 100}%`;
+
+                // Restore bot selection
+                if (verificationSession.bot) {
+                    selectedBot = verificationSession.bot;
+                    sessionStorage.setItem('verificationBot', JSON.stringify(selectedBot));
+                    renderBots();
+                }
+            }
+        }
+
+        // Launch verification
+        window.launchVerification = function(gameType) {
+            if (!selectedBot || !currentPlayer) {
+                alert('Please select a bot opponent first');
+                return;
+            }
+
+            // Create verification session
+            const session = {
+                player_id: currentPlayer.id,
+                player_name: currentPlayer.name,
+                player_pin: currentPlayer.pin,
+                bot: selectedBot,
+                game_type: gameType,
+                legs_complete: 0,
+                legs_data: [],
+                started_at: new Date().toISOString()
+            };
+
+            sessionStorage.setItem('verificationSession', JSON.stringify(session));
+
+            // Build player arrays for scorer
+            const homePlayers = [{
+                name: currentPlayer.name,
+                id: currentPlayer.id,
+                position: 1,
+                isBot: false
+            }];
+
+            const awayPlayers = [{
+                name: selectedBot.name,
+                id: selectedBot.id,
+                position: 1,
+                isBot: true,
+                botDifficulty: selectedBot.difficulty
+            }];
+
+            // Build URL params
+            const params = new URLSearchParams();
+            params.set('home_players', JSON.stringify(homePlayers));
+            params.set('away_players', JSON.stringify(awayPlayers));
+            params.set('legs_to_win', '5'); // Play exactly 5 legs
+            params.set('cork', 'false'); // No cork needed
+            params.set('cork_rule', 'home_first'); // Player always first
+            params.set('verification_mode', 'true');
+            params.set('return_url', '/pages/stat-verification.html');
+
+            if (gameType === '501') {
+                params.set('starting_score', '501');
+                params.set('in_rule', 'straight');
+                params.set('out_rule', 'double');
+                params.set('checkout', 'double');
+                window.location.href = `/pages/league-501.html?${params.toString()}`;
+            } else {
+                window.location.href = `/pages/league-cricket.html?${params.toString()}`;
+            }
+        };
+
+        // Escape HTML
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        // Handle Enter key on PIN input
+        document.getElementById('pinInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                window.loginWithPin();
+            }
+        });
+
+        // Check if returning from scorer with results
+        (function checkForResults() {
+            const results = sessionStorage.getItem('verificationResults');
+            if (results) {
+                const data = JSON.parse(results);
+                console.log('Verification results received:', data);
+
+                // Clear the results
+                sessionStorage.removeItem('verificationResults');
+                sessionStorage.removeItem('verificationSession');
+
+                // Show success message
+                alert(`Verification complete!\n\nYour ${data.game_type} stats have been saved.`);
+            }
+        })();
+
+        // Auto-login if returning from scorer
+        (function checkAutoLogin() {
+            const savedPlayer = sessionStorage.getItem('verificationPlayer');
+            if (savedPlayer) {
+                const player = JSON.parse(savedPlayer);
+                document.getElementById('pinInput').value = player.pin;
+                // Delay to allow page to load
+                setTimeout(() => window.loginWithPin(), 100);
+            }
+        })();
+    </script>
+<script src="/js/nav-menu.js"></script>
+</body>
+</html>

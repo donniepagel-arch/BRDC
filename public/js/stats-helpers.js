@@ -143,6 +143,18 @@ function getTeamRecord(team) {
 }
 
 /**
+ * Get ordinal suffix for a number (1st, 2nd, 3rd, etc.)
+ * @param {number} n - The number
+ * @returns {string} Number with ordinal suffix
+ */
+function getOrdinal(n) {
+    if (!n || n < 1) return '';
+    const s = ['th', 'st', 'nd', 'rd'];
+    const v = n % 100;
+    return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+
+/**
  * Format stats for compact display (e.g., "52.3 / 2.45")
  * @param {Object} stats - Stats object
  * @returns {string} Formatted string "3DA / MPR"
@@ -213,6 +225,7 @@ if (typeof module !== 'undefined' && module.exports) {
         getPlayerName,
         getTeamName,
         getTeamRecord,
+        getOrdinal,
         formatStats,
         format3DA,
         formatMPR,

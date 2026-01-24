@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Dart Trader - BRDC</title>
+    <link rel="icon" type="image/png" href="/images/favicon.png">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#FF469A">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap');
+
+        :root {
+            --pink: #FF469A;
+            --teal: #91D7EB;
+            --yellow: #FDD835;
+            --bg-dark: #1a1a2e;
+            --bg-panel: #16213e;
+            --bg-card: #1e2a47;
+            --text-light: #f0f0f0;
+            --text-dim: #8a8aa3;
+            --border-color: rgba(255,255,255,0.15);
+            --success: #22c55e;
+            --danger: #ef4444;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+        html, body { min-height: 100%; overflow-x: hidden; width: 100%; }
+        body {
+            background: linear-gradient(135deg, var(--bg-dark) 0%, #0f0f23 100%);
+            color: var(--text-light);
+            padding-bottom: 100px;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse at 20% 20%, rgba(255, 70, 154, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(145, 215, 235, 0.06) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        /* Header */
+        .header-bar {
+            background: var(--bg-panel);
+            border-bottom: 3px solid var(--pink);
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+        }
+
+        .back-btn {
+            background: rgba(255,255,255,0.1);
+            border: 2px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.15s;
+            text-decoration: none;
+        }
+
+        .back-btn:hover {
+            background: rgba(255,255,255,0.2);
+            border-color: var(--pink);
+        }
+
+        .header-title {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 28px;
+            letter-spacing: 2px;
+            color: var(--yellow);
+        }
+
+        .sell-btn {
+            margin-left: auto;
+            background: linear-gradient(180deg, var(--pink) 0%, #d63384 100%);
+            border: 2px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.15s;
+        }
+
+        .sell-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(255, 70, 154, 0.4);
+        }
+
+        /* Page Content */
+        .page-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Filter Section */
+        .filter-section {
+            background: var(--bg-panel);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 20px;
+            border: 2px solid rgba(255,255,255,0.1);
+        }
+
+        .filter-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .filter-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
+
+        .filter-select, .filter-input {
+            background: var(--bg-card);
+            border: 2px solid rgba(255,255,255,0.15);
+            border-radius: 6px;
+            color: var(--text-light);
+            padding: 8px 12px;
+            font-size: 14px;
+            min-width: 140px;
+        }
+
+        .filter-select:focus, .filter-input:focus {
+            outline: none;
+            border-color: var(--teal);
+        }
+
+        .search-input {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .filter-btn {
+            background: var(--teal);
+            border: none;
+            color: var(--bg-dark);
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .filter-btn:hover {
+            background: #7bc4d6;
+        }
+
+        .clear-btn {
+            background: transparent;
+            border: 2px solid rgba(255,255,255,0.2);
+            color: var(--text-dim);
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .clear-btn:hover {
+            border-color: var(--pink);
+            color: var(--pink);
+        }
+
+        /* Category Pills */
+        .category-pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .category-pill {
+            background: var(--bg-card);
+            border: 2px solid rgba(255,255,255,0.15);
+            border-radius: 20px;
+            padding: 8px 16px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+            color: var(--text-light);
+        }
+
+        .category-pill:hover {
+            border-color: var(--teal);
+            color: var(--teal);
+        }
+
+        .category-pill.active {
+            background: var(--teal);
+            border-color: var(--teal);
+            color: var(--bg-dark);
+        }
+
+        .category-pill .count {
+            background: rgba(0,0,0,0.2);
+            border-radius: 10px;
+            padding: 2px 8px;
+            font-size: 11px;
+            margin-left: 6px;
+        }
+
+        .category-pill.active .count {
+            background: rgba(0,0,0,0.3);
+        }
+
+        /* Results Header */
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .results-count {
+            color: var(--text-dim);
+            font-size: 14px;
+        }
+
+        .sort-select {
+            background: var(--bg-card);
+            border: 2px solid rgba(255,255,255,0.15);
+            border-radius: 6px;
+            color: var(--text-light);
+            padding: 8px 12px;
+            font-size: 13px;
+        }
+
+        /* Listings Grid */
+        .listings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 16px;
+        }
+
+        .listing-card {
+            background: var(--bg-card);
+            border: 2px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            overflow: hidden;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .listing-card:hover {
+            border-color: var(--teal);
+            transform: translateY(-4px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+        }
+
+        .listing-image {
+            width: 100%;
+            height: 180px;
+            object-fit: cover;
+            background: var(--bg-panel);
+        }
+
+        .listing-image-placeholder {
+            width: 100%;
+            height: 180px;
+            background: var(--bg-panel);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+            color: var(--text-dim);
+        }
+
+        .listing-content {
+            padding: 14px;
+        }
+
+        .listing-category {
+            font-size: 10px;
+            text-transform: uppercase;
+            color: var(--teal);
+            font-weight: 700;
+            letter-spacing: 1px;
+            margin-bottom: 6px;
+        }
+
+        .listing-title {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 20px;
+            color: var(--text-light);
+            margin-bottom: 6px;
+            line-height: 1.2;
+        }
+
+        .listing-specs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 10px;
+        }
+
+        .listing-spec {
+            background: rgba(255,255,255,0.1);
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            color: var(--text-dim);
+        }
+
+        .listing-price {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 28px;
+            color: var(--yellow);
+        }
+
+        .listing-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .listing-seller {
+            font-size: 12px;
+            color: var(--text-dim);
+        }
+
+        .listing-date {
+            font-size: 11px;
+            color: var(--text-dim);
+        }
+
+        .listing-sold {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: var(--danger);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .listing-card.sold {
+            opacity: 0.6;
+            position: relative;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-dim);
+        }
+
+        .empty-state-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+        }
+
+        .empty-state h3 {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 24px;
+            color: var(--text-light);
+            margin-bottom: 8px;
+        }
+
+        /* Loading State */
+        .loading {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-dim);
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255,255,255,0.1);
+            border-top-color: var(--teal);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            .header-title {
+                font-size: 22px;
+            }
+
+            .sell-btn {
+                padding: 8px 14px;
+                font-size: 12px;
+            }
+
+            .filter-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .filter-group {
+                width: 100%;
+            }
+
+            .filter-select, .filter-input {
+                width: 100%;
+            }
+
+            .listings-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .category-pills {
+                overflow-x: auto;
+                flex-wrap: nowrap;
+                padding-bottom: 8px;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            .category-pill {
+                flex-shrink: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header-bar">
+        <a href="/pages/dashboard.html" class="back-btn">← BACK</a>
+        <div class="header-title">DART TRADER</div>
+        <a href="/pages/dashboard.html?tab=trader" class="sell-btn">+ SELL SOMETHING</a>
+    </div>
+
+    <div class="page-content">
+        <!-- Category Pills -->
+        <div class="category-pills" id="categoryPills">
+            <div class="category-pill active" data-category="all">All <span class="count" id="countAll">0</span></div>
+            <div class="category-pill" data-category="darts">Darts <span class="count" id="countDarts">0</span></div>
+            <div class="category-pill" data-category="flights">Flights <span class="count" id="countFlights">0</span></div>
+            <div class="category-pill" data-category="shafts">Shafts <span class="count" id="countShafts">0</span></div>
+            <div class="category-pill" data-category="cases">Cases <span class="count" id="countCases">0</span></div>
+            <div class="category-pill" data-category="dartboards">Dartboards <span class="count" id="countDartboards">0</span></div>
+            <div class="category-pill" data-category="accessories">Accessories <span class="count" id="countAccessories">0</span></div>
+        </div>
+
+        <!-- Filter Section -->
+        <div class="filter-section">
+            <div class="filter-row">
+                <div class="filter-group search-input">
+                    <label class="filter-label">Search</label>
+                    <input type="text" class="filter-input" id="searchInput" placeholder="Search listings...">
+                </div>
+
+                <!-- Darts-specific filters (shown when Darts category selected) -->
+                <div class="filter-group darts-filter" id="weightFilter" style="display: none;">
+                    <label class="filter-label">Weight</label>
+                    <select class="filter-select" id="weightSelect">
+                        <option value="">Any Weight</option>
+                        <option value="18-20">18-20g</option>
+                        <option value="21-23">21-23g</option>
+                        <option value="24-26">24-26g</option>
+                        <option value="27+">27g+</option>
+                    </select>
+                </div>
+
+                <div class="filter-group darts-filter" id="materialFilter" style="display: none;">
+                    <label class="filter-label">Material</label>
+                    <select class="filter-select" id="materialSelect">
+                        <option value="">Any Material</option>
+                        <option value="90% Tungsten">90% Tungsten</option>
+                        <option value="95% Tungsten">95% Tungsten</option>
+                        <option value="80% Tungsten">80% Tungsten</option>
+                        <option value="Brass">Brass</option>
+                        <option value="Nickel Silver">Nickel Silver</option>
+                    </select>
+                </div>
+
+                <div class="filter-group darts-filter" id="pointTypeFilter" style="display: none;">
+                    <label class="filter-label">Point Type</label>
+                    <select class="filter-select" id="pointTypeSelect">
+                        <option value="">Any Type</option>
+                        <option value="Steel Tip">Steel Tip</option>
+                        <option value="Soft Tip">Soft Tip</option>
+                        <option value="Convertible">Convertible</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label class="filter-label">Price Range</label>
+                    <select class="filter-select" id="priceSelect">
+                        <option value="">Any Price</option>
+                        <option value="0-25">Under $25</option>
+                        <option value="25-50">$25 - $50</option>
+                        <option value="50-100">$50 - $100</option>
+                        <option value="100-200">$100 - $200</option>
+                        <option value="200+">$200+</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label class="filter-label">Condition</label>
+                    <select class="filter-select" id="conditionSelect">
+                        <option value="">Any Condition</option>
+                        <option value="New">New</option>
+                        <option value="Like New">Like New</option>
+                        <option value="Good">Good</option>
+                        <option value="Fair">Fair</option>
+                    </select>
+                </div>
+
+                <div class="filter-group" style="justify-content: flex-end;">
+                    <label class="filter-label">&nbsp;</label>
+                    <button class="clear-btn" onclick="clearFilters()">Clear All</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Header -->
+        <div class="results-header">
+            <div class="results-count" id="resultsCount">Loading...</div>
+            <select class="sort-select" id="sortSelect">
+                <option value="newest">Newest First</option>
+                <option value="oldest">Oldest First</option>
+                <option value="price-low">Price: Low to High</option>
+                <option value="price-high">Price: High to Low</option>
+            </select>
+        </div>
+
+        <!-- Listings Grid -->
+        <div class="listings-grid" id="listingsGrid">
+            <div class="loading">
+                <div class="loading-spinner"></div>
+                <p>Loading listings...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+
+    <script>
+        // Firebase config
+        const firebaseConfig = {
+            apiKey: "AIzaSyApov-xE5l1EJo0CADJ3OXP5aPvFmTmrZA",
+            authDomain: "brdc-v2.firebaseapp.com",
+            projectId: "brdc-v2",
+            storageBucket: "brdc-v2.firebasestorage.app",
+            messagingSenderId: "858304543457",
+            appId: "1:858304543457:web:e119e7c6fb7d616ea57ba3"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // State
+        let allListings = [];
+        let filteredListings = [];
+        let currentCategory = 'all';
+
+        // Category icons
+        const categoryIcons = {
+            darts: '🎯',
+            flights: '🪶',
+            shafts: '📍',
+            cases: '💼',
+            dartboards: '🎪',
+            accessories: '🔧'
+        };
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadListings();
+            setupEventListeners();
+        });
+
+        // Setup event listeners
+        function setupEventListeners() {
+            // Category pills
+            document.querySelectorAll('.category-pill').forEach(pill => {
+                pill.addEventListener('click', () => {
+                    document.querySelectorAll('.category-pill').forEach(p => p.classList.remove('active'));
+                    pill.classList.add('active');
+                    currentCategory = pill.dataset.category;
+                    toggleDartsFilters(currentCategory === 'darts');
+                    applyFilters();
+                });
+            });
+
+            // Filter inputs
+            document.getElementById('searchInput').addEventListener('input', debounce(applyFilters, 300));
+            document.getElementById('weightSelect').addEventListener('change', applyFilters);
+            document.getElementById('materialSelect').addEventListener('change', applyFilters);
+            document.getElementById('pointTypeSelect').addEventListener('change', applyFilters);
+            document.getElementById('priceSelect').addEventListener('change', applyFilters);
+            document.getElementById('conditionSelect').addEventListener('change', applyFilters);
+            document.getElementById('sortSelect').addEventListener('change', applyFilters);
+        }
+
+        // Toggle darts-specific filters
+        function toggleDartsFilters(show) {
+            document.querySelectorAll('.darts-filter').forEach(el => {
+                el.style.display = show ? 'flex' : 'none';
+            });
+        }
+
+        // Load listings from Firestore
+        async function loadListings() {
+            try {
+                const snapshot = await db.collection('dart_trader_listings')
+                    .where('status', 'in', ['active', 'sold'])
+                    .orderBy('created_at', 'desc')
+                    .get();
+
+                allListings = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+
+                updateCategoryCounts();
+                applyFilters();
+            } catch (error) {
+                console.error('Error loading listings:', error);
+                document.getElementById('listingsGrid').innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">❌</div>
+                        <h3>Error Loading Listings</h3>
+                        <p>Please try refreshing the page.</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Update category counts
+        function updateCategoryCounts() {
+            const counts = {
+                all: allListings.filter(l => l.status === 'active').length,
+                darts: 0,
+                flights: 0,
+                shafts: 0,
+                cases: 0,
+                dartboards: 0,
+                accessories: 0
+            };
+
+            allListings.filter(l => l.status === 'active').forEach(listing => {
+                const cat = listing.category?.toLowerCase() || 'accessories';
+                if (counts[cat] !== undefined) {
+                    counts[cat]++;
+                } else {
+                    counts.accessories++;
+                }
+            });
+
+            document.getElementById('countAll').textContent = counts.all;
+            document.getElementById('countDarts').textContent = counts.darts;
+            document.getElementById('countFlights').textContent = counts.flights;
+            document.getElementById('countShafts').textContent = counts.shafts;
+            document.getElementById('countCases').textContent = counts.cases;
+            document.getElementById('countDartboards').textContent = counts.dartboards;
+            document.getElementById('countAccessories').textContent = counts.accessories;
+        }
+
+        // Apply all filters
+        function applyFilters() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const weightRange = document.getElementById('weightSelect').value;
+            const material = document.getElementById('materialSelect').value;
+            const pointType = document.getElementById('pointTypeSelect').value;
+            const priceRange = document.getElementById('priceSelect').value;
+            const condition = document.getElementById('conditionSelect').value;
+            const sortBy = document.getElementById('sortSelect').value;
+
+            filteredListings = allListings.filter(listing => {
+                // Category filter
+                if (currentCategory !== 'all') {
+                    const listingCat = listing.category?.toLowerCase() || 'accessories';
+                    if (listingCat !== currentCategory) return false;
+                }
+
+                // Search filter
+                if (searchTerm) {
+                    const searchFields = [
+                        listing.title,
+                        listing.description,
+                        listing.brand,
+                        listing.seller_name
+                    ].filter(Boolean).join(' ').toLowerCase();
+                    if (!searchFields.includes(searchTerm)) return false;
+                }
+
+                // Weight filter (darts only)
+                if (weightRange && listing.category?.toLowerCase() === 'darts') {
+                    const weight = parseFloat(listing.weight) || 0;
+                    if (weightRange === '18-20' && (weight < 18 || weight > 20)) return false;
+                    if (weightRange === '21-23' && (weight < 21 || weight > 23)) return false;
+                    if (weightRange === '24-26' && (weight < 24 || weight > 26)) return false;
+                    if (weightRange === '27+' && weight < 27) return false;
+                }
+
+                // Material filter
+                if (material && listing.material !== material) return false;
+
+                // Point type filter
+                if (pointType && listing.point_type !== pointType) return false;
+
+                // Price filter
+                if (priceRange) {
+                    const price = parseFloat(listing.price) || 0;
+                    if (priceRange === '0-25' && price > 25) return false;
+                    if (priceRange === '25-50' && (price < 25 || price > 50)) return false;
+                    if (priceRange === '50-100' && (price < 50 || price > 100)) return false;
+                    if (priceRange === '100-200' && (price < 100 || price > 200)) return false;
+                    if (priceRange === '200+' && price < 200) return false;
+                }
+
+                // Condition filter
+                if (condition && listing.condition !== condition) return false;
+
+                return true;
+            });
+
+            // Sort
+            filteredListings.sort((a, b) => {
+                switch (sortBy) {
+                    case 'newest':
+                        return (b.created_at?.toDate?.() || new Date(0)) - (a.created_at?.toDate?.() || new Date(0));
+                    case 'oldest':
+                        return (a.created_at?.toDate?.() || new Date(0)) - (b.created_at?.toDate?.() || new Date(0));
+                    case 'price-low':
+                        return (parseFloat(a.price) || 0) - (parseFloat(b.price) || 0);
+                    case 'price-high':
+                        return (parseFloat(b.price) || 0) - (parseFloat(a.price) || 0);
+                    default:
+                        return 0;
+                }
+            });
+
+            renderListings();
+        }
+
+        // Render listings
+        function renderListings() {
+            const grid = document.getElementById('listingsGrid');
+            const activeListings = filteredListings.filter(l => l.status === 'active');
+            const soldListings = filteredListings.filter(l => l.status === 'sold');
+
+            // Update count
+            document.getElementById('resultsCount').textContent =
+                `${activeListings.length} listing${activeListings.length !== 1 ? 's' : ''} found`;
+
+            if (filteredListings.length === 0) {
+                grid.innerHTML = `
+                    <div class="empty-state" style="grid-column: 1 / -1;">
+                        <div class="empty-state-icon">🔍</div>
+                        <h3>No Listings Found</h3>
+                        <p>Try adjusting your filters or search terms.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Show active listings first, then sold
+            const sortedListings = [...activeListings, ...soldListings];
+
+            grid.innerHTML = sortedListings.map(listing => {
+                const icon = categoryIcons[listing.category?.toLowerCase()] || '📦';
+                const specs = [];
+
+                if (listing.category?.toLowerCase() === 'darts') {
+                    if (listing.weight) specs.push(`${listing.weight}g`);
+                    if (listing.material) specs.push(listing.material);
+                    if (listing.point_type) specs.push(listing.point_type);
+                }
+                if (listing.condition) specs.push(listing.condition);
+                if (listing.brand) specs.push(listing.brand);
+
+                const dateStr = listing.created_at?.toDate
+                    ? formatDate(listing.created_at.toDate())
+                    : 'Recently';
+
+                const isSold = listing.status === 'sold';
+
+                return `
+                    <div class="listing-card ${isSold ? 'sold' : ''}" onclick="viewListing('${listing.id}')">
+                        ${isSold ? '<div class="listing-sold">SOLD</div>' : ''}
+                        ${listing.image_url
+                            ? `<img src="${listing.image_url}" alt="${listing.title}" class="listing-image">`
+                            : `<div class="listing-image-placeholder">${icon}</div>`
+                        }
+                        <div class="listing-content">
+                            <div class="listing-category">${listing.category || 'Item'}</div>
+                            <div class="listing-title">${escapeHtml(listing.title)}</div>
+                            ${specs.length ? `
+                                <div class="listing-specs">
+                                    ${specs.map(s => `<span class="listing-spec">${escapeHtml(s)}</span>`).join('')}
+                                </div>
+                            ` : ''}
+                            <div class="listing-price">$${parseFloat(listing.price).toFixed(0)}</div>
+                            <div class="listing-footer">
+                                <div class="listing-seller">${escapeHtml(listing.seller_name || 'Member')}</div>
+                                <div class="listing-date">${dateStr}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // View listing detail
+        function viewListing(id) {
+            window.location.href = `/pages/dart-trader-listing.html?id=${id}`;
+        }
+
+        // Clear all filters
+        function clearFilters() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('weightSelect').value = '';
+            document.getElementById('materialSelect').value = '';
+            document.getElementById('pointTypeSelect').value = '';
+            document.getElementById('priceSelect').value = '';
+            document.getElementById('conditionSelect').value = '';
+            applyFilters();
+        }
+
+        // Utility functions
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text || '';
+            return div.innerHTML;
+        }
+
+        function formatDate(date) {
+            const now = new Date();
+            const diff = now - date;
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+
+            if (days === 0) return 'Today';
+            if (days === 1) return 'Yesterday';
+            if (days < 7) return `${days} days ago`;
+            if (days < 30) return `${Math.floor(days / 7)} week${Math.floor(days / 7) > 1 ? 's' : ''} ago`;
+            return date.toLocaleDateString();
+        }
+    </script>
+</body>
+</html>

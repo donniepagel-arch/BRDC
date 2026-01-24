@@ -515,7 +515,7 @@
         <div class="login-section" id="loginSection">
             <div class="login-title">ENTER YOUR PIN</div>
             <div class="login-row">
-                <input type="password" id="loginPin" class="login-input" placeholder="••••••" maxlength="6" inputmode="numeric">
+                <input type="password" id="loginPin" class="login-input" placeholder="••••••••" maxlength="8" inputmode="numeric">
                 <button class="login-btn" onclick="login()">GO</button>
             </div>
         </div>
@@ -635,7 +635,7 @@
     </div>
 
     <script>
-        const CLOUD_URL = 'https://us-central1-brdc-69.cloudfunctions.net';
+        const CLOUD_URL = 'https://us-central1-brdc-v2.cloudfunctions.net';
 
         let currentPlayer = null;
         let playerPin = null;
@@ -645,8 +645,8 @@
         // Login
         async function login() {
             const pin = document.getElementById('loginPin').value.trim();
-            if (!pin || pin.length !== 6) {
-                alert('Please enter a valid 6-digit PIN');
+            if (!pin || pin.length !== 8) {
+                alert('Please enter a valid 8-digit PIN');
                 return;
             }
 
@@ -677,11 +677,17 @@
                     currentPlayer = playerResult;
                 }
 
+                // Save PIN to localStorage for convenience
+                localStorage.setItem('brdc_player_pin', playerPin);
+
                 document.getElementById('loginSection').classList.add('hidden');
                 document.getElementById('mainContent').classList.add('visible');
 
                 updateUserBar();
                 loadAllData();
+
+                // Start auto-refresh
+                startAutoRefresh();
 
             } catch (error) {
                 alert('Error: ' + error.message);
@@ -786,6 +792,10 @@
                                 </div>
                                 <div class="challenge-time">Waiting...</div>
                             </div>
+                            ${c.message ? `<div class="challenge-message">"${c.message}"</div>` : ''}
+                            <div class="challenge-actions">
+                                <button class="challenge-btn btn-cancel" onclick="cancelChallenge('${c.id}')">CANCEL</button>
+                            </div>
                         </div>
                     `).join('');
                 }
@@ -850,15 +860,27 @@
                     const opponent = isPlayer1 ? m.player2_name : m.player1_name;
                     const myReady = isPlayer1 ? m.player1_ready : m.player2_ready;
                     const theirReady = isPlayer1 ? m.player2_ready : m.player1_ready;
+                    const gameType = m.game_type || '501';
 
                     let status = 'WAITING';
                     let statusClass = 'status-waiting';
+                    let buttonHtml = '';
+
                     if (m.status === 'in_progress') {
                         status = 'LIVE';
                         statusClass = 'status-live';
+                        const scorerUrl = gameType === 'cricket'
+                            ? `/scorers/cricket.html?match_id=${m.id}&pin=${m.match_pin || ''}`
+                            : `/scorers/x01.html?match_id=${m.id}&pin=${m.match_pin || ''}`;
+                        buttonHtml = `<button class="match-btn" onclick="window.location.href='${scorerUrl}'">GO TO SCORER</button>`;
                     } else if (myReady && theirReady) {
                         status = 'READY';
                         statusClass = 'status-ready';
+                        buttonHtml = `<button class="match-btn" onclick="startMatch('${m.id}', '${gameType}')">START MATCH</button>`;
+                    } else if (myReady) {
+                        buttonHtml = `<button class="match-btn" disabled>WAITING FOR OPPONENT</button>`;
+                    } else {
+                        buttonHtml = `<button class="match-btn" onclick="startMatch('${m.id}', '${gameType}')">READY TO PLAY</button>`;
                     }
 
                     return `
@@ -867,6 +889,7 @@
                                 <div class="match-vs">VS ${opponent}</div>
                                 <div class="match-status ${statusClass}">${status}</div>
                             </div>
+                            <div style="font-size: 12px; color: var(--teal); text-align: center; margin-bottom: 8px;">${gameType.toUpperCase()} - Best of ${m.game_settings?.legs_to_win * 2 - 1 || 3}</div>
                             <div class="match-score">
                                 <div class="score-player">
                                     <div class="score-name">${m.player1_name}</div>
@@ -878,9 +901,7 @@
                                     <div class="score-value">${m.scores?.player2_legs || 0}</div>
                                 </div>
                             </div>
-                            <button class="match-btn" onclick="startMatch('${m.id}')" ${myReady ? 'disabled' : ''}>
-                                ${myReady ? 'WAITING FOR OPPONENT' : 'READY TO PLAY'}
-                            </button>
+                            ${buttonHtml}
                         </div>
                     `;
                 }).join('');
@@ -891,7 +912,7 @@
         }
 
         // Start match (mark ready)
-        async function startMatch(matchId) {
+        async function startMatch(matchId, gameType) {
             try {
                 const response = await fetch(`${CLOUD_URL}/startOnlineMatch`, {
                     method: 'POST',
@@ -908,10 +929,15 @@
                 }
 
                 if (result.started && result.match_pin) {
-                    alert(`Match started! PIN: ${result.match_pin}\nUse the scorer app to play.`);
+                    // Navigate to the appropriate scorer based on game type
+                    const scorerUrl = gameType === 'cricket'
+                        ? `/scorers/cricket.html?match_id=${matchId}&pin=${result.match_pin}`
+                        : `/scorers/x01.html?match_id=${matchId}&pin=${result.match_pin}`;
+                    window.location.href = scorerUrl;
+                } else {
+                    // Not both players ready yet
+                    loadMatches();
                 }
-
-                loadMatches();
 
             } catch (error) {
                 alert('Error: ' + error.message);
@@ -950,9 +976,10 @@
 
                     container.innerHTML = players.map(p => `
                         <div class="search-result ${selectedOpponent?.player_id === p.player_id ? 'selected' : ''}"
-                             onclick="selectOpponent('${p.player_id}', '${p.name}')">
+                             data-player-id="${p.player_id}"
+                             onclick="selectOpponent('${p.player_id}', '${escapeHtml(p.name)}')">
                             <div class="result-avatar">${p.name.charAt(0).toUpperCase()}</div>
-                            <div class="result-name">${p.name}</div>
+                            <div class="result-name">${escapeHtml(p.name)}</div>
                         </div>
                     `).join('');
 
@@ -965,10 +992,17 @@
         function selectOpponent(id, name) {
             selectedOpponent = { player_id: id, name: name };
             document.querySelectorAll('.search-result').forEach(el => {
-                el.classList.toggle('selected', el.textContent.includes(name));
+                el.classList.toggle('selected', el.dataset.playerId === id);
             });
             document.getElementById('sendChallengeBtn').disabled = false;
             document.getElementById('sendChallengeBtn').textContent = `CHALLENGE ${name.toUpperCase()}`;
+        }
+
+        // Escape HTML to prevent XSS
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
 
         // Send challenge
@@ -1018,6 +1052,53 @@
                 alert('Error: ' + error.message);
             }
         }
+
+        // Cancel challenge
+        async function cancelChallenge(challengeId) {
+            if (!confirm('Cancel this challenge?')) return;
+
+            try {
+                const response = await fetch(`${CLOUD_URL}/cancelChallenge`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        player_pin: playerPin,
+                        challenge_id: challengeId
+                    })
+                });
+
+                const result = await response.json();
+                if (result.success === false) {
+                    throw new Error(result.error || 'Failed to cancel');
+                }
+
+                loadChallenges();
+
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+
+        // Auto-refresh for real-time updates
+        let refreshInterval = null;
+
+        function startAutoRefresh() {
+            // Refresh every 15 seconds
+            refreshInterval = setInterval(() => {
+                loadChallenges();
+                loadMatches();
+            }, 15000);
+        }
+
+        function stopAutoRefresh() {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+                refreshInterval = null;
+            }
+        }
+
+        // Clean up on page unload
+        window.addEventListener('beforeunload', stopAutoRefresh);
 
         // Load history
         async function loadHistory() {

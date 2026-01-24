@@ -13,8 +13,8 @@ const db = admin.firestore();
 
 // Tournament Functions
 const { createTournament, addBotToTournament, updateTournamentSettings, deleteTournament } = require('./tournaments/create');
-const { generateBracket } = require('./tournaments/brackets');
-const { submitMatchResult, recalculateTournamentStats } = require('./tournaments/matches');
+const { generateBracket, generateDoubleEliminationBracket } = require('./tournaments/brackets');
+const { submitMatchResult, recalculateTournamentStats, submitDoubleElimMatchResult, startDoubleElimMatch } = require('./tournaments/matches');
 
 // Export tournament functions
 exports.createTournament = createTournament;
@@ -22,8 +22,11 @@ exports.addBotToTournament = addBotToTournament;
 exports.updateTournamentSettings = updateTournamentSettings;
 exports.deleteTournament = deleteTournament;
 exports.generateBracket = generateBracket;
+exports.generateDoubleEliminationBracket = generateDoubleEliminationBracket;
 exports.submitMatchResult = submitMatchResult;
 exports.recalculateTournamentStats = recalculateTournamentStats;
+exports.submitDoubleElimMatchResult = submitDoubleElimMatchResult;
+exports.startDoubleElimMatch = startDoubleElimMatch;
 
 // League Functions (NEW - Triples Draft League System)
 const leagueFunctions = require('./leagues/index');
@@ -32,6 +35,10 @@ Object.assign(exports, leagueFunctions);
 // Player Profile & Captain Functions
 const playerFunctions = require('./player-profile');
 Object.assign(exports, playerFunctions);
+
+// Captain Portal Functions (availability, go-to subs, fill-in workflow)
+const captainFunctions = require('./captain-functions');
+Object.assign(exports, captainFunctions);
 
 // Bot Player Management Functions (legacy - keeping for backwards compatibility)
 const botFunctions = require('./bots');
@@ -64,9 +71,8 @@ Object.assign(exports, chatRoomFunctions);
 // Object.assign(exports, messageDigestFunctions);
 
 // Presence System (Phase 2 Social Platform)
-// TEMPORARILY DISABLED - uses firebase-functions v2 scheduler not compatible with v4
-// const presenceFunctions = require('./presence');
-// Object.assign(exports, presenceFunctions);
+const presenceFunctions = require('./presence');
+Object.assign(exports, presenceFunctions);
 
 // Social Features (Phase 3 Social Platform - reactions, cheers, achievements)
 const socialFunctions = require('./social');
@@ -118,13 +124,49 @@ Object.assign(exports, knockoutFunctions);
 const feedbackFunctions = require('./feedback');
 Object.assign(exports, feedbackFunctions);
 
-// Matchmaker Tournaments (partner matching, mixed doubles, breakup mechanics)
+// Chat Phase 2: Live Match Ticker & Overlays
+const chatLiveMatchesFunctions = require('./chat-live-matches');
+Object.assign(exports, chatLiveMatchesFunctions);
+
+// Chat Phase 3: Challenge System & Spectator Rooms
+const chatChallengesFunctions = require('./chat-challenges');
+Object.assign(exports, chatChallengesFunctions);
+
+// Chat System: Discord-like Channels (new unified chat system)
+const chatSystemFunctions = require('./chat-system');
+Object.assign(exports, chatSystemFunctions);
+
+// Populate Match Data (one-time data import)
+const populateMatchDataFunctions = require('./populate-match-data');
+Object.assign(exports, populateMatchDataFunctions);
+
+// Week 1 Match Data (Yasenchak vs Kull, etc.)
+const populateWeek1Functions = require('./populate-week1-matches');
+Object.assign(exports, populateWeek1Functions);
+
+// Partlo vs Olschansky Match Data
+const populatePartloFunctions = require('./populate-partlo-match');
+Object.assign(exports, populatePartloFunctions);
+
+// Massimiani vs Ragnoni Match Data
+const populateMassimianiFunctions = require('./populate-massimiani-match');
+Object.assign(exports, populateMassimianiFunctions);
+
+// Mezlak vs Russano Match Data
+const populateMezlakFunctions = require('./populate-mezlak-match');
+Object.assign(exports, populateMezlakFunctions);
+
+// Matchmaker Tournaments (partner matching, mixed doubles, breakup mechanics, heartbreaker)
 const matchmakerFunctions = require('./matchmaker');
 Object.assign(exports, matchmakerFunctions);
 
 // Notable Performances (homepage featured performances)
 const notablePerformancesFunctions = require('./notable-performances');
 Object.assign(exports, notablePerformancesFunctions);
+
+// Stats Verification (verified skill ratings for subs/fill-ins)
+const statsVerificationFunctions = require('./stats-verification');
+Object.assign(exports, statsVerificationFunctions);
 
 // Push Notifications (tiered: FCM > SMS > Email)
 // TEMPORARILY DISABLED - uses firebase-functions v2 scheduler not compatible with v4
@@ -977,260 +1019,26 @@ exports.deleteTournamentDraft = functions.https.onRequest((req, res) => {
 });
 
 // DEBUG: List all templates to see player_ids
-exports.debugListAllTemplates = functions.https.onRequest((req, res) => {
-  cors(req, res, async () => {
-    try {
-      const leagueTemplates = await db.collection('league_templates').get();
-      const tournamentTemplates = await db.collection('tournament_templates').get();
-
-      const result = {
-        league_templates: leagueTemplates.docs.map(doc => ({
-          id: doc.id,
-          player_id: doc.data().player_id,
-          name: doc.data().name
-        })),
-        tournament_templates: tournamentTemplates.docs.map(doc => ({
-          id: doc.id,
-          player_id: doc.data().player_id,
-          name: doc.data().name
-        }))
-      };
-
-      res.json({ success: true, ...result });
-    } catch (error) {
-      console.error('Error:', error);
-      res.status(500).json({ success: false, error: error.message });
-    }
-  });
-});
+// REMOVED: Debug function - uncomment if needed for troubleshooting
+// exports.debugListAllTemplates = functions.https.onRequest((req, res) => { ... });
 
 // DEBUG: Check what player_id a PIN resolves to
-exports.debugCheckPin = functions.https.onRequest((req, res) => {
-  cors(req, res, async () => {
-    try {
-      const { pin } = req.body;
-      if (!pin) {
-        return res.status(400).json({ success: false, error: 'Missing pin' });
-      }
-
-      const playersSnapshot = await db.collection('players')
-        .where('pin', '==', pin)
-        .limit(1)
-        .get();
-
-      if (playersSnapshot.empty) {
-        return res.json({ success: false, error: 'PIN not found', player_id: null });
-      }
-
-      const playerDoc = playersSnapshot.docs[0];
-      res.json({
-        success: true,
-        player_id: playerDoc.id,
-        player_name: playerDoc.data().first_name + ' ' + playerDoc.data().last_name,
-        player_email: playerDoc.data().email
-      });
-    } catch (error) {
-      console.error('Error:', error);
-      res.status(500).json({ success: false, error: error.message });
-    }
-  });
-});
+// REMOVED: Debug function - uncomment if needed for troubleshooting
+// exports.debugCheckPin = functions.https.onRequest((req, res) => { ... });
 
 /**
  * Fix team names in a league to match captain-based naming
+ * REMOVED: One-time data fix function - already run
  * POST /fixLeagueTeamNames
- * Body: { league_id, team_names: { "Team 1": "D. Russano", ... } }
  */
-exports.fixLeagueTeamNames = functions.https.onRequest((req, res) => {
-  cors(req, res, async () => {
-    try {
-      const { league_id, team_names } = req.body;
-
-      if (!league_id || !team_names) {
-        return res.status(400).json({ success: false, error: 'Missing league_id or team_names' });
-      }
-
-      console.log('Fixing team names for league:', league_id);
-      console.log('Name mappings:', team_names);
-
-      // Update team documents
-      const teamsSnap = await db.collection('leagues').doc(league_id).collection('teams').get();
-      console.log(`Found ${teamsSnap.size} teams`);
-
-      const teamUpdates = [];
-      const batch = db.batch();
-
-      teamsSnap.forEach(doc => {
-        const data = doc.data();
-        const oldName = data.team_name;
-        const newName = team_names[oldName];
-
-        if (newName) {
-          batch.update(doc.ref, { team_name: newName });
-          teamUpdates.push({ docId: doc.id, oldName, newName });
-          console.log(`  ${oldName} -> ${newName}`);
-        }
-      });
-
-      if (teamUpdates.length > 0) {
-        await batch.commit();
-        console.log(`Updated ${teamUpdates.length} team documents`);
-      }
-
-      // Update match documents
-      const matchesSnap = await db.collection('leagues').doc(league_id).collection('matches').get();
-      console.log(`Found ${matchesSnap.size} matches`);
-
-      let matchUpdateCount = 0;
-      // Process in batches of 500
-      let matchBatch = db.batch();
-      let batchCount = 0;
-
-      for (const doc of matchesSnap.docs) {
-        const match = doc.data();
-        const updateFields = {};
-
-        if (match.home_team_name && team_names[match.home_team_name]) {
-          updateFields.home_team_name = team_names[match.home_team_name];
-        }
-        if (match.away_team_name && team_names[match.away_team_name]) {
-          updateFields.away_team_name = team_names[match.away_team_name];
-        }
-
-        if (Object.keys(updateFields).length > 0) {
-          matchBatch.update(doc.ref, updateFields);
-          matchUpdateCount++;
-          batchCount++;
-
-          if (batchCount >= 500) {
-            await matchBatch.commit();
-            matchBatch = db.batch();
-            batchCount = 0;
-          }
-        }
-      }
-
-      if (batchCount > 0) {
-        await matchBatch.commit();
-      }
-
-      console.log(`Updated ${matchUpdateCount} match documents`);
-
-      res.json({
-        success: true,
-        teams_updated: teamUpdates.length,
-        matches_updated: matchUpdateCount,
-        updates: teamUpdates
-      });
-
-    } catch (error) {
-      console.error('Error fixing team names:', error);
-      res.status(500).json({ success: false, error: error.message });
-    }
-  });
-});
+// exports.fixLeagueTeamNames = functions.https.onRequest((req, res) => { ... });
 
 /**
  * Fix match team IDs - populate home_team_id and away_team_id based on team names
+ * REMOVED: One-time data fix function - already run
  * POST /fixMatchTeamIds
- * Body: { league_id }
  */
-exports.fixMatchTeamIds = functions.https.onRequest((req, res) => {
-  cors(req, res, async () => {
-    try {
-      const { league_id } = req.body;
-
-      if (!league_id) {
-        return res.status(400).json({ success: false, error: 'Missing league_id' });
-      }
-
-      console.log('Fixing match team IDs for league:', league_id);
-
-      // Get all teams and build name -> ID map
-      const teamsSnap = await db.collection('leagues').doc(league_id).collection('teams').get();
-      const teamNameToId = {};
-      const teamIdToName = {};
-
-      teamsSnap.forEach(doc => {
-        const data = doc.data();
-        const teamName = data.team_name;
-        if (teamName) {
-          teamNameToId[teamName] = doc.id;
-          teamIdToName[doc.id] = teamName;
-        }
-      });
-
-      console.log('Team mappings:', teamNameToId);
-
-      // Get all matches
-      const matchesSnap = await db.collection('leagues').doc(league_id).collection('matches').get();
-      console.log(`Found ${matchesSnap.size} matches`);
-
-      let updatedCount = 0;
-      let matchBatch = db.batch();
-      let batchCount = 0;
-      const sampleMatches = [];
-
-      for (const doc of matchesSnap.docs) {
-        const match = doc.data();
-        const updateFields = {};
-
-        // Log first few matches for debugging
-        if (sampleMatches.length < 3) {
-          sampleMatches.push({
-            id: doc.id,
-            home_team_name: match.home_team_name,
-            away_team_name: match.away_team_name,
-            home_team_id: match.home_team_id,
-            away_team_id: match.away_team_id,
-            week: match.week
-          });
-        }
-
-        // Look up team ID from team name
-        const homeTeamId = teamNameToId[match.home_team_name];
-        const awayTeamId = teamNameToId[match.away_team_name];
-
-        if (homeTeamId && match.home_team_id !== homeTeamId) {
-          updateFields.home_team_id = homeTeamId;
-        }
-        if (awayTeamId && match.away_team_id !== awayTeamId) {
-          updateFields.away_team_id = awayTeamId;
-        }
-
-        if (Object.keys(updateFields).length > 0) {
-          matchBatch.update(doc.ref, updateFields);
-          updatedCount++;
-          batchCount++;
-
-          if (batchCount >= 500) {
-            await matchBatch.commit();
-            matchBatch = db.batch();
-            batchCount = 0;
-          }
-        }
-      }
-
-      if (batchCount > 0) {
-        await matchBatch.commit();
-      }
-
-      console.log(`Updated ${updatedCount} match documents with team IDs`);
-
-      res.json({
-        success: true,
-        matches_updated: updatedCount,
-        total_matches: matchesSnap.size,
-        team_mappings: teamNameToId,
-        sample_matches: sampleMatches
-      });
-
-    } catch (error) {
-      console.error('Error fixing match team IDs:', error);
-      res.status(500).json({ success: false, error: error.message });
-    }
-  });
-});
+// exports.fixMatchTeamIds = functions.https.onRequest((req, res) => { ... });
 
 /**
  * Update match dates based on league start_date and blackout_dates
@@ -1419,171 +1227,200 @@ exports.updatePlayerTeam = functions.https.onRequest((req, res) => {
 
 /**
  * Fix all player team assignments in a league
- * Maps players to teams based on their name appearing in the team roster
+ * REMOVED: One-time data fix function - already run
  * POST /fixAllPlayerTeams
- * Body: { league_id, team_rosters?: { team_name: [player_names] } }
  */
-exports.fixAllPlayerTeams = functions.https.onRequest((req, res) => {
-  cors(req, res, async () => {
-    try {
-      const { league_id, team_rosters } = req.body;
+// exports.fixAllPlayerTeams = functions.https.onRequest((req, res) => { ... });
 
-      if (!league_id) {
-        return res.status(400).json({ success: false, error: 'Missing league_id' });
-      }
+/**
+ * Mark players as fill-ins (is_sub: true)
+ * Used to fix players who are fill-ins but weren't marked properly
+ */
+exports.markPlayersAsFillins = functions.https.onRequest(async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
 
-      console.log('Fixing all player teams for league:', league_id);
+  if (req.method === 'OPTIONS') return res.status(204).send('');
 
-      // Get all teams in the league
-      const teamsSnap = await db.collection('leagues').doc(league_id).collection('teams').get();
-      console.log(`Found ${teamsSnap.size} teams`);
+  try {
+    const { league_id, player_ids } = req.body;
 
-      // Build a map of player names to team IDs
-      const playerNameToTeam = {};
-      const teamData = {};
-      const teamByName = {};
-
-      teamsSnap.forEach(doc => {
-        const team = doc.data();
-        teamData[doc.id] = { ...team, docRef: doc.ref };
-        teamByName[team.team_name] = doc.id;
-
-        // Get player names from team roster
-        const playerNames = team.player_names || [];
-
-        playerNames.forEach((name) => {
-          if (name) {
-            const normalizedName = name.toLowerCase().trim();
-            playerNameToTeam[normalizedName] = {
-              team_id: doc.id,
-              team_name: team.team_name
-            };
-          }
-        });
-
-        // Also check captain
-        if (team.captain_name) {
-          const normalizedCaptain = team.captain_name.toLowerCase().trim();
-          playerNameToTeam[normalizedCaptain] = {
-            team_id: doc.id,
-            team_name: team.team_name
-          };
-        }
+    if (!league_id || !player_ids || !Array.isArray(player_ids)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Required: league_id and player_ids (array)'
       });
-
-      // If team_rosters provided, update team documents and build mapping from that
-      if (team_rosters && Object.keys(team_rosters).length > 0) {
-        console.log('Using provided team_rosters');
-        for (const [teamName, roster] of Object.entries(team_rosters)) {
-          const teamId = teamByName[teamName];
-          if (teamId) {
-            // Update team document with player_names
-            await teamData[teamId].docRef.update({ player_names: roster });
-            console.log(`Updated team ${teamName} with roster:`, roster);
-
-            // Add to mapping
-            roster.forEach(name => {
-              const normalizedName = name.toLowerCase().trim();
-              playerNameToTeam[normalizedName] = {
-                team_id: teamId,
-                team_name: teamName
-              };
-            });
-          } else {
-            console.log(`Team not found: ${teamName}`);
-          }
-        }
-      }
-
-      console.log('Player name to team mapping:', Object.keys(playerNameToTeam).length, 'entries');
-      console.log('Mapping keys:', Object.keys(playerNameToTeam));
-
-      // Get all players in the league
-      const playersSnap = await db.collection('leagues').doc(league_id).collection('players').get();
-      console.log(`Found ${playersSnap.size} players in league`);
-
-      const updates = [];
-      const unmatched = [];
-      const alreadyCorrect = [];
-
-      for (const playerDoc of playersSnap.docs) {
-        const player = playerDoc.data();
-        const playerName = (player.name || '').toLowerCase().trim();
-
-        // Check if player name matches a team roster
-        const teamInfo = playerNameToTeam[playerName];
-
-        if (!teamInfo) {
-          unmatched.push({ player_id: playerDoc.id, name: player.name, current_team_id: player.team_id });
-          continue;
-        }
-
-        if (player.team_id === teamInfo.team_id) {
-          alreadyCorrect.push({ player_id: playerDoc.id, name: player.name, team_id: player.team_id, team_name: teamInfo.team_name });
-          continue;
-        }
-
-        if (teamInfo && player.team_id !== teamInfo.team_id) {
-          console.log(`Player ${player.name}: ${player.team_id} -> ${teamInfo.team_id} (${teamInfo.team_name})`);
-
-          // Update league player document
-          await playerDoc.ref.update({ team_id: teamInfo.team_id });
-
-          // Also update global player if exists
-          const globalPlayerRef = db.collection('players').doc(playerDoc.id);
-          const globalPlayerDoc = await globalPlayerRef.get();
-
-          if (globalPlayerDoc.exists) {
-            const globalPlayer = globalPlayerDoc.data();
-            const updatePayload = {};
-
-            // Update team_id
-            if (globalPlayer.league_id === league_id || !globalPlayer.league_id) {
-              updatePayload.team_id = teamInfo.team_id;
-              updatePayload.league_id = league_id;
-            }
-
-            // Update involvements.leagues
-            if (globalPlayer.involvements && globalPlayer.involvements.leagues) {
-              const updatedInvLeagues = globalPlayer.involvements.leagues.map(l => {
-                if (l.id === league_id || l.league_id === league_id) {
-                  return { ...l, team_id: teamInfo.team_id, team_name: teamInfo.team_name };
-                }
-                return l;
-              });
-              updatePayload['involvements.leagues'] = updatedInvLeagues;
-            }
-
-            if (Object.keys(updatePayload).length > 0) {
-              await globalPlayerRef.update(updatePayload);
-            }
-          }
-
-          updates.push({
-            player_id: playerDoc.id,
-            player_name: player.name,
-            old_team_id: player.team_id,
-            new_team_id: teamInfo.team_id,
-            team_name: teamInfo.team_name
-          });
-        }
-      }
-
-      console.log(`Updated ${updates.length} players`);
-      console.log(`Unmatched: ${unmatched.length}, Already correct: ${alreadyCorrect.length}`);
-
-      res.json({
-        success: true,
-        players_checked: playersSnap.size,
-        players_updated: updates.length,
-        updates,
-        unmatched,
-        already_correct: alreadyCorrect
-      });
-
-    } catch (error) {
-      console.error('Error fixing player teams:', error);
-      res.status(500).json({ success: false, error: error.message });
     }
-  });
+
+    const updates = [];
+    const batch = admin.firestore().batch();
+
+    for (const playerId of player_ids) {
+      const playerRef = admin.firestore()
+        .collection('leagues').doc(league_id)
+        .collection('players').doc(playerId);
+
+      const playerDoc = await playerRef.get();
+      if (playerDoc.exists) {
+        batch.update(playerRef, {
+          is_sub: true,
+          team_id: null  // Ensure no team assignment
+        });
+        updates.push({ id: playerId, name: playerDoc.data().name });
+      }
+    }
+
+    await batch.commit();
+
+    res.json({
+      success: true,
+      message: `Marked ${updates.length} players as fill-ins`,
+      updated: updates
+    });
+
+  } catch (error) {
+    console.error('Error marking players as fill-ins:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Add fill-in players to match lineup with substitution info
+ * Used to add fill-ins to imported matches that don't have lineup data
+ * fillins: [{ player_id, team: 'home' | 'away', replacing_player_id, position }]
+ */
+exports.addFillinsToMatchLineup = functions.https.onRequest(async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') return res.status(204).send('');
+
+  try {
+    const { league_id, match_id, fillins } = req.body;
+    // fillins: [{ player_id, team: 'home' | 'away', replacing_player_id, position }]
+
+    if (!league_id || !match_id || !fillins || !Array.isArray(fillins)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Required: league_id, match_id, fillins (array with player_id, team, replacing_player_id, position)'
+      });
+    }
+
+    const matchRef = admin.firestore()
+      .collection('leagues').doc(league_id)
+      .collection('matches').doc(match_id);
+
+    const matchDoc = await matchRef.get();
+    if (!matchDoc.exists) {
+      return res.status(404).json({ success: false, error: 'Match not found' });
+    }
+
+    const match = matchDoc.data();
+    let homeLineup = match.home_lineup || [];
+    let awayLineup = match.away_lineup || [];
+
+    // Fetch player data for each fill-in
+    const addedToHome = [];
+    const addedToAway = [];
+
+    for (const fillin of fillins) {
+      const playerRef = admin.firestore()
+        .collection('leagues').doc(league_id)
+        .collection('players').doc(fillin.player_id);
+      const playerDoc = await playerRef.get();
+
+      if (!playerDoc.exists) continue;
+
+      const player = playerDoc.data();
+      const lineupEntry = {
+        player_id: fillin.player_id,
+        player_name: player.name,
+        is_sub: true,
+        replacing_player_id: fillin.replacing_player_id || null,
+        position: fillin.position || 'S'
+      };
+
+      if (fillin.team === 'home') {
+        // Check if already in lineup
+        if (!homeLineup.some(p => p.player_id === fillin.player_id)) {
+          homeLineup.push(lineupEntry);
+          addedToHome.push({ name: player.name, replacing: fillin.replacing_player_id });
+        }
+      } else if (fillin.team === 'away') {
+        if (!awayLineup.some(p => p.player_id === fillin.player_id)) {
+          awayLineup.push(lineupEntry);
+          addedToAway.push({ name: player.name, replacing: fillin.replacing_player_id });
+        }
+      }
+    }
+
+    await matchRef.update({
+      home_lineup: homeLineup,
+      away_lineup: awayLineup
+    });
+
+    res.json({
+      success: true,
+      message: `Added fill-ins to match ${match_id}`,
+      homeLineup: addedToHome,
+      awayLineup: addedToAway
+    });
+
+  } catch (error) {
+    console.error('Error adding fill-ins to lineup:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * List matches for a league week (helper function)
+ */
+exports.listLeagueMatches = functions.https.onRequest(async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') return res.status(204).send('');
+
+  try {
+    const { league_id, week } = req.body;
+
+    if (!league_id) {
+      return res.status(400).json({ success: false, error: 'Required: league_id' });
+    }
+
+    let query = admin.firestore()
+      .collection('leagues').doc(league_id)
+      .collection('matches');
+
+    if (week) {
+      query = query.where('week', '==', week);
+    }
+
+    const matchesSnap = await query.get();
+    const matches = [];
+
+    matchesSnap.forEach(doc => {
+      const data = doc.data();
+      matches.push({
+        id: doc.id,
+        week: data.week,
+        home_team_id: data.home_team_id,
+        away_team_id: data.away_team_id,
+        status: data.status,
+        home_score: data.home_score,
+        away_score: data.away_score,
+        has_home_lineup: !!(data.home_lineup && data.home_lineup.length > 0),
+        has_away_lineup: !!(data.away_lineup && data.away_lineup.length > 0)
+      });
+    });
+
+    res.json({ success: true, matches });
+
+  } catch (error) {
+    console.error('Error listing matches:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
 });

@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1920, initial-scale=1.0">
+    <title>Matchmaker TV Display</title>
+    <link rel="icon" type="image/png" href="/images/favicon.png">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700;800;900&display=swap');
+
+        :root {
+            --pink: #FF469A;
+            --teal: #91D7EB;
+            --yellow: #FDD835;
+            --black: #000000;
+            --bg-dark: #1a1a2e;
+            --blue-dark: #0f0f1a;
+            --bg-panel: #16213e;
+            --text-light: #ffffff;
+            --text-dim: #a0a0b0;
+            --success: #22c55e;
+            --danger: #ef4444;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, var(--bg-dark) 0%, var(--blue-dark) 100%);
+            min-height: 100vh;
+            color: var(--text-light);
+            overflow: hidden;
+            width: 1920px;
+            height: 1080px;
+        }
+
+        /* Background Pattern */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse at 20% 20%, rgba(255, 70, 154, 0.1) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(145, 215, 235, 0.08) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        /* All display modes hidden by default */
+        .display-mode {
+            display: none;
+            width: 100%;
+            height: 100%;
+        }
+
+        .display-mode.active {
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header Bar (shared across all modes) */
+        .tv-header {
+            background: var(--bg-panel);
+            border-bottom: 5px solid var(--pink);
+            padding: 30px 50px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.6);
+        }
+
+        .tv-logo {
+            height: 100px;
+        }
+
+        .tv-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 72px;
+            letter-spacing: 6px;
+            color: var(--pink);
+            text-shadow: 4px 4px 0 rgba(0,0,0,0.5);
+            flex: 1;
+            text-align: center;
+        }
+
+        .tv-subtitle {
+            font-size: 32px;
+            color: var(--teal);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .tv-content {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 50px;
+            overflow: auto;
+        }
+
+        /* ========== BRACKET VIEW MODE ========== */
+        #bracketView .bracket-container {
+            display: flex;
+            gap: 80px;
+            width: 100%;
+            max-width: 1600px;
+        }
+
+        .bracket-side {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+        }
+
+        .bracket-side-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 48px;
+            text-align: center;
+            padding: 20px;
+            border-radius: 15px;
+            letter-spacing: 3px;
+        }
+
+        .bracket-side-title.winners {
+            background: linear-gradient(135deg, var(--success), #16a34a);
+            color: white;
+        }
+
+        .bracket-side-title.losers {
+            background: linear-gradient(135deg, var(--danger), #dc2626);
+            color: white;
+        }
+
+        .bracket-round {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .bracket-match {
+            background: var(--bg-panel);
+            border: 4px solid #000;
+            border-radius: 15px;
+            padding: 25px 30px;
+            box-shadow: 8px 8px 0 rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .bracket-team {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 42px;
+            letter-spacing: 2px;
+            flex: 1;
+        }
+
+        .bracket-team.winner {
+            color: var(--yellow);
+        }
+
+        .bracket-team.loser {
+            color: var(--text-dim);
+        }
+
+        .bracket-score {
+            font-size: 56px;
+            font-weight: 900;
+            padding: 0 25px;
+            color: var(--pink);
+        }
+
+        .bracket-vs {
+            font-size: 36px;
+            color: var(--text-dim);
+        }
+
+        /* ========== PARTNER REVEAL MODE ========== */
+        #partnerRevealView {
+            background: radial-gradient(ellipse at center, rgba(255, 70, 154, 0.2) 0%, transparent 70%);
+        }
+
+        .reveal-container {
+            text-align: center;
+            max-width: 1400px;
+        }
+
+        .reveal-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 96px;
+            letter-spacing: 8px;
+            color: var(--pink);
+            text-shadow: 6px 6px 0 rgba(0,0,0,0.6);
+            margin-bottom: 80px;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .reveal-pairs {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 50px;
+            margin-top: 60px;
+        }
+
+        .reveal-pair {
+            background: var(--bg-panel);
+            border: 5px solid var(--pink);
+            border-radius: 20px;
+            padding: 50px;
+            box-shadow: 10px 10px 0 rgba(0,0,0,0.5);
+            animation: fadeInUp 0.8s ease-out backwards;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .reveal-team-name {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 56px;
+            color: var(--yellow);
+            letter-spacing: 3px;
+            margin-bottom: 30px;
+            text-shadow: 3px 3px 0 rgba(0,0,0,0.4);
+        }
+
+        .reveal-players {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 40px;
+            font-size: 48px;
+        }
+
+        .reveal-player {
+            font-weight: 700;
+        }
+
+        .reveal-player.male {
+            color: var(--teal);
+        }
+
+        .reveal-player.female {
+            color: var(--pink);
+        }
+
+        .reveal-heart {
+            font-size: 64px;
+            animation: heartbeat 1.5s ease-in-out infinite;
+        }
+
+        @keyframes heartbeat {
+            0%, 100% { transform: scale(1); }
+            25% { transform: scale(1.2); }
+            50% { transform: scale(1); }
+        }
+
+        /* ========== MATCH CALL MODE ========== */
+        #matchCallView .call-container {
+            width: 100%;
+            max-width: 1600px;
+        }
+
+        .call-header {
+            text-align: center;
+            margin-bottom: 80px;
+        }
+
+        .call-round {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 64px;
+            color: var(--teal);
+            letter-spacing: 4px;
+            margin-bottom: 20px;
+        }
+
+        .call-instruction {
+            font-size: 42px;
+            color: var(--text-dim);
+            font-weight: 600;
+        }
+
+        .call-matches {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 40px;
+        }
+
+        .call-match {
+            background: var(--bg-panel);
+            border: 5px solid #000;
+            border-radius: 20px;
+            padding: 40px 50px;
+            box-shadow: 10px 10px 0 rgba(0,0,0,0.5);
+        }
+
+        .call-board {
+            background: linear-gradient(135deg, var(--yellow), #e6c02f);
+            color: #000;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 72px;
+            text-align: center;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            border: 4px solid #000;
+            box-shadow: 5px 5px 0 rgba(0,0,0,0.3);
+        }
+
+        .call-teams {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 30px;
+        }
+
+        .call-team {
+            flex: 1;
+            text-align: center;
+        }
+
+        .call-team-name {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 52px;
+            letter-spacing: 2px;
+            margin-bottom: 15px;
+        }
+
+        .call-team-name.home {
+            color: var(--pink);
+        }
+
+        .call-team-name.away {
+            color: var(--teal);
+        }
+
+        .call-team-players {
+            font-size: 28px;
+            color: var(--text-dim);
+            font-weight: 600;
+        }
+
+        .call-vs {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 56px;
+            color: var(--text-dim);
+        }
+
+        /* ========== HEARTBREAKER ALERT MODE ========== */
+        #heartbreakerAlertView {
+            background: radial-gradient(ellipse at center, rgba(239, 68, 68, 0.3) 0%, transparent 70%);
+        }
+
+        .alert-container {
+            text-align: center;
+            animation: alertPulse 2s ease-in-out infinite;
+        }
+
+        @keyframes alertPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .alert-icon {
+            font-size: 200px;
+            margin-bottom: 50px;
+            animation: heartbreak 1.5s ease-in-out infinite;
+        }
+
+        @keyframes heartbreak {
+            0%, 100% { transform: rotate(-5deg); }
+            50% { transform: rotate(5deg); }
+        }
+
+        .alert-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 120px;
+            letter-spacing: 10px;
+            color: var(--danger);
+            text-shadow: 8px 8px 0 rgba(0,0,0,0.6);
+            margin-bottom: 40px;
+            animation: blink 1s step-start infinite;
+        }
+
+        @keyframes blink {
+            50% { opacity: 0.5; }
+        }
+
+        .alert-subtitle {
+            font-size: 56px;
+            color: var(--text-light);
+            font-weight: 700;
+            margin-bottom: 60px;
+        }
+
+        .alert-countdown {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 180px;
+            color: var(--yellow);
+            text-shadow: 6px 6px 0 rgba(0,0,0,0.6);
+            letter-spacing: 8px;
+        }
+
+        .alert-countdown-label {
+            font-size: 42px;
+            color: var(--text-dim);
+            margin-top: 20px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+        }
+
+        /* Loading State */
+        .loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+        }
+
+        .loading-spinner {
+            border: 8px solid rgba(255,255,255,0.2);
+            border-top: 8px solid var(--pink);
+            border-radius: 50%;
+            width: 120px;
+            height: 120px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 40px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 48px;
+            color: var(--text-dim);
+            letter-spacing: 3px;
+        }
+
+        /* Error State */
+        .error-container {
+            text-align: center;
+            padding: 80px;
+        }
+
+        .error-icon {
+            font-size: 120px;
+            margin-bottom: 30px;
+        }
+
+        .error-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 64px;
+            color: var(--danger);
+            margin-bottom: 20px;
+        }
+
+        .error-message {
+            font-size: 32px;
+            color: var(--text-dim);
+        }
+    </style>
+</head>
+<body>
+    <!-- BRACKET VIEW MODE -->
+    <div class="display-mode" id="bracketView">
+        <div class="tv-header">
+            <img src="/images/gold_logo.png" alt="BRDC" class="tv-logo">
+            <div class="tv-title" id="bracketTitle">HEARTBREAKER TOURNAMENT</div>
+            <div class="tv-subtitle">LIVE BRACKET</div>
+        </div>
+        <div class="tv-content">
+            <div class="loading" id="bracketLoading">
+                <div class="loading-spinner"></div>
+                <div class="loading-text">Loading Bracket...</div>
+            </div>
+            <div class="bracket-container" id="bracketContainer" style="display: none;"></div>
+        </div>
+    </div>
+
+    <!-- PARTNER REVEAL MODE -->
+    <div class="display-mode" id="partnerRevealView">
+        <div class="tv-header">
+            <img src="/images/gold_logo.png" alt="BRDC" class="tv-logo">
+            <div class="tv-title" id="revealTitle">PARTNER REVEAL</div>
+            <div class="tv-subtitle">WHO'S YOUR VALENTINE? 💘</div>
+        </div>
+        <div class="tv-content">
+            <div class="reveal-container">
+                <div class="reveal-title">✨ NEW COUPLES FORMED ✨</div>
+                <div class="reveal-pairs" id="revealPairs">
+                    <!-- Pairs will be dynamically loaded -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MATCH CALL MODE -->
+    <div class="display-mode" id="matchCallView">
+        <div class="tv-header">
+            <img src="/images/gold_logo.png" alt="BRDC" class="tv-logo">
+            <div class="tv-title" id="callTitle">MATCH ASSIGNMENTS</div>
+            <div class="tv-subtitle">FIND YOUR BOARD</div>
+        </div>
+        <div class="tv-content">
+            <div class="call-container">
+                <div class="call-header">
+                    <div class="call-round" id="callRound">ROUND 1</div>
+                    <div class="call-instruction">Report to your assigned board</div>
+                </div>
+                <div class="call-matches" id="callMatches">
+                    <!-- Matches will be dynamically loaded -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- HEARTBREAKER ALERT MODE -->
+    <div class="display-mode" id="heartbreakerAlertView">
+        <div class="tv-header">
+            <img src="/images/gold_logo.png" alt="BRDC" class="tv-logo">
+            <div class="tv-title">⚠️ MINGLE PERIOD ⚠️</div>
+        </div>
+        <div class="tv-content">
+            <div class="alert-container">
+                <div class="alert-icon">💔</div>
+                <div class="alert-title">MINGLE PERIOD ACTIVE</div>
+                <div class="alert-subtitle">Breakups Allowed - Reshuffle Your Hearts!</div>
+                <div class="alert-countdown" id="alertCountdown">5:00</div>
+                <div class="alert-countdown-label">Minutes Remaining</div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { db, doc, getDoc, collection, query, where, onSnapshot, getDocs, orderBy } from '/js/firebase-config.js';
+
+        // Parse URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const tournamentId = urlParams.get('tournament_id');
+        const mode = urlParams.get('mode') || 'bracket';
+
+        let tournamentData = null;
+        let unsubscribeListener = null;
+
+        // Initialize on page load
+        window.addEventListener('DOMContentLoaded', async () => {
+            if (!tournamentId) {
+                showError('No tournament ID provided', 'Please add ?tournament_id=XXX to the URL');
+                return;
+            }
+
+            // Show the appropriate mode
+            showMode(mode);
+
+            // Load tournament data
+            await loadTournament();
+
+            // Set up real-time listener based on mode
+            setupListener(mode);
+        });
+
+        async function loadTournament() {
+            try {
+                const tournamentDoc = await getDoc(doc(db, 'tournaments', tournamentId));
+                if (tournamentDoc.exists()) {
+                    tournamentData = { id: tournamentDoc.id, ...tournamentDoc.data() };
+                    updateHeaders();
+                } else {
+                    showError('Tournament Not Found', 'The specified tournament does not exist');
+                }
+            } catch (error) {
+                console.error('Error loading tournament:', error);
+                showError('Error Loading Tournament', error.message);
+            }
+        }
+
+        function showMode(modeName) {
+            // Hide all modes
+            document.querySelectorAll('.display-mode').forEach(el => {
+                el.classList.remove('active');
+            });
+
+            // Show selected mode
+            const modeMap = {
+                'bracket': 'bracketView',
+                'partner-reveal': 'partnerRevealView',
+                'match-call': 'matchCallView',
+                'heartbreaker-alert': 'heartbreakerAlertView'
+            };
+
+            const viewId = modeMap[modeName] || 'bracketView';
+            document.getElementById(viewId).classList.add('active');
+        }
+
+        function updateHeaders() {
+            if (!tournamentData) return;
+
+            const name = tournamentData.tournament_name || 'HEARTBREAKER TOURNAMENT';
+
+            document.getElementById('bracketTitle').textContent = name;
+            document.getElementById('revealTitle').textContent = name;
+            document.getElementById('callTitle').textContent = name;
+        }
+
+        function setupListener(modeName) {
+            // Clean up existing listener
+            if (unsubscribeListener) {
+                unsubscribeListener();
+            }
+
+            switch(modeName) {
+                case 'bracket':
+                    setupBracketListener();
+                    break;
+                case 'partner-reveal':
+                    setupPartnerRevealListener();
+                    break;
+                case 'match-call':
+                    setupMatchCallListener();
+                    break;
+                case 'heartbreaker-alert':
+                    setupHeartbreakerAlertListener();
+                    break;
+            }
+        }
+
+        // ========== BRACKET VIEW LISTENER ==========
+        async function setupBracketListener() {
+            try {
+                // Listen for changes to matches in real-time
+                const matchesRef = collection(db, 'tournaments', tournamentId, 'matches');
+                const q = query(matchesRef, orderBy('round'), orderBy('match_number'));
+
+                unsubscribeListener = onSnapshot(q, (snapshot) => {
+                    const matches = [];
+                    snapshot.forEach(doc => {
+                        matches.push({ id: doc.id, ...doc.data() });
+                    });
+
+                    renderBracket(matches);
+                });
+            } catch (error) {
+                console.error('Error setting up bracket listener:', error);
+                showError('Error Loading Bracket', error.message);
+            }
+        }
+
+        function renderBracket(matches) {
+            const container = document.getElementById('bracketContainer');
+            const loading = document.getElementById('bracketLoading');
+
+            if (matches.length === 0) {
+                loading.querySelector('.loading-text').textContent = 'Waiting for bracket generation...';
+                return;
+            }
+
+            // Hide loading, show bracket
+            loading.style.display = 'none';
+            container.style.display = 'flex';
+
+            // Separate winners and losers brackets
+            const winnersMatches = matches.filter(m => m.bracket === 'winners');
+            const losersMatches = matches.filter(m => m.bracket === 'losers');
+
+            // Render winners bracket
+            const winnersHTML = `
+                <div class="bracket-side">
+                    <div class="bracket-side-title winners">🏆 WINNERS BRACKET</div>
+                    <div class="bracket-round">
+                        ${winnersMatches.map(renderBracketMatch).join('')}
+                    </div>
+                </div>
+            `;
+
+            // Render losers bracket
+            const losersHTML = `
+                <div class="bracket-side">
+                    <div class="bracket-side-title losers">💔 LOSERS BRACKET</div>
+                    <div class="bracket-round">
+                        ${losersMatches.map(renderBracketMatch).join('')}
+                    </div>
+                </div>
+            `;
+
+            container.innerHTML = winnersHTML + losersHTML;
+        }
+
+        function renderBracketMatch(match) {
+            const team1 = match.team1_name || 'TBD';
+            const team2 = match.team2_name || 'TBD';
+            const score1 = match.team1_score || 0;
+            const score2 = match.team2_score || 0;
+            const isComplete = match.status === 'completed';
+            const winner = match.winner;
+
+            const team1Class = isComplete && winner === 'team1' ? 'winner' : (isComplete ? 'loser' : '');
+            const team2Class = isComplete && winner === 'team2' ? 'winner' : (isComplete ? 'loser' : '');
+
+            return `
+                <div class="bracket-match">
+                    <div class="bracket-team ${team1Class}">${team1}</div>
+                    ${isComplete ? `
+                        <div class="bracket-score">${score1} - ${score2}</div>
+                    ` : `
+                        <div class="bracket-vs">VS</div>
+                    `}
+                    <div class="bracket-team ${team2Class}">${team2}</div>
+                </div>
+            `;
+        }
+
+        // ========== PARTNER REVEAL LISTENER ==========
+        async function setupPartnerRevealListener() {
+            try {
+                // Listen for matched teams
+                const teamsRef = collection(db, 'tournaments', tournamentId, 'teams');
+                const q = query(teamsRef, where('type', '==', 'matched_team'));
+
+                unsubscribeListener = onSnapshot(q, (snapshot) => {
+                    const teams = [];
+                    snapshot.forEach(doc => {
+                        teams.push({ id: doc.id, ...doc.data() });
+                    });
+
+                    renderPartnerReveal(teams);
+                });
+            } catch (error) {
+                console.error('Error setting up partner reveal listener:', error);
+            }
+        }
+
+        function renderPartnerReveal(teams) {
+            const container = document.getElementById('revealPairs');
+
+            if (teams.length === 0) {
+                container.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: var(--text-dim); font-size: 36px; padding: 80px;">Waiting for partner draw...</div>';
+                return;
+            }
+
+            container.innerHTML = teams.map((team, index) => {
+                const delay = index * 0.2;
+                return `
+                    <div class="reveal-pair" style="animation-delay: ${delay}s;">
+                        <div class="reveal-team-name">${team.team_name || 'Team ' + (index + 1)}</div>
+                        <div class="reveal-players">
+                            <span class="reveal-player ${team.player1.gender === 'M' ? 'male' : 'female'}">
+                                ${team.player1.name}
+                            </span>
+                            <span class="reveal-heart">💕</span>
+                            <span class="reveal-player ${team.player2.gender === 'M' ? 'male' : 'female'}">
+                                ${team.player2.name}
+                            </span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // ========== MATCH CALL LISTENER ==========
+        async function setupMatchCallListener() {
+            try {
+                // Listen for current round matches
+                const matchesRef = collection(db, 'tournaments', tournamentId, 'matches');
+                const q = query(matchesRef, where('status', '==', 'ready'), orderBy('board_number'));
+
+                unsubscribeListener = onSnapshot(q, (snapshot) => {
+                    const matches = [];
+                    snapshot.forEach(doc => {
+                        matches.push({ id: doc.id, ...doc.data() });
+                    });
+
+                    renderMatchCall(matches);
+                });
+            } catch (error) {
+                console.error('Error setting up match call listener:', error);
+            }
+        }
+
+        function renderMatchCall(matches) {
+            const container = document.getElementById('callMatches');
+            const roundEl = document.getElementById('callRound');
+
+            if (matches.length === 0) {
+                container.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: var(--text-dim); font-size: 36px; padding: 80px;">No matches ready to play</div>';
+                return;
+            }
+
+            // Get round name from first match
+            const roundName = matches[0]?.round_name || 'ROUND 1';
+            roundEl.textContent = roundName.toUpperCase();
+
+            container.innerHTML = matches.map(match => {
+                const boardNum = match.board_number || '?';
+                const team1 = match.team1_name || 'TBD';
+                const team2 = match.team2_name || 'TBD';
+                const players1 = match.team1_players ? match.team1_players.join(' & ') : '';
+                const players2 = match.team2_players ? match.team2_players.join(' & ') : '';
+
+                return `
+                    <div class="call-match">
+                        <div class="call-board">BOARD ${boardNum}</div>
+                        <div class="call-teams">
+                            <div class="call-team">
+                                <div class="call-team-name home">${team1}</div>
+                                <div class="call-team-players">${players1}</div>
+                            </div>
+                            <div class="call-vs">VS</div>
+                            <div class="call-team">
+                                <div class="call-team-name away">${team2}</div>
+                                <div class="call-team-players">${players2}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // ========== HEARTBREAKER ALERT LISTENER ==========
+        async function setupHeartbreakerAlertListener() {
+            try {
+                // Listen for mingle period status
+                unsubscribeListener = onSnapshot(doc(db, 'tournaments', tournamentId), (snapshot) => {
+                    if (snapshot.exists()) {
+                        const data = snapshot.data();
+                        updateHeartbreakerAlert(data);
+                    }
+                });
+            } catch (error) {
+                console.error('Error setting up heartbreaker alert listener:', error);
+            }
+        }
+
+        let countdownInterval = null;
+
+        function updateHeartbreakerAlert(data) {
+            const mingleActive = data.mingle_period_active || false;
+            const mingleEndTime = data.mingle_end_time?.toDate();
+
+            if (!mingleActive || !mingleEndTime) {
+                document.getElementById('alertCountdown').textContent = '--:--';
+                return;
+            }
+
+            // Clear existing interval
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
+            }
+
+            // Update countdown every second
+            countdownInterval = setInterval(() => {
+                const now = new Date();
+                const remaining = Math.max(0, Math.floor((mingleEndTime - now) / 1000));
+
+                const minutes = Math.floor(remaining / 60);
+                const seconds = remaining % 60;
+
+                document.getElementById('alertCountdown').textContent =
+                    `${minutes}:${seconds.toString().padStart(2, '0')}`;
+
+                if (remaining <= 0) {
+                    clearInterval(countdownInterval);
+                }
+            }, 1000);
+        }
+
+        function showError(title, message) {
+            // Show error in all display modes
+            const errorHTML = `
+                <div class="error-container">
+                    <div class="error-icon">⚠️</div>
+                    <div class="error-title">${title}</div>
+                    <div class="error-message">${message}</div>
+                </div>
+            `;
+
+            document.querySelectorAll('.tv-content').forEach(el => {
+                el.innerHTML = errorHTML;
+            });
+        }
+
+        // Listen for mode changes from URL (director can update this)
+        let lastMode = mode;
+        setInterval(() => {
+            const currentParams = new URLSearchParams(window.location.search);
+            const currentMode = currentParams.get('mode') || 'bracket';
+
+            if (currentMode !== lastMode) {
+                lastMode = currentMode;
+                showMode(currentMode);
+                setupListener(currentMode);
+            }
+        }, 1000);
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (unsubscribeListener) {
+                unsubscribeListener();
+            }
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
+            }
+        });
+    </script>
+</body>
+</html>

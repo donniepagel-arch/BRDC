@@ -12,7 +12,8 @@
             --pink: #FF469A;
             --teal: #91D7EB;
             --yellow: #FDD835;
-            --black: #1a1a2e;
+            --black: #000000;
+            --bg-dark: #1a1a2e;
             --blue-dark: #0f0f1a;
             --bg-panel: #16213e;
             --text-light: #ffffff;
@@ -24,7 +25,7 @@
 
         body {
             font-family: 'Inter', sans-serif;
-            background: linear-gradient(135deg, var(--black) 0%, var(--blue-dark) 100%);
+            background: linear-gradient(135deg, var(--bg-dark) 0%, var(--blue-dark) 100%);
             min-height: 100vh;
             color: var(--text-light);
         }
@@ -379,10 +380,148 @@
 
         .director-link:hover { color: var(--pink); }
 
+        /* Mingle Period Banner */
+        .mingle-banner {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            border: 4px solid #000;
+            padding: 30px;
+            text-align: center;
+            margin-bottom: 30px;
+            box-shadow: 10px 10px 0 rgba(0,0,0,0.5);
+            animation: pulse 2s ease-in-out infinite;
+            display: none;
+        }
+
+        .mingle-banner.active {
+            display: block;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+        }
+
+        .mingle-title {
+            font-family: 'Archivo Black', sans-serif;
+            font-size: 32px;
+            text-transform: uppercase;
+            color: white;
+            text-shadow: 3px 3px 0 rgba(0,0,0,0.4);
+            margin-bottom: 10px;
+        }
+
+        .mingle-countdown {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 48px;
+            color: var(--yellow);
+            letter-spacing: 4px;
+            margin: 15px 0;
+        }
+
+        .mingle-link {
+            display: inline-block;
+            background: rgba(255,255,255,0.2);
+            padding: 15px 30px;
+            border: 3px solid white;
+            border-radius: 8px;
+            color: white;
+            font-weight: 700;
+            text-decoration: none;
+            margin-top: 15px;
+            font-size: 18px;
+            transition: all 0.2s;
+        }
+
+        .mingle-link:hover {
+            background: rgba(255,255,255,0.3);
+            transform: scale(1.05);
+        }
+
+        /* Tournament Status Badge */
+        .status-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 15px;
+        }
+
+        .status-badge.registration { background: rgba(145, 215, 235, 0.3); color: var(--teal); }
+        .status-badge.bracket-pending { background: rgba(253, 216, 53, 0.3); color: var(--yellow); }
+        .status-badge.in-progress { background: rgba(34, 197, 94, 0.3); color: #22c55e; }
+        .status-badge.mingle-active { background: rgba(239, 68, 68, 0.3); color: #ef4444; }
+        .status-badge.completed { background: rgba(156, 163, 175, 0.3); color: #9ca3af; }
+
+        /* Heartbroken Teams Section */
+        .heartbroken-section {
+            background: var(--bg-panel);
+            border: 4px solid #ef4444;
+            box-shadow: 8px 8px 0 rgba(0,0,0,0.5);
+            margin-bottom: 30px;
+            display: none;
+        }
+
+        .heartbroken-section.active {
+            display: block;
+        }
+
+        .heartbroken-header {
+            padding: 15px 20px;
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            border-bottom: 3px solid #000;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 18px;
+            letter-spacing: 2px;
+        }
+
+        .heartbroken-body {
+            padding: 20px;
+        }
+
+        .heartbroken-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px;
+            background: rgba(239, 68, 68, 0.1);
+            border: 2px solid rgba(239, 68, 68, 0.3);
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+
+        .heartbroken-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .heartbroken-icon {
+            font-size: 32px;
+        }
+
+        .heartbroken-info {
+            flex: 1;
+        }
+
+        .heartbroken-name {
+            font-weight: 700;
+            font-size: 16px;
+            color: white;
+        }
+
+        .heartbroken-ex {
+            font-size: 13px;
+            color: var(--text-dim);
+            margin-top: 3px;
+        }
+
         @media (max-width: 600px) {
             .hero-name { font-size: 28px; }
             .status-grid { grid-template-columns: 1fr; }
             .hero-details { flex-direction: column; gap: 10px; }
+            .mingle-title { font-size: 24px; }
+            .mingle-countdown { font-size: 36px; }
         }
     </style>
 </head>
@@ -394,7 +533,16 @@
     </div>
 
     <div class="container">
+        <!-- Mingle Period Banner -->
+        <div class="mingle-banner" id="mingleBanner">
+            <div class="mingle-title">💔 MINGLE PERIOD ACTIVE 💔</div>
+            <div style="color: white; font-size: 16px; margin-bottom: 10px;">Breakups Allowed - Reshuffle Your Hearts!</div>
+            <div class="mingle-countdown" id="mingleCountdown">5:00</div>
+            <a href="#" class="mingle-link" id="mingleLink">💘 Heartbroken? Find A New Match</a>
+        </div>
+
         <div class="hero-banner">
+            <div class="status-badge" id="tournamentStatusBadge">REGISTRATION OPEN</div>
             <div class="hero-name" id="tournamentName">Loading...</div>
             <div class="hero-subtitle">MIXED DOUBLES PARTNER MATCHING</div>
             <div class="hero-details">
@@ -460,6 +608,16 @@
             </div>
         </div>
 
+        <!-- Heartbroken Teams Section (shown during mingle period) -->
+        <div class="heartbroken-section" id="heartbrokenSection">
+            <div class="heartbroken-header">💔 HEARTBROKEN & LOOKING</div>
+            <div class="heartbroken-body" id="heartbrokenList">
+                <div style="text-align: center; color: var(--text-dim); padding: 20px;">
+                    No heartbroken players yet
+                </div>
+            </div>
+        </div>
+
         <!-- Special Rules -->
         <div class="info-card" style="margin-bottom: 30px;">
             <div class="info-card-header yellow">💔 BREAKUP RULES</div>
@@ -505,12 +663,13 @@
     </div>
 
     <script type="module">
-        import { db, doc, getDoc, callFunction } from '/js/firebase-config.js';
+        import { db, doc, getDoc, collection, query, where, onSnapshot, callFunction } from '/js/firebase-config.js';
 
         const urlParams = new URLSearchParams(window.location.search);
         const tournamentId = urlParams.get('id');
 
         let tournamentData = null;
+        let countdownInterval = null;
 
         window.onload = async function() {
             if (!tournamentId) {
@@ -520,10 +679,15 @@
 
             document.getElementById('registerBtn').href = `/pages/matchmaker-register.html?id=${tournamentId}`;
             document.getElementById('directorLink').href = `/pages/matchmaker-director.html?id=${tournamentId}`;
+            document.getElementById('mingleLink').href = `/pages/matchmaker-mingle.html?id=${tournamentId}`;
 
             await loadTournament();
             await loadStatus();
             await loadTeams();
+
+            // Set up real-time listeners
+            setupTournamentListener();
+            setupHeartbrokenListener();
         };
 
         async function loadTournament() {
@@ -616,6 +780,136 @@
                 console.error('Error loading teams:', error);
             }
         }
+
+        // Set up real-time listener for tournament changes
+        function setupTournamentListener() {
+            onSnapshot(doc(db, 'tournaments', tournamentId), (snapshot) => {
+                if (snapshot.exists()) {
+                    const data = snapshot.data();
+                    updateTournamentStatus(data);
+                    updateMinglePeriod(data);
+                }
+            });
+        }
+
+        // Update tournament status badge
+        function updateTournamentStatus(data) {
+            const statusBadge = document.getElementById('tournamentStatusBadge');
+            const status = data.status || 'registration';
+            const mingleActive = data.mingle_period_active || false;
+
+            let statusText = '';
+            let statusClass = '';
+
+            if (mingleActive) {
+                statusText = '💔 MINGLE PERIOD ACTIVE';
+                statusClass = 'mingle-active';
+            } else if (status === 'registration') {
+                statusText = '📝 REGISTRATION OPEN';
+                statusClass = 'registration';
+            } else if (status === 'bracket_pending') {
+                statusText = '💘 PARTNER DRAW COMPLETE';
+                statusClass = 'bracket-pending';
+            } else if (status === 'in_progress') {
+                statusText = '🎯 TOURNAMENT IN PROGRESS';
+                statusClass = 'in-progress';
+            } else if (status === 'completed') {
+                statusText = '🏆 TOURNAMENT COMPLETE';
+                statusClass = 'completed';
+            }
+
+            statusBadge.textContent = statusText;
+            statusBadge.className = `status-badge ${statusClass}`;
+        }
+
+        // Update mingle period banner and countdown
+        function updateMinglePeriod(data) {
+            const mingleActive = data.mingle_period_active || false;
+            const mingleEndTime = data.mingle_end_time?.toDate();
+            const banner = document.getElementById('mingleBanner');
+            const heartbrokenSection = document.getElementById('heartbrokenSection');
+
+            if (mingleActive && mingleEndTime) {
+                banner.classList.add('active');
+                heartbrokenSection.classList.add('active');
+
+                // Clear existing interval
+                if (countdownInterval) {
+                    clearInterval(countdownInterval);
+                }
+
+                // Update countdown every second
+                countdownInterval = setInterval(() => {
+                    const now = new Date();
+                    const remaining = Math.max(0, Math.floor((mingleEndTime - now) / 1000));
+
+                    const minutes = Math.floor(remaining / 60);
+                    const seconds = remaining % 60;
+
+                    document.getElementById('mingleCountdown').textContent =
+                        `${minutes}:${seconds.toString().padStart(2, '0')}`;
+
+                    if (remaining <= 0) {
+                        clearInterval(countdownInterval);
+                        banner.classList.remove('active');
+                        heartbrokenSection.classList.remove('active');
+                    }
+                }, 1000);
+            } else {
+                banner.classList.remove('active');
+                heartbrokenSection.classList.remove('active');
+                if (countdownInterval) {
+                    clearInterval(countdownInterval);
+                }
+            }
+        }
+
+        // Set up real-time listener for heartbroken teams
+        function setupHeartbrokenListener() {
+            const registrationsRef = collection(db, 'tournaments', tournamentId, 'registrations');
+            const q = query(registrationsRef, where('status', '==', 'heartbroken'));
+
+            onSnapshot(q, (snapshot) => {
+                const heartbroken = [];
+                snapshot.forEach(doc => {
+                    heartbroken.push({ id: doc.id, ...doc.data() });
+                });
+
+                renderHeartbroken(heartbroken);
+            });
+        }
+
+        // Render heartbroken players list
+        function renderHeartbroken(heartbroken) {
+            const list = document.getElementById('heartbrokenList');
+
+            if (heartbroken.length === 0) {
+                list.innerHTML = '<div style="text-align: center; color: var(--text-dim); padding: 20px;">No heartbroken players yet</div>';
+                return;
+            }
+
+            list.innerHTML = heartbroken.map(reg => {
+                const player = reg.player || {};
+                const exPartner = reg.ex_partner_name || 'Unknown';
+
+                return `
+                    <div class="heartbroken-item">
+                        <div class="heartbroken-icon">💔</div>
+                        <div class="heartbroken-info">
+                            <div class="heartbroken-name">${player.name || 'Unknown'}</div>
+                            <div class="heartbroken-ex">Former partner: ${exPartner}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
+            }
+        });
     </script>
 </body>
 </html>

@@ -1595,4 +1595,157 @@ exports.adminImportMatchData = functions.https.onRequest(async (req, res) => {
     }
 });
 
+/**
+ * Check all matches for data issues (admin only)
+ */
+exports.adminCheckMatches = functions.https.onRequest(async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+    if (req.method === 'OPTIONS') return res.status(204).send('');
+
+    try {
+        const { pin, league_id } = req.body;
+
+        if (!verifyAdminPin(pin)) {
+            return res.status(401).json({ success: false, error: 'Invalid admin PIN' });
+        }
+
+        if (!league_id) {
+            return res.status(400).json({ success: false, error: 'league_id required' });
+        }
+
+        const db = admin.firestore();
+        const matchesSnap = await db.collection('leagues').doc(league_id)
+            .collection('matches')
+            .get();
+
+        const issues = [];
+        const weekSummary = {};
+
+        matchesSnap.forEach(doc => {
+            const data = doc.data();
+            const matchIssues = [];
+            const week = data.week || 'unknown';
+
+            // Build week summary
+            if (!weekSummary[week]) {
+                weekSummary[week] = { total: 0, completed: 0, scheduled: 0, hasScores: 0, hasGames: 0 };
+            }
+            weekSummary[week].total++;
+            if (data.status === 'completed') weekSummary[week].completed++;
+            if (data.status === 'scheduled') weekSummary[week].scheduled++;
+            if (data.home_score !== undefined && data.away_score !== undefined) weekSummary[week].hasScores++;
+            if (data.games && data.games.length > 0) weekSummary[week].hasGames++;
+
+            // Check for issues
+            if (data.status === 'completed') {
+                if (data.home_score === undefined || data.home_score === null) {
+                    matchIssues.push('Missing home_score');
+                }
+                if (data.away_score === undefined || data.away_score === null) {
+                    matchIssues.push('Missing away_score');
+                }
+                if (!data.games || data.games.length === 0) {
+                    matchIssues.push('No games array');
+                }
+            }
+
+            if (!data.home_team_id) matchIssues.push('Missing home_team_id');
+            if (!data.away_team_id) matchIssues.push('Missing away_team_id');
+            if (data.week === undefined) matchIssues.push('Missing week');
+            if (!data.status) matchIssues.push('Missing status');
+
+            if (matchIssues.length > 0) {
+                issues.push({
+                    id: doc.id,
+                    week: data.week,
+                    status: data.status,
+                    home_score: data.home_score,
+                    away_score: data.away_score,
+                    games_count: data.games?.length || 0,
+                    issues: matchIssues
+                });
+            }
+        });
+
+        res.json({
+            success: true,
+            total_matches: matchesSnap.size,
+            matches_with_issues: issues.length,
+            issues,
+            week_summary: weekSummary
+        });
+
+    } catch (error) {
+        console.error('Check matches error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * Mark all matches in a week as completed (admin only)
+ */
+exports.adminMarkWeekCompleted = functions.https.onRequest(async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+    if (req.method === 'OPTIONS') return res.status(204).send('');
+
+    try {
+        const { pin, league_id, week } = req.body;
+
+        if (!verifyAdminPin(pin)) {
+            return res.status(401).json({ success: false, error: 'Invalid admin PIN' });
+        }
+
+        if (!league_id || week === undefined) {
+            return res.status(400).json({ success: false, error: 'league_id and week required' });
+        }
+
+        const db = admin.firestore();
+        const matchesSnap = await db.collection('leagues').doc(league_id)
+            .collection('matches')
+            .where('week', '==', parseInt(week))
+            .get();
+
+        if (matchesSnap.empty) {
+            return res.json({ success: true, message: 'No matches found for that week', updated: 0 });
+        }
+
+        const batch = db.batch();
+        let updateCount = 0;
+        const updated = [];
+
+        matchesSnap.forEach(doc => {
+            const data = doc.data();
+            if (data.status !== 'completed') {
+                batch.update(doc.ref, {
+                    status: 'completed',
+                    updated_at: admin.firestore.FieldValue.serverTimestamp()
+                });
+                updateCount++;
+                updated.push(doc.id);
+            }
+        });
+
+        if (updateCount > 0) {
+            await batch.commit();
+        }
+
+        res.json({
+            success: true,
+            message: `Marked ${updateCount} matches as completed`,
+            updated: updateCount,
+            match_ids: updated
+        });
+
+    } catch (error) {
+        console.error('Mark week completed error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 module.exports = exports;

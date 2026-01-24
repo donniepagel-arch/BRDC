@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Listing - Dart Trader - BRDC</title>
+    <link rel="icon" type="image/png" href="/images/favicon.png">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#FF469A">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap');
+
+        :root {
+            --pink: #FF469A;
+            --teal: #91D7EB;
+            --yellow: #FDD835;
+            --bg-dark: #1a1a2e;
+            --bg-panel: #16213e;
+            --bg-card: #1e2a47;
+            --text-light: #f0f0f0;
+            --text-dim: #8a8aa3;
+            --border-color: rgba(255,255,255,0.15);
+            --success: #22c55e;
+            --danger: #ef4444;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+        html, body { min-height: 100%; overflow-x: hidden; width: 100%; }
+        body {
+            background: linear-gradient(135deg, var(--bg-dark) 0%, #0f0f23 100%);
+            color: var(--text-light);
+            padding-bottom: 100px;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse at 20% 20%, rgba(255, 70, 154, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(145, 215, 235, 0.06) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        /* Header */
+        .header-bar {
+            background: var(--bg-panel);
+            border-bottom: 3px solid var(--pink);
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+        }
+
+        .back-btn {
+            background: rgba(255,255,255,0.1);
+            border: 2px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.15s;
+            text-decoration: none;
+        }
+
+        .back-btn:hover {
+            background: rgba(255,255,255,0.2);
+            border-color: var(--pink);
+        }
+
+        .header-title {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 28px;
+            letter-spacing: 2px;
+            color: var(--yellow);
+        }
+
+        /* Page Content */
+        .page-content {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Listing Detail */
+        .listing-detail {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        @media (max-width: 768px) {
+            .listing-detail {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Image Gallery */
+        .listing-gallery {
+            background: var(--bg-panel);
+            border-radius: 12px;
+            overflow: hidden;
+            border: 2px solid rgba(255,255,255,0.1);
+        }
+
+        .listing-main-image {
+            width: 100%;
+            aspect-ratio: 1;
+            object-fit: cover;
+            display: block;
+        }
+
+        .listing-image-placeholder {
+            width: 100%;
+            aspect-ratio: 1;
+            background: var(--bg-card);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 80px;
+            color: var(--text-dim);
+        }
+
+        .listing-thumbnails {
+            display: flex;
+            gap: 8px;
+            padding: 12px;
+            overflow-x: auto;
+        }
+
+        .listing-thumbnail {
+            width: 60px;
+            height: 60px;
+            object-fit: cover;
+            border-radius: 6px;
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: border-color 0.15s;
+        }
+
+        .listing-thumbnail:hover,
+        .listing-thumbnail.active {
+            border-color: var(--teal);
+        }
+
+        /* Listing Info */
+        .listing-info {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .listing-status-sold {
+            background: var(--danger);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 700;
+            text-transform: uppercase;
+            text-align: center;
+            font-size: 14px;
+        }
+
+        .listing-category-badge {
+            display: inline-block;
+            background: var(--teal);
+            color: var(--bg-dark);
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .listing-title {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 36px;
+            line-height: 1.1;
+            color: var(--text-light);
+        }
+
+        .listing-price {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 48px;
+            color: var(--yellow);
+        }
+
+        .listing-specs-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+
+        .spec-item {
+            background: var(--bg-card);
+            border-radius: 8px;
+            padding: 12px;
+        }
+
+        .spec-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            font-weight: 700;
+            letter-spacing: 1px;
+            margin-bottom: 4px;
+        }
+
+        .spec-value {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-light);
+        }
+
+        /* Description */
+        .listing-description-section {
+            background: var(--bg-panel);
+            border-radius: 12px;
+            padding: 20px;
+            border: 2px solid rgba(255,255,255,0.1);
+            grid-column: 1 / -1;
+        }
+
+        .section-title {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 20px;
+            color: var(--teal);
+            margin-bottom: 12px;
+            letter-spacing: 1px;
+        }
+
+        .listing-description {
+            color: var(--text-light);
+            line-height: 1.6;
+            white-space: pre-wrap;
+        }
+
+        /* Seller Info */
+        .seller-section {
+            background: var(--bg-panel);
+            border-radius: 12px;
+            padding: 20px;
+            border: 2px solid rgba(255,255,255,0.1);
+            grid-column: 1 / -1;
+        }
+
+        .seller-card {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .seller-avatar {
+            width: 60px;
+            height: 60px;
+            background: var(--bg-card);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: var(--teal);
+            border: 2px solid var(--teal);
+        }
+
+        .seller-info {
+            flex: 1;
+        }
+
+        .seller-name {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 22px;
+            color: var(--text-light);
+        }
+
+        .seller-meta {
+            font-size: 13px;
+            color: var(--text-dim);
+        }
+
+        .contact-btn {
+            background: linear-gradient(180deg, var(--pink) 0%, #d63384 100%);
+            border: 2px solid rgba(255,255,255,0.2);
+            color: white;
+            padding: 14px 28px;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.15s;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .contact-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(255, 70, 154, 0.4);
+        }
+
+        .contact-btn:disabled {
+            background: var(--text-dim);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* Posted Date */
+        .listing-posted {
+            font-size: 13px;
+            color: var(--text-dim);
+            grid-column: 1 / -1;
+            text-align: center;
+        }
+
+        /* Loading State */
+        .loading {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-dim);
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255,255,255,0.1);
+            border-top-color: var(--teal);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Error State */
+        .error-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-dim);
+        }
+
+        .error-state-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+        }
+
+        .error-state h3 {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 24px;
+            color: var(--text-light);
+            margin-bottom: 8px;
+        }
+
+        /* Contact Modal */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 20px;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.2s;
+        }
+
+        .modal-overlay.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-content {
+            background: var(--bg-panel);
+            border-radius: 16px;
+            border: 3px solid var(--pink);
+            max-width: 400px;
+            width: 100%;
+            padding: 24px;
+            transform: scale(0.9);
+            transition: transform 0.2s;
+        }
+
+        .modal-overlay.visible .modal-content {
+            transform: scale(1);
+        }
+
+        .modal-title {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 24px;
+            color: var(--yellow);
+            margin-bottom: 16px;
+            text-align: center;
+        }
+
+        .contact-methods {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .contact-method {
+            background: var(--bg-card);
+            border-radius: 8px;
+            padding: 14px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .contact-method-icon {
+            font-size: 24px;
+        }
+
+        .contact-method-info {
+            flex: 1;
+        }
+
+        .contact-method-label {
+            font-size: 11px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+
+        .contact-method-value {
+            font-size: 16px;
+            color: var(--text-light);
+            font-weight: 600;
+        }
+
+        .contact-method-value a {
+            color: var(--teal);
+            text-decoration: none;
+        }
+
+        .contact-method-value a:hover {
+            text-decoration: underline;
+        }
+
+        .modal-close {
+            background: rgba(255,255,255,0.1);
+            border: 2px solid rgba(255,255,255,0.2);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-weight: 700;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 16px;
+            transition: all 0.15s;
+        }
+
+        .modal-close:hover {
+            background: rgba(255,255,255,0.2);
+            border-color: var(--pink);
+        }
+
+        .login-prompt {
+            text-align: center;
+            color: var(--text-dim);
+            font-size: 14px;
+        }
+
+        .login-prompt a {
+            color: var(--teal);
+            text-decoration: none;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header-bar">
+        <a href="/pages/dart-trader.html" class="back-btn">← BROWSE</a>
+        <div class="header-title">DART TRADER</div>
+    </div>
+
+    <div class="page-content" id="pageContent">
+        <div class="loading">
+            <div class="loading-spinner"></div>
+            <p>Loading listing...</p>
+        </div>
+    </div>
+
+    <!-- Contact Modal -->
+    <div class="modal-overlay" id="contactModal">
+        <div class="modal-content">
+            <div class="modal-title">Contact Seller</div>
+            <div id="contactMethods" class="contact-methods">
+                <!-- Populated by JS -->
+            </div>
+            <button class="modal-close" onclick="closeContactModal()">Close</button>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+
+    <script>
+        // Firebase config
+        const firebaseConfig = {
+            apiKey: "AIzaSyApov-xE5l1EJo0CADJ3OXP5aPvFmTmrZA",
+            authDomain: "brdc-v2.firebaseapp.com",
+            projectId: "brdc-v2",
+            storageBucket: "brdc-v2.firebasestorage.app",
+            messagingSenderId: "858304543457",
+            appId: "1:858304543457:web:e119e7c6fb7d616ea57ba3"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // State
+        let listing = null;
+        let currentUser = null;
+
+        // Category icons
+        const categoryIcons = {
+            darts: '🎯',
+            flights: '🪶',
+            shafts: '📍',
+            cases: '💼',
+            dartboards: '🎪',
+            accessories: '🔧'
+        };
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            // Check for logged in user
+            const savedSession = localStorage.getItem('brdc_session');
+            if (savedSession) {
+                const session = JSON.parse(savedSession);
+                currentUser = {
+                    id: session.player_id,
+                    name: session.name
+                };
+            }
+
+            loadListing();
+        });
+
+        // Load listing from Firestore
+        async function loadListing() {
+            const params = new URLSearchParams(window.location.search);
+            const listingId = params.get('id');
+
+            if (!listingId) {
+                showError('No listing ID provided');
+                return;
+            }
+
+            try {
+                const doc = await db.collection('dart_trader_listings').doc(listingId).get();
+
+                if (!doc.exists) {
+                    showError('Listing not found');
+                    return;
+                }
+
+                listing = { id: doc.id, ...doc.data() };
+                renderListing();
+
+            } catch (error) {
+                console.error('Error loading listing:', error);
+                showError('Error loading listing');
+            }
+        }
+
+        // Render listing detail
+        function renderListing() {
+            const content = document.getElementById('pageContent');
+            const icon = categoryIcons[listing.category?.toLowerCase()] || '📦';
+            const isSold = listing.status === 'sold';
+
+            // Update page title
+            document.title = `${listing.title} - Dart Trader - BRDC`;
+
+            // Build specs grid for darts
+            let specsHtml = '';
+            if (listing.category?.toLowerCase() === 'darts') {
+                specsHtml = `
+                    <div class="listing-specs-grid">
+                        ${listing.weight ? `
+                            <div class="spec-item">
+                                <div class="spec-label">Weight</div>
+                                <div class="spec-value">${listing.weight}g</div>
+                            </div>
+                        ` : ''}
+                        ${listing.material ? `
+                            <div class="spec-item">
+                                <div class="spec-label">Material</div>
+                                <div class="spec-value">${escapeHtml(listing.material)}</div>
+                            </div>
+                        ` : ''}
+                        ${listing.point_type ? `
+                            <div class="spec-item">
+                                <div class="spec-label">Point Type</div>
+                                <div class="spec-value">${escapeHtml(listing.point_type)}</div>
+                            </div>
+                        ` : ''}
+                        ${listing.brand ? `
+                            <div class="spec-item">
+                                <div class="spec-label">Brand</div>
+                                <div class="spec-value">${escapeHtml(listing.brand)}</div>
+                            </div>
+                        ` : ''}
+                        ${listing.condition ? `
+                            <div class="spec-item">
+                                <div class="spec-label">Condition</div>
+                                <div class="spec-value">${escapeHtml(listing.condition)}</div>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            } else {
+                // Non-darts items just show condition and brand if available
+                const specs = [];
+                if (listing.condition) specs.push({ label: 'Condition', value: listing.condition });
+                if (listing.brand) specs.push({ label: 'Brand', value: listing.brand });
+
+                if (specs.length) {
+                    specsHtml = `
+                        <div class="listing-specs-grid">
+                            ${specs.map(s => `
+                                <div class="spec-item">
+                                    <div class="spec-label">${s.label}</div>
+                                    <div class="spec-value">${escapeHtml(s.value)}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                }
+            }
+
+            // Date formatting
+            const dateStr = listing.created_at?.toDate
+                ? listing.created_at.toDate().toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                })
+                : 'Recently';
+
+            content.innerHTML = `
+                <div class="listing-detail">
+                    <!-- Image Gallery -->
+                    <div class="listing-gallery">
+                        ${listing.image_url
+                            ? `<img src="${listing.image_url}" alt="${escapeHtml(listing.title)}" class="listing-main-image" id="mainImage">`
+                            : `<div class="listing-image-placeholder">${icon}</div>`
+                        }
+                        ${listing.additional_images?.length ? `
+                            <div class="listing-thumbnails">
+                                <img src="${listing.image_url}" class="listing-thumbnail active" onclick="setMainImage('${listing.image_url}', this)">
+                                ${listing.additional_images.map(img => `
+                                    <img src="${img}" class="listing-thumbnail" onclick="setMainImage('${img}', this)">
+                                `).join('')}
+                            </div>
+                        ` : ''}
+                    </div>
+
+                    <!-- Listing Info -->
+                    <div class="listing-info">
+                        ${isSold ? '<div class="listing-status-sold">This item has been sold</div>' : ''}
+                        <span class="listing-category-badge">${listing.category || 'Item'}</span>
+                        <h1 class="listing-title">${escapeHtml(listing.title)}</h1>
+                        <div class="listing-price">$${parseFloat(listing.price).toFixed(0)}</div>
+                        ${specsHtml}
+                    </div>
+
+                    <!-- Description -->
+                    ${listing.description ? `
+                        <div class="listing-description-section">
+                            <h2 class="section-title">Description</h2>
+                            <div class="listing-description">${escapeHtml(listing.description)}</div>
+                        </div>
+                    ` : ''}
+
+                    <!-- Seller Info -->
+                    <div class="seller-section">
+                        <h2 class="section-title">Seller</h2>
+                        <div class="seller-card">
+                            <div class="seller-avatar">
+                                ${getInitials(listing.seller_name || 'Member')}
+                            </div>
+                            <div class="seller-info">
+                                <div class="seller-name">${escapeHtml(listing.seller_name || 'BRDC Member')}</div>
+                                <div class="seller-meta">Member since ${listing.seller_member_since || '2024'}</div>
+                            </div>
+                            <button class="contact-btn" onclick="showContactModal()" ${isSold ? 'disabled' : ''}>
+                                ${isSold ? 'Sold' : 'Contact Seller'}
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Posted Date -->
+                    <div class="listing-posted">
+                        Posted on ${dateStr}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Set main image (for gallery)
+        function setMainImage(url, thumb) {
+            document.getElementById('mainImage').src = url;
+            document.querySelectorAll('.listing-thumbnail').forEach(t => t.classList.remove('active'));
+            thumb.classList.add('active');
+        }
+
+        // Show contact modal
+        function showContactModal() {
+            if (!currentUser) {
+                // Not logged in - show login prompt
+                document.getElementById('contactMethods').innerHTML = `
+                    <div class="login-prompt">
+                        <p>Please <a href="/pages/dashboard.html">log in</a> to contact the seller.</p>
+                    </div>
+                `;
+            } else {
+                // Show contact info
+                const methods = [];
+
+                if (listing.contact_email || listing.seller_email) {
+                    const email = listing.contact_email || listing.seller_email;
+                    methods.push({
+                        icon: '📧',
+                        label: 'Email',
+                        value: `<a href="mailto:${email}?subject=Dart Trader: ${encodeURIComponent(listing.title)}">${email}</a>`
+                    });
+                }
+
+                if (listing.contact_phone || listing.seller_phone) {
+                    const phone = listing.contact_phone || listing.seller_phone;
+                    methods.push({
+                        icon: '📱',
+                        label: 'Phone',
+                        value: `<a href="tel:${phone}">${formatPhone(phone)}</a>`
+                    });
+                }
+
+                if (methods.length === 0) {
+                    methods.push({
+                        icon: '💬',
+                        label: 'Contact',
+                        value: 'Contact info not available. Try reaching out at league night!'
+                    });
+                }
+
+                document.getElementById('contactMethods').innerHTML = methods.map(m => `
+                    <div class="contact-method">
+                        <span class="contact-method-icon">${m.icon}</span>
+                        <div class="contact-method-info">
+                            <div class="contact-method-label">${m.label}</div>
+                            <div class="contact-method-value">${m.value}</div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            document.getElementById('contactModal').classList.add('visible');
+        }
+
+        // Close contact modal
+        function closeContactModal() {
+            document.getElementById('contactModal').classList.remove('visible');
+        }
+
+        // Close modal on overlay click
+        document.getElementById('contactModal').addEventListener('click', (e) => {
+            if (e.target.id === 'contactModal') {
+                closeContactModal();
+            }
+        });
+
+        // Show error state
+        function showError(message) {
+            document.getElementById('pageContent').innerHTML = `
+                <div class="error-state">
+                    <div class="error-state-icon">😕</div>
+                    <h3>Oops!</h3>
+                    <p>${message}</p>
+                    <a href="/pages/dart-trader.html" class="back-btn" style="margin-top: 20px; display: inline-block;">Browse Listings</a>
+                </div>
+            `;
+        }
+
+        // Utility functions
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text || '';
+            return div.innerHTML;
+        }
+
+        function getInitials(name) {
+            return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+        }
+
+        function formatPhone(phone) {
+            const cleaned = phone.replace(/\D/g, '');
+            if (cleaned.length === 10) {
+                return `(${cleaned.slice(0,3)}) ${cleaned.slice(3,6)}-${cleaned.slice(6)}`;
+            }
+            return phone;
+        }
+    </script>
+</body>
+</html>

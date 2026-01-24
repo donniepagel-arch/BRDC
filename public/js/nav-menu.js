@@ -4,15 +4,26 @@
  */
 
 (function() {
-    // Menu items configuration
+    // Menu items configuration - Simplified for league night (main nav items on dashboard)
     const menuItems = [
-        { label: 'HOME', href: '/', icon: '&#127968;' },
         { label: 'DASHBOARD', href: '/pages/dashboard.html', icon: '&#128100;' },
-        { label: 'MESSAGES', href: '/pages/messages.html', icon: '&#128172;', hasBadge: true },
         { label: 'SCORER', href: '/pages/scorer-hub.html', icon: '&#127919;' },
+        { label: 'PRACTICE', href: '/virtual-darts/index.html', icon: '&#127919;' },
         { label: 'LIVE', href: '/pages/live-scoreboard.html', icon: '&#128308;' },
-        { label: 'CREATE LEAGUE', href: '/pages/create-league.html', icon: '&#128203;' },
-        { label: 'CREATE TOURNAMENT', href: '/pages/create-tournament.html', icon: '&#127942;' }
+        { label: 'STREAM', href: '/pages/stream-director.html', icon: '&#127909;' },
+        { label: 'MATCHMAKER', href: '/pages/matchmaker-view.html', icon: '&#128152;' },
+        { label: 'FIND EVENTS', href: '/pages/community-events.html', icon: '&#128205;' },
+        { label: 'LOGOUT', href: '#', icon: '&#128682;', action: 'logout' }
+        // Moved to dashboard quick links:
+        // { label: 'MATCH HUB', href: '/pages/match-hub.html', icon: '&#127919;' },
+        // { label: 'LEAGUE', href: '/pages/league-view.html', icon: '&#127942;' },
+        // { label: 'MESSAGES', href: '/pages/messages.html', icon: '&#128172;', hasBadge: true },
+        // Coming soon - hidden for closed beta:
+        // { label: 'HOME', href: '/', icon: '&#127968;' },
+        // { label: 'LIVE', href: '/pages/live-scoreboard.html', icon: '&#128308;' },
+        // { label: 'DART TRADER', href: '/pages/dart-trader.html', icon: '&#128176;' },
+        // { label: 'CREATE LEAGUE', href: '/pages/create-league.html', icon: '&#128203;' },
+        // { label: 'CREATE TOURNAMENT', href: '/pages/create-tournament.html', icon: '&#127942;' }
     ];
 
     // Inject styles
@@ -179,6 +190,15 @@
         .nav-badge.visible {
             display: flex;
         }
+
+        .nav-logout-item {
+            border-color: var(--pink, #FF469A) !important;
+            color: var(--pink, #FF469A) !important;
+        }
+        .nav-logout-item:hover {
+            background: var(--pink, #FF469A) !important;
+            color: white !important;
+        }
     `;
     document.head.appendChild(styles);
 
@@ -193,13 +213,23 @@
         // Menu container
         const menu = document.createElement('nav');
         menu.className = 'nav-menu';
-        menu.innerHTML = menuItems.map(item => `
-            <a href="${item.href}" class="nav-menu-item">
-                <span class="nav-icon">${item.icon}</span>
-                <span>${item.label}</span>
-                ${item.hasBadge ? '<span class="nav-badge" id="navMessageBadge">0</span>' : ''}
-            </a>
-        `).join('');
+        menu.innerHTML = menuItems.map(item => {
+            if (item.action === 'logout') {
+                return `
+                    <a href="#" class="nav-menu-item nav-logout-item" onclick="brdcNav.logout(); return false;">
+                        <span class="nav-icon">${item.icon}</span>
+                        <span>${item.label}</span>
+                    </a>
+                `;
+            }
+            return `
+                <a href="${item.href}" class="nav-menu-item">
+                    <span class="nav-icon">${item.icon}</span>
+                    <span>${item.label}</span>
+                    ${item.hasBadge ? '<span class="nav-badge" id="navMessageBadge">0</span>' : ''}
+                </a>
+            `;
+        }).join('');
         document.body.appendChild(menu);
 
         // Close button
@@ -309,7 +339,7 @@
                 updateMessageBadge(result.total_unread);
             }
         } catch (error) {
-            console.log('Could not load unread count:', error.message);
+            // Unread count unavailable
         }
     }
 
@@ -325,6 +355,21 @@
         }
     }
 
+    // Logout function
+    function logout() {
+        // Clear all session data
+        localStorage.removeItem('brdc_session');
+        localStorage.removeItem('brdc_player_pin');
+        localStorage.removeItem('brdc_player_id');
+        localStorage.removeItem('brdc_player_name');
+
+        // Close menu
+        closeMenu();
+
+        // Redirect to home/login
+        window.location.href = '/';
+    }
+
     // Export for manual use
-    window.brdcNav = { toggleMenu, closeMenu, updateMessageBadge };
+    window.brdcNav = { toggleMenu, closeMenu, updateMessageBadge, logout };
 })();

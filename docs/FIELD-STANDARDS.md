@@ -149,13 +149,28 @@ Players in a league are stored in `leagues/{leagueId}/players/{playerId}`:
 ```javascript
 {
   player_id: "X2DMb9bP4Q8fy9yr5Fam",  // Reference to global player
-  name: "Donnie Pagel",               // Denormalized
-  team_id: "U5ZEAT55xiNM9Otarafx",    // Team assignment
-  position: 1,                         // 1=Captain, 2=B, 3=C
-  is_captain: true,
-  preferred_level: "A"
+  name: "Donnie Pagel",               // Denormalized for display
+  team_id: "U5ZEAT55xiNM9Otarafx",    // Team assignment (null until drafted)
+  position: 1,                         // 1, 2, or 3 (roster slot on team)
+  level: "A",                          // ASSIGNED level - set when league forms
+  preferred_level: "A",                // Player's REQUEST at registration
+  is_captain: true
 }
 ```
+
+### Level vs Preferred Level
+
+| Field | When Set | Purpose |
+|-------|----------|---------|
+| `preferred_level` | Registration | Player's self-assessment/request |
+| `level` | League formation | Actual assigned level for this league |
+
+**Important:**
+- `preferred_level` is INPUT - what the player wants
+- `level` is OUTPUT - what they're assigned based on draft order or stats
+- A player might prefer "C" but be assigned "B" if their stats are better than others
+- Not all leagues use levels (single-division leagues may leave `level` null)
+- The same player can have different `level` values in different leagues
 
 ---
 

@@ -715,7 +715,7 @@
     <!-- Main Dashboard -->
     <div id="dashboard" style="display: none;">
         <div class="header-bar">
-            <button class="back-btn" onclick="window.location.href='/pages/dashboard.html'">← BACK</button>
+            <button class="back-btn" onclick="history.back()">← BACK</button>
             <img src="/images/gold_logo.png" alt="BRDC" class="header-logo">
             <span class="header-title">LEAGUE DIRECTOR</span>
         </div>
@@ -992,6 +992,9 @@ Bob Wilson"></textarea>
                                 <div class="settings-grid">
                                     <div><span class="setting-label">League Name:</span> <span id="displayLeagueName">-</span></div>
                                     <div><span class="setting-label">Season:</span> <span id="displaySeason">-</span></div>
+                                    <div><span class="setting-label">League Type:</span> <span id="displayLeagueMode">-</span></div>
+                                    <div><span class="setting-label">Max Teams:</span> <span id="displayMaxTeams">Unlimited</span></div>
+                                    <div><span class="setting-label">Entry Fee:</span> <span id="displayEntryFee">-</span></div>
                                     <div><span class="setting-label">Format:</span> <span id="displayFormat">-</span></div>
                                     <div><span class="setting-label">Teams:</span> <span id="displayTeamCount">-</span></div>
                                     <div><span class="setting-label">Players/Team:</span> <span id="displayPlayersPerTeam">-</span></div>
@@ -1008,6 +1011,23 @@ Bob Wilson"></textarea>
                                         <label class="brdc-label">Season</label>
                                         <input type="text" id="settingSeason" class="brdc-input" placeholder="e.g. Spring 2025">
                                     </div>
+                                    <div class="form-group">
+                                        <label class="brdc-label">League Type</label>
+                                        <select id="settingLeagueMode" class="brdc-select">
+                                            <option value="draft">Draft League</option>
+                                            <option value="team">Team League</option>
+                                        </select>
+                                        <span style="font-size: 11px; color: var(--text-dim);">Draft: individuals register, then captains draft. Team: pre-formed teams register.</span>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="brdc-label">Max Teams</label>
+                                        <input type="number" id="settingMaxTeams" class="brdc-input" min="2" max="32" placeholder="Unlimited">
+                                        <span style="font-size: 11px; color: var(--text-dim);">Leave blank for unlimited</span>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="brdc-label">Entry Fee Per Player ($)</label>
+                                        <input type="number" id="settingEntryFee" class="brdc-input" min="0" step="0.01" placeholder="0.00">
+                                    </div>
                                 </div>
                                 <button class="brdc-btn" onclick="saveSection('leagueInfo')" style="margin-top: 15px;">💾 SAVE</button>
                             </div>
@@ -1022,16 +1042,22 @@ Bob Wilson"></textarea>
                             <div id="scheduleDisplay" class="settings-display">
                                 <div class="settings-grid">
                                     <div><span class="setting-label">Start Date:</span> <span id="displayStartDate">-</span></div>
+                                    <div><span class="setting-label">Registration Closes:</span> <span id="displayRegCloseDate">-</span></div>
                                     <div><span class="setting-label">League Night:</span> <span id="displayLeagueNight">-</span></div>
                                     <div><span class="setting-label">Start Time:</span> <span id="displayStartTime">-</span></div>
                                     <div><span class="setting-label">Blackout Dates:</span> <span id="displayBlackouts">None</span></div>
                                 </div>
                             </div>
                             <div id="scheduleEdit" class="settings-edit" style="display: none;">
-                                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                                     <div class="form-group">
                                         <label class="brdc-label">Start Date</label>
                                         <input type="date" id="settingStartDate" class="brdc-input">
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="brdc-label">Registration Closes</label>
+                                        <input type="date" id="settingRegCloseDate" class="brdc-input">
+                                        <span style="font-size: 11px; color: var(--text-dim);">Leave blank to close on start date</span>
                                     </div>
                                     <div class="form-group">
                                         <label class="brdc-label">League Night</label>
@@ -1165,6 +1191,28 @@ Bob Wilson"></textarea>
                             </div>
                         </div>
 
+                        <!-- Match Format Builder Section -->
+                        <div class="sidebar-card" style="margin-bottom: 20px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                                <h3 style="font-family: 'Bebas Neue', cursive; font-size: 24px; color: var(--pink);">🎯 Match Format Builder</h3>
+                                <button class="brdc-btn brdc-btn-secondary" onclick="toggleEditSection('formatBuilder')" style="padding: 6px 12px; font-size: 12px;">✏️ EDIT</button>
+                            </div>
+                            <div id="formatBuilderDisplay" class="settings-display">
+                                <div id="displayRoundsSummary" style="color: var(--text-dim);">
+                                    <p>Configure individual rounds in your match format.</p>
+                                    <div id="roundsSummaryList" style="margin-top: 10px;"></div>
+                                </div>
+                            </div>
+                            <div id="formatBuilderEdit" class="settings-edit" style="display: none;">
+                                <p style="font-size: 12px; color: var(--text-dim); margin-bottom: 12px;">Define each round in a match. Each round can have different game types and rules.</p>
+                                <div id="roundsBuilderList" style="display: flex; flex-direction: column; gap: 12px;">
+                                    <!-- Rounds will be populated by JavaScript -->
+                                </div>
+                                <button class="brdc-btn brdc-btn-secondary" onclick="addRoundToBuilder()" style="margin-top: 12px; width: 100%;">+ ADD ROUND</button>
+                                <button class="brdc-btn" onclick="saveSection('formatBuilder')" style="margin-top: 15px;">💾 SAVE</button>
+                            </div>
+                        </div>
+
                         <!-- League Rules Section -->
                         <div class="sidebar-card" style="margin-bottom: 20px;">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
@@ -1213,6 +1261,186 @@ Bob Wilson"></textarea>
                                     </div>
                                 </div>
                                 <button class="brdc-btn" onclick="saveSection('leagueRules')" style="margin-top: 15px;">💾 SAVE</button>
+                            </div>
+                        </div>
+
+                        <!-- Tiebreaker Rules Section -->
+                        <div class="sidebar-card" style="margin-bottom: 20px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                                <h3 style="font-family: 'Bebas Neue', cursive; font-size: 24px; color: var(--pink);">⚖️ Tiebreaker Rules</h3>
+                                <button class="brdc-btn brdc-btn-secondary" onclick="toggleEditSection('tiebreakers')" style="padding: 6px 12px; font-size: 12px;">✏️ EDIT</button>
+                            </div>
+                            <div id="tiebreakersDisplay" class="settings-display">
+                                <div id="displayTiebreakerOrder" style="color: var(--text-dim);">
+                                    <ol style="margin: 0; padding-left: 20px;">
+                                        <li>Head-to-Head</li>
+                                        <li>Point Differential</li>
+                                        <li>Total Points Scored</li>
+                                    </ol>
+                                </div>
+                            </div>
+                            <div id="tiebreakersEdit" class="settings-edit" style="display: none;">
+                                <p style="font-size: 12px; color: var(--text-dim); margin-bottom: 12px;">Drag to reorder priority. First enabled rule breaks ties.</p>
+                                <div id="tiebreakerList" class="tiebreaker-list" style="display: flex; flex-direction: column; gap: 8px;">
+                                    <div class="tiebreaker-item" data-value="head_to_head" draggable="true" style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: var(--bg-panel); border: 2px solid var(--border-strong); border-radius: 8px; cursor: grab;">
+                                        <span class="drag-handle" style="color: var(--text-dim);">☰</span>
+                                        <input type="checkbox" checked style="width: 18px; height: 18px; accent-color: var(--pink);">
+                                        <span style="flex: 1; font-size: 13px;">Head-to-Head</span>
+                                    </div>
+                                    <div class="tiebreaker-item" data-value="point_diff" draggable="true" style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: var(--bg-panel); border: 2px solid var(--border-strong); border-radius: 8px; cursor: grab;">
+                                        <span class="drag-handle" style="color: var(--text-dim);">☰</span>
+                                        <input type="checkbox" checked style="width: 18px; height: 18px; accent-color: var(--pink);">
+                                        <span style="flex: 1; font-size: 13px;">Point Differential</span>
+                                    </div>
+                                    <div class="tiebreaker-item" data-value="total_points" draggable="true" style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: var(--bg-panel); border: 2px solid var(--border-strong); border-radius: 8px; cursor: grab;">
+                                        <span class="drag-handle" style="color: var(--text-dim);">☰</span>
+                                        <input type="checkbox" checked style="width: 18px; height: 18px; accent-color: var(--pink);">
+                                        <span style="flex: 1; font-size: 13px;">Total Points Scored</span>
+                                    </div>
+                                    <div class="tiebreaker-item" data-value="cork_off" draggable="true" style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: var(--bg-panel); border: 2px solid var(--border-strong); border-radius: 8px; cursor: grab;">
+                                        <span class="drag-handle" style="color: var(--text-dim);">☰</span>
+                                        <input type="checkbox" style="width: 18px; height: 18px; accent-color: var(--pink);">
+                                        <span style="flex: 1; font-size: 13px;">Cork-Off</span>
+                                    </div>
+                                </div>
+                                <button class="brdc-btn" onclick="saveSection('tiebreakers')" style="margin-top: 15px;">💾 SAVE</button>
+                            </div>
+                        </div>
+
+                        <!-- Cork & Start Rules Section -->
+                        <div class="sidebar-card" style="margin-bottom: 20px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                                <h3 style="font-family: 'Bebas Neue', cursive; font-size: 24px; color: var(--pink);">🎯 Cork & Start Rules</h3>
+                                <button class="brdc-btn brdc-btn-secondary" onclick="toggleEditSection('corkRules')" style="padding: 6px 12px; font-size: 12px;">✏️ EDIT</button>
+                            </div>
+                            <div id="corkRulesDisplay" class="settings-display">
+                                <div class="settings-grid">
+                                    <div><span class="setting-label">Start Rules:</span> <span id="displayStartRules">-</span></div>
+                                    <div><span class="setting-label">Cork Option:</span> <span id="displayCorkOption">-</span></div>
+                                    <div><span class="setting-label">Cork Winner Gets:</span> <span id="displayCorkWinnerGets">-</span></div>
+                                </div>
+                            </div>
+                            <div id="corkRulesEdit" class="settings-edit" style="display: none;">
+                                <div style="display: grid; grid-template-columns: 1fr; gap: 12px;">
+                                    <div class="form-group">
+                                        <label class="brdc-label">Start Rules</label>
+                                        <select id="settingStartRules" class="brdc-select">
+                                            <option value="cork_every_leg">Cork every leg</option>
+                                            <option value="alternate_cork_first_deciding">Alternate, cork first/deciding</option>
+                                            <option value="loser_starts_cork_first_deciding">Loser starts, cork first/deciding</option>
+                                            <option value="winner_starts_cork_first_deciding">Winner starts, cork first/deciding</option>
+                                        </select>
+                                        <span style="font-size: 11px; color: var(--text-dim);">Determines who throws first in each leg</span>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="brdc-label">Cork Option Rules (Who Gets Choice)</label>
+                                        <select id="settingCorkOption" class="brdc-select">
+                                            <option value="alternate_random_first_last">Alternate, randomize first and last</option>
+                                            <option value="random_every_leg">Randomize every leg</option>
+                                            <option value="away_team_option">Away team option</option>
+                                            <option value="home_team_option">Home team option</option>
+                                            <option value="loser_option">Loser option</option>
+                                            <option value="winner_option">Winner option</option>
+                                        </select>
+                                        <span style="font-size: 11px; color: var(--text-dim);">Who has the option to throw first or second</span>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="brdc-label">Cork Winner Gets (Corks Choice games)</label>
+                                        <select id="settingCorkWinnerGets" class="brdc-select">
+                                            <option value="choose-and-start">Choose game AND start</option>
+                                            <option value="choose-only">Choose game only (other starts)</option>
+                                        </select>
+                                        <span style="font-size: 11px; color: var(--text-dim);">Advantage for Corks Choice legs</span>
+                                    </div>
+                                </div>
+                                <button class="brdc-btn" onclick="saveSection('corkRules')" style="margin-top: 15px;">💾 SAVE</button>
+                            </div>
+                        </div>
+
+                        <!-- Team Configuration Section -->
+                        <div class="sidebar-card" style="margin-bottom: 20px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                                <h3 style="font-family: 'Bebas Neue', cursive; font-size: 24px; color: var(--pink);">👥 Team Configuration</h3>
+                                <button class="brdc-btn brdc-btn-secondary" onclick="toggleEditSection('teamConfig')" style="padding: 6px 12px; font-size: 12px;">✏️ EDIT</button>
+                            </div>
+                            <div id="teamConfigDisplay" class="settings-display">
+                                <div class="settings-grid">
+                                    <div><span class="setting-label">Min Players:</span> <span id="displayMinPlayers">-</span></div>
+                                    <div><span class="setting-label">Max Roster:</span> <span id="displayMaxRoster">-</span></div>
+                                    <div><span class="setting-label">Schedule Format:</span> <span id="displayScheduleFormat">-</span></div>
+                                    <div><span class="setting-label">Fill-ins Allowed:</span> <span id="displayFillins">-</span></div>
+                                </div>
+                            </div>
+                            <div id="teamConfigEdit" class="settings-edit" style="display: none;">
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                                    <div class="form-group">
+                                        <label class="brdc-label">Min Players Needed</label>
+                                        <input type="number" id="settingMinPlayers" class="brdc-input" min="1" max="10" value="3">
+                                        <span style="font-size: 11px; color: var(--text-dim);">Minimum roster to avoid forfeit</span>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="brdc-label">Max Roster Spots</label>
+                                        <input type="number" id="settingMaxRoster" class="brdc-input" min="1" max="12" value="4">
+                                        <span style="font-size: 11px; color: var(--text-dim);">Total allowed on roster</span>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="brdc-label">Schedule Format</label>
+                                        <select id="settingScheduleFormat" class="brdc-select">
+                                            <option value="round_robin">Round Robin</option>
+                                            <option value="double_round_robin">Double Round Robin</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="brdc-label">Allow Fill-ins</label>
+                                        <select id="settingAllowFillins" class="brdc-select" onchange="toggleFillinOptions()">
+                                            <option value="true">Yes</option>
+                                            <option value="false">No</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <!-- Fill-in Configuration Panel -->
+                                <div id="fillinOptionsPanel" style="display: none; margin-top: 15px; padding: 15px; background: rgba(255,70,154,0.1); border: 1px solid rgba(255,70,154,0.3); border-radius: 8px;">
+                                    <div style="font-weight: bold; color: var(--pink); margin-bottom: 10px;">Fill-in Signup Form Fields:</div>
+                                    <div style="display: flex; flex-wrap: wrap; gap: 15px;">
+                                        <label style="display: flex; align-items: center; gap: 8px; color: var(--text-secondary);">
+                                            <input type="checkbox" checked disabled style="accent-color: var(--teal);">
+                                            Name & Contact (required)
+                                        </label>
+                                        <label style="display: flex; align-items: center; gap: 8px; color: var(--text-secondary);">
+                                            <input type="checkbox" id="settingFillinCollect501" checked style="accent-color: var(--teal);">
+                                            501 Average
+                                        </label>
+                                        <label style="display: flex; align-items: center; gap: 8px; color: var(--text-secondary);">
+                                            <input type="checkbox" id="settingFillinCollectCricket" checked style="accent-color: var(--teal);">
+                                            Cricket Average (MPR)
+                                        </label>
+                                        <label style="display: flex; align-items: center; gap: 8px; color: var(--text-secondary);">
+                                            <input type="checkbox" id="settingFillinCollectLevel" checked style="accent-color: var(--teal);">
+                                            Preferred Level
+                                        </label>
+                                    </div>
+                                    <span style="font-size: 11px; color: var(--text-dim); margin-top: 10px; display: block;">Fill-ins can substitute for unavailable players at their level or lower</span>
+                                </div>
+                                <button class="brdc-btn" onclick="saveSection('teamConfig')" style="margin-top: 15px;">💾 SAVE</button>
+                            </div>
+                        </div>
+
+                        <!-- Additional Rules Section -->
+                        <div class="sidebar-card" style="margin-bottom: 20px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                                <h3 style="font-family: 'Bebas Neue', cursive; font-size: 24px; color: var(--pink);">📝 Additional Rules</h3>
+                                <button class="brdc-btn brdc-btn-secondary" onclick="toggleEditSection('additionalRules')" style="padding: 6px 12px; font-size: 12px;">✏️ EDIT</button>
+                            </div>
+                            <div id="additionalRulesDisplay" class="settings-display">
+                                <div id="displayLeagueRulesText" style="color: var(--text-dim); white-space: pre-wrap;">No additional rules specified</div>
+                            </div>
+                            <div id="additionalRulesEdit" class="settings-edit" style="display: none;">
+                                <div class="form-group">
+                                    <label class="brdc-label">League Rules & Notes</label>
+                                    <textarea id="settingLeagueRulesText" class="brdc-input" rows="6" style="resize: vertical;" placeholder="Enter any additional league rules, house rules, or notes here..."></textarea>
+                                    <span style="font-size: 11px; color: var(--text-dim);">This will be visible on the public league page</span>
+                                </div>
+                                <button class="brdc-btn" onclick="saveSection('additionalRules')" style="margin-top: 15px;">💾 SAVE</button>
                             </div>
                         </div>
 
@@ -2360,10 +2588,14 @@ Bob Wilson"></textarea>
         // ============================================================================
 
         function populateSettingsForm() {
-            // Populate form inputs
+            // Populate form inputs - Basic Info
             document.getElementById('settingLeagueName').value = leagueData.league_name || '';
             document.getElementById('settingSeason').value = leagueData.season || '';
+            document.getElementById('settingLeagueMode').value = leagueData.league_mode || 'draft';
+            document.getElementById('settingMaxTeams').value = leagueData.max_teams || '';
+            document.getElementById('settingEntryFee').value = leagueData.entry_fee || '';
             document.getElementById('settingStartDate').value = leagueData.start_date || '';
+            document.getElementById('settingRegCloseDate').value = leagueData.registration_close_date || '';
             document.getElementById('settingLeagueNight').value = leagueData.league_night || 'tuesday';
             document.getElementById('settingStartTime').value = leagueData.start_time || '';
             document.getElementById('settingVenueName').value = leagueData.venue_name || '';
@@ -2380,8 +2612,342 @@ Bob Wilson"></textarea>
             document.getElementById('settingBestOf').value = leagueData.best_of || '3';
             document.getElementById('settingRounds').value = leagueData.games_per_match || leagueData.rounds_per_match || 9;
 
+            // Cork & Start Rules
+            document.getElementById('settingStartRules').value = leagueData.start_rules || leagueData.cork_rule || 'cork_every_leg';
+            document.getElementById('settingCorkOption').value = leagueData.cork_option || 'alternate_random_first_last';
+            document.getElementById('settingCorkWinnerGets').value = leagueData.cork_winner_gets || 'choose-and-start';
+
+            // Team Configuration
+            document.getElementById('settingMinPlayers').value = leagueData.min_players || 3;
+            document.getElementById('settingMaxRoster').value = leagueData.max_roster || 4;
+            document.getElementById('settingScheduleFormat').value = leagueData.schedule_format || 'round_robin';
+            document.getElementById('settingAllowFillins').value = leagueData.allow_fillins ? 'true' : 'false';
+
+            // Fill-in options
+            if (document.getElementById('settingFillinCollect501')) {
+                document.getElementById('settingFillinCollect501').checked = leagueData.fillin_collect_501_avg !== false;
+                document.getElementById('settingFillinCollectCricket').checked = leagueData.fillin_collect_cricket_avg !== false;
+                document.getElementById('settingFillinCollectLevel').checked = leagueData.fillin_collect_level !== false;
+            }
+            toggleFillinOptions();
+
+            // Additional Rules
+            document.getElementById('settingLeagueRulesText').value = leagueData.league_rules || '';
+
+            // Populate tiebreaker list
+            populateTiebreakerList();
+
+            // Populate rounds builder
+            populateRoundsBuilder();
+
             // Populate display values
             updateSettingsDisplay();
+        }
+
+        function populateTiebreakerList() {
+            const tiebreakers = leagueData.tiebreakers || [
+                { value: 'head_to_head', enabled: true },
+                { value: 'point_diff', enabled: true },
+                { value: 'total_points', enabled: true },
+                { value: 'cork_off', enabled: false }
+            ];
+            const list = document.getElementById('tiebreakerList');
+            if (!list) return;
+
+            const labels = {
+                head_to_head: 'Head-to-Head',
+                point_diff: 'Point Differential',
+                total_points: 'Total Points Scored',
+                cork_off: 'Cork-Off'
+            };
+
+            list.innerHTML = tiebreakers.map(tb => `
+                <div class="tiebreaker-item" data-value="${tb.value}" draggable="true" style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: var(--bg-panel); border: 2px solid var(--border-strong); border-radius: 8px; cursor: grab;">
+                    <span class="drag-handle" style="color: var(--text-dim);">☰</span>
+                    <input type="checkbox" ${tb.enabled ? 'checked' : ''} style="width: 18px; height: 18px; accent-color: var(--pink);">
+                    <span style="flex: 1; font-size: 13px;">${labels[tb.value] || tb.value}</span>
+                </div>
+            `).join('');
+
+            // Re-attach drag handlers
+            initTiebreakerDragDrop();
+        }
+
+        function initTiebreakerDragDrop() {
+            const list = document.getElementById('tiebreakerList');
+            if (!list) return;
+            let draggedItem = null;
+
+            list.querySelectorAll('.tiebreaker-item').forEach(item => {
+                item.addEventListener('dragstart', (e) => {
+                    draggedItem = item;
+                    item.style.opacity = '0.5';
+                });
+                item.addEventListener('dragend', () => {
+                    item.style.opacity = '1';
+                    draggedItem = null;
+                });
+                item.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    if (item !== draggedItem) {
+                        item.style.borderColor = 'var(--yellow)';
+                    }
+                });
+                item.addEventListener('dragleave', () => {
+                    item.style.borderColor = 'var(--border-strong)';
+                });
+                item.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    item.style.borderColor = 'var(--border-strong)';
+                    if (draggedItem && item !== draggedItem) {
+                        const allItems = [...list.querySelectorAll('.tiebreaker-item')];
+                        const draggedIdx = allItems.indexOf(draggedItem);
+                        const targetIdx = allItems.indexOf(item);
+                        if (draggedIdx < targetIdx) {
+                            item.after(draggedItem);
+                        } else {
+                            item.before(draggedItem);
+                        }
+                    }
+                });
+            });
+        }
+
+        function populateRoundsBuilder() {
+            const rounds = Array.isArray(leagueData.match_format) ? leagueData.match_format : [];
+            const container = document.getElementById('roundsBuilderList');
+            if (!container) return;
+
+            if (rounds.length === 0) {
+                container.innerHTML = '<p style="color: var(--text-dim); text-align: center;">No rounds configured. Click "Add Round" to define match format.</p>';
+                return;
+            }
+
+            container.innerHTML = rounds.map((round, idx) => {
+                const isX01Custom = round.game_type === 'x01';
+                const isCricket = round.game_type === 'cricket';
+                const isCorksChoice = round.game_type === 'corks_choice';
+                const showInOut = !isCricket && !isCorksChoice;
+
+                return `
+                <div class="round-card" style="background: var(--bg-panel); border: 2px solid var(--border-strong); border-radius: 10px; padding: 12px; margin-bottom: 10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <span style="font-family: 'Bebas Neue', cursive; font-size: 18px; color: var(--pink);">ROUND ${idx + 1}</span>
+                        <button onclick="removeRoundFromBuilder(${idx})" style="background: rgba(239,68,68,0.2); border: none; color: #ef4444; padding: 4px 8px; border-radius: 4px; cursor: pointer;">✕</button>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); gap: 8px;">
+                        <div class="form-group">
+                            <label class="brdc-label" style="font-size: 11px;">Game Type</label>
+                            <select class="brdc-select round-game-type" data-round="${idx}" onchange="updateRoundField(${idx}, 'game_type', this.value)" style="padding: 6px; font-size: 12px;">
+                                <option value="501" ${round.game_type === '501' ? 'selected' : ''}>501</option>
+                                <option value="301" ${round.game_type === '301' ? 'selected' : ''}>301</option>
+                                <option value="701" ${round.game_type === '701' ? 'selected' : ''}>701</option>
+                                <option value="x01" ${round.game_type === 'x01' ? 'selected' : ''}>X01 (Custom)</option>
+                                <option value="cricket" ${round.game_type === 'cricket' ? 'selected' : ''}>Cricket</option>
+                                <option value="corks_choice" ${round.game_type === 'corks_choice' ? 'selected' : ''}>Corks Choice</option>
+                            </select>
+                        </div>
+                        ${isX01Custom ? `
+                        <div class="form-group">
+                            <label class="brdc-label" style="font-size: 11px;">X01 Value</label>
+                            <input type="number" class="brdc-input round-x01-value" data-round="${idx}" value="${round.x01_value || 501}" min="101" max="2001" step="100" onchange="updateRoundField(${idx}, 'x01_value', this.value)" style="padding: 6px; font-size: 12px; width: 70px;">
+                        </div>
+                        ` : ''}
+                        <div class="form-group">
+                            <label class="brdc-label" style="font-size: 11px;">Best Of</label>
+                            <select class="brdc-select round-best-of" data-round="${idx}" style="padding: 6px; font-size: 12px;">
+                                <option value="1" ${round.best_of == 1 ? 'selected' : ''}>1 leg</option>
+                                <option value="3" ${round.best_of == 3 ? 'selected' : ''}>Best of 3</option>
+                                <option value="5" ${round.best_of == 5 ? 'selected' : ''}>Best of 5</option>
+                                <option value="7" ${round.best_of == 7 ? 'selected' : ''}>Best of 7</option>
+                                <option value="9" ${round.best_of == 9 ? 'selected' : ''}>Best of 9</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="brdc-label" style="font-size: 11px;"># Players</label>
+                            <input type="number" class="brdc-input round-num-players" data-round="${idx}" value="${round.num_players || 1}" min="1" max="8" style="padding: 6px; font-size: 12px; width: 50px;">
+                        </div>
+                        <div class="form-group">
+                            <label class="brdc-label" style="font-size: 11px;">Level</label>
+                            <select class="brdc-select round-level" data-round="${idx}" style="padding: 6px; font-size: 12px;">
+                                <option value="A" ${round.player_level === 'A' ? 'selected' : ''}>A Only</option>
+                                <option value="B" ${round.player_level === 'B' ? 'selected' : ''}>B Only</option>
+                                <option value="C" ${round.player_level === 'C' ? 'selected' : ''}>C Only</option>
+                                <option value="AB" ${round.player_level === 'AB' ? 'selected' : ''}>A + B</option>
+                                <option value="AC" ${round.player_level === 'AC' ? 'selected' : ''}>A + C</option>
+                                <option value="BC" ${round.player_level === 'BC' ? 'selected' : ''}>B + C</option>
+                                <option value="ALL" ${round.player_level === 'ALL' || round.player_level === 'any' ? 'selected' : ''}>All / Any</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="brdc-label" style="font-size: 11px;">Points</label>
+                            <input type="number" class="brdc-input round-points" data-round="${idx}" value="${round.points || 1}" min="1" max="10" style="padding: 6px; font-size: 12px; width: 50px;">
+                        </div>
+                        ${showInOut ? `
+                        <div class="form-group">
+                            <label class="brdc-label" style="font-size: 11px;">In Rule</label>
+                            <select class="brdc-select round-in-rule" data-round="${idx}" style="padding: 6px; font-size: 12px;">
+                                <option value="straight" ${round.in_rule === 'straight' ? 'selected' : ''}>Straight In</option>
+                                <option value="double" ${round.in_rule === 'double' ? 'selected' : ''}>Double In</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="brdc-label" style="font-size: 11px;">Out Rule</label>
+                            <select class="brdc-select round-out-rule" data-round="${idx}" style="padding: 6px; font-size: 12px;">
+                                <option value="double" ${round.out_rule === 'double' ? 'selected' : ''}>Double Out</option>
+                                <option value="master" ${round.out_rule === 'master' ? 'selected' : ''}>Master Out</option>
+                                <option value="straight" ${round.out_rule === 'straight' ? 'selected' : ''}>Straight Out</option>
+                            </select>
+                        </div>
+                        ` : ''}
+                    </div>
+                    ${isCorksChoice ? `<div style="margin-top: 8px; padding: 8px; background: rgba(253,216,53,0.1); border-radius: 6px; font-size: 11px; color: var(--yellow);"><strong>Corks Choice:</strong> Cork winner picks game type. In/Out rules set when game starts.</div>` : ''}
+                </div>
+                `;
+            }).join('');
+
+            // Update rounds summary display
+            updateRoundsSummaryDisplay();
+        }
+
+        window.updateRoundField = function(idx, field, value) {
+            if (!leagueData.match_format || !leagueData.match_format[idx]) return;
+
+            const round = leagueData.match_format[idx];
+
+            if (field === 'game_type') {
+                round.game_type = value;
+                if (value === 'cricket' || value === 'corks_choice') {
+                    round.in_rule = 'n/a';
+                    round.out_rule = 'n/a';
+                    round.x01_value = null;
+                } else if (value === 'x01') {
+                    round.x01_value = round.x01_value || '501';
+                    if (round.in_rule === 'n/a') {
+                        round.in_rule = 'straight';
+                        round.out_rule = 'double';
+                    }
+                } else {
+                    if (round.in_rule === 'n/a') {
+                        round.in_rule = 'straight';
+                        round.out_rule = 'double';
+                    }
+                    round.x01_value = null;
+                }
+                populateRoundsBuilder();
+            } else if (field === 'x01_value') {
+                round.x01_value = value;
+            }
+        };
+
+        window.addRoundToBuilder = function() {
+            if (!Array.isArray(leagueData.match_format)) leagueData.match_format = [];
+            leagueData.match_format.push({
+                game_type: '501',
+                best_of: 3,
+                num_players: 1,
+                player_level: 'A',
+                in_rule: 'straight',
+                out_rule: 'double',
+                points: 1,
+                x01_value: null
+            });
+            populateRoundsBuilder();
+        };
+
+        window.removeRoundFromBuilder = function(idx) {
+            if (leagueData.match_format && leagueData.match_format.length > idx) {
+                leagueData.match_format.splice(idx, 1);
+                populateRoundsBuilder();
+            }
+        };
+
+        function updateRoundsSummaryDisplay() {
+            const rounds = Array.isArray(leagueData.match_format) ? leagueData.match_format : [];
+            const container = document.getElementById('roundsSummaryList');
+            if (!container) return;
+
+            if (rounds.length === 0) {
+                container.innerHTML = '<p style="color: var(--text-dim);">No rounds configured.</p>';
+                return;
+            }
+
+            const totalPoints = rounds.reduce((sum, r) => sum + (r.points || 1), 0);
+
+            function getGameShortName(gameType, x01Value) {
+                if (gameType === 'cricket') return 'CRKT';
+                if (gameType === 'corks_choice') return 'CHOICE';
+                if (gameType === 'x01') return x01Value || 'X01';
+                return (gameType || '501').toUpperCase();
+            }
+
+            function getRoundLabel(r) {
+                const players = r.num_players || 1;
+                const type = players === 1 ? 'S' : players === 2 ? 'D' : players === 3 ? 'T' : `${players}P`;
+                const level = (r.player_level === 'ALL' || r.player_level === 'any') ? '' : `-${r.player_level || 'A'}`;
+
+                let game;
+                if (r.game_type === 'mixed' && r.legs && r.legs.length > 0) {
+                    // Show actual games: "501/CRKT/301"
+                    const gameList = r.legs.map(leg => getGameShortName(leg.game_type, leg.x01_value));
+                    game = gameList.join('/');
+                } else {
+                    game = getGameShortName(r.game_type, r.x01_value);
+                }
+
+                return `${type}${level} ${game} Bo${r.best_of || 3}`;
+            }
+
+            container.innerHTML = `
+                <p style="margin-bottom: 8px;"><strong>${rounds.length}</strong> rounds, <strong>${totalPoints}</strong> total points</p>
+                <ul style="margin: 0; padding-left: 20px; font-size: 12px;">
+                    ${rounds.map((r, i) => `<li>Round ${i + 1}: ${getRoundLabel(r)} (${r.points || 1} pt)</li>`).join('')}
+                </ul>
+            `;
+        }
+
+        function getTiebreakerSettings() {
+            const list = document.getElementById('tiebreakerList');
+            if (!list) return [];
+            const items = list.querySelectorAll('.tiebreaker-item');
+            return [...items].map(item => ({
+                value: item.dataset.value,
+                enabled: item.querySelector('input[type="checkbox"]').checked
+            }));
+        }
+
+        function getRoundsSettings() {
+            const container = document.getElementById('roundsBuilderList');
+            if (!container) return Array.isArray(leagueData.match_format) ? leagueData.match_format : [];
+
+            const roundCards = container.querySelectorAll('.round-card');
+            if (roundCards.length === 0) return Array.isArray(leagueData.match_format) ? leagueData.match_format : [];
+
+            return [...roundCards].map((card, idx) => {
+                const gameType = card.querySelector('.round-game-type')?.value || '501';
+                const isCricket = gameType === 'cricket';
+                const isCorksChoice = gameType === 'corks_choice';
+                const isX01 = gameType === 'x01';
+
+                return {
+                    game_type: gameType,
+                    best_of: parseInt(card.querySelector('.round-best-of')?.value) || 3,
+                    num_players: parseInt(card.querySelector('.round-num-players')?.value) || 1,
+                    player_level: card.querySelector('.round-level')?.value || 'A',
+                    points: parseInt(card.querySelector('.round-points')?.value) || 1,
+                    in_rule: (isCricket || isCorksChoice) ? 'n/a' : (card.querySelector('.round-in-rule')?.value || 'straight'),
+                    out_rule: (isCricket || isCorksChoice) ? 'n/a' : (card.querySelector('.round-out-rule')?.value || 'double'),
+                    x01_value: isX01 ? (card.querySelector('.round-x01-value')?.value || '501') : null
+                };
+            });
+        }
+
+        window.toggleFillinOptions = function() {
+            const select = document.getElementById('settingAllowFillins');
+            const panel = document.getElementById('fillinOptionsPanel');
+            if (panel && select) {
+                panel.style.display = select.value === 'true' ? 'block' : 'none';
+            }
         }
 
         function updateSettingsDisplay() {
@@ -2395,8 +2961,12 @@ Bob Wilson"></textarea>
             const byeLabels = { average: 'Average', fixed: 'Fixed', none: 'None' };
 
             // League Info
+            const leagueModeLabels = { draft: 'Draft League', team: 'Team League' };
             document.getElementById('displayLeagueName').textContent = leagueData.league_name || '-';
             document.getElementById('displaySeason').textContent = leagueData.season || '-';
+            document.getElementById('displayLeagueMode').textContent = leagueModeLabels[leagueData.league_mode] || 'Draft League';
+            document.getElementById('displayMaxTeams').textContent = leagueData.max_teams || 'Unlimited';
+            document.getElementById('displayEntryFee').textContent = leagueData.entry_fee ? `$${leagueData.entry_fee}` : 'Free';
             document.getElementById('displayFormat').textContent = formatLabels[leagueData.league_format] || leagueData.league_format || '-';
             document.getElementById('displayTeamCount').textContent = leagueData.num_teams || '-';
             document.getElementById('displayPlayersPerTeam').textContent = leagueData.players_per_team || '-';
@@ -2404,10 +2974,34 @@ Bob Wilson"></textarea>
 
             // Schedule
             document.getElementById('displayStartDate').textContent = leagueData.start_date ? new Date(leagueData.start_date).toLocaleDateString() : '-';
+            document.getElementById('displayRegCloseDate').textContent = leagueData.registration_close_date ? new Date(leagueData.registration_close_date).toLocaleDateString() : 'Same as start';
             document.getElementById('displayLeagueNight').textContent = dayLabels[leagueData.league_night] || leagueData.league_night || '-';
             document.getElementById('displayStartTime').textContent = leagueData.start_time || '-';
             const blackouts = leagueData.blackout_dates || [];
             document.getElementById('displayBlackouts').textContent = blackouts.length ? blackouts.map(d => new Date(d).toLocaleDateString()).join(', ') : 'None';
+
+            // Tiebreakers display
+            const tiebreakerDisplay = document.getElementById('displayTiebreakerOrder');
+            if (tiebreakerDisplay) {
+                const tiebreakers = leagueData.tiebreakers || [
+                    { value: 'head_to_head', enabled: true },
+                    { value: 'point_diff', enabled: true },
+                    { value: 'total_points', enabled: true }
+                ];
+                const tbLabels = {
+                    head_to_head: 'Head-to-Head',
+                    point_diff: 'Point Differential',
+                    total_points: 'Total Points Scored',
+                    cork_off: 'Cork-Off'
+                };
+                const enabledTbs = tiebreakers.filter(t => t.enabled);
+                tiebreakerDisplay.innerHTML = enabledTbs.length > 0
+                    ? `<ol style="margin: 0; padding-left: 20px;">${enabledTbs.map(t => `<li>${tbLabels[t.value] || t.value}</li>`).join('')}</ol>`
+                    : '<p>No tiebreakers configured</p>';
+            }
+
+            // Rounds summary
+            updateRoundsSummaryDisplay();
 
             // Venue
             document.getElementById('displayVenueName').textContent = leagueData.venue_name || '-';
@@ -2428,6 +3022,39 @@ Bob Wilson"></textarea>
             document.getElementById('displayPlayoffFormat').textContent = playoffLabels[leagueData.playoff_format] || leagueData.playoff_format || 'No Playoffs';
             document.getElementById('displayByePoints').textContent = byeLabels[leagueData.bye_points] || leagueData.bye_points || 'Average';
             document.getElementById('displaySessionFee').textContent = leagueData.session_fee ? `$${leagueData.session_fee}` : 'Free';
+
+            // Cork & Start Rules
+            const startRuleLabels = {
+                cork_every_leg: 'Cork every leg',
+                alternate_cork_first_deciding: 'Alternate, cork first/deciding',
+                loser_starts_cork_first_deciding: 'Loser starts, cork first/deciding',
+                winner_starts_cork_first_deciding: 'Winner starts, cork first/deciding'
+            };
+            const corkOptionLabels = {
+                alternate_random_first_last: 'Alternate, randomize first/last',
+                random_every_leg: 'Randomize every leg',
+                away_team_option: 'Away team option',
+                home_team_option: 'Home team option',
+                loser_option: 'Loser option',
+                winner_option: 'Winner option'
+            };
+            const corkWinnerLabels = {
+                'choose-and-start': 'Choose game AND start',
+                'choose-only': 'Choose game only'
+            };
+            document.getElementById('displayStartRules').textContent = startRuleLabels[leagueData.start_rules || leagueData.cork_rule] || 'Cork every leg';
+            document.getElementById('displayCorkOption').textContent = corkOptionLabels[leagueData.cork_option] || 'Alternate';
+            document.getElementById('displayCorkWinnerGets').textContent = corkWinnerLabels[leagueData.cork_winner_gets] || 'Choose and start';
+
+            // Team Configuration
+            const scheduleLabels = { round_robin: 'Round Robin', double_round_robin: 'Double Round Robin' };
+            document.getElementById('displayMinPlayers').textContent = leagueData.min_players || 3;
+            document.getElementById('displayMaxRoster').textContent = leagueData.max_roster || 4;
+            document.getElementById('displayScheduleFormat').textContent = scheduleLabels[leagueData.schedule_format] || 'Round Robin';
+            document.getElementById('displayFillins').textContent = leagueData.allow_fillins ? 'Yes' : 'No';
+
+            // Additional Rules
+            document.getElementById('displayLeagueRulesText').textContent = leagueData.league_rules || 'No additional rules specified';
         }
 
         window.toggleEditSection = function(section) {
@@ -2460,6 +3087,11 @@ Bob Wilson"></textarea>
             const updates = {
                 league_name: document.getElementById('settingLeagueName').value.trim(),
                 season: document.getElementById('settingSeason').value.trim(),
+                // New fields from create-league
+                league_mode: document.getElementById('settingLeagueMode').value,
+                max_teams: document.getElementById('settingMaxTeams').value ? parseInt(document.getElementById('settingMaxTeams').value) : null,
+                entry_fee: document.getElementById('settingEntryFee').value ? parseFloat(document.getElementById('settingEntryFee').value) : null,
+                registration_close_date: document.getElementById('settingRegCloseDate').value || null,
                 start_date: document.getElementById('settingStartDate').value,
                 league_night: document.getElementById('settingLeagueNight').value,
                 start_time: document.getElementById('settingStartTime').value,
@@ -2476,7 +3108,26 @@ Bob Wilson"></textarea>
                 in_rule: document.getElementById('settingInRule').value,
                 checkout: document.getElementById('settingCheckout').value,
                 best_of: parseInt(document.getElementById('settingBestOf').value),
-                games_per_match: parseInt(document.getElementById('settingRounds').value) || 9
+                games_per_match: parseInt(document.getElementById('settingRounds').value) || 9,
+                // Cork & Start Rules
+                start_rules: document.getElementById('settingStartRules').value,
+                cork_option: document.getElementById('settingCorkOption').value,
+                cork_winner_gets: document.getElementById('settingCorkWinnerGets').value,
+                // Team Configuration
+                min_players: parseInt(document.getElementById('settingMinPlayers').value) || 3,
+                max_roster: parseInt(document.getElementById('settingMaxRoster').value) || 4,
+                schedule_format: document.getElementById('settingScheduleFormat').value,
+                allow_fillins: document.getElementById('settingAllowFillins').value === 'true',
+                // Fill-in collection options
+                fillin_collect_501_avg: document.getElementById('settingFillinCollect501')?.checked !== false,
+                fillin_collect_cricket_avg: document.getElementById('settingFillinCollectCricket')?.checked !== false,
+                fillin_collect_level: document.getElementById('settingFillinCollectLevel')?.checked !== false,
+                // Tiebreakers
+                tiebreakers: getTiebreakerSettings(),
+                // Match format configuration (rounds)
+                match_format: getRoundsSettings(),
+                // Additional Rules
+                league_rules: document.getElementById('settingLeagueRulesText').value.trim()
             };
 
             if (!updates.league_name) {

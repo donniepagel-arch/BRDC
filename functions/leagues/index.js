@@ -21,13 +21,13 @@ const db = admin.firestore();
 // ============================================================================
 
 const MATCH_FORMAT = [
-    { game: 1, homePositions: [1, 2], awayPositions: [1, 2], type: 'doubles', format: '501', checkout: 'choice' },
+    { game: 1, homePositions: [1, 2], awayPositions: [1, 2], type: 'doubles', format: 'choice', checkout: 'double' },
     { game: 2, homePositions: [3], awayPositions: [3], type: 'singles', format: 'cricket', checkout: null },
     { game: 3, homePositions: [1], awayPositions: [1], type: 'singles', format: 'cricket', checkout: null },
-    { game: 4, homePositions: [2, 3], awayPositions: [2, 3], type: 'doubles', format: '501', checkout: 'choice' },
+    { game: 4, homePositions: [2, 3], awayPositions: [2, 3], type: 'doubles', format: 'choice', checkout: 'double' },
     { game: 5, homePositions: [2], awayPositions: [2], type: 'singles', format: 'cricket', checkout: null },
     { game: 6, homePositions: [1], awayPositions: [1], type: 'singles', format: '501', checkout: 'double' },
-    { game: 7, homePositions: [1, 3], awayPositions: [1, 3], type: 'doubles', format: '501', checkout: 'choice' },
+    { game: 7, homePositions: [1, 3], awayPositions: [1, 3], type: 'doubles', format: 'choice', checkout: 'double' },
     { game: 8, homePositions: [2], awayPositions: [2], type: 'singles', format: '501', checkout: 'double' },
     { game: 9, homePositions: [3], awayPositions: [3], type: 'singles', format: '501', checkout: 'double' }
 ];
@@ -184,7 +184,11 @@ async function updatePlayerStatsFromMatch(leagueId, match) {
                     };
                 }
 
-                const stats = leg.home_stats || {};
+                // Use per-player stats if available (for doubles), otherwise fall back to aggregated
+                const perPlayerStats = leg.player_stats || {};
+                const playerName = player.name || '';
+                const hasIndividualStats = perPlayerStats[playerName] && Object.keys(perPlayerStats[playerName]).length > 0;
+                const stats = hasIndividualStats ? perPlayerStats[playerName] : (leg.home_stats || {});
                 const oppStats = leg.away_stats || {};
 
                 if (isX01) {
@@ -377,7 +381,11 @@ async function updatePlayerStatsFromMatch(leagueId, match) {
                     };
                 }
 
-                const stats = leg.away_stats || {};
+                // Use per-player stats if available (for doubles), otherwise fall back to aggregated
+                const perPlayerStats = leg.player_stats || {};
+                const playerName = player.name || '';
+                const hasIndividualStats = perPlayerStats[playerName] && Object.keys(perPlayerStats[playerName]).length > 0;
+                const stats = hasIndividualStats ? perPlayerStats[playerName] : (leg.away_stats || {});
                 const oppStats = leg.home_stats || {};
 
                 if (isX01) {
@@ -780,12 +788,12 @@ async function recalculatePlayerStatsFromMatches(playerId, leagueId = null) {
                         // For team games, divide stats among players
                         freshStats.x01_total_darts += Math.round((legStats.darts_thrown || 0) / statsDivisor);
                         freshStats.x01_total_points += Math.round((legStats.points_scored || 0) / statsDivisor);
-                        freshStats.x01_tons += legStats.tons || 0;
-                        freshStats.x01_ton_00 += legStats.ton_00 || 0;
-                        freshStats.x01_ton_20 += legStats.ton_20 || 0;
-                        freshStats.x01_ton_40 += legStats.ton_40 || 0;
-                        freshStats.x01_ton_60 += legStats.ton_60 || 0;
-                        freshStats.x01_ton_80 += legStats.ton_80 || 0;
+                        freshStats.x01_tons += Math.round((legStats.tons || 0) / statsDivisor);
+                        freshStats.x01_ton_00 += Math.round((legStats.ton_00 || 0) / statsDivisor);
+                        freshStats.x01_ton_20 += Math.round((legStats.ton_20 || 0) / statsDivisor);
+                        freshStats.x01_ton_40 += Math.round((legStats.ton_40 || 0) / statsDivisor);
+                        freshStats.x01_ton_60 += Math.round((legStats.ton_60 || 0) / statsDivisor);
+                        freshStats.x01_ton_80 += Math.round((legStats.ton_80 || 0) / statsDivisor);
                         freshStats.x01_checkouts_hit += legStats.checkout ? 1 : 0;
                         freshStats.x01_checkout_attempts += legStats.checkout_attempts || 0;
 
@@ -803,8 +811,8 @@ async function recalculatePlayerStatsFromMatches(playerId, leagueId = null) {
 
                         freshStats.cricket_total_marks += Math.round((cricketStats.total_marks || 0) / statsDivisor);
                         freshStats.cricket_total_darts += cricketStats.rounds ? Math.round((cricketStats.rounds * 3) / statsDivisor) : 0;
-                        freshStats.cricket_nine_mark_rounds += cricketStats.nine_mark_rounds || 0;
-                        freshStats.cricket_white_horse += cricketStats.white_horse || 0;
+                        freshStats.cricket_nine_mark_rounds += Math.round((cricketStats.nine_mark_rounds || 0) / statsDivisor);
+                        freshStats.cricket_white_horse += Math.round((cricketStats.white_horse || 0) / statsDivisor);
                     }
                 }
             }
@@ -1249,104 +1257,9 @@ exports.getLeague = functions.https.onRequest(async (req, res) => {
 
 /**
  * Fix director involvements for existing leagues
- * If a league has a director_pin but the player's involvements.directing doesn't include this league, add it
+ * REMOVED: One-time data fix function - already run
  */
-exports.fixDirectorInvolvements = functions.https.onRequest(async (req, res) => {
-    setCorsHeaders(res);
-    if (req.method === 'OPTIONS') return res.status(204).send('');
-
-    try {
-        const { pin, league_id } = req.body;
-
-        if (!pin || pin.length !== 8) {
-            return res.status(400).json({ success: false, error: '8-digit PIN required' });
-        }
-
-        // Find player by PIN
-        const playerSnapshot = await db.collection('players')
-            .where('pin', '==', pin)
-            .limit(1)
-            .get();
-
-        if (playerSnapshot.empty) {
-            return res.status(404).json({ success: false, error: 'Player not found' });
-        }
-
-        const playerId = playerSnapshot.docs[0].id;
-        const playerData = playerSnapshot.docs[0].data();
-        const results = { fixed: [], already_set: [], errors: [] };
-
-        // Get leagues to check
-        let leaguesToCheck = [];
-        if (league_id) {
-            // Fix specific league
-            const leagueDoc = await db.collection('leagues').doc(league_id).get();
-            if (leagueDoc.exists) {
-                leaguesToCheck.push({ id: leagueDoc.id, ...leagueDoc.data() });
-            }
-        } else {
-            // Find all leagues where this player is the director
-            const leaguesByAdminPin = await db.collection('leagues')
-                .where('admin_pin', '==', pin)
-                .get();
-            const leaguesByDirectorPin = await db.collection('leagues')
-                .where('director_pin', '==', pin)
-                .get();
-
-            const leagueIds = new Set();
-            leaguesByAdminPin.docs.forEach(doc => {
-                if (!leagueIds.has(doc.id)) {
-                    leagueIds.add(doc.id);
-                    leaguesToCheck.push({ id: doc.id, ...doc.data() });
-                }
-            });
-            leaguesByDirectorPin.docs.forEach(doc => {
-                if (!leagueIds.has(doc.id)) {
-                    leagueIds.add(doc.id);
-                    leaguesToCheck.push({ id: doc.id, ...doc.data() });
-                }
-            });
-        }
-
-        // Check and fix each league
-        const currentDirecting = playerData.involvements?.directing || [];
-
-        for (const league of leaguesToCheck) {
-            const alreadyHas = currentDirecting.some(d => d.id === league.id);
-
-            if (alreadyHas) {
-                results.already_set.push({ id: league.id, name: league.league_name });
-            } else {
-                try {
-                    await db.collection('players').doc(playerId).update({
-                        'involvements.directing': admin.firestore.FieldValue.arrayUnion({
-                            id: league.id,
-                            name: league.league_name,
-                            type: 'league',
-                            status: league.status || 'registration',
-                            added_at: new Date().toISOString()
-                        })
-                    });
-                    results.fixed.push({ id: league.id, name: league.league_name });
-                } catch (err) {
-                    results.errors.push({ id: league.id, name: league.league_name, error: err.message });
-                }
-            }
-        }
-
-        res.json({
-            success: true,
-            player_id: playerId,
-            player_name: playerData.name,
-            results,
-            message: `Fixed ${results.fixed.length} league(s), ${results.already_set.length} already set, ${results.errors.length} errors`
-        });
-
-    } catch (error) {
-        console.error('Error fixing director involvements:', error);
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
+// exports.fixDirectorInvolvements = functions.https.onRequest(async (req, res) => { ... });
 
 /**
  * Delete a league and all its subcollections
@@ -1475,12 +1388,26 @@ exports.updateLeagueSettings = functions.https.onRequest(async (req, res) => {
             // League info
             'league_name', 'season', 'start_date', 'league_night', 'start_time',
             'venue_name', 'venue_address',
+            // New fields from create-league form
+            'league_mode', 'max_teams', 'entry_fee', 'registration_close_date',
             // Match format settings
             'format', 'game_format', 'checkout', 'in_rule', 'out_rule',
             'best_of', 'legs_per_game', 'games_per_match', 'rounds_per_match',
+            // Rounds configuration (from format builder)
+            'rounds',
             // Rules
             'point_system', 'cork_rule', 'level_rules',
-            'session_fee', 'playoff_format', 'bye_points'
+            'session_fee', 'playoff_format', 'bye_points',
+            // Tiebreakers
+            'tiebreakers',
+            // Cork & Start Rules
+            'start_rules', 'cork_option', 'cork_winner_gets',
+            // Team Configuration
+            'min_players', 'max_roster', 'schedule_format', 'allow_fillins',
+            // Fill-in configuration options
+            'fillin_collect_501_avg', 'fillin_collect_cricket_avg', 'fillin_collect_level',
+            // Additional Rules
+            'league_rules'
         ];
 
         // Build update object with only allowed fields
@@ -2244,13 +2171,17 @@ exports.createTeam = functions.https.onRequest(async (req, res) => {
             .collection('teams').add(team);
 
         // Update players with team assignment
+        // Position 1 = level A, Position 2 = level B, Position 3 = level C
+        const positionToLevel = { 1: 'A', 2: 'B', 3: 'C' };
         const batch = db.batch();
         player_ids.forEach((playerId, index) => {
+            const position = index + 1;
             const playerRef = db.collection('leagues').doc(league_id)
                 .collection('players').doc(playerId);
             batch.update(playerRef, {
                 team_id: teamRef.id,
-                position: index + 1,
+                position: position,
+                level: positionToLevel[position],  // Set level based on position
                 is_captain: index === 0
             });
         });
@@ -2313,6 +2244,8 @@ exports.createTeamWithPlayers = functions.https.onRequest(async (req, res) => {
         const assignedPlayers = [];
 
         // Assign players to positions
+        // Position 1 = level A, Position 2 = level B, Position 3 = level C
+        const positionToLevel = { 1: 'A', 2: 'B', 3: 'C' };
         const playerAssignments = [
             { id: player_a_id, position: 1 },
             { id: player_b_id, position: 2 },
@@ -2327,7 +2260,8 @@ exports.createTeamWithPlayers = functions.https.onRequest(async (req, res) => {
                 batch.update(playerRef, {
                     team_id: teamId,
                     position: assignment.position,
-                    is_captain: assignment.position === 1 // Position A is captain
+                    level: positionToLevel[assignment.position],  // Set level based on position
+                    is_captain: assignment.position === 1
                 });
 
                 assignedPlayers.push(assignment.id);
@@ -4383,152 +4317,9 @@ exports.completeMatch = functions.https.onRequest(async (req, res) => {
 
 /**
  * Create a test singles league (4 players, round robin, 501)
+ * REMOVED: Test/debug function - uncomment if needed for testing
  */
-exports.createTestSinglesLeague = functions.https.onRequest(async (req, res) => {
-    setCorsHeaders(res);
-    if (req.method === 'OPTIONS') return res.status(204).send('');
-
-    try {
-        const { your_name, your_phone, your_email } = req.body;
-
-        if (!your_name) {
-            return res.status(400).json({ success: false, error: 'your_name is required' });
-        }
-
-        const adminPin = generatePin();
-        const leagueId = 'test-singles-' + Date.now();
-
-        // Bot players with 55-65 average
-        const botPlayers = [
-            { name: 'Bot Alpha', average: 57.3, pin: generatePlayerPin() },
-            { name: 'Bot Bravo', average: 61.8, pin: generatePlayerPin() },
-            { name: 'Bot Charlie', average: 59.2, pin: generatePlayerPin() }
-        ];
-
-        const yourPin = generatePlayerPin();
-
-        // Create league document
-        const leagueData = {
-            league_name: 'Test Singles League',
-            season: 'Test',
-            venue_name: 'Test Venue',
-            start_date: new Date().toISOString().split('T')[0],
-            league_night: 'Wednesday',
-            start_time: '7:00 PM',
-            league_type: 'singles', // Singles league
-            num_players: 4,
-            games_per_match: 1, // Single game of 501
-            match_format: [{
-                game_type: '501',
-                best_of: 3,
-                num_players: 1,
-                player_level: 'ALL',
-                in_rule: 'straight',
-                out_rule: 'double',
-                points: 1
-            }],
-            schedule_format: 'round_robin',
-            cork_rule: 'cork_every_leg',
-            point_system: 'match_based',
-            playoff_format: 'top_2_final',
-            admin_pin: adminPin,
-            manager_email: your_email || '',
-            manager_phone: your_phone || '',
-            status: 'active',
-            created_at: admin.firestore.FieldValue.serverTimestamp()
-        };
-
-        await db.collection('leagues').doc(leagueId).set(leagueData);
-
-        // Create players
-        const players = [
-            { id: 'player-you', name: your_name, phone: your_phone || '', email: your_email || '', average: 50, pin: yourPin, isBot: false },
-            { id: 'player-alpha', ...botPlayers[0], isBot: true },
-            { id: 'player-bravo', ...botPlayers[1], isBot: true },
-            { id: 'player-charlie', ...botPlayers[2], isBot: true }
-        ];
-
-        const playerRefs = {};
-        for (const p of players) {
-            const playerRef = db.collection('leagues').doc(leagueId).collection('players').doc(p.id);
-            await playerRef.set({
-                name: p.name,
-                phone: p.phone || '',
-                email: p.email || '',
-                reported_average: p.average,
-                pin: p.pin,
-                isBot: p.isBot || false,
-                wins: 0,
-                losses: 0,
-                legs_won: 0,
-                legs_lost: 0,
-                registered_at: admin.firestore.FieldValue.serverTimestamp()
-            });
-            playerRefs[p.id] = { id: p.id, name: p.name };
-        }
-
-        // Generate round robin schedule (each player plays every other player once)
-        // 4 players = 6 matches
-        const schedule = [
-            { week: 1, home_player: 'player-you', away_player: 'player-alpha' },
-            { week: 1, home_player: 'player-bravo', away_player: 'player-charlie' },
-            { week: 2, home_player: 'player-you', away_player: 'player-bravo' },
-            { week: 2, home_player: 'player-alpha', away_player: 'player-charlie' },
-            { week: 3, home_player: 'player-you', away_player: 'player-charlie' },
-            { week: 3, home_player: 'player-alpha', away_player: 'player-bravo' }
-        ];
-
-        // Create matches (using team-based fields for dashboard compatibility)
-        for (let i = 0; i < schedule.length; i++) {
-            const s = schedule[i];
-
-            const matchRef = db.collection('leagues').doc(leagueId).collection('matches').doc(`match-${i + 1}`);
-            await matchRef.set({
-                match_number: i + 1,
-                week: s.week,
-                home_team_id: s.home_player,
-                away_team_id: s.away_player,
-                home_team_name: playerRefs[s.home_player].name,
-                away_team_name: playerRefs[s.away_player].name,
-                home_score: 0,
-                away_score: 0,
-                status: 'scheduled',
-                match_date: new Date().toLocaleDateString(),
-                games: [{
-                    game_number: 1,
-                    format: '501',
-                    type: 'singles',
-                    best_of: 3,
-                    checkout: 'double',
-                    in_rule: 'straight',
-                    status: 'pending',
-                    home_players: [{ id: s.home_player, name: playerRefs[s.home_player].name }],
-                    away_players: [{ id: s.away_player, name: playerRefs[s.away_player].name }],
-                    home_legs_won: 0,
-                    away_legs_won: 0
-                }],
-                created_at: admin.firestore.FieldValue.serverTimestamp()
-            });
-        }
-
-        res.json({
-            success: true,
-            league_id: leagueId,
-            admin_pin: adminPin,
-            your_player_pin: yourPin,
-            your_player_id: 'player-you',
-            message: 'Test singles league created!',
-            players: players.map(p => ({ name: p.name, pin: p.pin, isBot: p.isBot })),
-            matches: schedule.length,
-            director_url: `https://brdc-v2.web.app/pages/league-director.html?league_id=${leagueId}`,
-            standings_url: `https://brdc-v2.web.app/pages/league-standings.html?league_id=${leagueId}`
-        });
-
-    } catch (error) {
-        console.error('Error creating test league:', error);
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
+// exports.createTestSinglesLeague = functions.https.onRequest(async (req, res) => { ... });
 
 // Export match format for use in other modules
 exports.MATCH_FORMAT = MATCH_FORMAT;
@@ -4671,13 +4462,13 @@ exports.setupBotLeague = functions.https.onRequest(async (req, res) => {
                 .collection('teams').add(teamData);
             teamRefs.push({ id: teamRef.id, name: team.name });
 
-            // Update players with team assignment
+            // Update players with team assignment (position determines level: 1=A, 2=B, 3=C)
             await db.collection('leagues').doc(LEAGUE_ID)
-                .collection('players').doc(aPlayerId).update({ team_id: teamRef.id, position: 1 });
+                .collection('players').doc(aPlayerId).update({ team_id: teamRef.id, position: 1, level: 'A' });
             await db.collection('leagues').doc(LEAGUE_ID)
-                .collection('players').doc(bPlayerId).update({ team_id: teamRef.id, position: 2 });
+                .collection('players').doc(bPlayerId).update({ team_id: teamRef.id, position: 2, level: 'B' });
             await db.collection('leagues').doc(LEAGUE_ID)
-                .collection('players').doc(cPlayerId).update({ team_id: teamRef.id, position: 3 });
+                .collection('players').doc(cPlayerId).update({ team_id: teamRef.id, position: 3, level: 'C' });
         }
 
         // 3. Create Week 1 schedule (round robin: 0v1, 2v3)
@@ -5351,6 +5142,125 @@ exports.importAggregatedStats = functions.https.onRequest(async (req, res) => {
 
     } catch (error) {
         console.error('Error importing stats:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * Assign player levels based on team position
+ * Looks at team documents to get player positions and assigns A/B/C levels
+ */
+exports.assignPlayerLevels = functions.https.onRequest(async (req, res) => {
+    setCorsHeaders(res);
+    if (req.method === 'OPTIONS') return res.status(204).send('');
+
+    try {
+        const { league_id, admin_pin } = req.body;
+
+        if (!league_id) {
+            return res.status(400).json({ success: false, error: 'league_id required' });
+        }
+
+        // Verify league exists and check admin access
+        const leagueDoc = await db.collection('leagues').doc(league_id).get();
+        if (!leagueDoc.exists) {
+            return res.status(404).json({ success: false, error: 'League not found' });
+        }
+
+        const league = leagueDoc.data();
+        if (admin_pin && !(await checkLeagueAccess(league, admin_pin))) {
+            return res.status(403).json({ success: false, error: 'Invalid PIN' });
+        }
+
+        console.log(`Assigning player levels for league ${league_id}`);
+
+        // Get all teams to build player-level mapping
+        const teamsSnapshot = await db.collection('leagues').doc(league_id)
+            .collection('teams').get();
+
+        const playerLevelMap = {};
+
+        for (const teamDoc of teamsSnapshot.docs) {
+            const team = teamDoc.data();
+
+            if (team.players && Array.isArray(team.players)) {
+                for (const player of team.players) {
+                    if (player.id && player.level) {
+                        playerLevelMap[player.id] = player.level;
+                    } else if (player.id && player.position) {
+                        const posMap = { 1: 'A', 2: 'B', 3: 'C' };
+                        const derivedLevel = posMap[player.position];
+                        if (derivedLevel) {
+                            playerLevelMap[player.id] = derivedLevel;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Get all players and update their level field
+        const playersSnapshot = await db.collection('leagues').doc(league_id)
+            .collection('players').get();
+
+        const batch = db.batch();
+        let updateCount = 0;
+        let skippedCount = 0;
+        let notOnTeamCount = 0;
+        const updates = [];
+
+        for (const playerDoc of playersSnapshot.docs) {
+            const player = playerDoc.data();
+            const playerId = playerDoc.id;
+
+            // Check if we have a level from the team map
+            let newLevel = playerLevelMap[playerId];
+
+            // If not in team map, try to derive from player's position field
+            if (!newLevel && player.position) {
+                const posMap = { 1: 'A', 2: 'B', 3: 'C' };
+                newLevel = posMap[player.position];
+            }
+
+            // Also check preferred_level or skill_level
+            if (!newLevel && player.preferred_level && ['A', 'B', 'C'].includes(player.preferred_level)) {
+                newLevel = player.preferred_level;
+            }
+
+            if (!newLevel && player.skill_level && ['A', 'B', 'C'].includes(player.skill_level)) {
+                newLevel = player.skill_level;
+            }
+
+            if (newLevel) {
+                const currentLevel = player.level;
+                if (currentLevel === newLevel) {
+                    skippedCount++;
+                } else {
+                    const playerRef = db.collection('leagues').doc(league_id)
+                        .collection('players').doc(playerId);
+                    batch.update(playerRef, { level: newLevel });
+                    updates.push({ name: player.name, from: currentLevel || '', to: newLevel });
+                    updateCount++;
+                }
+            } else {
+                notOnTeamCount++;
+            }
+        }
+
+        if (updateCount > 0) {
+            await batch.commit();
+        }
+
+        res.json({
+            success: true,
+            message: `Updated ${updateCount} player levels`,
+            updated: updateCount,
+            skipped: skippedCount,
+            notOnTeam: notOnTeamCount,
+            updates
+        });
+
+    } catch (error) {
+        console.error('Error assigning player levels:', error);
         res.status(500).json({ success: false, error: error.message });
     }
 });

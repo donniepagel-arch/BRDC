@@ -1,0 +1,367 @@
+/**
+ * BRDC Mobile Fixes
+ * Critical CSS fixes for mobile devices
+ *
+ * Include this file AFTER main styles:
+ * <link rel="stylesheet" href="/css/mobile-fixes.css">
+ */
+
+/* ========================================
+   FIX 1: Prevent iOS Input Zoom
+   ======================================== */
+input,
+select,
+textarea,
+button {
+    font-size: 16px !important; /* Prevents iOS from zooming */
+}
+
+/* Exception: PIN inputs can be larger */
+input[type="password"][maxlength="8"],
+input[inputmode="numeric"][maxlength="8"] {
+    font-size: 24px !important;
+}
+
+/* ========================================
+   FIX 2: Safe Area Insets (Notch Support)
+   ======================================== */
+
+/* Header - push down from notch */
+.header-bar,
+.chat-header,
+.scorer-header {
+    padding-top: calc(16px + env(safe-area-inset-top));
+}
+
+/* Bottom navigation - push up from home indicator */
+.bottom-nav,
+.message-input-area,
+.scorer-controls {
+    padding-bottom: calc(12px + env(safe-area-inset-bottom));
+}
+
+/* Full-screen modes (scorers) */
+body.fullscreen {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+}
+
+/* ========================================
+   FIX 3: Bottom Navigation Bar
+   ======================================== */
+
+/* Show bottom nav on mobile only */
+.mobile-bottom-nav {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    .mobile-bottom-nav {
+        display: flex;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: var(--bg-panel, #16213e);
+        border-top: 2px solid var(--pink, #FF469A);
+        padding: 8px 0;
+        padding-bottom: calc(8px + env(safe-area-inset-bottom));
+        justify-content: space-around;
+        align-items: center;
+        z-index: 1000;
+        box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.4);
+    }
+
+    .mobile-nav-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        padding: 8px 16px;
+        border-radius: 8px;
+        color: var(--text-dim, #8a8aa3);
+        text-decoration: none;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        transition: all 0.2s;
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+        min-width: 60px;
+    }
+
+    .mobile-nav-item:active {
+        transform: scale(0.95);
+    }
+
+    .mobile-nav-item.active {
+        color: var(--pink, #FF469A);
+        background: rgba(255, 70, 154, 0.1);
+    }
+
+    .mobile-nav-icon {
+        font-size: 20px;
+    }
+
+    /* Add padding to body to prevent content from going under nav */
+    body.has-bottom-nav {
+        padding-bottom: calc(80px + env(safe-area-inset-bottom));
+    }
+}
+
+/* ========================================
+   FIX 4: Touch Target Minimum Size
+   ======================================== */
+
+/* All interactive elements must be at least 44x44px (Apple HIG) */
+button,
+a.btn,
+.clickable,
+[onclick],
+[role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Exception: Inline text links */
+a:not(.btn):not([role="button"]) {
+    min-height: unset;
+    min-width: unset;
+}
+
+/* ========================================
+   FIX 5: Horizontal Scroll for Tabs
+   ======================================== */
+
+@media (max-width: 768px) {
+    .tab-nav {
+        overflow-x: auto;
+        overflow-y: hidden;
+        white-space: nowrap;
+        -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+        scrollbar-width: none; /* Hide scrollbar on Firefox */
+        -ms-overflow-style: none; /* Hide scrollbar on IE/Edge */
+    }
+
+    .tab-nav::-webkit-scrollbar {
+        display: none; /* Hide scrollbar on Chrome/Safari */
+    }
+
+    .tab-button {
+        display: inline-block;
+        flex-shrink: 0;
+    }
+}
+
+/* ========================================
+   FIX 6: Offline Indicator
+   ======================================== */
+
+body.offline::before {
+    content: '⚠️ Offline Mode';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: #FF9800;
+    color: #000;
+    text-align: center;
+    padding: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    z-index: 10000;
+    animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+    from {
+        transform: translateY(-100%);
+    }
+    to {
+        transform: translateY(0);
+    }
+}
+
+/* ========================================
+   FIX 7: Prevent Pull-to-Refresh on Specific Pages
+   ======================================== */
+
+/* Disable on scorer pages to prevent accidental refresh */
+body.no-pull-refresh {
+    overscroll-behavior-y: contain;
+}
+
+/* ========================================
+   FIX 8: Loading Skeleton (for slow connections)
+   ======================================== */
+
+.skeleton {
+    background: linear-gradient(
+        90deg,
+        rgba(255, 255, 255, 0.05) 25%,
+        rgba(255, 255, 255, 0.1) 50%,
+        rgba(255, 255, 255, 0.05) 75%
+    );
+    background-size: 200% 100%;
+    animation: loading 1.5s ease-in-out infinite;
+    border-radius: 8px;
+}
+
+@keyframes loading {
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+.skeleton-text {
+    height: 16px;
+    margin-bottom: 8px;
+}
+
+.skeleton-title {
+    height: 28px;
+    width: 60%;
+    margin-bottom: 16px;
+}
+
+.skeleton-card {
+    height: 120px;
+    margin-bottom: 16px;
+}
+
+/* ========================================
+   FIX 9: Improved Focus States for Accessibility
+   ======================================== */
+
+/* Visible focus indicator for keyboard navigation */
+*:focus-visible {
+    outline: 3px solid var(--pink, #FF469A);
+    outline-offset: 2px;
+}
+
+/* Remove outline on mouse/touch focus */
+*:focus:not(:focus-visible) {
+    outline: none;
+}
+
+/* ========================================
+   FIX 10: Landscape Mode Optimization
+   ======================================== */
+
+@media (max-width: 768px) and (orientation: landscape) {
+    /* Reduce header height in landscape */
+    .header-bar {
+        padding: 8px 16px;
+    }
+
+    .header-title {
+        font-size: 20px;
+    }
+
+    /* Hide bottom nav in landscape (more screen space) */
+    .mobile-bottom-nav {
+        display: none;
+    }
+
+    /* Compact scorer layout */
+    .scorer-container {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+    }
+}
+
+/* ========================================
+   FIX 11: Small Screen Optimizations (iPhone SE)
+   ======================================== */
+
+@media (max-width: 375px) {
+    /* Reduce font sizes slightly */
+    .header-title {
+        font-size: 22px;
+    }
+
+    .card-title {
+        font-size: 18px;
+    }
+
+    /* Reduce padding */
+    .container {
+        padding: 12px;
+    }
+
+    /* Stack buttons vertically */
+    .button-group {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .button-group button {
+        width: 100%;
+    }
+}
+
+/* ========================================
+   FIX 12: Chat Input Viewport Fix
+   ======================================== */
+
+/* Prevent page zoom when keyboard opens */
+@media (max-width: 768px) {
+    .message-input-container {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: var(--bg-panel);
+        border-top: 2px solid var(--pink);
+        z-index: 100;
+    }
+
+    /* Add space for fixed input */
+    .messages-container {
+        padding-bottom: 80px;
+    }
+}
+
+/* ========================================
+   UTILITY CLASSES
+   ======================================== */
+
+/* Show only on mobile */
+.mobile-only {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    .mobile-only {
+        display: block;
+    }
+}
+
+/* Hide on mobile */
+@media (max-width: 768px) {
+    .desktop-only {
+        display: none !important;
+    }
+}
+
+/* Prevent text selection (for app-like feel) */
+.no-select {
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+/* Enable text selection (for content) */
+.allow-select {
+    user-select: text;
+    -webkit-user-select: text;
+}

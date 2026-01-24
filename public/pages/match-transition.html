@@ -755,7 +755,9 @@ async function finishMatch() {
     sessionStorage.removeItem('activeMatch');
     sessionStorage.removeItem('pendingMatch');
 
-    if (matchState.league_id) {
+    if (matchState.league_id && matchState.match_id) {
+        window.location.href = `/pages/match-hub.html?league_id=${matchState.league_id}&match_id=${matchState.match_id}`;
+    } else if (matchState.league_id) {
         window.location.href = `/pages/league-view.html?league_id=${matchState.league_id}`;
     } else {
         window.location.href = '/pages/scorer-hub.html';
@@ -766,7 +768,11 @@ window.exitMatch = function() {
     if (confirm('Exit match? Progress will be saved.')) {
         sessionStorage.removeItem('activeMatch');
         sessionStorage.removeItem('pendingMatch');
-        window.location.href = '/pages/scorer-hub.html';
+        if (matchState && matchState.league_id && matchState.match_id) {
+            window.location.href = `/pages/match-hub.html?league_id=${matchState.league_id}&match_id=${matchState.match_id}`;
+        } else {
+            window.location.href = '/pages/scorer-hub.html';
+        }
     }
 };
 

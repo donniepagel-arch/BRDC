@@ -169,7 +169,8 @@ exports.consolidatePlayerIds = functions.https.onRequest(async (req, res) => {
         'eddie olschanskey': 'eddie olschansky',
         'cesar arroyo': 'cesar andino',
         'matt pagel': 'matt pagel',
-        'christian ketchem': 'christian ketchem'
+        'christian ketchem': 'christian ketchum',
+        'christian ketchum': 'christian ketchum'
     };
 
     try {
@@ -1140,13 +1141,58 @@ exports.updateImportedMatchStats = functions.https.onRequest(async (req, res) =>
 
         // Player mapping from names to IDs
         const PLAYER_IDS = playerMapping || {
-            'Matt Pagel': 'G1lL2V3f3aQLQfBTfXkDXqUHZJo1',
-            'Joe Peters': 'JqWH5tOwcbS4iIXuwb2lnVpkH7B2',
-            'John Linden': 'I3VUoEyqhPhJRSCcowq3CHTJrxI2',
-            'Donnie Pagel': 'Tq35P9nPiXgLJgRwfOOqJRJvEqJ3',
+            // M. Pagel team
+            'Matt Pagel': 'maH2vUZbuVLBbBQwoIqW',
+            'Joe Peters': 'pERxbhcN3VNAvu6wFN9o',
+            'John Linden': '06IoctkB8mTTSPBGRbu5',
+            // D. Pagel team
+            'Donnie Pagel': 'X2DMb9bP4Q8fy9yr5Fam',
+            'Jennifer Malek': '7Hj4KWNpm0GviTYbwfbM',
+            'Jenn M': '7Hj4KWNpm0GviTYbwfbM',
+            'Matthew Wentz': 'TJ3uwMdslbtpjtq17xW4',
             'Christian Ketchem': '89RkfFLOhvUwV83ZS5J4',
-            'Jenn M': 'tYMrfHzKRfWgGwujFiQOK3jx0n33',
-            'Jennifer Malek': 'tYMrfHzKRfWgGwujFiQOK3jx0n33'
+            'Christian Ketchum': '89RkfFLOhvUwV83ZS5J4',
+            // N. Kull team
+            'Nathan Kull': 'bsAlnR7Ii1pWmMvsWzrS',
+            'Nate Kull': 'bsAlnR7Ii1pWmMvsWzrS',
+            'Michael Jarvis': '7GH1SWRR3dAyAVxgMqvf',
+            'Stephanie Kull': '4sly23nOXhC475q95R4L',
+            'Steph Kull': '4sly23nOXhC475q95R4L',
+            // K. Yasenchak team
+            'Kevin Yasenchak': 'dr4ML1i9ZeMI7SNisX6E',
+            'Brian Smith': 'bIv2rga3jBSvzsQ2khne',
+            'Cesar Andino': 'Dag2lYDtqoo4kc3cRHHa',
+            // D. Partlo team
+            'Dan Partlo': 'xtgPtBokzUj3nli61AKq',
+            'Joe Donley': 'JxFXNWdd2dFMja3rI0jf',
+            'Kevin Mckelvey': 'Gmxl5I2CtVXYns4b4AeU',
+            // E. Olschansky team
+            'Eddie Olschansky': 'wLMJoz1GylfVCMM32nWm',
+            'Eddie Olschanskey': 'wLMJoz1GylfVCMM32nWm',  // RTF typo variant
+            'Jeff Boss': 'Tj1LsOtRiJwHW4r4sgWa',
+            'Michael Gonzalez': 'FfODZtkFiGUEzptzD8tH',
+            'Mike Gonzalez': 'FfODZtkFiGUEzptzD8tH',
+            'Mike Gonzales': 'FfODZtkFiGUEzptzD8tH',  // RTF variant
+            // J. Ragnoni team
+            'John Ragnoni': 'SwnH8GUBmrcdmOAs07Vp',
+            'Marc Tate': 'ZwdiN0qfmIY5MMCOLJps',
+            'David Brunner': 'ctnV5Je72HAIyVpE5zjS',
+            // Neon Nightmares (T. Massimiani) team
+            'Tony Massimiani': 'gqhzEQLifL402lQwDMpH',
+            'Dominick Russano': 'pL9CGc688ZpxbPKJ11cZ',
+            'Dom Russano': 'pL9CGc688ZpxbPKJ11cZ',
+            'Chris Benco': 'rZ57ofUYFXPSrrhyBVkz',
+            // N. Mezlak team
+            'Nick Mezlak': 'yGcBLDcTwgHtWmZEg3TG',
+            'Cory Jacobs': '8f52A1dwRB4eIU5UyQZo',
+            'Dillon Ulisses': 'dFmalrT5BMdaTOUUVTOZ',
+            // D. Russano team
+            'Danny Russano': 'gmZ8d6De0ZlqPVV0V9Q6',
+            'Chris Russano': 'NJgDQ0d4RzpDVuCnqYZO',
+            'Eric Duale': 'NCeaIaMXsXVN135pX91L',
+            // Fill-ins
+            'Josh Kelly': '34GDgRRFk0uFmOvyykHE',
+            'Derek Fess': 'vVR4AOITXYzhR2H4GqzI'
         };
 
         const statsUpdates = {};
@@ -1202,7 +1248,20 @@ exports.updateImportedMatchStats = functions.https.onRequest(async (req, res) =>
                         // Cricket
                         ps.cricket_legs_played++;
                         ps.cricket_total_marks += stats.marks || 0;
-                        ps.cricket_total_darts += stats.darts || 0;
+
+                        // Adjust dart count for closeout if this player won and closeout_darts is specified
+                        let dartCount = stats.darts || 0;
+                        if (isWinner && leg.closeout_darts && leg.closeout_darts < 3) {
+                            // The stats.darts may have been calculated assuming 3 darts per round
+                            // Adjust by the difference (3 - actual closeout darts)
+                            // Only adjust if it looks like it wasn't already adjusted
+                            const rounds = leg.winning_round || Math.ceil(dartCount / 3);
+                            const expectedFullDarts = rounds * 3;
+                            if (dartCount === expectedFullDarts) {
+                                dartCount -= (3 - leg.closeout_darts);
+                            }
+                        }
+                        ps.cricket_total_darts += dartCount;
 
                         if (isWinner) {
                             ps.cricket_legs_won++;
@@ -1556,6 +1615,234 @@ exports.setPlayerStatsFromPerformance = functions.https.onRequest(async (req, re
 
     } catch (error) {
         console.error('Set player stats error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * Debug endpoint to check match data including games array
+ * GET ?leagueId=xxx&week=1
+ */
+exports.debugMatchData = functions.https.onRequest(async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    if (req.method === 'OPTIONS') {
+        res.set('Access-Control-Allow-Methods', 'GET');
+        res.status(204).send('');
+        return;
+    }
+
+    try {
+        const { leagueId, week, matchId } = req.query;
+
+        if (!leagueId) {
+            res.status(400).json({ error: 'Missing leagueId' });
+            return;
+        }
+
+        const result = { matches: [] };
+
+        let query = db.collection('leagues').doc(leagueId).collection('matches');
+        if (week) {
+            query = query.where('week', '==', parseInt(week));
+        }
+
+        const matchesSnap = await query.get();
+        matchesSnap.forEach(doc => {
+            if (matchId && doc.id !== matchId) return;
+            const data = doc.data();
+            const playerNames = new Set();
+            if (data.games && Array.isArray(data.games)) {
+                data.games.forEach(game => {
+                    (game.home_players || []).forEach(n => playerNames.add(n));
+                    (game.away_players || []).forEach(n => playerNames.add(n));
+                });
+            }
+            result.matches.push({
+                id: doc.id,
+                week: data.week,
+                home_team_id: data.home_team_id,
+                home_team_name: data.home_team_name,
+                away_team_id: data.away_team_id,
+                away_team_name: data.away_team_name,
+                status: data.status,
+                playerNamesFromGames: Array.from(playerNames),
+                gamesCount: (data.games || []).length
+            });
+        });
+
+        res.json(result);
+
+    } catch (error) {
+        console.error('Debug match data error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * Debug endpoint to check player stats structure
+ * GET ?leagueId=xxx&playerName=xxx
+ */
+exports.debugPlayerStats = functions.https.onRequest(async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    if (req.method === 'OPTIONS') {
+        res.set('Access-Control-Allow-Methods', 'GET');
+        res.status(204).send('');
+        return;
+    }
+
+    try {
+        const { leagueId, playerName } = req.query;
+
+        if (!leagueId) {
+            res.status(400).json({ error: 'Missing leagueId' });
+            return;
+        }
+
+        const result = {
+            leagueId,
+            searchName: playerName || 'all',
+            players: [],
+            aggregatedStats: [],
+            statsCollection: []
+        };
+
+        // Get all players
+        const playersSnap = await db.collection('leagues').doc(leagueId).collection('players').get();
+        playersSnap.forEach(doc => {
+            const data = doc.data();
+            const name = data.name || data.player_name || '';
+            if (!playerName || name.toLowerCase().includes(playerName.toLowerCase())) {
+                result.players.push({
+                    id: doc.id,
+                    name: name,
+                    team_id: data.team_id,
+                    email: data.email,
+                    embeddedStats: {
+                        x01_three_dart_avg: data.x01_three_dart_avg,
+                        cricket_mpr: data.cricket_mpr,
+                        ppd: data.ppd,
+                        mpr: data.mpr
+                    }
+                });
+            }
+        });
+
+        // Get aggregated_stats
+        const aggSnap = await db.collection('leagues').doc(leagueId).collection('aggregated_stats').get();
+        aggSnap.forEach(doc => {
+            const data = doc.data();
+            const name = data.player_name || '';
+            if (!playerName || name.toLowerCase().includes(playerName.toLowerCase())) {
+                result.aggregatedStats.push({
+                    id: doc.id,
+                    player_name: name,
+                    x01_three_dart_avg: data.x01_three_dart_avg,
+                    cricket_mpr: data.cricket_mpr,
+                    x01_legs_played: data.x01_legs_played,
+                    cricket_legs_played: data.cricket_legs_played
+                });
+            }
+        });
+
+        // Get stats collection
+        const statsSnap = await db.collection('leagues').doc(leagueId).collection('stats').get();
+        statsSnap.forEach(doc => {
+            const data = doc.data();
+            const name = data.player_name || '';
+            if (!playerName || name.toLowerCase().includes(playerName.toLowerCase())) {
+                result.statsCollection.push({
+                    id: doc.id,
+                    player_name: name,
+                    x01_three_dart_avg: data.x01_three_dart_avg,
+                    cricket_mpr: data.cricket_mpr
+                });
+            }
+        });
+
+        res.json(result);
+
+    } catch (error) {
+        console.error('Debug player stats error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * Sync player names from players collection to stats collection
+ * This ensures stats.player_name matches players.name
+ * POST { leagueId: "xxx", dryRun: true/false }
+ */
+exports.syncPlayerNames = functions.https.onRequest(async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    if (req.method === 'OPTIONS') {
+        res.set('Access-Control-Allow-Methods', 'POST');
+        res.set('Access-Control-Allow-Headers', 'Content-Type');
+        res.status(204).send('');
+        return;
+    }
+
+    try {
+        const { leagueId, dryRun = true } = req.body;
+
+        if (!leagueId) {
+            res.status(400).json({ error: 'Missing leagueId' });
+            return;
+        }
+
+        const results = {
+            checked: 0,
+            updated: [],
+            skipped: [],
+            noStats: []
+        };
+
+        // Get all players
+        const playersSnap = await db.collection('leagues').doc(leagueId).collection('players').get();
+
+        for (const playerDoc of playersSnap.docs) {
+            const playerId = playerDoc.id;
+            const playerData = playerDoc.data();
+            const officialName = playerData.name;
+            results.checked++;
+
+            // Get stats doc for this player
+            const statsDoc = await db.collection('leagues').doc(leagueId).collection('stats').doc(playerId).get();
+
+            if (!statsDoc.exists) {
+                results.noStats.push({ id: playerId, name: officialName });
+                continue;
+            }
+
+            const statsData = statsDoc.data();
+            const statsName = statsData.player_name;
+
+            if (statsName === officialName) {
+                results.skipped.push({ id: playerId, name: officialName });
+                continue;
+            }
+
+            // Names don't match - update stats doc
+            if (!dryRun) {
+                await db.collection('leagues').doc(leagueId).collection('stats').doc(playerId).update({
+                    player_name: officialName
+                });
+            }
+
+            results.updated.push({
+                id: playerId,
+                oldName: statsName,
+                newName: officialName
+            });
+        }
+
+        res.json({
+            success: true,
+            dryRun,
+            results
+        });
+
+    } catch (error) {
+        console.error('Sync player names error:', error);
         res.status(500).json({ error: error.message });
     }
 });

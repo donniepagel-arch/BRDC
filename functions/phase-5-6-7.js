@@ -1029,6 +1029,7 @@ exports.toggleLeagueRegistration = functions.https.onRequest(async (req, res) =>
 
 /**
  * Register as fill-in for league
+ * Also creates/updates BRDC member if create_member is true
  */
 exports.registerFillin = functions.https.onRequest(async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
@@ -1038,7 +1039,7 @@ exports.registerFillin = functions.https.onRequest(async (req, res) => {
     if (req.method === 'OPTIONS') return res.status(204).send('');
 
     try {
-        const { league_id, full_name, email, phone, preferred_level, avg_501, avg_cricket, sms_opt_in, member_pin, photo_url } = req.body;
+        const { league_id, full_name, email, phone, preferred_level, avg_501, avg_cricket, sms_opt_in, member_pin, photo_url, create_member, send_welcome_sms } = req.body;
 
         // Check if league exists and allows fill-ins
         const leagueDoc = await admin.firestore().collection('leagues').doc(league_id).get();
@@ -1067,8 +1068,54 @@ exports.registerFillin = functions.https.onRequest(async (req, res) => {
             return res.status(400).json({ success: false, error: 'Already signed up as fill-in for this league' });
         }
 
-        // Generate PIN for new players (or use existing member PIN)
-        let playerPin = member_pin || await generateUniquePin();
+        // Check if player already exists by email or PIN
+        let playerPin = member_pin;
+        let existingMember = null;
+        let isNewMember = false;
+
+        if (member_pin) {
+            // Check if PIN exists
+            const memberByPin = await admin.firestore().collection('players')
+                .where('pin', '==', member_pin).get();
+            if (!memberByPin.empty) {
+                existingMember = { id: memberByPin.docs[0].id, ...memberByPin.docs[0].data() };
+                playerPin = member_pin;
+            }
+        }
+
+        if (!existingMember) {
+            // Check by email
+            const memberByEmail = await admin.firestore().collection('players')
+                .where('email', '==', email).get();
+            if (!memberByEmail.empty) {
+                existingMember = { id: memberByEmail.docs[0].id, ...memberByEmail.docs[0].data() };
+                playerPin = existingMember.pin;
+            }
+        }
+
+        // Create new member if needed and create_member flag is set
+        if (!existingMember && create_member) {
+            playerPin = await generateUniquePin();
+            isNewMember = true;
+
+            const memberData = {
+                name: full_name,
+                email: email,
+                phone: phone || '',
+                pin: playerPin,
+                preferred_level: preferred_level || null,
+                avg_501: avg_501 || null,
+                avg_cricket: avg_cricket || null,
+                sms_opt_in: true, // Default to true for subs
+                created_at: admin.firestore.FieldValue.serverTimestamp(),
+                source: 'sub_signup'
+            };
+
+            await admin.firestore().collection('players').add(memberData);
+        } else if (!existingMember) {
+            // Generate PIN even if not creating full member record
+            playerPin = await generateUniquePin();
+        }
 
         // Create fill-in registration
         const fillinData = {
@@ -1079,7 +1126,7 @@ exports.registerFillin = functions.https.onRequest(async (req, res) => {
             preferred_level: preferred_level || null,
             avg_501: avg_501 || null,
             avg_cricket: avg_cricket || null,
-            sms_opt_in: sms_opt_in || false,
+            sms_opt_in: true, // Always opt in for subs
             pin: playerPin,
             status: 'available',
             times_filled_in: 0,
@@ -1092,10 +1139,32 @@ exports.registerFillin = functions.https.onRequest(async (req, res) => {
             .collection('fillins')
             .add(fillinData);
 
+        // Send welcome SMS if requested and this is a new signup
+        if (send_welcome_sms && phone) {
+            try {
+                const twilioClient = require('twilio')(
+                    functions.config().twilio?.sid,
+                    functions.config().twilio?.token
+                );
+                const formattedPhone = phone.replace(/\D/g, '');
+                const e164Phone = formattedPhone.startsWith('1') ? `+${formattedPhone}` : `+1${formattedPhone}`;
+
+                await twilioClient.messages.create({
+                    body: `Welcome to BRDC! You're signed up as a sub for ${league.league_name || league.name}. Your PIN is ${playerPin}. Captains will text you when they need a fill-in.`,
+                    from: functions.config().twilio?.phone,
+                    to: e164Phone
+                });
+            } catch (smsError) {
+                console.error('Failed to send welcome SMS:', smsError);
+                // Don't fail the registration if SMS fails
+            }
+        }
+
         res.json({
             success: true,
             fillin_id: fillinRef.id,
-            player_pin: playerPin,
+            player_pin: isNewMember ? playerPin : (existingMember ? null : playerPin), // Only return PIN for new members
+            is_new_member: isNewMember,
             message: 'Fill-in signup successful'
         });
 
@@ -2500,8 +2569,27 @@ exports.getTeamScheduleEnhanced = functions.https.onRequest(async (req, res) => 
         // Get all teams with their rosters
         const teamsSnap = await db.collection('leagues').doc(league_id).collection('teams').get();
         const teamsMap = {};
+        const teamsArray = [];
         teamsSnap.forEach(doc => {
-            teamsMap[doc.id] = { id: doc.id, ...doc.data() };
+            const team = { id: doc.id, ...doc.data() };
+            teamsMap[doc.id] = team;
+            teamsArray.push(team);
+        });
+
+        // Calculate standings - sort by wins desc, then by points desc
+        teamsArray.sort((a, b) => {
+            const aWins = a.wins || 0;
+            const bWins = b.wins || 0;
+            if (bWins !== aWins) return bWins - aWins;
+            return (b.points || 0) - (a.points || 0);
+        });
+
+        // Assign position strings (1st, 2nd, 3rd, etc.)
+        const standingsMap = {};
+        teamsArray.forEach((team, idx) => {
+            const pos = idx + 1;
+            const suffix = pos === 1 ? 'st' : pos === 2 ? 'nd' : pos === 3 ? 'rd' : 'th';
+            standingsMap[team.id] = `${pos}${suffix}`;
         });
 
         // Get stats for all players in the league
@@ -2540,7 +2628,8 @@ exports.getTeamScheduleEnhanced = functions.https.onRequest(async (req, res) => 
         // Get your team data
         const myTeam = teamsMap[team_id];
         const myTeamRoster = buildRosterWithStats(myTeam);
-        const myTeamRecord = myTeam ? `${myTeam.wins || 0}-${myTeam.losses || 0}` : '0-0';
+        const myTeamRecord = myTeam ? `(${myTeam.wins || 0}-${myTeam.losses || 0})` : '(0-0)';
+        const myTeamStanding = standingsMap[team_id] || '';
 
         // Get all matches for this team
         const matchesSnap = await db.collection('leagues').doc(league_id).collection('matches')
@@ -2568,7 +2657,8 @@ exports.getTeamScheduleEnhanced = functions.https.onRequest(async (req, res) => 
             const opponentId = isHome ? m.away_team_id : m.home_team_id;
             const opponentTeam = teamsMap[opponentId];
             const opponentRoster = buildRosterWithStats(opponentTeam);
-            const opponentRecord = opponentTeam ? `${opponentTeam.wins || 0}-${opponentTeam.losses || 0}` : '0-0';
+            const opponentRecord = opponentTeam ? `(${opponentTeam.wins || 0}-${opponentTeam.losses || 0})` : '(0-0)';
+            const opponentStanding = standingsMap[opponentId] || '';
 
             // Get all player availability for this match
             const availability = m.player_availability || {};
@@ -2590,6 +2680,7 @@ exports.getTeamScheduleEnhanced = functions.https.onRequest(async (req, res) => 
                     id: team_id,
                     name: myTeam?.team_name || 'My Team',
                     record: myTeamRecord,
+                    standing: myTeamStanding,
                     roster: myTeamRoster,
                     availability: myTeamAvailability
                 },
@@ -2597,6 +2688,7 @@ exports.getTeamScheduleEnhanced = functions.https.onRequest(async (req, res) => 
                     id: opponentId,
                     name: opponentTeam?.team_name || 'TBD',
                     record: opponentRecord,
+                    standing: opponentStanding,
                     roster: opponentRoster
                 },
                 my_availability: player_id ? (availability[player_id] || 'unknown') : 'unknown',
@@ -2942,6 +3034,12 @@ exports.getCaptainTeamData = functions.https.onRequest(async (req, res) => {
 
         roster.sort((a, b) => (a.position || 0) - (b.position || 0));
 
+        // Check for push notification capability (FCM token) for each roster player
+        for (const player of roster) {
+            const globalPlayerDoc = await db.collection('players').doc(player.id).get();
+            player.has_push_enabled = globalPlayerDoc.exists && !!globalPlayerDoc.data().fcm_token;
+        }
+
         // Get subs for this team/league
         const subsSnap = await db.collection('leagues').doc(league_id).collection('registrations')
             .where('is_sub', '==', true).get();
@@ -3093,13 +3191,28 @@ exports.getCaptainTeamData = functions.https.onRequest(async (req, res) => {
             };
         });
 
+        // Check push notification capability for subs too
+        for (const sub of subs) {
+            const globalPlayerDoc = await db.collection('players').doc(sub.id).get();
+            sub.has_push_enabled = globalPlayerDoc.exists && !!globalPlayerDoc.data().fcm_token;
+        }
+
         res.json({
             success: true,
             team_name: team.team_name || team.name,
             roster,
             subs,
             schedule,
-            match_format: league.match_format || []
+            match_format: league.match_format || [],
+            // New fields for captain portal
+            goto_subs: team.goto_subs || { A: [], B: [], C: [] },
+            availability_grid: team.availability_grid || {},
+            sub_playlists: team.sub_playlists || [],
+            team_settings: {
+                photo_url: team.photo_url || null,
+                motto: team.motto || '',
+                auto_reminders: team.auto_reminders !== undefined ? team.auto_reminders : true
+            }
         });
 
     } catch (error) {

@@ -1691,64 +1691,9 @@ exports.getAllPlayers = functions.https.onRequest(async (req, res) => {
 
 // ============================================================================
 // DEBUG CAPTAIN FUNCTION (temporary)
+// REMOVED: Debug function - uncomment if needed for troubleshooting
 // ============================================================================
-exports.debugCaptain = functions.https.onRequest(async (req, res) => {
-    setCorsHeaders(res);
-    if (req.method === 'OPTIONS') return res.status(204).send('');
-
-    try {
-        const playerName = req.query.name || req.body.name || 'Donnie Pagel';
-        const teamId = req.query.team_id || req.body.team_id || 'PSmPVMfV9wEMcL0Mx3ie';
-        const leagueId = req.query.league_id || req.body.league_id || 'aOq4Y0ETxPZ66tM1uUtP';
-
-        const results = {
-            globalPlayers: [],
-            specificTeam: null,
-            leaguePlayers: []
-        };
-
-        // Search global players
-        const playersSnap = await db.collection('players')
-            .where('name', '==', playerName)
-            .get();
-
-        playersSnap.forEach(doc => {
-            results.globalPlayers.push({
-                id: doc.id,
-                name: doc.data().name,
-                involvements: doc.data().involvements
-            });
-        });
-
-        // Get specific team
-        const teamDoc = await db.collection('leagues').doc(leagueId).collection('teams').doc(teamId).get();
-        if (teamDoc.exists) {
-            results.specificTeam = {
-                id: teamDoc.id,
-                ...teamDoc.data()
-            };
-        }
-
-        // Check league players collection
-        const leaguePlayersSnap = await db.collection('leagues').doc(leagueId).collection('players')
-            .where('name', '==', playerName)
-            .get();
-
-        leaguePlayersSnap.forEach(doc => {
-            results.leaguePlayers.push({
-                leagueId: leagueId,
-                playerId: doc.id,
-                data: doc.data()
-            });
-        });
-
-        res.json({ success: true, results });
-
-    } catch (error) {
-        console.error('Debug captain error:', error);
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
+// exports.debugCaptain = functions.https.onRequest(async (req, res) => { ... });
 
 // ============================================================================
 // UPDATE PLAYER SETTINGS

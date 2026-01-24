@@ -107,13 +107,13 @@ async function setupLeague() {
             teamRefs.push({ id: teamRef.id, name: team.name });
             console.log(`  Created ${team.name} -> ${teamRef.id}`);
 
-            // Update players with team assignment
+            // Update players with team assignment (position determines level: 1=A, 2=B, 3=C)
             await db.collection('leagues').doc(LEAGUE_ID)
-                .collection('players').doc(aPlayerId).update({ team_id: teamRef.id, position: 1 });
+                .collection('players').doc(aPlayerId).update({ team_id: teamRef.id, position: 1, level: 'A' });
             await db.collection('leagues').doc(LEAGUE_ID)
-                .collection('players').doc(bPlayerId).update({ team_id: teamRef.id, position: 2 });
+                .collection('players').doc(bPlayerId).update({ team_id: teamRef.id, position: 2, level: 'B' });
             await db.collection('leagues').doc(LEAGUE_ID)
-                .collection('players').doc(cPlayerId).update({ team_id: teamRef.id, position: 3 });
+                .collection('players').doc(cPlayerId).update({ team_id: teamRef.id, position: 3, level: 'C' });
         }
 
         // 3. Create Week 1 schedule (round robin: 0v1, 2v3)

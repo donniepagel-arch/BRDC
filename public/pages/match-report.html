@@ -635,6 +635,142 @@
             text-decoration: underline;
             filter: brightness(1.2);
         }
+
+        /* Print Styles */
+        @media print {
+            body {
+                background: white !important;
+                color: black !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            body::before {
+                display: none;
+            }
+
+            .header-bar {
+                background: white !important;
+                border-bottom: 2px solid #333 !important;
+                position: relative;
+                box-shadow: none;
+            }
+
+            .back-btn, .report-nav, .player-filter {
+                display: none !important;
+            }
+
+            .match-summary {
+                box-shadow: none;
+                border: 2px solid #333;
+            }
+
+            .match-header-bar {
+                background: #f0f0f0 !important;
+                color: black !important;
+            }
+
+            .match-title {
+                color: black !important;
+            }
+
+            .match-meta {
+                color: #333 !important;
+            }
+
+            .score-row {
+                background: #f8f8f8 !important;
+            }
+
+            .team-name-compact.home,
+            .team-name-compact.away {
+                color: black !important;
+            }
+
+            .score-num-report.home { color: #d63384 !important; }
+            .score-num-report.away { color: #0d6efd !important; }
+
+            .player-card, .game-card, .counts-card {
+                box-shadow: none;
+                border: 1px solid #ccc;
+                page-break-inside: avoid;
+            }
+
+            .player-card-header {
+                background: #f0f0f0 !important;
+            }
+
+            .player-name {
+                color: black !important;
+            }
+
+            .stat-cell, .leg-row, .throws-detail {
+                background: white !important;
+            }
+
+            .section-title, .counts-header {
+                color: #333 !important;
+            }
+
+            .stat-label, .leg-format, .match-number {
+                color: #666 !important;
+            }
+
+            .stat-value, .leg-avg, .leg-number {
+                color: black !important;
+            }
+
+            .stat-value.highlight {
+                color: #d4a300 !important;
+            }
+
+            .throws-detail {
+                display: block !important;
+            }
+
+            .container {
+                max-width: 100%;
+                padding: 10px;
+            }
+
+            .tab-panel {
+                display: block !important;
+            }
+
+            #tab-h2h, #tab-counts {
+                page-break-before: always;
+            }
+
+            .player-link {
+                cursor: default;
+                text-decoration: none !important;
+            }
+
+            .player-link:hover {
+                filter: none;
+            }
+        }
+
+        /* Print button */
+        .print-btn {
+            background: var(--bg-card);
+            border: 2px solid var(--yellow);
+            border-radius: 8px;
+            padding: 8px 14px;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 14px;
+            color: var(--yellow);
+            cursor: pointer;
+            margin-left: auto;
+        }
+        .print-btn:hover {
+            background: var(--yellow);
+            color: var(--bg-dark);
+        }
+
+        @media print {
+            .print-btn { display: none; }
+        }
     </style>
 </head>
 <body>
@@ -642,6 +778,7 @@
         <button class="back-btn" onclick="goBack()">← BACK</button>
         <img src="/images/gold_logo.png" alt="BRDC" class="header-logo">
         <span class="header-title">MATCH REPORT</span>
+        <button class="print-btn" onclick="window.print()">PRINT / SHARE</button>
     </div>
 
     <div class="container">
@@ -745,21 +882,40 @@
                     const result = await callFunction('getMatchByPin', { pin: matchPin });
                     if (!result.success) throw new Error(result.error);
                     matchData = result.match;
-                    homeTeam = result.home_team || { team_name: matchData.home_team_name };
-                    awayTeam = result.away_team || { team_name: matchData.away_team_name };
+                    // Normalize team name fields
+                    if (result.home_team) {
+                        homeTeam = { ...result.home_team, name: result.home_team.name || result.home_team.team_name };
+                    } else {
+                        homeTeam = { name: matchData.home_team_name };
+                    }
+                    if (result.away_team) {
+                        awayTeam = { ...result.away_team, name: result.away_team.name || result.away_team.team_name };
+                    } else {
+                        awayTeam = { name: matchData.away_team_name };
+                    }
                 } else if (leagueId && matchId) {
                     const matchDoc = await getDoc(doc(db, 'leagues', leagueId, 'matches', matchId));
                     if (!matchDoc.exists()) throw new Error('Match not found');
                     matchData = { id: matchId, ...matchDoc.data() };
 
-                    // Try to load teams
+                    // Try to load teams - check both 'name' and 'team_name' per CLAUDE.md
                     if (matchData.home_team_id) {
                         const homeDoc = await getDoc(doc(db, 'leagues', leagueId, 'teams', matchData.home_team_id));
-                        homeTeam = homeDoc.exists() ? homeDoc.data() : { team_name: matchData.home_team_name };
+                        if (homeDoc.exists()) {
+                            const data = homeDoc.data();
+                            homeTeam = { ...data, name: data.name || data.team_name };
+                        } else {
+                            homeTeam = { name: matchData.home_team_name };
+                        }
                     }
                     if (matchData.away_team_id) {
                         const awayDoc = await getDoc(doc(db, 'leagues', leagueId, 'teams', matchData.away_team_id));
-                        awayTeam = awayDoc.exists() ? awayDoc.data() : { team_name: matchData.away_team_name };
+                        if (awayDoc.exists()) {
+                            const data = awayDoc.data();
+                            awayTeam = { ...data, name: data.name || data.team_name };
+                        } else {
+                            awayTeam = { name: matchData.away_team_name };
+                        }
                     }
                 } else {
                     throw new Error('No match identifier provided');
@@ -1013,25 +1169,36 @@
         }
 
         function renderMatchSummary() {
-            document.getElementById('matchTitle').textContent =
-                `${homeTeam?.team_name || 'Home'} vs ${awayTeam?.team_name || 'Away'}`;
+            const homeName = homeTeam?.name || homeTeam?.team_name || 'Home';
+            const awayName = awayTeam?.name || awayTeam?.team_name || 'Away';
+
+            document.getElementById('matchTitle').textContent = `${homeName} vs ${awayName}`;
 
             const games = matchData.games || [];
             const totalLegs = games.reduce((sum, g) => sum + (g.legs?.length || 0), 0);
             const totalDarts = matchData.total_darts || 0;
             const duration = matchData.match_length || '-';
 
+            // Format date properly
+            let dateStr = '-';
+            if (matchData.match_date) {
+                const date = matchData.match_date.toDate ? matchData.match_date.toDate() : new Date(matchData.match_date);
+                dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            } else if (matchData.date) {
+                dateStr = matchData.date;
+            }
+
             document.getElementById('matchMeta').innerHTML = `
                 <span>Week ${matchData.week || '-'}</span>
-                <span>${matchData.date || matchData.match_date || '-'}</span>
+                <span>${dateStr}</span>
                 <span>Sets: ${games.length}</span>
                 <span>Legs: ${totalLegs}</span>
                 <span>Darts: ${totalDarts.toLocaleString()}</span>
                 <span>Duration: ${duration}</span>
             `;
 
-            document.getElementById('homeTeamName').textContent = homeTeam?.team_name || 'Home';
-            document.getElementById('awayTeamName').textContent = awayTeam?.team_name || 'Away';
+            document.getElementById('homeTeamName').textContent = homeName;
+            document.getElementById('awayTeamName').textContent = awayName;
             document.getElementById('homeScore').textContent = matchData.home_score || 0;
             document.getElementById('awayScore').textContent = matchData.away_score || 0;
         }
@@ -1620,12 +1787,13 @@
 
         window.viewPlayer = function(playerName) {
             const encodedName = encodeURIComponent(playerName);
-            window.location.href = `/pages/player-public.html?name=${encodedName}&league_id=${leagueId}`;
+            window.location.href = `/pages/player-profile.html?name=${encodedName}&league_id=${leagueId}`;
         };
 
         // Initialize
         loadMatch();
     </script>
 <script src="/js/feedback.js"></script>
+<script src="/js/nav-menu.js"></script>
 </body>
 </html>

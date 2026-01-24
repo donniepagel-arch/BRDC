@@ -12,7 +12,8 @@
             --pink: #FF469A;
             --teal: #91D7EB;
             --yellow: #FDD835;
-            --black: #1a1a2e;
+            --black: #000000;
+            --bg-dark: #1a1a2e;
             --blue-dark: #0f0f1a;
             --bg-panel: #16213e;
             --text-light: #ffffff;
@@ -25,7 +26,7 @@
 
         body {
             font-family: 'Inter', sans-serif;
-            background: linear-gradient(135deg, var(--black) 0%, var(--blue-dark) 100%);
+            background: linear-gradient(135deg, var(--bg-dark) 0%, var(--blue-dark) 100%);
             min-height: 100vh;
             color: var(--text-light);
         }
@@ -416,6 +417,7 @@
                 <button class="tab-btn" onclick="showTab('matching')">PARTNER DRAW</button>
                 <button class="tab-btn" onclick="showTab('breakups')">BREAKUPS</button>
                 <button class="tab-btn" onclick="showTab('bracket')">BRACKET</button>
+                <button class="tab-btn" onclick="showTab('tvdisplay')">TV DISPLAY</button>
                 <button class="tab-btn" onclick="showTab('settings')">SETTINGS</button>
             </div>
 
@@ -521,6 +523,38 @@
             <!-- Breakups Tab -->
             <div class="tab-content" id="tab-breakups">
                 <div class="card">
+                    <div class="card-header pink">
+                        <span class="card-title">💔 HEARTBROKEN TEAMS</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="stats-row" style="margin-bottom: 20px;">
+                            <div class="stat-box">
+                                <div class="stat-number danger" id="heartbrokenCount" style="color: var(--danger);">0</div>
+                                <div class="stat-label">Teams Lost WC</div>
+                            </div>
+                            <div class="stat-box">
+                                <div class="stat-number yellow" id="optInCount">0</div>
+                                <div class="stat-label">Opt-Ins</div>
+                            </div>
+                            <div class="stat-box">
+                                <div class="stat-number teal" id="optOutCount">0</div>
+                                <div class="stat-label">Staying</div>
+                            </div>
+                            <div class="stat-box">
+                                <div class="stat-number pink" id="pendingCount">0</div>
+                                <div class="stat-label">Undecided</div>
+                            </div>
+                        </div>
+
+                        <div id="heartbrokenMessage" class="message info hidden"></div>
+
+                        <button class="action-btn pink" onclick="loadHeartbrokenStats()" style="width: 100%; margin-top: 15px;">
+                            REFRESH STATS
+                        </button>
+                    </div>
+                </div>
+
+                <div class="card">
                     <div class="card-header" style="background: linear-gradient(135deg, #ef4444, #dc2626);">
                         <span class="card-title">💔 BREAKUP POOL</span>
                         <button class="action-btn yellow" onclick="rematchBreakups()" style="padding: 10px 20px; font-size: 14px;">RE-MATCH ALL</button>
@@ -581,6 +615,112 @@
                                 VIEW BRACKET
                             </a>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TV Display Tab -->
+            <div class="tab-content" id="tab-tvdisplay">
+                <div class="card">
+                    <div class="card-header" style="background: linear-gradient(135deg, #9333ea, #7c3aed);">
+                        <span class="card-title">📺 TV DISPLAY CONTROL</span>
+                    </div>
+                    <div class="card-body">
+                        <p style="margin-bottom: 20px; color: var(--text-dim);">
+                            Control what's shown on the TV display for the audience. Switch between different views throughout the tournament.
+                        </p>
+
+                        <div style="margin-bottom: 30px;">
+                            <label style="display: block; font-weight: 700; margin-bottom: 12px; font-size: 14px; text-transform: uppercase; color: var(--text-dim);">Current Display Mode:</label>
+                            <div style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 10px; text-align: center;">
+                                <div style="font-family: 'Bebas Neue', cursive; font-size: 36px; color: var(--pink); letter-spacing: 2px;" id="currentTVMode">BRACKET VIEW</div>
+                            </div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 25px;">
+                            <button class="action-btn pink" onclick="setTVMode('bracket')" style="width: 100%;">
+                                🏆 BRACKET VIEW
+                            </button>
+                            <button class="action-btn yellow" onclick="setTVMode('partner-reveal')" style="width: 100%; color: #000;">
+                                💘 PARTNER REVEAL
+                            </button>
+                            <button class="action-btn teal" onclick="setTVMode('match-call')" style="width: 100%; color: #000;">
+                                🎯 MATCH CALL
+                            </button>
+                            <button class="action-btn danger" onclick="setTVMode('heartbreaker-alert')" style="width: 100%;">
+                                💔 MINGLE ALERT
+                            </button>
+                        </div>
+
+                        <div style="margin-top: 25px; padding-top: 25px; border-top: 2px solid rgba(255,255,255,0.1);">
+                            <a href="#" id="openTVDisplayLink" target="_blank" class="action-btn" style="width: 100%; text-decoration: none; background: linear-gradient(135deg, #9333ea, #7c3aed); color: white; display: block; text-align: center;">
+                                📺 OPEN TV DISPLAY (NEW WINDOW)
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header danger" style="background: linear-gradient(135deg, var(--danger), #dc2626);">
+                        <span class="card-title">💔 MINGLE PERIOD</span>
+                    </div>
+                    <div class="card-body">
+                        <p style="margin-bottom: 20px; color: var(--text-dim);">
+                            Activate the mingle period to allow breakups and reshuffles. The TV display will show a countdown timer.
+                        </p>
+
+                        <div id="mingleStatus" style="margin-bottom: 20px;">
+                            <div style="background: rgba(239, 68, 68, 0.2); border: 2px solid var(--danger); padding: 15px; border-radius: 8px; text-align: center;">
+                                <strong style="color: var(--danger);">Status:</strong>
+                                <span id="mingleStatusText" style="color: var(--text-light);">INACTIVE</span>
+                            </div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 15px; margin-bottom: 20px;">
+                            <div>
+                                <label style="display: block; font-size: 12px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 8px;">Duration (minutes)</label>
+                                <input type="number" id="mingleDuration" class="pin-input" style="font-size: 20px; letter-spacing: 0; text-align: center; padding: 12px;" value="5" min="1" max="30">
+                            </div>
+                            <div style="display: flex; align-items: flex-end;">
+                                <button class="action-btn danger" onclick="startMinglePeriod()" id="startMingleBtn" style="width: 100%;">
+                                    START
+                                </button>
+                            </div>
+                        </div>
+
+                        <button class="action-btn" onclick="endMinglePeriod()" id="endMingleBtn" style="width: 100%; background: #666; color: white;" disabled>
+                            END MINGLE PERIOD
+                        </button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header pink">
+                        <span class="card-title">💘 CUPID SHUFFLE</span>
+                    </div>
+                    <div class="card-body">
+                        <p style="margin-bottom: 20px; color: var(--text-dim);">
+                            After mingle period ends, run Cupid Shuffle to create new pairings from all opt-ins. This randomly matches opposite-gender players who chose to break up.
+                        </p>
+
+                        <div id="shufflePreview" style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 10px; margin-bottom: 20px; text-align: center;">
+                            <div style="font-family: 'Bebas Neue', cursive; font-size: 32px; color: var(--pink); letter-spacing: 2px; margin-bottom: 10px;">
+                                <span id="shuffleOptInCount">0</span> OPT-INS
+                            </div>
+                            <div style="color: var(--text-dim); font-size: 14px;">
+                                Ready to shuffle: <span id="shuffleCanMatch" style="color: var(--yellow); font-weight: 700;">0</span> new teams possible
+                            </div>
+                        </div>
+
+                        <div id="shuffleMessage" class="message hidden"></div>
+
+                        <button class="action-btn pink" onclick="runCupidShuffle()" id="cupidShuffleBtn" style="width: 100%; font-size: 24px; padding: 20px;">
+                            💘 RUN CUPID SHUFFLE
+                        </button>
+
+                        <p style="margin-top: 15px; font-size: 12px; color: var(--text-dim); text-align: center;">
+                            ⚠️ This action is irreversible. Confirm before running.
+                        </p>
                     </div>
                 </div>
             </div>
@@ -680,7 +820,7 @@
     </div>
 
     <script type="module">
-        import { db, doc, getDoc, collection, getDocs, callFunction } from '/js/firebase-config.js';
+        import { db, doc, getDoc, collection, getDocs, updateDoc, onSnapshot, callFunction } from '/js/firebase-config.js';
 
         const urlParams = new URLSearchParams(window.location.search);
         const tournamentId = urlParams.get('id');
@@ -744,6 +884,7 @@
             document.getElementById('dashboard').classList.add('active');
             refreshData();
             populateSettings();
+            updateTVDisplayLink();
         }
 
         window.showTab = function(tabName) {
@@ -793,6 +934,9 @@
                 const regsSnap = await getDocs(collection(db, 'tournaments', tournamentId, 'registrations'));
                 registrations = regsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 renderRegistrationsList();
+
+                // Load heartbroken stats
+                await loadHeartbrokenStats();
 
             } catch (error) {
                 console.error('Error refreshing data:', error);
@@ -1040,6 +1184,309 @@
 
             setTimeout(() => box.classList.add('hidden'), 5000);
         }
+
+        // ========== HEARTBROKEN & CUPID SHUFFLE FUNCTIONS ==========
+        window.loadHeartbrokenStats = async function() {
+            try {
+                // Get heartbroken teams
+                const heartbrokenResult = await callFunction('getHeartbrokenTeams', {
+                    tournament_id: tournamentId
+                });
+
+                // Get mingle status (includes decision counts)
+                const mingleStatus = await callFunction('getMingleStatus', {
+                    tournament_id: tournamentId
+                });
+
+                if (heartbrokenResult.success) {
+                    const heartbrokenCount = heartbrokenResult.team_count || 0;
+                    document.getElementById('heartbrokenCount').textContent = heartbrokenCount;
+
+                    if (mingleStatus.success && mingleStatus.decisions) {
+                        const optIn = mingleStatus.decisions.opt_in || 0;
+                        const optOut = mingleStatus.decisions.opt_out || 0;
+                        const total = mingleStatus.decisions.total || 0;
+                        const pending = (heartbrokenCount * 2) - total; // Each team has 2 players
+
+                        document.getElementById('optInCount').textContent = optIn;
+                        document.getElementById('optOutCount').textContent = optOut;
+                        document.getElementById('pendingCount').textContent = Math.max(0, pending);
+
+                        // Update shuffle preview counts
+                        document.getElementById('shuffleOptInCount').textContent = optIn;
+                        // Estimate possible matches (assume roughly balanced gender)
+                        const estimatedMatches = Math.floor(optIn / 2);
+                        document.getElementById('shuffleCanMatch').textContent = estimatedMatches;
+
+                        // Show message if teams are heartbroken
+                        const msgBox = document.getElementById('heartbrokenMessage');
+                        if (heartbrokenCount > 0) {
+                            msgBox.textContent = `${heartbrokenCount} team${heartbrokenCount !== 1 ? 's' : ''} lost in Winners Bracket. ${pending > 0 ? `${pending} player${pending !== 1 ? 's' : ''} haven't decided yet.` : 'All decisions submitted!'}`;
+                            msgBox.className = 'message info';
+                            msgBox.classList.remove('hidden');
+                        } else {
+                            msgBox.classList.add('hidden');
+                        }
+                    }
+                }
+
+            } catch (error) {
+                console.error('Error loading heartbroken stats:', error);
+                showMessage('Failed to load heartbroken stats', 'error');
+            }
+        };
+
+        window.runCupidShuffle = async function() {
+            const btn = document.getElementById('cupidShuffleBtn');
+            const optInCount = parseInt(document.getElementById('shuffleOptInCount').textContent);
+
+            if (optInCount === 0) {
+                showMessage('No players have opted for breakup yet', 'error');
+                return;
+            }
+
+            // Confirmation
+            const confirmed = confirm(
+                `Run Cupid Shuffle?\n\n` +
+                `This will randomly re-match all ${optInCount} opt-in players into new teams.\n\n` +
+                `⚠️ THIS ACTION IS IRREVERSIBLE\n\n` +
+                `Continue?`
+            );
+
+            if (!confirmed) return;
+
+            btn.disabled = true;
+            btn.textContent = '💘 SHUFFLING...';
+
+            try {
+                const result = await callFunction('runCupidShuffle', {
+                    tournament_id: tournamentId,
+                    director_pin: directorPin
+                });
+
+                const msgBox = document.getElementById('shuffleMessage');
+
+                if (result.success) {
+                    msgBox.className = 'message success';
+                    msgBox.classList.remove('hidden');
+
+                    if (result.new_pairings && result.new_pairings.length > 0) {
+                        let html = `✓ Created ${result.pairings_count} new team${result.pairings_count !== 1 ? 's' : ''}!<br><br>`;
+                        html += '<strong>New Pairings:</strong><br>';
+                        html += result.new_pairings.map(p => `💘 ${p.team_name}`).join('<br>');
+
+                        if (result.unmatched.males.length > 0 || result.unmatched.females.length > 0) {
+                            html += `<br><br><span style="color: var(--yellow);">⚠️ Unmatched players stay with original partners:</span><br>`;
+                            if (result.unmatched.males.length > 0) {
+                                html += `Males: ${result.unmatched.males.join(', ')}<br>`;
+                            }
+                            if (result.unmatched.females.length > 0) {
+                                html += `Females: ${result.unmatched.females.join(', ')}`;
+                            }
+                        }
+
+                        msgBox.innerHTML = html;
+                    } else {
+                        msgBox.textContent = 'No players opted for breakup';
+                    }
+
+                    showMessage(`Cupid Shuffle complete! ${result.pairings_count} new teams created.`, 'success');
+                    await refreshData();
+                } else {
+                    msgBox.className = 'message error';
+                    msgBox.classList.remove('hidden');
+                    msgBox.textContent = result.error || 'Failed to run Cupid Shuffle';
+                    showMessage(result.error || 'Failed to run Cupid Shuffle', 'error');
+                }
+            } catch (error) {
+                console.error('Cupid Shuffle error:', error);
+                const msgBox = document.getElementById('shuffleMessage');
+                msgBox.className = 'message error';
+                msgBox.classList.remove('hidden');
+                msgBox.textContent = error.message;
+                showMessage('Failed to run Cupid Shuffle', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '💘 RUN CUPID SHUFFLE';
+            }
+        };
+
+        // ========== TV DISPLAY FUNCTIONS ==========
+        let currentTVMode = 'bracket';
+
+        // Set TV display link on load
+        window.addEventListener('DOMContentLoaded', () => {
+            updateTVDisplayLink();
+        });
+
+        function updateTVDisplayLink() {
+            const link = document.getElementById('openTVDisplayLink');
+            if (link) {
+                link.href = `/pages/matchmaker-tv.html?tournament_id=${tournamentId}&mode=${currentTVMode}`;
+            }
+        }
+
+        window.setTVMode = async function(mode) {
+            currentTVMode = mode;
+
+            // Update the display
+            const modeNames = {
+                'bracket': 'BRACKET VIEW',
+                'partner-reveal': 'PARTNER REVEAL',
+                'match-call': 'MATCH CALL',
+                'heartbreaker-alert': 'MINGLE ALERT'
+            };
+
+            document.getElementById('currentTVMode').textContent = modeNames[mode] || mode.toUpperCase();
+
+            // Update the link
+            updateTVDisplayLink();
+
+            // If mingle alert mode, also switch to that tab's display
+            if (mode === 'heartbreaker-alert') {
+                // Could auto-start mingle period here if desired
+                showMessage('TV Display switched to Mingle Alert mode', 'info');
+            } else {
+                showMessage(`TV Display switched to ${modeNames[mode]}`, 'success');
+            }
+
+            // Save current mode to tournament settings for persistence
+            try {
+                await updateDoc(doc(db, 'tournaments', tournamentId), {
+                    tv_display_mode: mode
+                });
+            } catch (error) {
+                console.error('Error saving TV mode:', error);
+            }
+        };
+
+        // ========== MINGLE PERIOD FUNCTIONS ==========
+        window.startMinglePeriod = async function() {
+            try {
+                const result = await callFunction('startMinglePeriod', {
+                    tournament_id: tournamentId,
+                    director_pin: directorPin
+                });
+
+                if (result.success) {
+                    showMessage(`Mingle period started! Round ${result.mingle_round}`, 'success');
+                    updateMingleUI(true, null);
+
+                    // Auto-switch TV to heartbreaker alert
+                    await setTVMode('heartbreaker-alert');
+
+                    // Refresh heartbroken stats
+                    await loadHeartbrokenStats();
+                } else {
+                    showMessage(result.error || 'Failed to start mingle period', 'error');
+                }
+            } catch (error) {
+                console.error('Error starting mingle period:', error);
+                showMessage('Failed to start mingle period', 'error');
+            }
+        };
+
+        window.endMinglePeriod = async function() {
+            try {
+                const result = await callFunction('endMinglePeriod', {
+                    tournament_id: tournamentId
+                });
+
+                if (result.success) {
+                    showMessage(`Mingle period ended - ${result.decisions_locked} decisions locked`, 'info');
+                    updateMingleUI(false, null);
+
+                    // Switch TV back to bracket
+                    await setTVMode('bracket');
+
+                    // Refresh stats
+                    await loadHeartbrokenStats();
+                } else {
+                    showMessage(result.error || 'Failed to end mingle period', 'error');
+                }
+            } catch (error) {
+                console.error('Error ending mingle period:', error);
+                showMessage('Failed to end mingle period', 'error');
+            }
+        };
+
+        function updateMingleUI(active, endTime) {
+            const statusText = document.getElementById('mingleStatusText');
+            const startBtn = document.getElementById('startMingleBtn');
+            const endBtn = document.getElementById('endMingleBtn');
+
+            if (active) {
+                statusText.textContent = 'ACTIVE';
+                statusText.style.color = 'var(--danger)';
+                startBtn.disabled = true;
+                startBtn.style.background = '#666';
+                endBtn.disabled = false;
+                endBtn.style.background = 'linear-gradient(135deg, var(--danger), #dc2626)';
+            } else {
+                statusText.textContent = 'INACTIVE';
+                statusText.style.color = 'var(--text-light)';
+                startBtn.disabled = false;
+                startBtn.style.background = 'linear-gradient(135deg, var(--danger), #dc2626)';
+                endBtn.disabled = true;
+                endBtn.style.background = '#666';
+            }
+        }
+
+        // Listen for tournament changes and poll mingle status
+        onSnapshot(doc(db, 'tournaments', tournamentId), async (snapshot) => {
+            if (snapshot.exists()) {
+                const data = snapshot.data();
+
+                // Update current TV mode display
+                if (data.tv_display_mode) {
+                    currentTVMode = data.tv_display_mode;
+                    const modeNames = {
+                        'bracket': 'BRACKET VIEW',
+                        'partner-reveal': 'PARTNER REVEAL',
+                        'match-call': 'MATCH CALL',
+                        'heartbreaker-alert': 'MINGLE ALERT'
+                    };
+                    const modeEl = document.getElementById('currentTVMode');
+                    if (modeEl) {
+                        modeEl.textContent = modeNames[currentTVMode] || currentTVMode.toUpperCase();
+                    }
+                    updateTVDisplayLink();
+                }
+
+                // Poll mingle status to get real-time data
+                try {
+                    const mingleStatus = await callFunction('getMingleStatus', {
+                        tournament_id: tournamentId
+                    });
+
+                    if (mingleStatus.success) {
+                        updateMingleUI(mingleStatus.mingle_active, null);
+
+                        // Auto-refresh heartbroken stats if mingle is active
+                        if (mingleStatus.mingle_active) {
+                            await loadHeartbrokenStats();
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error polling mingle status:', error);
+                }
+            }
+        });
+
+        // Set up periodic refresh of heartbroken stats (every 10 seconds when mingle active)
+        setInterval(async () => {
+            try {
+                const mingleStatus = await callFunction('getMingleStatus', {
+                    tournament_id: tournamentId
+                });
+
+                if (mingleStatus.success && mingleStatus.mingle_active) {
+                    await loadHeartbrokenStats();
+                }
+            } catch (error) {
+                // Silently fail - don't spam user with errors
+            }
+        }, 10000);
     </script>
 </body>
 </html>

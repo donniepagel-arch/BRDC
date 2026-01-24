@@ -2,11 +2,39 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Team Profile - BRDC</title>
     <link rel="icon" type="image/png" href="/images/favicon.png">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#FF469A">
     <link rel="stylesheet" href="/css/brdc-styles.css">
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap');
+
+        :root {
+            --pink: #FF469A;
+            --teal: #91D7EB;
+            --yellow: #FDD835;
+            --bg-dark: #1a1a2e;
+            --bg-panel: #16213e;
+            --bg-card: #1e2a47;
+            --text-light: #f0f0f0;
+            --text-dim: #8a8aa3;
+            --text-primary: #ffffff;
+            --border-color: rgba(255,255,255,0.15);
+            --success: #22c55e;
+            --danger: #ef4444;
+            --black: #000000;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+        html, body { min-height: 100%; overflow-x: hidden; width: 100%; }
+        body {
+            background: linear-gradient(135deg, var(--bg-dark) 0%, #0f0f23 100%);
+            color: var(--text-light);
+        }
+
         body::before {
             content: '';
             position: fixed;
@@ -18,66 +46,219 @@
             z-index: -1;
         }
 
+        /* Header Bar */
+        .header-bar {
+            background: var(--bg-panel);
+            border-bottom: 3px solid var(--pink);
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+        }
+
+        .back-btn {
+            background: rgba(255,255,255,0.1);
+            border: 2px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .back-btn:hover {
+            background: rgba(255,255,255,0.2);
+            border-color: var(--pink);
+        }
+
+        .header-logo { width: 40px; height: 40px; }
+        .header-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 28px;
+            letter-spacing: 3px;
+            color: var(--pink);
+        }
+
         .team-container {
-            max-width: 900px;
+            max-width: 1100px;
             margin: 0 auto;
             padding: 20px;
         }
 
-        .team-header {
-            background: linear-gradient(135deg, rgba(255,70,154,0.2), rgba(145,215,235,0.2));
-            border: 4px solid var(--black);
-            padding: 30px;
+        /* Team Header Card - League Style */
+        .team-header-card {
+            background: var(--bg-card);
+            border: 3px solid #000;
+            border-radius: 16px;
+            padding: 20px;
             margin-bottom: 20px;
-            text-align: center;
-            box-shadow: 6px 6px 0 rgba(0,0,0,0.5);
+            box-shadow: 6px 6px 0 rgba(0,0,0,0.3);
         }
+
+        .team-header-top {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .team-icon {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--yellow), var(--pink));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            border: 3px solid #000;
+            flex-shrink: 0;
+        }
+
+        .team-info { flex: 1; }
 
         .team-name {
             font-family: 'Bebas Neue', cursive;
-            font-size: 48px;
-            color: var(--yellow);
-            margin-bottom: 10px;
-            text-shadow: 3px 3px 0 rgba(0,0,0,0.5);
+            font-size: 32px;
+            letter-spacing: 1px;
+            margin-bottom: 4px;
+            color: var(--text-primary);
         }
 
         .team-meta {
-            font-size: 16px;
+            font-size: 13px;
+            color: var(--text-dim);
+        }
+
+        .team-meta a {
             color: var(--teal);
+            text-decoration: none;
         }
 
-        .team-record {
-            display: inline-flex;
+        .team-meta a:hover {
+            text-decoration: underline;
+        }
+
+        .team-standing-badge {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            background: var(--pink);
+            color: white;
+        }
+
+        .team-stats-row {
+            display: flex;
             gap: 20px;
-            margin-top: 15px;
-            font-family: 'Bebas Neue', cursive;
-            font-size: 24px;
+            flex-wrap: wrap;
+            padding-top: 15px;
+            border-top: 1px solid var(--border-color);
         }
 
-        .record-stat { color: white; }
-        .record-stat .value { color: var(--yellow); margin-left: 5px; }
+        .team-stat {
+            display: flex;
+            align-items: baseline;
+            gap: 6px;
+        }
 
+        .team-stat-value {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 22px;
+            color: var(--yellow);
+        }
+
+        .team-stat-value.positive { color: var(--success); }
+        .team-stat-value.negative { color: var(--danger); }
+
+        .team-stat-label {
+            font-size: 11px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+        }
+
+        /* View League Link */
+        .view-league-card {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 15px;
+            padding: 12px 16px;
+            background: linear-gradient(135deg, rgba(145, 215, 235, 0.15) 0%, rgba(145, 215, 235, 0.08) 100%);
+            border: 2px solid var(--teal);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+        }
+        .view-league-card:hover {
+            background: linear-gradient(135deg, rgba(145, 215, 235, 0.25) 0%, rgba(145, 215, 235, 0.15) 100%);
+            transform: translateY(-1px);
+        }
+        .view-league-icon {
+            font-size: 24px;
+            flex-shrink: 0;
+        }
+        .view-league-content {
+            flex: 1;
+        }
+        .view-league-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 14px;
+            color: var(--teal);
+            letter-spacing: 1px;
+        }
+        .view-league-desc {
+            font-size: 12px;
+            color: var(--text-dim);
+        }
+        .view-league-arrow {
+            font-size: 20px;
+            color: var(--teal);
+            font-weight: bold;
+        }
+
+        /* Tabs - League Style */
         .tabs {
             display: flex;
             gap: 5px;
             margin-bottom: 20px;
             flex-wrap: wrap;
+            border-bottom: 3px solid var(--border-color);
+            padding-bottom: 5px;
         }
 
         .tab {
-            padding: 12px 24px;
-            background: rgba(255,255,255,0.05);
-            border: 3px solid var(--black);
+            background: rgba(0,0,0,0.3);
+            border: 2px solid transparent;
+            padding: 12px 20px;
             font-family: 'Bebas Neue', cursive;
-            font-size: 18px;
-            letter-spacing: 2px;
+            font-size: 16px;
+            letter-spacing: 1px;
+            color: var(--text-dim);
             cursor: pointer;
             transition: all 0.2s;
-            color: white;
+            border-radius: 8px 8px 0 0;
         }
 
-        .tab:hover { background: rgba(255,255,255,0.1); }
-        .tab.active { background: var(--pink); color: white; }
+        .tab:hover {
+            color: white;
+            background: rgba(255,255,255,0.1);
+        }
+
+        .tab.active {
+            background: var(--pink);
+            color: white;
+            border-color: var(--pink);
+        }
 
         .tab-content { display: none; }
         .tab-content.active { display: block; }
@@ -85,22 +266,23 @@
         /* Players Grid */
         .players-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
             gap: 15px;
         }
 
         .player-card {
-            background: rgba(0,0,0,0.4);
-            border: 3px solid var(--black);
+            background: var(--bg-card);
+            border: 3px solid #000;
+            border-radius: 12px;
             padding: 20px;
             cursor: pointer;
             transition: all 0.2s;
-            box-shadow: 4px 4px 0 rgba(0,0,0,0.5);
+            box-shadow: 4px 4px 0 rgba(0,0,0,0.3);
         }
 
         .player-card:hover {
             border-color: var(--teal);
-            transform: translateY(-3px);
+            transform: translateY(-2px);
         }
 
         .player-card.captain { border-color: var(--yellow); }
@@ -114,12 +296,13 @@
 
         .player-role {
             display: inline-block;
-            padding: 3px 10px;
-            border-radius: 12px;
+            padding: 4px 12px;
+            border-radius: 20px;
             font-size: 11px;
-            font-weight: bold;
+            font-weight: 700;
             text-transform: uppercase;
             margin-bottom: 10px;
+            letter-spacing: 1px;
         }
 
         .player-role.captain { background: var(--yellow); color: black; }
@@ -135,94 +318,190 @@
 
         .player-stats .value { color: var(--yellow); font-weight: bold; }
 
-        /* Matches List */
+        /* Matches List - League-style cards */
         .match-card {
-            background: rgba(0,0,0,0.3);
-            border: 3px solid var(--black);
+            background: var(--bg-card);
+            border: 3px solid #000;
+            border-radius: 12px;
             margin-bottom: 15px;
-            box-shadow: 4px 4px 0 rgba(0,0,0,0.5);
+            box-shadow: 4px 4px 0 rgba(0,0,0,0.3);
             overflow: hidden;
         }
 
+        .match-card.win { border-left: 4px solid var(--success); }
+        .match-card.loss { border-left: 4px solid var(--danger); }
+        .match-card.upcoming { border-left: 4px solid var(--yellow); }
+
         .match-card-header {
-            background: var(--black);
-            padding: 12px 15px;
-            display: flex;
-            justify-content: space-between;
+            display: grid;
+            grid-template-columns: 1fr auto auto auto 1fr;
             align-items: center;
-            cursor: pointer;
+            gap: 15px;
+            padding: 15px 20px;
+            background: rgba(0,0,0,0.3);
         }
 
-        .match-card-header:hover { background: rgba(0,0,0,0.8); }
+        .match-card-header.completed {
+            grid-template-columns: 1fr auto auto auto auto auto 1fr;
+        }
 
-        .match-teams {
+        .match-team-side {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .match-team-side.left { align-items: flex-end; text-align: right; }
+        .match-team-side.right { align-items: flex-start; text-align: left; }
+
+        .match-team-name {
             font-family: 'Bebas Neue', cursive;
-            font-size: 20px;
+            font-size: 22px;
+            color: var(--teal);
+        }
+
+        .match-team-name.winner { color: var(--yellow); }
+        .match-team-name.our-team { color: var(--pink); }
+
+        .match-team-meta {
+            display: flex;
+            gap: 8px;
+            font-size: 11px;
+        }
+
+        .match-team-side.left .match-team-meta { justify-content: flex-end; }
+
+        .match-team-standing {
+            background: var(--pink);
             color: white;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-weight: bold;
         }
 
-        .match-score {
+        .match-team-record {
+            background: #333;
+            color: #888;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+
+        .match-header-center {
+            text-align: center;
+            min-width: 80px;
+        }
+
+        .match-week {
             font-family: 'Bebas Neue', cursive;
-            font-size: 28px;
+            font-size: 14px;
+            color: var(--teal);
         }
 
-        .match-score.win { color: #22c55e; }
-        .match-score.loss { color: #ef4444; }
+        .match-status {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 16px;
+            color: #aaa;
+        }
 
-        .match-date {
+        .match-status.final { color: var(--yellow); }
+
+        .match-header-score {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 42px;
+            color: white;
+            min-width: 40px;
+            text-align: center;
+        }
+
+        .match-header-score.winner { color: var(--yellow); }
+
+        .match-result-badge {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 14px;
+            padding: 4px 12px;
+            border-radius: 4px;
+            margin-top: 5px;
+        }
+
+        .match-result-badge.win { background: #22c55e; color: white; }
+        .match-result-badge.loss { background: #ef4444; color: white; }
+
+        .match-card-footer {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            padding: 12px 20px;
+            background: rgba(0,0,0,0.2);
+            align-items: center;
+        }
+
+        .match-card-footer .match-date {
             font-size: 12px;
             color: #aaa;
         }
 
-        .match-details {
-            display: none;
-            padding: 15px;
-            border-top: 1px solid rgba(255,255,255,0.1);
-        }
-
-        .match-details.expanded { display: block; }
-
-        .game-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px;
-            background: rgba(255,255,255,0.05);
-            margin-bottom: 5px;
+        .match-card-footer .view-btn {
+            background: var(--pink);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 14px;
+            cursor: pointer;
             border-radius: 4px;
         }
 
-        .game-players { font-size: 14px; }
-        .game-result {
-            font-family: 'Bebas Neue', cursive;
-            font-size: 18px;
+        .match-card-footer .view-btn:hover { background: #d63384; }
+
+        /* Standings Section */
+        .standings-section {
+            background: var(--bg-card);
+            border: 3px solid #000;
+            border-radius: 12px;
+            box-shadow: 4px 4px 0 rgba(0,0,0,0.3);
+            overflow: hidden;
         }
 
-        .game-result.win { color: #22c55e; }
-        .game-result.loss { color: #ef4444; }
-
-        /* Standings */
         .standings-table {
             width: 100%;
             border-collapse: collapse;
-        }
-
-        .standings-table th,
-        .standings-table td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 2px solid rgba(255,255,255,0.1);
+            font-size: 13px;
         }
 
         .standings-table th {
+            background: rgba(0,0,0,0.4);
+            padding: 12px 10px;
+            text-align: left;
             font-family: 'Bebas Neue', cursive;
-            font-size: 16px;
-            color: var(--teal);
-            background: rgba(0,0,0,0.3);
+            font-size: 13px;
+            letter-spacing: 1px;
+            color: var(--text-dim);
+            border-bottom: 2px solid rgba(255,255,255,0.1);
+            white-space: nowrap;
+        }
+
+        .standings-table td {
+            padding: 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .standings-table tbody tr {
+            transition: background 0.15s;
+        }
+
+        .standings-table tbody tr:nth-child(odd) {
+            background: rgba(0,0,0,0.15);
+        }
+
+        .standings-table tbody tr:nth-child(even) {
+            background: rgba(0,0,0,0.05);
+        }
+
+        .standings-table tbody tr:hover {
+            background: rgba(255,255,255,0.05);
         }
 
         .standings-table tr.current-team {
-            background: rgba(253, 216, 53, 0.1);
+            background: rgba(253, 216, 53, 0.15) !important;
         }
 
         .standings-table tr.current-team td {
@@ -231,29 +510,261 @@
         }
 
         .rank-badge {
-            width: 30px;
-            height: 30px;
+            width: 28px;
+            height: 28px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
             border-radius: 50%;
             font-family: 'Bebas Neue', cursive;
-            font-size: 16px;
+            font-size: 14px;
         }
 
-        .rank-1 { background: gold; color: black; }
-        .rank-2 { background: silver; color: black; }
+        .rank-1 { background: var(--yellow); color: black; }
+        .rank-2 { background: #c0c0c0; color: black; }
         .rank-3 { background: #cd7f32; color: white; }
 
         .empty-state {
             text-align: center;
-            padding: 40px;
-            color: #aaa;
+            padding: 60px 20px;
+            color: var(--text-dim);
         }
 
         .empty-state-icon {
             font-size: 48px;
             margin-bottom: 15px;
+            opacity: 0.6;
+        }
+
+        /* Stats Tab */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 15px;
+        }
+
+        .stats-card {
+            background: var(--bg-card);
+            border: 3px solid #000;
+            border-radius: 12px;
+            box-shadow: 4px 4px 0 rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .stats-card-header,
+        .stats-card-title {
+            background: rgba(0,0,0,0.4);
+            padding: 14px 18px;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 16px;
+            letter-spacing: 1px;
+            color: var(--teal);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .stats-card-body {
+            padding: 15px;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 15px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .stat-row:last-child { border-bottom: none; }
+
+        .stat-row .label { color: var(--text-dim); font-size: 13px; }
+        .stat-row .value { color: var(--yellow); font-weight: 700; font-size: 14px; }
+
+        .leaderboard-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background: rgba(255,255,255,0.03);
+            margin-bottom: 8px;
+            border-radius: 4px;
+        }
+
+        .leaderboard-rank {
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 14px;
+            background: rgba(255,255,255,0.1);
+        }
+
+        .leaderboard-rank.gold { background: gold; color: black; }
+        .leaderboard-rank.silver { background: silver; color: black; }
+        .leaderboard-rank.bronze { background: #cd7f32; color: white; }
+
+        .leaderboard-name { flex: 1; font-size: 14px; }
+        .leaderboard-value { color: var(--yellow); font-weight: bold; }
+
+        .level-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: bold;
+            margin-left: 5px;
+        }
+
+        .level-badge.A { background: #ef4444; color: white; }
+        .level-badge.B { background: var(--yellow); color: black; }
+        .level-badge.C { background: #22c55e; color: white; }
+
+        /* Level Toggle */
+        .level-toggle {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .level-toggle-btn {
+            padding: 8px 20px;
+            background: rgba(255,255,255,0.05);
+            border: 2px solid var(--black);
+            font-family: 'Bebas Neue', cursive;
+            font-size: 16px;
+            cursor: pointer;
+            color: white;
+            transition: all 0.2s;
+        }
+
+        .level-toggle-btn:hover { background: rgba(255,255,255,0.1); }
+        .level-toggle-btn.active { background: var(--teal); color: black; border-color: var(--teal); }
+        .level-toggle-btn.active.level-A { background: #ef4444; border-color: #ef4444; color: white; }
+        .level-toggle-btn.active.level-B { background: var(--yellow); border-color: var(--yellow); color: black; }
+        .level-toggle-btn.active.level-C { background: #22c55e; border-color: #22c55e; color: white; }
+
+        /* Mobile Responsiveness */
+        @media (max-width: 768px) {
+            /* Team header - stack on mobile */
+            .team-header-content {
+                flex-direction: column;
+                text-align: center;
+                gap: 15px;
+            }
+
+            /* Players grid - narrower minmax for mobile */
+            .players-grid {
+                grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+                gap: 12px;
+            }
+
+            /* Stats grid - single column */
+            .stats-grid {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+
+            /* Table wrapper for horizontal scroll */
+            .table-wrapper {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                margin: 0 -10px;
+                padding: 0 10px;
+            }
+
+            /* Match cards grid */
+            .match-card-header {
+                grid-template-columns: 1fr auto 1fr;
+            }
+            .match-card-header.completed {
+                grid-template-columns: 1fr auto auto auto 1fr;
+            }
+
+            /* Team stats row */
+            .team-stats-row {
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+            .team-stat {
+                flex: 1 1 80px;
+                min-width: 80px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            /* Tighter container padding */
+            .main-content {
+                padding: 10px;
+            }
+
+            /* Players grid - single column on very narrow */
+            .players-grid {
+                grid-template-columns: 1fr;
+            }
+
+            /* Smaller team name */
+            .team-name {
+                font-size: 24px;
+            }
+            .team-meta {
+                font-size: 13px;
+            }
+
+            /* Player cards - compact */
+            .player-card {
+                padding: 15px;
+            }
+            .player-name {
+                font-size: 20px;
+            }
+
+            /* Tab buttons - touch friendly 44px minimum */
+            .tab-btn {
+                padding: 12px 14px;
+                font-size: 13px;
+                min-height: 44px;
+            }
+
+            /* Stats cards - compact */
+            .stats-card-header,
+            .stats-card-title {
+                padding: 12px 14px;
+                font-size: 14px;
+            }
+
+            /* View league card */
+            .view-league-card {
+                padding: 14px;
+            }
+            .view-league-title {
+                font-size: 14px;
+            }
+
+            /* Level toggles - larger touch targets */
+            .level-toggle-btn {
+                padding: 10px 16px;
+                min-height: 44px;
+            }
+        }
+
+        @media (max-width: 360px) {
+            /* Very small screens */
+            .team-name {
+                font-size: 20px;
+            }
+            .player-name {
+                font-size: 18px;
+            }
+            .tab-btn {
+                padding: 10px 10px;
+                font-size: 12px;
+            }
+            .team-standing-badge {
+                font-size: 11px;
+                padding: 4px 10px;
+            }
         }
     </style>
 </head>
@@ -275,7 +786,7 @@
         import { callFunction, db, doc, getDoc, collection, getDocs, query, where, orderBy } from '/js/firebase-config.js';
 
         const urlParams = new URLSearchParams(window.location.search);
-        const leagueId = urlParams.get('league_id');
+        const leagueId = urlParams.get('league_id') || urlParams.get('id');
         const teamId = urlParams.get('team_id');
 
         let leagueData = null;
@@ -283,10 +794,12 @@
         let players = [];
         let matches = [];
         let standings = [];
+        let playerStats = {}; // Player ID -> stats data
+        let selectedLevel = 'all'; // 'all', 'A', 'B', 'C'
 
         window.goBack = function() {
             if (leagueId) {
-                window.location.href = `/pages/league-view.html?id=${leagueId}`;
+                window.location.href = `/pages/league-view.html?league_id=${leagueId}`;
             } else {
                 history.back();
             }
@@ -325,27 +838,28 @@
                         return ((b.points_for || 0) - (b.points_against || 0)) - ((a.points_for || 0) - (a.points_against || 0));
                     });
 
-                // Load players from team data - support both new and old formats
-                if (teamData.players?.length) {
-                    players = teamData.players.map((p, i) => ({
-                        id: p.id,
-                        name: p.name || 'Unknown',
-                        is_captain: teamData.captain_id === p.id || i === 0,
-                        level: p.level || null
-                    }));
-                } else if (teamData.player_ids) {
-                    players = teamData.player_ids.map((id, i) => ({
-                        id,
-                        name: teamData.player_names?.[i] || 'Unknown',
-                        is_captain: teamData.captain_id === id || i === 0,
-                        level: teamData.player_levels?.[i] || null
-                    }));
-                }
+                // Load players from leagues/{leagueId}/players collection (RULE 4)
+                const playersSnap = await getDocs(collection(db, 'leagues', leagueId, 'players'));
+                playersSnap.forEach(d => {
+                    const player = { id: d.id, ...d.data() };
+                    if (player.team_id === teamId) {
+                        players.push({
+                            id: player.id,
+                            name: player.name || 'Unknown',
+                            is_captain: teamData.captain_id === player.id,
+                            level: player.level || null,
+                            position: player.position || 99
+                        });
+                    }
+                });
+                // Sort by position
+                players.sort((a, b) => (a.position || 99) - (b.position || 99));
 
                 // Load matches
                 const matchesSnap = await getDocs(collection(db, 'leagues', leagueId, 'matches'));
-                matches = matchesSnap.docs
-                    .map(d => ({ id: d.id, ...d.data() }))
+                const allMatches = matchesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+                matches = allMatches
                     .filter(m => m.home_team_id === teamId || m.away_team_id === teamId)
                     .sort((a, b) => {
                         // Sort by week, completed first
@@ -353,6 +867,55 @@
                         if (b.status === 'completed' && a.status !== 'completed') return 1;
                         return (a.week || 0) - (b.week || 0);
                     });
+
+                // Calculate team records from matches (sets won)
+                const teamRecords = {};
+                standings.forEach(t => {
+                    teamRecords[t.id] = { wins: 0, losses: 0, setsWon: 0, setsLost: 0 };
+                });
+
+                allMatches.forEach(m => {
+                    if (m.status !== 'completed') return;
+                    if (!teamRecords[m.home_team_id]) teamRecords[m.home_team_id] = { wins: 0, losses: 0, setsWon: 0, setsLost: 0 };
+                    if (!teamRecords[m.away_team_id]) teamRecords[m.away_team_id] = { wins: 0, losses: 0, setsWon: 0, setsLost: 0 };
+
+                    if (m.home_score > m.away_score) {
+                        teamRecords[m.home_team_id].wins++;
+                        teamRecords[m.away_team_id].losses++;
+                    } else if (m.away_score > m.home_score) {
+                        teamRecords[m.away_team_id].wins++;
+                        teamRecords[m.home_team_id].losses++;
+                    }
+
+                    teamRecords[m.home_team_id].setsWon += m.home_score || 0;
+                    teamRecords[m.home_team_id].setsLost += m.away_score || 0;
+                    teamRecords[m.away_team_id].setsWon += m.away_score || 0;
+                    teamRecords[m.away_team_id].setsLost += m.home_score || 0;
+                });
+
+                // Apply records to standings
+                standings = standings.map(t => ({
+                    ...t,
+                    ...teamRecords[t.id]
+                })).sort((a, b) => {
+                    // Sort by wins desc, then sets won desc
+                    if (b.wins !== a.wins) return b.wins - a.wins;
+                    if (a.losses !== b.losses) return a.losses - b.losses;
+                    return (b.setsWon || 0) - (a.setsWon || 0);
+                });
+
+                // Load player stats for the team
+                const playerIds = players.map(p => p.id).filter(Boolean);
+                await Promise.all(playerIds.map(async (playerId) => {
+                    try {
+                        const statsDoc = await getDoc(doc(db, 'leagues', leagueId, 'stats', playerId));
+                        if (statsDoc.exists()) {
+                            playerStats[playerId] = statsDoc.data();
+                        }
+                    } catch (e) {
+                        console.log('Error fetching stats for', playerId, e);
+                    }
+                }));
 
                 renderPage();
 
@@ -363,29 +926,83 @@
         }
 
         function renderPage() {
-            const wins = teamData.wins || 0;
-            const losses = teamData.losses || 0;
-            const draws = teamData.draws || 0;
+            // Get team record from standings data
+            const teamStanding = standings.find(t => t.id === teamId) || {};
+            const wins = teamStanding.wins || 0;
+            const losses = teamStanding.losses || 0;
+            const setsWon = teamStanding.setsWon || 0;
+            const setsLost = teamStanding.setsLost || 0;
+            const setDiff = setsWon - setsLost;
+            const rank = standings.findIndex(t => t.id === teamId) + 1;
+
+            // Calculate team aggregate stats (with level filter)
+            const teamStats = calculateTeamStats(selectedLevel);
 
             const html = `
-                <div class="team-header">
-                    <div class="team-name">${teamData.team_name}</div>
-                    <div class="team-meta">${leagueData.league_name || leagueData.name}</div>
-                    <div class="team-record">
-                        <span class="record-stat">W<span class="value">${wins}</span></span>
-                        <span class="record-stat">L<span class="value">${losses}</span></span>
-                        ${draws > 0 ? `<span class="record-stat">D<span class="value">${draws}</span></span>` : ''}
+                <div class="team-header-card">
+                    <div class="team-header-top">
+                        <div class="team-icon">🎯</div>
+                        <div class="team-info">
+                            <div class="team-name">${teamData.name || teamData.team_name}</div>
+                            <div class="team-meta">
+                                <a href="/pages/league-view.html?league_id=${leagueId}">${leagueData.name || leagueData.league_name}</a>
+                                &nbsp;•&nbsp;
+                                <strong style="color: var(--yellow);">${wins}-${losses}</strong> Record
+                            </div>
+                        </div>
+                        ${rank > 0 ? `<span class="team-standing-badge">${getOrdinal(rank)} Place</span>` : ''}
                     </div>
+
+                    <div class="team-stats-row">
+                        <div class="team-stat">
+                            <span class="team-stat-value">${wins}</span>
+                            <span class="team-stat-label">Wins</span>
+                        </div>
+                        <div class="team-stat">
+                            <span class="team-stat-value">${losses}</span>
+                            <span class="team-stat-label">Losses</span>
+                        </div>
+                        <div class="team-stat">
+                            <span class="team-stat-value">${setsWon}-${setsLost}</span>
+                            <span class="team-stat-label">Sets</span>
+                        </div>
+                        <div class="team-stat">
+                            <span class="team-stat-value ${setDiff > 0 ? 'positive' : setDiff < 0 ? 'negative' : ''}">${setDiff > 0 ? '+' : ''}${setDiff}</span>
+                            <span class="team-stat-label">Diff</span>
+                        </div>
+                        <div class="team-stat">
+                            <span class="team-stat-value">${teamStats.avg3DA > 0 ? teamStats.avg3DA.toFixed(1) : '-'}</span>
+                            <span class="team-stat-label">3DA</span>
+                        </div>
+                        <div class="team-stat">
+                            <span class="team-stat-value">${teamStats.avgMPR > 0 ? teamStats.avgMPR.toFixed(2) : '-'}</span>
+                            <span class="team-stat-label">MPR</span>
+                        </div>
+                    </div>
+
+                    <a href="/pages/league-view.html?league_id=${leagueId}" class="view-league-card">
+                        <span class="view-league-icon">🏆</span>
+                        <div class="view-league-content">
+                            <div class="view-league-title">VIEW LEAGUE</div>
+                            <div class="view-league-desc">Standings, Schedule, Stats</div>
+                        </div>
+                        <span class="view-league-arrow">→</span>
+                    </a>
                 </div>
 
                 <div class="tabs">
-                    <div class="tab active" onclick="switchTab('players')">PLAYERS</div>
+                    <div class="tab active" onclick="switchTab('players')">ROSTER</div>
+                    <div class="tab" onclick="switchTab('stats')">STATS</div>
                     <div class="tab" onclick="switchTab('matches')">MATCHES</div>
                     <div class="tab" onclick="switchTab('standings')">STANDINGS</div>
                 </div>
 
                 <div id="playersTab" class="tab-content active">
                     ${renderPlayers()}
+                </div>
+
+                <div id="statsTab" class="tab-content">
+                    ${renderStats(teamStats)}
                 </div>
 
                 <div id="matchesTab" class="tab-content">
@@ -400,6 +1017,86 @@
             document.getElementById('mainContent').innerHTML = html;
         }
 
+        function calculateTeamStats(levelFilter = 'all') {
+            let total3DA = 0, totalMPR = 0, count3DA = 0, countMPR = 0;
+            let legsWon = 0, legsLost = 0;
+            let x01LegsWon = 0, x01LegsPlayed = 0;
+            let cricketLegsWon = 0, cricketLegsPlayed = 0;
+            let highCheckout = 0, highCheckoutPlayer = '';
+            let best3DA = 0, best3DAPlayer = '';
+            let bestMPR = 0, bestMPRPlayer = '';
+
+            // Filter players by level if specified
+            const filteredPlayers = levelFilter === 'all'
+                ? players
+                : players.filter(p => p.level === levelFilter);
+
+            filteredPlayers.forEach(p => {
+                const stats = playerStats[p.id] || {};
+                const avg = get3DA(stats);
+                const mpr = getMPR(stats);
+
+                if (avg > 0) {
+                    total3DA += avg;
+                    count3DA++;
+                    if (avg > best3DA) {
+                        best3DA = avg;
+                        best3DAPlayer = p.name;
+                    }
+                }
+
+                if (mpr > 0) {
+                    totalMPR += mpr;
+                    countMPR++;
+                    if (mpr > bestMPR) {
+                        bestMPR = mpr;
+                        bestMPRPlayer = p.name;
+                    }
+                }
+
+                // Leg counts
+                const pLegsWon = (stats.x01_legs_won || 0) + (stats.cricket_legs_won || 0);
+                const pLegsPlayed = (stats.x01_legs_played || 0) + (stats.cricket_legs_played || 0);
+                legsWon += pLegsWon;
+                legsLost += pLegsPlayed - pLegsWon;
+
+                x01LegsWon += stats.x01_legs_won || 0;
+                x01LegsPlayed += stats.x01_legs_played || 0;
+                cricketLegsWon += stats.cricket_legs_won || 0;
+                cricketLegsPlayed += stats.cricket_legs_played || 0;
+
+                // High checkout
+                if ((stats.high_checkout || 0) > highCheckout) {
+                    highCheckout = stats.high_checkout || 0;
+                    highCheckoutPlayer = p.name;
+                }
+            });
+
+            return {
+                avg3DA: count3DA > 0 ? total3DA / count3DA : 0,
+                avgMPR: countMPR > 0 ? totalMPR / countMPR : 0,
+                legsWon,
+                legsLost,
+                x01LegsWon,
+                x01LegsPlayed,
+                cricketLegsWon,
+                cricketLegsPlayed,
+                highCheckout,
+                highCheckoutPlayer,
+                best3DA,
+                best3DAPlayer,
+                bestMPR,
+                bestMPRPlayer,
+                playerCount: filteredPlayers.length
+            };
+        }
+
+        function getOrdinal(n) {
+            const s = ['th', 'st', 'nd', 'rd'];
+            const v = n % 100;
+            return n + (s[(v - 20) % 10] || s[v] || s[0]);
+        }
+
         function renderPlayers() {
             if (players.length === 0) {
                 return '<div class="empty-state"><div class="empty-state-icon">?</div>No players on roster</div>';
@@ -407,16 +1104,194 @@
 
             return `
                 <div class="players-grid">
-                    ${players.map(p => `
-                        <div class="player-card ${p.is_captain ? 'captain' : ''}" onclick="viewPlayer('${p.id}')">
-                            <div class="player-name">${p.name}</div>
-                            <span class="player-role ${p.is_captain ? 'captain' : 'player'}">${p.is_captain ? 'Captain' : 'Player'}</span>
-                            ${p.level ? `<span class="player-role player" style="margin-left: 5px;">${p.level}</span>` : ''}
-                            <div class="player-stats">
-                                <div>Click to view profile</div>
+                    ${players.map(p => {
+                        const stats = playerStats[p.id] || {};
+                        const mpr = getMPR(stats);
+                        const avg = get3DA(stats);
+                        const x01Won = stats.x01_legs_won || 0;
+                        const x01Played = stats.x01_legs_played || 0;
+                        const cricketWon = stats.cricket_legs_won || 0;
+                        const cricketPlayed = stats.cricket_legs_played || 0;
+                        const totalWon = x01Won + cricketWon;
+                        const totalPlayed = x01Played + cricketPlayed;
+                        const winPct = totalPlayed > 0 ? ((totalWon / totalPlayed) * 100).toFixed(0) : 0;
+
+                        return `
+                            <div class="player-card ${p.is_captain ? 'captain' : ''}" onclick="viewPlayer('${p.id}')">
+                                <div class="player-name">
+                                    ${p.name}
+                                    ${p.level ? `<span class="level-badge ${p.level}">${p.level}</span>` : ''}
+                                </div>
+                                <span class="player-role ${p.is_captain ? 'captain' : 'player'}">${p.is_captain ? 'Captain' : 'Player'}</span>
+                                <div class="player-stats" style="margin-top: 12px;">
+                                    <div>Legs: <span class="value">${totalWon}-${totalPlayed - totalWon}</span></div>
+                                    <div>Win%: <span class="value">${winPct}%</span></div>
+                                    <div>3DA: <span class="value">${avg > 0 ? avg.toFixed(1) : '-'}</span></div>
+                                    <div>MPR: <span class="value">${mpr > 0 ? mpr.toFixed(2) : '-'}</span></div>
+                                    <div>501: <span class="value">${x01Won}-${x01Played - x01Won}</span></div>
+                                    <div>Cricket: <span class="value">${cricketWon}-${cricketPlayed - cricketWon}</span></div>
+                                </div>
+                                <div style="color: var(--teal); font-size: 10px; margin-top: 10px; text-align: center;">View Profile →</div>
                             </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+        }
+
+        function renderStats(teamStats) {
+            // Filter players by selected level
+            const filteredPlayers = selectedLevel === 'all'
+                ? players
+                : players.filter(p => p.level === selectedLevel);
+
+            // Sort players by various stats for leaderboards
+            const playersByAvg = [...filteredPlayers]
+                .map(p => ({ ...p, value: get3DA(playerStats[p.id] || {}) }))
+                .filter(p => p.value > 0)
+                .sort((a, b) => b.value - a.value);
+
+            const playersByMPR = [...filteredPlayers]
+                .map(p => ({ ...p, value: getMPR(playerStats[p.id] || {}) }))
+                .filter(p => p.value > 0)
+                .sort((a, b) => b.value - a.value);
+
+            const playersByLegs = [...filteredPlayers]
+                .map(p => {
+                    const stats = playerStats[p.id] || {};
+                    return {
+                        ...p,
+                        value: (stats.x01_legs_won || 0) + (stats.cricket_legs_won || 0)
+                    };
+                })
+                .filter(p => p.value > 0)
+                .sort((a, b) => b.value - a.value);
+
+            const x01WinPct = teamStats.x01LegsPlayed > 0
+                ? ((teamStats.x01LegsWon / teamStats.x01LegsPlayed) * 100).toFixed(1)
+                : 0;
+            const cricketWinPct = teamStats.cricketLegsPlayed > 0
+                ? ((teamStats.cricketLegsWon / teamStats.cricketLegsPlayed) * 100).toFixed(1)
+                : 0;
+
+            // Check which levels exist
+            const hasA = players.some(p => p.level === 'A');
+            const hasB = players.some(p => p.level === 'B');
+            const hasC = players.some(p => p.level === 'C');
+
+            const levelLabel = selectedLevel === 'all' ? 'TEAM' : `LEVEL ${selectedLevel}`;
+
+            return `
+                <div class="level-toggle">
+                    <button class="level-toggle-btn ${selectedLevel === 'all' ? 'active' : ''}" onclick="setStatsLevel('all')">TEAM</button>
+                    ${hasA ? `<button class="level-toggle-btn level-A ${selectedLevel === 'A' ? 'active' : ''}" onclick="setStatsLevel('A')">A PLAYERS</button>` : ''}
+                    ${hasB ? `<button class="level-toggle-btn level-B ${selectedLevel === 'B' ? 'active' : ''}" onclick="setStatsLevel('B')">B PLAYERS</button>` : ''}
+                    ${hasC ? `<button class="level-toggle-btn level-C ${selectedLevel === 'C' ? 'active' : ''}" onclick="setStatsLevel('C')">C PLAYERS</button>` : ''}
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stats-card">
+                        <div class="stats-card-title">${levelLabel} PERFORMANCE</div>
+                        <div class="stat-row">
+                            <span class="label">Players</span>
+                            <span class="value">${teamStats.playerCount}</span>
                         </div>
-                    `).join('')}
+                        <div class="stat-row">
+                            <span class="label">Total Legs Won</span>
+                            <span class="value">${teamStats.legsWon}</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="label">Total Legs Lost</span>
+                            <span class="value">${teamStats.legsLost}</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="label">Leg Win %</span>
+                            <span class="value">${teamStats.legsWon + teamStats.legsLost > 0 ? ((teamStats.legsWon / (teamStats.legsWon + teamStats.legsLost)) * 100).toFixed(1) : 0}%</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="label">Avg 3-Dart</span>
+                            <span class="value">${teamStats.avg3DA > 0 ? teamStats.avg3DA.toFixed(1) : '-'}</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="label">Avg MPR</span>
+                            <span class="value">${teamStats.avgMPR > 0 ? teamStats.avgMPR.toFixed(2) : '-'}</span>
+                        </div>
+                    </div>
+
+                    <div class="stats-card">
+                        <div class="stats-card-title">501 PERFORMANCE</div>
+                        <div class="stat-row">
+                            <span class="label">Legs Won</span>
+                            <span class="value">${teamStats.x01LegsWon}</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="label">Legs Played</span>
+                            <span class="value">${teamStats.x01LegsPlayed}</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="label">Win %</span>
+                            <span class="value">${x01WinPct}%</span>
+                        </div>
+                        ${teamStats.highCheckout > 0 ? `
+                        <div class="stat-row">
+                            <span class="label">High Checkout</span>
+                            <span class="value">${teamStats.highCheckout}</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="label">By</span>
+                            <span class="value" style="font-size: 12px;">${teamStats.highCheckoutPlayer}</span>
+                        </div>
+                        ` : ''}
+                    </div>
+
+                    <div class="stats-card">
+                        <div class="stats-card-title">CRICKET PERFORMANCE</div>
+                        <div class="stat-row">
+                            <span class="label">Legs Won</span>
+                            <span class="value">${teamStats.cricketLegsWon}</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="label">Legs Played</span>
+                            <span class="value">${teamStats.cricketLegsPlayed}</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="label">Win %</span>
+                            <span class="value">${cricketWinPct}%</span>
+                        </div>
+                    </div>
+
+                    <div class="stats-card">
+                        <div class="stats-card-title">BEST 3-DART AVG</div>
+                        ${playersByAvg.length > 0 ? playersByAvg.slice(0, 3).map((p, i) => `
+                            <div class="leaderboard-item">
+                                <span class="leaderboard-rank ${i === 0 ? 'gold' : i === 1 ? 'silver' : 'bronze'}">${i + 1}</span>
+                                <span class="leaderboard-name">${p.name}</span>
+                                <span class="leaderboard-value">${p.value.toFixed(1)}</span>
+                            </div>
+                        `).join('') : '<div class="empty-state" style="padding: 15px;">No data yet</div>'}
+                    </div>
+
+                    <div class="stats-card">
+                        <div class="stats-card-title">BEST MPR</div>
+                        ${playersByMPR.length > 0 ? playersByMPR.slice(0, 3).map((p, i) => `
+                            <div class="leaderboard-item">
+                                <span class="leaderboard-rank ${i === 0 ? 'gold' : i === 1 ? 'silver' : 'bronze'}">${i + 1}</span>
+                                <span class="leaderboard-name">${p.name}</span>
+                                <span class="leaderboard-value">${p.value.toFixed(2)}</span>
+                            </div>
+                        `).join('') : '<div class="empty-state" style="padding: 15px;">No data yet</div>'}
+                    </div>
+
+                    <div class="stats-card">
+                        <div class="stats-card-title">MOST LEGS WON</div>
+                        ${playersByLegs.length > 0 ? playersByLegs.slice(0, 3).map((p, i) => `
+                            <div class="leaderboard-item">
+                                <span class="leaderboard-rank ${i === 0 ? 'gold' : i === 1 ? 'silver' : 'bronze'}">${i + 1}</span>
+                                <span class="leaderboard-name">${p.name}</span>
+                                <span class="leaderboard-value">${p.value}</span>
+                            </div>
+                        `).join('') : '<div class="empty-state" style="padding: 15px;">No data yet</div>'}
+                    </div>
                 </div>
             `;
         }
@@ -433,7 +1308,7 @@
 
             if (completedMatches.length > 0) {
                 html += '<h3 style="font-family: Bebas Neue, cursive; color: var(--teal); margin-bottom: 15px;">COMPLETED MATCHES</h3>';
-                html += completedMatches.map(m => renderMatchCard(m)).join('');
+                html += completedMatches.map(m => renderMatchCard(m, false)).join('');
             }
 
             if (upcomingMatches.length > 0) {
@@ -446,62 +1321,101 @@
 
         function renderMatchCard(match, upcoming = false) {
             const isHome = match.home_team_id === teamId;
-            const ourScore = isHome ? (match.home_score || 0) : (match.away_score || 0);
-            const theirScore = isHome ? (match.away_score || 0) : (match.home_score || 0);
-            const opponent = isHome ? match.away_team_name : match.home_team_name;
-            const won = ourScore > theirScore;
+            const homeScore = match.home_score || 0;
+            const awayScore = match.away_score || 0;
+            const homeTeamName = match.home_team_name || 'Home';
+            const awayTeamName = match.away_team_name || 'Away';
+            const isCompleted = match.status === 'completed';
+            const homeWon = isCompleted && homeScore > awayScore;
+            const awayWon = isCompleted && awayScore > homeScore;
+
+            // Get opponent info
+            const opponentId = isHome ? match.away_team_id : match.home_team_id;
+            const opponentStanding = standings.find(t => t.id === opponentId) || {};
+            const opponentRank = standings.findIndex(t => t.id === opponentId) + 1;
+            const opponentRecord = `${opponentStanding.wins || 0}-${opponentStanding.losses || 0}`;
+
+            // Our team info
+            const ourStanding = standings.find(t => t.id === teamId) || {};
+            const ourRank = standings.findIndex(t => t.id === teamId) + 1;
+            const ourRecord = `${ourStanding.wins || 0}-${ourStanding.losses || 0}`;
+
+            // Determine if we won
+            const weWon = (isHome && homeWon) || (!isHome && awayWon);
+            const cardClass = upcoming ? 'upcoming' : (weWon ? 'win' : 'loss');
+
+            // Build left/right sides based on home/away
+            const ourTeamName = teamData.name || teamData.team_name;
+            const leftName = isHome ? ourTeamName : homeTeamName;
+            const rightName = isHome ? awayTeamName : ourTeamName;
+            const leftScore = homeScore;
+            const rightScore = awayScore;
+            const leftWon = homeWon;
+            const rightWon = awayWon;
+            const leftIsUs = isHome;
+            const rightIsUs = !isHome;
+            const leftRank = isHome ? ourRank : opponentRank;
+            const rightRank = isHome ? opponentRank : ourRank;
+            const leftRecord = isHome ? ourRecord : opponentRecord;
+            const rightRecord = isHome ? opponentRecord : ourRecord;
 
             return `
-                <div class="match-card">
-                    <div class="match-card-header" onclick="toggleMatch('${match.id}')">
-                        <div>
-                            <div class="match-teams">${isHome ? 'vs' : '@'} ${opponent}</div>
-                            <div class="match-date">Week ${match.week || '?'} - ${formatDate(match.match_date)}</div>
+                <div class="match-card ${cardClass}">
+                    <div class="match-card-header ${isCompleted ? 'completed' : ''}">
+                        <!-- Left Team -->
+                        <div class="match-team-side left">
+                            <div class="match-team-meta">
+                                <span class="match-team-record">(${leftRecord})</span>
+                                ${leftRank > 0 ? `<span class="match-team-standing">${getOrdinal(leftRank)}</span>` : ''}
+                            </div>
+                            <div class="match-team-name ${leftWon ? 'winner' : ''} ${leftIsUs ? 'our-team' : ''}">${leftName}</div>
                         </div>
-                        ${upcoming ? `
-                            <div class="match-score" style="color: var(--yellow);">UPCOMING</div>
-                        ` : `
-                            <div class="match-score ${won ? 'win' : 'loss'}">${ourScore} - ${theirScore}</div>
-                        `}
+
+                        ${isCompleted ? `
+                            <!-- Left Score -->
+                            <div class="match-header-score ${leftWon ? 'winner' : ''}">${leftScore}</div>
+                        ` : ''}
+
+                        <!-- Center -->
+                        <div class="match-header-center">
+                            <div class="match-week">WEEK ${match.week || '?'}</div>
+                            <div class="match-status ${isCompleted ? 'final' : ''}">${isCompleted ? 'FINAL' : upcoming ? 'VS' : '@'}</div>
+                        </div>
+
+                        ${isCompleted ? `
+                            <!-- Right Score -->
+                            <div class="match-header-score ${rightWon ? 'winner' : ''}">${rightScore}</div>
+                        ` : ''}
+
+                        <!-- Right Team -->
+                        <div class="match-team-side right">
+                            <div class="match-team-meta">
+                                ${rightRank > 0 ? `<span class="match-team-standing">${getOrdinal(rightRank)}</span>` : ''}
+                                <span class="match-team-record">(${rightRecord})</span>
+                            </div>
+                            <div class="match-team-name ${rightWon ? 'winner' : ''} ${rightIsUs ? 'our-team' : ''}">${rightName}</div>
+                        </div>
                     </div>
-                    <div class="match-details" id="matchDetails_${match.id}">
-                        ${renderMatchDetails(match, isHome)}
+
+                    <div class="match-card-footer">
+                        <div class="match-date">${formatDate(match.match_date)}</div>
+                        <button class="view-btn" onclick="viewMatch('${match.id}', ${isCompleted})">${isCompleted ? 'VIEW REPORT' : 'VIEW MATCH'}</button>
+                        <div style="text-align: right;">
+                            ${isCompleted && weWon ? '<span class="match-result-badge win">WIN</span>' : ''}
+                            ${isCompleted && !weWon ? '<span class="match-result-badge loss">LOSS</span>' : ''}
+                        </div>
                     </div>
                 </div>
             `;
         }
 
-        function renderMatchDetails(match, isHome) {
-            if (!match.games || match.games.length === 0) {
-                return '<div style="text-align: center; color: #aaa; padding: 15px;">No game details available</div>';
-            }
-
-            return match.games.map((game, i) => {
-                const homePlayer = game.home_player || 'TBD';
-                const awayPlayer = game.away_player || 'TBD';
-                const homeWon = game.home_legs > game.away_legs;
-
-                return `
-                    <div class="game-row">
-                        <div class="game-players">
-                            <strong>Game ${i + 1}:</strong> ${homePlayer} vs ${awayPlayer}
-                            <div style="font-size: 11px; color: #888;">${game.game_type || '501'}</div>
-                        </div>
-                        <div class="game-result ${(isHome && homeWon) || (!isHome && !homeWon) ? 'win' : 'loss'}">
-                            ${game.home_legs || 0} - ${game.away_legs || 0}
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        }
-
         function renderStandings() {
             if (standings.length === 0) {
-                return '<div class="empty-state"><div class="empty-state-icon">?</div>No standings available</div>';
+                return '<div class="empty-state"><div class="empty-state-icon">📊</div>No standings available</div>';
             }
 
             return `
-                <div style="overflow-x: auto;">
+                <div class="standings-section">
                     <table class="standings-table">
                         <thead>
                             <tr>
@@ -509,13 +1423,12 @@
                                 <th>TEAM</th>
                                 <th>W</th>
                                 <th>L</th>
-                                <th>PTS</th>
+                                <th title="Sets Won (1st Tiebreaker)">SETS</th>
                             </tr>
                         </thead>
                         <tbody>
                             ${standings.map((t, i) => {
                                 const rank = i + 1;
-                                const points = (t.wins || 0) * 2 + (t.draws || 0);
                                 const isCurrent = t.id === teamId;
 
                                 return `
@@ -523,10 +1436,10 @@
                                         <td>
                                             <span class="rank-badge ${rank <= 3 ? 'rank-' + rank : ''}">${rank}</span>
                                         </td>
-                                        <td style="cursor: pointer;" onclick="viewTeam('${t.id}')">${t.team_name}</td>
+                                        <td style="cursor: pointer; font-weight: 600;" onclick="viewTeam('${t.id}')">${t.team_name || t.name}</td>
                                         <td>${t.wins || 0}</td>
                                         <td>${t.losses || 0}</td>
-                                        <td style="color: var(--yellow); font-weight: bold;">${points}</td>
+                                        <td style="color: var(--yellow); font-weight: bold;">${t.setsWon || 0}</td>
                                     </tr>
                                 `;
                             }).join('')}
@@ -549,7 +1462,7 @@
         };
 
         window.viewPlayer = function(playerId) {
-            window.location.href = `/pages/player-public.html?player_id=${playerId}&league_id=${leagueId}`;
+            window.location.href = `/pages/player-profile.html?player_id=${playerId}&league_id=${leagueId}`;
         };
 
         window.viewTeam = function(otherTeamId) {
@@ -558,14 +1471,32 @@
             }
         };
 
-        function formatDate(dateStr) {
-            if (!dateStr) return 'TBD';
-            const date = new Date(dateStr);
+        window.viewMatch = function(matchId, isCompleted = false) {
+            if (isCompleted) {
+                window.location.href = `/pages/match-report.html?league_id=${leagueId}&match_id=${matchId}`;
+            } else {
+                window.location.href = `/pages/match-hub.html?league_id=${leagueId}&match_id=${matchId}`;
+            }
+        };
+
+        window.setStatsLevel = function(level) {
+            selectedLevel = level;
+            const teamStats = calculateTeamStats(level);
+            document.getElementById('statsTab').innerHTML = renderStats(teamStats);
+        };
+
+        function formatDate(dateVal) {
+            if (!dateVal) return 'TBD';
+            // Handle Firebase Timestamp or string
+            const date = dateVal.toDate ? dateVal.toDate() : new Date(dateVal);
+            if (isNaN(date.getTime())) return 'TBD';
             return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
         }
 
         loadData();
     </script>
+<script src="/js/stats-helpers.js"></script>
 <script src="/js/feedback.js"></script>
+<script src="/js/nav-menu.js"></script>
 </body>
 </html>

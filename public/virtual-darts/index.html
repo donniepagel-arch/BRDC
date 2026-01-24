@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Virtual Darts - BRDC</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono&display=swap" rel="stylesheet">
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="styles.css">
+
+    <!-- Config must load first -->
+    <script src="config.js"></script>
+</head>
+<body>
+    <div id="app">
+        <!-- Menu Screen -->
+        <div id="screen-menu" class="screen">
+            <div class="menu-header">
+                <img src="/images/gold_logo.png" alt="BRDC" class="menu-logo">
+                <h1>Virtual Darts</h1>
+                <p class="menu-subtitle">Practice. Learn. Improve.</p>
+            </div>
+
+            <div class="menu-buttons">
+                <button id="btnPractice" class="menu-btn primary">
+                    <span class="btn-icon">🎯</span>
+                    <span class="btn-text">Practice Mode</span>
+                    <span class="btn-desc">Calibrate your throw</span>
+                </button>
+
+                <button id="btn501" class="menu-btn">
+                    <span class="btn-icon">5️⃣</span>
+                    <span class="btn-text">Play 501</span>
+                    <span class="btn-desc">Classic dart game</span>
+                </button>
+
+                <button id="btnCricket" class="menu-btn">
+                    <span class="btn-icon">🦗</span>
+                    <span class="btn-text">Play Cricket</span>
+                    <span class="btn-desc">Strategic gameplay</span>
+                </button>
+
+                <button id="btnBobs27" class="menu-btn">
+                    <span class="btn-icon">🎯</span>
+                    <span class="btn-text">Bob's 27</span>
+                    <span class="btn-desc">Double practice game</span>
+                </button>
+
+                <button id="btnAroundTheClock" class="menu-btn">
+                    <span class="btn-icon">🕐</span>
+                    <span class="btn-text">Around the Clock</span>
+                    <span class="btn-desc">Hit 1-20 + Bull in order</span>
+                </button>
+
+                <button id="btnCheckoutPractice" class="menu-btn">
+                    <span class="btn-icon">&#10004;</span>
+                    <span class="btn-text">Checkout Practice</span>
+                    <span class="btn-desc">Master your finishes</span>
+                </button>
+            </div>
+
+            <div class="menu-settings">
+                <label for="difficultySelect">Difficulty:</label>
+                <select id="difficultySelect">
+                    <option value="EASY">Easy</option>
+                    <option value="MEDIUM" selected>Medium</option>
+                    <option value="HARD">Hard</option>
+                    <option value="PRO">Pro</option>
+                </select>
+            </div>
+
+            <div class="menu-footer">
+                <a href="/pages/dashboard.html" class="back-link">← Back to Dashboard</a>
+            </div>
+        </div>
+
+        <!-- Practice Screen -->
+        <div id="screen-practice" class="screen hidden">
+            <div class="game-header">
+                <h2>Practice Mode</h2>
+                <div class="practice-progress-container">
+                    <div class="practice-progress-bar">
+                        <div id="practiceProgress" class="practice-progress-fill"></div>
+                    </div>
+                    <span id="practiceCount">0 / 20</span>
+                </div>
+            </div>
+
+            <div class="game-area">
+                <canvas id="dartboard" width="800" height="800"></canvas>
+            </div>
+
+            <div class="game-footer">
+                <div id="practiceInstructions" class="instructions">
+                    <p>Swipe upward to throw darts at the target.</p>
+                    <p>Throw naturally - we're learning your style.</p>
+                </div>
+                <button id="btnSkipPractice" class="btn-secondary">Skip Practice</button>
+            </div>
+        </div>
+
+        <!-- Practice Results Screen -->
+        <div id="screen-practice-results" class="screen hidden">
+            <div class="results-header">
+                <h2>Your Throw Profile</h2>
+            </div>
+
+            <div id="practiceResultsContent" class="results-content">
+                <!-- Populated by JS -->
+            </div>
+
+            <div class="results-footer">
+                <button id="btnStartGame" class="menu-btn primary" onclick="game.showScreen('menu')">
+                    Continue to Games
+                </button>
+            </div>
+        </div>
+
+        <!-- Game Screen -->
+        <div id="screen-game" class="screen hidden">
+            <div class="game-header">
+                <div class="game-info">
+                    <div id="currentScore" class="score-display">501</div>
+                    <div class="game-stats">
+                        <span id="dartsRemaining">Darts: 3</span>
+                        <span id="turnScore">Turn: 0</span>
+                    </div>
+                </div>
+
+                <!-- Tip display (Phase 2) -->
+                <div id="currentTip" class="tip-display">
+                    <!-- Populated by tipEngine -->
+                </div>
+            </div>
+
+            <div class="game-area">
+                <canvas id="dartboard" width="800" height="800"></canvas>
+
+                <!-- Bust message -->
+                <div id="bustMessage" class="bust-message hidden">
+                    BUST!
+                </div>
+            </div>
+
+            <div class="game-footer">
+                <button id="btnEndTurn" class="btn-primary" disabled>End Turn</button>
+                <button id="btnNewGame" class="btn-secondary">New Game</button>
+            </div>
+
+            <!-- Cricket scoreboard (shown in cricket mode) -->
+            <div id="cricketScoreboard" class="cricket-scoreboard hidden">
+                <div class="cricket-numbers">
+                    <div class="cricket-row"><span>20</span><span id="cricket-20"></span></div>
+                    <div class="cricket-row"><span>19</span><span id="cricket-19"></span></div>
+                    <div class="cricket-row"><span>18</span><span id="cricket-18"></span></div>
+                    <div class="cricket-row"><span>17</span><span id="cricket-17"></span></div>
+                    <div class="cricket-row"><span>16</span><span id="cricket-16"></span></div>
+                    <div class="cricket-row"><span>15</span><span id="cricket-15"></span></div>
+                    <div class="cricket-row"><span>Bull</span><span id="cricket-bull"></span></div>
+                </div>
+                <div class="cricket-points">
+                    Points: <span id="cricketPoints">0</span>
+                </div>
+            </div>
+
+            <!-- Oche position slider (Phase 3) -->
+            <div id="ocheSliderContainer" class="oche-slider-container hidden">
+                <!-- Populated by ochePosition -->
+            </div>
+        </div>
+
+        <!-- Bob's 27 Game Screen -->
+        <div id="screen-bobs27" class="screen hidden">
+            <div class="game-header bobs27-header">
+                <div class="bobs27-score-section">
+                    <div class="bobs27-label">SCORE</div>
+                    <div id="bobs27Score" class="bobs27-score">27</div>
+                </div>
+
+                <div class="bobs27-target-section">
+                    <div class="bobs27-label">TARGET</div>
+                    <div id="bobs27Target" class="bobs27-target">D1</div>
+                    <div id="bobs27Progress" class="bobs27-progress-text">1/21</div>
+                </div>
+
+                <div class="bobs27-stats-section">
+                    <span id="bobs27Darts">Darts: 3</span>
+                </div>
+            </div>
+
+            <div class="bobs27-progress-container">
+                <div class="bobs27-progress-bar">
+                    <div id="bobs27ProgressBar" class="bobs27-progress-fill"></div>
+                </div>
+            </div>
+
+            <div class="game-area">
+                <canvas id="dartboard" width="800" height="800"></canvas>
+
+                <!-- Hit/Miss feedback -->
+                <div id="bobs27Feedback" class="bobs27-feedback hidden">HIT!</div>
+            </div>
+
+            <div class="bobs27-history-container">
+                <div class="bobs27-history-header">Recent Rounds</div>
+                <div id="bobs27History" class="bobs27-history">
+                    <div class="history-empty">No rounds completed yet</div>
+                </div>
+            </div>
+
+            <div class="game-footer">
+                <button id="btnBobs27Quit" class="btn-secondary">Quit Game</button>
+            </div>
+        </div>
+
+        <!-- Bob's 27 Results Screen -->
+        <div id="screen-bobs27-results" class="screen hidden">
+            <div class="results-header">
+                <h2 id="bobs27ResultTitle">Game Over</h2>
+            </div>
+
+            <div id="bobs27ResultsContent" class="results-content">
+                <!-- Populated by JS -->
+            </div>
+
+            <div class="bobs27-highscores">
+                <h3>High Scores</h3>
+                <div id="bobs27HighScoresList" class="highscores-list">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+
+            <div class="results-footer">
+                <button id="btnBobs27PlayAgain" class="menu-btn primary">Play Again</button>
+                <button id="btnBobs27Menu" class="menu-btn">Main Menu</button>
+            </div>
+        </div>
+
+        <!-- Around the Clock Game Screen -->
+        <div id="screen-aroundtheclock" class="screen hidden">
+            <div class="game-header atc-header">
+                <div class="atc-timer-section">
+                    <div class="atc-label">TIME</div>
+                    <div id="atcTimer" class="atc-timer">0:00.0</div>
+                </div>
+
+                <div class="atc-target-section">
+                    <div class="atc-label">TARGET</div>
+                    <div id="atcTarget" class="atc-target">1</div>
+                    <div id="atcProgress" class="atc-progress-text">0/21</div>
+                </div>
+
+                <div class="atc-stats-section">
+                    <span id="atcDarts">Darts: 0</span>
+                </div>
+            </div>
+
+            <div class="atc-progress-container">
+                <div class="atc-progress-bar">
+                    <div id="atcProgressBar" class="atc-progress-fill"></div>
+                </div>
+            </div>
+
+            <div class="game-area">
+                <canvas id="dartboard" width="800" height="800"></canvas>
+
+                <!-- Hit/Miss feedback -->
+                <div id="atcFeedback" class="atc-feedback hidden">HIT!</div>
+            </div>
+
+            <div class="game-footer">
+                <button id="btnAtcQuit" class="btn-secondary">Quit Game</button>
+            </div>
+        </div>
+
+        <!-- Around the Clock Results Screen -->
+        <div id="screen-atc-results" class="screen hidden">
+            <div class="results-header">
+                <h2 id="atcResultTitle">Complete!</h2>
+            </div>
+
+            <div id="atcResultsContent" class="results-content">
+                <!-- Populated by JS -->
+            </div>
+
+            <div class="atc-best-times">
+                <h3>Best Times</h3>
+                <div id="atcBestTimesList" class="highscores-list">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+
+            <div class="results-footer">
+                <button id="btnAtcPlayAgain" class="menu-btn primary">Play Again</button>
+                <button id="btnAtcMenu" class="menu-btn">Main Menu</button>
+            </div>
+        </div>
+
+        <!-- Checkout Practice Game Screen -->
+        <div id="screen-checkout" class="screen hidden">
+            <div class="game-header checkout-header">
+                <div class="checkout-score-section">
+                    <div class="checkout-label">CHECKOUT</div>
+                    <div id="checkoutTarget" class="checkout-target-score">170</div>
+                </div>
+
+                <div class="checkout-remaining-section">
+                    <div class="checkout-label">REMAINING</div>
+                    <div id="checkoutRemaining" class="checkout-remaining">170</div>
+                </div>
+
+                <div class="checkout-stats-section">
+                    <span id="checkoutDarts">Darts: 3</span>
+                    <span id="checkoutSession">0/0 (0%)</span>
+                </div>
+            </div>
+
+            <div class="checkout-suggestion-container">
+                <div id="checkoutSuggestion" class="checkout-suggestion">
+                    <span class="suggestion-label">AIM:</span>
+                    <span class="suggestion-value">T20</span>
+                </div>
+            </div>
+
+            <div class="game-area">
+                <canvas id="dartboard" width="800" height="800"></canvas>
+
+                <!-- Checkout feedback -->
+                <div id="checkoutFeedback" class="checkout-feedback hidden">CHECKOUT!</div>
+            </div>
+
+            <div class="checkout-stats-display" id="checkoutStatsDisplay">
+                <!-- Populated by JS -->
+            </div>
+
+            <div class="game-footer">
+                <button id="btnCheckoutSkip" class="btn-secondary">Skip</button>
+                <button id="btnCheckoutQuit" class="btn-secondary">Quit</button>
+            </div>
+        </div>
+
+        <!-- Results Screen -->
+        <div id="screen-results" class="screen hidden">
+            <div class="results-header">
+                <h2>Game Complete!</h2>
+            </div>
+
+            <div id="gameResults" class="results-content">
+                <!-- Populated by JS -->
+            </div>
+
+            <div class="results-footer">
+                <button id="btnPlayAgain" class="menu-btn primary">Play Again</button>
+                <button id="btnMainMenu" class="menu-btn">Main Menu</button>
+            </div>
+        </div>
+
+        <!-- Stats Panel (Phase 4) -->
+        <div id="statsPanel" class="stats-panel hidden">
+            <!-- Populated by statsTracker -->
+        </div>
+
+        <!-- Tutorial Overlay (Phase 5) -->
+        <div id="tutorialOverlay" class="tutorial-overlay hidden">
+            <!-- Populated by tutorial -->
+        </div>
+
+        <!-- Achievement Popup Container -->
+        <div id="achievementPopupContainer"></div>
+
+        <!-- Swipe Quality Popup -->
+        <div id="swipeQualityPopup" class="swipe-quality-popup hidden">
+            <div class="swipe-quality-percent">83%</div>
+            <div class="swipe-quality-label">GOOD</div>
+        </div>
+    </div>
+
+    <!-- Achievements System -->
+    <script src="achievements.js"></script>
+
+    <!-- Phase 1: Core -->
+    <script src="js/phase1/dartboard.js"></script>
+    <script src="js/phase1/swipeDetector.js"></script>
+    <script src="js/phase1/physics.js"></script>
+    <script src="js/phase1/practiceMode.js"></script>
+    <script src="js/phase1/main.js"></script>
+
+    <!-- Around the Clock Practice Game (always loaded) -->
+    <script src="js/around-the-clock.js"></script>
+
+    <!-- Checkout Practice (always loaded) -->
+    <script src="js/checkout-practice.js"></script>
+
+    <!-- Phase 2: Aim & Strategy (loaded if PHASE_LEVEL >= 2) -->
+    <script>
+        if (isPhaseEnabled(2)) {
+            const phase2Scripts = [
+                'js/phase2/outshotTables.js',
+                'js/phase2/aimSystem.js',
+                'js/phase2/autoSuggest.js',
+                'js/phase2/tipEngine.js',
+                'js/phase2/cricketLogic.js',
+                'js/phase2/bobs27.js'
+            ];
+            phase2Scripts.forEach(src => {
+                const script = document.createElement('script');
+                script.src = src;
+                document.body.appendChild(script);
+            });
+        }
+    </script>
+
+    <!-- Phase 3: Advanced (loaded if PHASE_LEVEL >= 3) -->
+    <script>
+        if (isPhaseEnabled(3)) {
+            const phase3Scripts = [
+                'js/phase3/collision.js',
+                'js/phase3/ochePosition.js',
+                'js/phase3/animations.js'
+            ];
+            phase3Scripts.forEach(src => {
+                const script = document.createElement('script');
+                script.src = src;
+                document.body.appendChild(script);
+            });
+        }
+    </script>
+
+    <!-- Phase 4: Integration (loaded if PHASE_LEVEL >= 4) -->
+    <script>
+        if (isPhaseEnabled(4)) {
+            const phase4Scripts = [
+                'js/phase4/profileManager.js',
+                'js/phase4/gameLogger.js',
+                'js/phase4/statsTracker.js'
+            ];
+            phase4Scripts.forEach(src => {
+                const script = document.createElement('script');
+                script.src = src;
+                document.body.appendChild(script);
+            });
+        }
+    </script>
+
+    <!-- Phase 5: Polish (loaded if PHASE_LEVEL >= 5) -->
+    <script>
+        if (isPhaseEnabled(5)) {
+            const phase5Scripts = [
+                'js/phase5/tutorial.js'
+            ];
+            phase5Scripts.forEach(src => {
+                const script = document.createElement('script');
+                script.src = src;
+                document.body.appendChild(script);
+            });
+
+            // Initialize tutorial
+            document.addEventListener('DOMContentLoaded', () => {
+                if (typeof Tutorial !== 'undefined' && window.game) {
+                    window.tutorial = new Tutorial(window.game);
+
+                    // Show onboarding if first time
+                    if (window.tutorial.shouldShowOnboarding()) {
+                        window.tutorial.startLesson('basics');
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>

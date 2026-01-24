@@ -502,6 +502,310 @@
             0%, 100% { transform: scale(1); }
             50% { transform: scale(1.2); color: var(--yellow); }
         }
+
+        /* ============================================
+           LIVE INDICATOR - Pulsing red dot
+           ============================================ */
+        .live-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--danger);
+        }
+
+        .live-indicator-dot {
+            width: 10px;
+            height: 10px;
+            background: var(--danger);
+            border-radius: 50%;
+            position: relative;
+            animation: livePulse 1.5s ease-in-out infinite;
+        }
+
+        .live-indicator-dot::before {
+            content: '';
+            position: absolute;
+            inset: -4px;
+            border-radius: 50%;
+            background: var(--danger);
+            opacity: 0;
+            animation: livePulseRing 1.5s ease-out infinite;
+        }
+
+        @keyframes livePulse {
+            0%, 100% {
+                transform: scale(1);
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+            }
+            50% {
+                transform: scale(1.1);
+                box-shadow: 0 0 10px 3px rgba(239, 68, 68, 0.5);
+            }
+        }
+
+        @keyframes livePulseRing {
+            0% {
+                transform: scale(0.8);
+                opacity: 0.8;
+            }
+            100% {
+                transform: scale(2);
+                opacity: 0;
+            }
+        }
+
+        /* ============================================
+           SCORE TRANSITION ANIMATIONS
+           ============================================ */
+        .score {
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+                        color 0.3s ease;
+            display: inline-block;
+            position: relative;
+        }
+
+        .score-updating {
+            animation: scoreUpdate 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        @keyframes scoreUpdate {
+            0% {
+                transform: scale(1) translateY(0);
+                opacity: 1;
+            }
+            25% {
+                transform: scale(0.8) translateY(-10px);
+                opacity: 0.5;
+            }
+            50% {
+                transform: scale(1.3) translateY(5px);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(1) translateY(0);
+                opacity: 1;
+            }
+        }
+
+        /* Score flip effect for dramatic changes */
+        .score-flip {
+            animation: scoreFlip 0.5s ease-in-out;
+        }
+
+        @keyframes scoreFlip {
+            0% {
+                transform: perspective(400px) rotateX(0deg);
+            }
+            50% {
+                transform: perspective(400px) rotateX(90deg);
+            }
+            100% {
+                transform: perspective(400px) rotateX(0deg);
+            }
+        }
+
+        /* ============================================
+           ENHANCED EMPTY STATE
+           ============================================ */
+        .empty-state-enhanced {
+            text-align: center;
+            padding: 60px 30px;
+            background: linear-gradient(145deg, var(--bg-card) 0%, var(--bg-card-alt) 100%);
+            border-radius: 20px;
+            border: 1px solid rgba(145, 215, 235, 0.15);
+            max-width: 500px;
+            margin: 40px auto;
+        }
+
+        .empty-state-icon {
+            width: 100px;
+            height: 100px;
+            margin: 0 auto 25px;
+            background: linear-gradient(135deg, rgba(145, 215, 235, 0.1), rgba(255, 70, 154, 0.1));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid rgba(145, 215, 235, 0.2);
+        }
+
+        .empty-state-icon svg {
+            width: 50px;
+            height: 50px;
+            color: var(--teal);
+            opacity: 0.8;
+        }
+
+        .empty-state-enhanced h3 {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 2rem;
+            letter-spacing: 3px;
+            color: var(--white);
+            margin-bottom: 12px;
+        }
+
+        .empty-state-enhanced p {
+            color: var(--text-dim);
+            font-size: 1rem;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+
+        .next-match-preview {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 25px;
+            border: 1px solid rgba(253, 216, 53, 0.2);
+        }
+
+        .next-match-label {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--yellow);
+            margin-bottom: 10px;
+        }
+
+        .next-match-teams {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 1.4rem;
+            letter-spacing: 2px;
+            color: var(--white);
+            margin-bottom: 8px;
+        }
+
+        .next-match-time {
+            font-size: 0.9rem;
+            color: var(--teal);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .next-match-time svg {
+            width: 14px;
+            height: 14px;
+        }
+
+        .empty-state-links {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .empty-state-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }
+
+        .empty-state-link.primary {
+            background: linear-gradient(135deg, var(--pink), #d63384);
+            color: var(--white);
+            box-shadow: 0 4px 15px rgba(255, 70, 154, 0.3);
+        }
+
+        .empty-state-link.primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 70, 154, 0.4);
+        }
+
+        .empty-state-link.secondary {
+            background: rgba(145, 215, 235, 0.1);
+            color: var(--teal);
+            border: 1px solid rgba(145, 215, 235, 0.3);
+        }
+
+        .empty-state-link.secondary:hover {
+            background: rgba(145, 215, 235, 0.2);
+            border-color: var(--teal);
+        }
+
+        /* ============================================
+           AUTO-REFRESH INDICATOR
+           ============================================ */
+        .refresh-indicator {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: var(--bg-card);
+            border: 1px solid rgba(145, 215, 235, 0.3);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            z-index: 100;
+            opacity: 0;
+            transform: translateY(-10px);
+            transition: all 0.3s ease;
+        }
+
+        .refresh-indicator.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .refresh-indicator.refreshing {
+            border-color: var(--yellow);
+            color: var(--yellow);
+        }
+
+        .refresh-indicator svg {
+            width: 14px;
+            height: 14px;
+        }
+
+        .refresh-indicator.refreshing svg {
+            animation: spin 1s linear infinite;
+        }
+
+        /* Connection status badge */
+        .connection-status {
+            position: fixed;
+            bottom: 70px;
+            right: 20px;
+            background: var(--bg-card);
+            border: 1px solid var(--success);
+            padding: 6px 12px;
+            border-radius: 15px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--success);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            z-index: 100;
+            transition: all 0.3s ease;
+        }
+
+        .connection-status.disconnected {
+            border-color: var(--danger);
+            color: var(--danger);
+        }
+
+        .connection-status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: currentColor;
+        }
     </style>
 </head>
 <body>
@@ -544,9 +848,24 @@
         <span>Auto-Scroll: OFF</span>
     </div>
 
+    <!-- Auto-refresh indicator -->
+    <div class="refresh-indicator" id="refreshIndicator">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/>
+            <path d="M21 3v5h-5"/>
+        </svg>
+        <span id="refreshText">Refreshing...</span>
+    </div>
+
+    <!-- Connection status -->
+    <div class="connection-status" id="connectionStatus">
+        <span class="connection-status-dot"></span>
+        <span>Connected</span>
+    </div>
+
     <!-- Firebase -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
     <script src="/js/firebase-config.js"></script>
 
     <script>
@@ -566,6 +885,18 @@
         let currentFilter = 'all';
         let unsubscribers = [];
 
+        // Auto-refresh fallback state
+        let lastFirestoreUpdate = Date.now();
+        let autoRefreshTimer = null;
+        let refreshCheckInterval = null;
+        const AUTO_REFRESH_TIMEOUT = 30000; // 30 seconds
+
+        // Score tracking for animations
+        let previousScores = {};
+
+        // Next scheduled match cache
+        let nextScheduledMatch = null;
+
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
             updateClock();
@@ -575,6 +906,8 @@
             setupFilters();
             setupAutoScroll();
             setupTVMode();
+            setupAutoRefreshFallback();
+            updateConnectionStatus(true);
         });
 
         function updateClock() {
@@ -669,33 +1002,278 @@
 
             } catch (error) {
                 console.error('Error initializing Firestore:', error);
+                updateConnectionStatus(false);
+            }
+        }
+
+        // ============================================
+        // AUTO-REFRESH FALLBACK LOGIC
+        // ============================================
+        function setupAutoRefreshFallback() {
+            // Check every 5 seconds if we need to manually refresh
+            refreshCheckInterval = setInterval(() => {
+                const timeSinceLastUpdate = Date.now() - lastFirestoreUpdate;
+
+                if (timeSinceLastUpdate >= AUTO_REFRESH_TIMEOUT) {
+                    console.log('No Firestore updates in 30s, triggering manual refresh...');
+                    triggerManualRefresh();
+                }
+            }, 5000);
+        }
+
+        async function triggerManualRefresh() {
+            showRefreshIndicator(true);
+
+            try {
+                // Re-fetch league matches
+                const leaguesRef = firebase.firestore().collection('leagues')
+                    .where('status', 'in', ['active', 'playoffs']);
+
+                const leaguesSnap = await leaguesRef.get();
+                const leagues = [];
+                leaguesSnap.forEach(doc => {
+                    leagues.push({ id: doc.id, ...doc.data() });
+                });
+
+                leagueMatches = [];
+                for (const league of leagues) {
+                    const matchesSnap = await firebase.firestore()
+                        .collection('leagues').doc(league.id)
+                        .collection('matches')
+                        .where('status', 'in', ['scheduled', 'in_progress'])
+                        .orderBy('week', 'asc')
+                        .limit(10)
+                        .get();
+
+                    matchesSnap.forEach(doc => {
+                        leagueMatches.push({
+                            id: doc.id,
+                            leagueId: league.id,
+                            leagueName: league.league_name,
+                            venueName: league.venue_name,
+                            ...doc.data()
+                        });
+                    });
+                }
+
+                // Re-fetch tournament matches
+                const tournamentsRef = firebase.firestore().collection('tournaments')
+                    .where('status', 'in', ['active', 'in_progress', 'started']);
+
+                const tournamentsSnap = await tournamentsRef.get();
+                tournamentMatches = [];
+
+                for (const doc of tournamentsSnap.docs) {
+                    const tournament = { id: doc.id, ...doc.data() };
+
+                    const eventsSnap = await firebase.firestore()
+                        .collection('tournaments').doc(tournament.id)
+                        .collection('events')
+                        .get();
+
+                    for (const eventDoc of eventsSnap.docs) {
+                        const event = eventDoc.data();
+                        if (event.bracket && event.bracket.matches) {
+                            const activeMatches = event.bracket.matches.filter(m =>
+                                m.status === 'in_progress' || m.status === 'ready'
+                            );
+
+                            activeMatches.forEach(match => {
+                                tournamentMatches.push({
+                                    id: `${eventDoc.id}_${match.match_id}`,
+                                    tournamentId: tournament.id,
+                                    tournamentName: tournament.tournament_name,
+                                    eventName: event.event_name,
+                                    venueName: tournament.venue_name,
+                                    round: match.round,
+                                    ...match
+                                });
+                            });
+                        }
+                    }
+                }
+
+                renderLeagueMatches();
+                renderTournamentMatches();
+                lastFirestoreUpdate = Date.now();
+                updateConnectionStatus(true);
+
+            } catch (error) {
+                console.error('Manual refresh failed:', error);
+                updateConnectionStatus(false);
+            }
+
+            showRefreshIndicator(false);
+        }
+
+        function showRefreshIndicator(show, text = 'Refreshing...') {
+            const indicator = document.getElementById('refreshIndicator');
+            const textEl = document.getElementById('refreshText');
+
+            if (show) {
+                textEl.textContent = text;
+                indicator.classList.add('visible', 'refreshing');
+            } else {
+                indicator.classList.remove('refreshing');
+                setTimeout(() => {
+                    indicator.classList.remove('visible');
+                }, 500);
+            }
+        }
+
+        function updateConnectionStatus(connected) {
+            const statusEl = document.getElementById('connectionStatus');
+            if (connected) {
+                statusEl.classList.remove('disconnected');
+                statusEl.innerHTML = '<span class="connection-status-dot"></span><span>Connected</span>';
+            } else {
+                statusEl.classList.add('disconnected');
+                statusEl.innerHTML = '<span class="connection-status-dot"></span><span>Reconnecting...</span>';
+            }
+        }
+
+        function recordFirestoreUpdate() {
+            lastFirestoreUpdate = Date.now();
+            updateConnectionStatus(true);
+        }
+
+        // ============================================
+        // SCORE ANIMATION HELPERS
+        // ============================================
+        function animateScoreChange(matchId, side, newScore) {
+            const key = `${matchId}_${side}`;
+            const previousScore = previousScores[key];
+
+            // Store the new score
+            previousScores[key] = newScore;
+
+            // If score changed, trigger animation
+            if (previousScore !== undefined && previousScore !== newScore) {
+                const scoreEl = document.querySelector(`.score[data-match="${matchId}"][data-side="${side}"]`);
+                if (scoreEl) {
+                    // Remove any existing animation class
+                    scoreEl.classList.remove('score-updating', 'score-flip', 'changed');
+
+                    // Force reflow to restart animation
+                    void scoreEl.offsetWidth;
+
+                    // Add animation class
+                    scoreEl.classList.add('score-updating');
+
+                    // Update the score text
+                    scoreEl.textContent = newScore;
+
+                    // Remove class after animation
+                    setTimeout(() => {
+                        scoreEl.classList.remove('score-updating');
+                    }, 600);
+                }
+            }
+        }
+
+        // ============================================
+        // FETCH NEXT SCHEDULED MATCH
+        // ============================================
+        async function fetchNextScheduledMatch() {
+            try {
+                // Try leagues first
+                const leaguesSnap = await firebase.firestore().collection('leagues')
+                    .where('status', 'in', ['active', 'playoffs', 'registration'])
+                    .get();
+
+                let nextMatch = null;
+                const now = new Date();
+
+                for (const leagueDoc of leaguesSnap.docs) {
+                    const league = { id: leagueDoc.id, ...leagueDoc.data() };
+
+                    const matchesSnap = await firebase.firestore()
+                        .collection('leagues').doc(league.id)
+                        .collection('matches')
+                        .where('status', '==', 'scheduled')
+                        .orderBy('match_date', 'asc')
+                        .limit(5)
+                        .get();
+
+                    for (const matchDoc of matchesSnap.docs) {
+                        const match = matchDoc.data();
+                        const matchDate = match.match_date?.toDate ? match.match_date.toDate() : new Date(match.match_date);
+
+                        if (matchDate > now) {
+                            if (!nextMatch || matchDate < nextMatch.date) {
+                                nextMatch = {
+                                    date: matchDate,
+                                    homeTeam: match.home_team_name || 'TBD',
+                                    awayTeam: match.away_team_name || 'TBD',
+                                    type: 'league',
+                                    name: league.league_name
+                                };
+                            }
+                            break;
+                        }
+                    }
+                }
+
+                // Also check tournaments
+                const tournamentsSnap = await firebase.firestore().collection('tournaments')
+                    .where('status', 'in', ['upcoming', 'registration', 'active'])
+                    .get();
+
+                for (const tournamentDoc of tournamentsSnap.docs) {
+                    const tournament = tournamentDoc.data();
+                    if (tournament.start_date) {
+                        const startDate = tournament.start_date?.toDate ? tournament.start_date.toDate() : new Date(tournament.start_date);
+                        if (startDate > now && (!nextMatch || startDate < nextMatch.date)) {
+                            nextMatch = {
+                                date: startDate,
+                                homeTeam: 'Tournament',
+                                awayTeam: '',
+                                type: 'tournament',
+                                name: tournament.tournament_name
+                            };
+                        }
+                    }
+                }
+
+                nextScheduledMatch = nextMatch;
+                return nextMatch;
+
+            } catch (error) {
+                console.error('Error fetching next match:', error);
+                return null;
             }
         }
 
         function renderLeagueMatches() {
+            recordFirestoreUpdate();
             const container = document.getElementById('leagueMatches');
 
             if (leagueMatches.length === 0) {
-                container.innerHTML = `
-                    <div class="empty-state">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="12" cy="12" r="10"/>
-                            <path d="M12 6v6l4 2"/>
-                        </svg>
-                        <h3>No Active League Matches</h3>
-                        <p>Check back when league night begins!</p>
-                    </div>
-                `;
+                // Show enhanced empty state
+                renderEnhancedEmptyState(container, 'league');
                 return;
             }
+
+            // Track scores before rendering for animations
+            leagueMatches.forEach(match => {
+                animateScoreChange(match.id, 'home', match.home_score || 0);
+                animateScoreChange(match.id, 'away', match.away_score || 0);
+            });
 
             container.innerHTML = leagueMatches.map(match => `
                 <div class="match-card ${match.status === 'in_progress' ? 'live' : ''}">
                     <div class="match-header">
                         <span class="match-type">${escapeHtml(match.leagueName || 'League Match')}</span>
-                        <span class="match-status ${match.status === 'in_progress' ? 'live' : escapeHtml(match.status)}">
-                            ${match.status === 'in_progress' ? 'LIVE' : escapeHtml((match.status || '').toUpperCase())}
-                        </span>
+                        ${match.status === 'in_progress' ? `
+                            <span class="live-indicator">
+                                <span class="live-indicator-dot"></span>
+                                LIVE
+                            </span>
+                        ` : `
+                            <span class="match-status ${escapeHtml(match.status)}">
+                                ${escapeHtml((match.status || '').toUpperCase())}
+                            </span>
+                        `}
                     </div>
                     <div class="match-body">
                         <div class="teams-container">
@@ -728,33 +1306,33 @@
         }
 
         function renderTournamentMatches() {
+            recordFirestoreUpdate();
             const container = document.getElementById('tournamentMatches');
 
             if (tournamentMatches.length === 0) {
-                container.innerHTML = `
-                    <div class="empty-state">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/>
-                            <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/>
-                            <path d="M4 22h16"/>
-                            <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/>
-                            <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/>
-                            <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>
-                        </svg>
-                        <h3>No Active Tournament Matches</h3>
-                        <p>Tournament action will appear here when matches begin!</p>
-                    </div>
-                `;
+                // Show enhanced empty state
+                renderEnhancedEmptyState(container, 'tournament');
                 return;
             }
+
+            // Track scores for animations
+            tournamentMatches.forEach(match => {
+                animateScoreChange(match.id, 'home', match.score1 || 0);
+                animateScoreChange(match.id, 'away', match.score2 || 0);
+            });
 
             container.innerHTML = tournamentMatches.map(match => `
                 <div class="match-card ${match.status === 'in_progress' ? 'live' : ''}">
                     <div class="match-header">
                         <span class="match-type">${escapeHtml(match.tournamentName || 'Tournament')} - ${escapeHtml(match.eventName || '')}</span>
-                        <span class="match-status ${match.status === 'in_progress' ? 'live' : 'scheduled'}">
-                            ${match.status === 'in_progress' ? 'LIVE' : 'READY'}
-                        </span>
+                        ${match.status === 'in_progress' ? `
+                            <span class="live-indicator">
+                                <span class="live-indicator-dot"></span>
+                                LIVE
+                            </span>
+                        ` : `
+                            <span class="match-status scheduled">READY</span>
+                        `}
                     </div>
                     <div class="match-body">
                         <div class="teams-container">
@@ -762,9 +1340,9 @@
                                 <div class="team-name">${escapeHtml(match.player1?.name || match.player1 || 'TBD')}</div>
                             </div>
                             <div class="score-container">
-                                <span class="score home">${match.score1 || 0}</span>
+                                <span class="score home" data-match="${escapeHtml(match.id)}" data-side="home">${match.score1 || 0}</span>
                                 <span class="score-divider">:</span>
-                                <span class="score away">${match.score2 || 0}</span>
+                                <span class="score away" data-match="${escapeHtml(match.id)}" data-side="away">${match.score2 || 0}</span>
                             </div>
                             <div class="team">
                                 <div class="team-name">${escapeHtml(match.player2?.name || match.player2 || 'TBD')}</div>
@@ -782,6 +1360,100 @@
                     </div>
                 </div>
             `).join('');
+        }
+
+        async function renderEnhancedEmptyState(container, type) {
+            // Fetch next scheduled match if we haven't already
+            if (!nextScheduledMatch) {
+                await fetchNextScheduledMatch();
+            }
+
+            const icon = type === 'league' ? `
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <path d="M12 6v6l4 2"/>
+                </svg>
+            ` : `
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/>
+                    <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/>
+                    <path d="M4 22h16"/>
+                    <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/>
+                    <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/>
+                    <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>
+                </svg>
+            `;
+
+            const title = type === 'league' ? 'No Active League Matches' : 'No Active Tournament Matches';
+            const subtitle = 'No matches in progress right now';
+
+            // Build next match HTML if available
+            let nextMatchHtml = '';
+            if (nextScheduledMatch) {
+                const dateOptions = { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' };
+                const dateStr = nextScheduledMatch.date.toLocaleDateString('en-US', dateOptions);
+
+                if (nextScheduledMatch.type === 'league') {
+                    nextMatchHtml = `
+                        <div class="next-match-preview">
+                            <div class="next-match-label">Next Scheduled Match</div>
+                            <div class="next-match-teams">${escapeHtml(nextScheduledMatch.homeTeam)} vs ${escapeHtml(nextScheduledMatch.awayTeam)}</div>
+                            <div class="next-match-time">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="10"/>
+                                    <path d="M12 6v6l4 2"/>
+                                </svg>
+                                ${escapeHtml(dateStr)}
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    nextMatchHtml = `
+                        <div class="next-match-preview">
+                            <div class="next-match-label">Upcoming Event</div>
+                            <div class="next-match-teams">${escapeHtml(nextScheduledMatch.name)}</div>
+                            <div class="next-match-time">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="10"/>
+                                    <path d="M12 6v6l4 2"/>
+                                </svg>
+                                ${escapeHtml(dateStr)}
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+
+            container.innerHTML = `
+                <div class="empty-state-enhanced">
+                    <div class="empty-state-icon">
+                        ${icon}
+                    </div>
+                    <h3>${title}</h3>
+                    <p>${subtitle}</p>
+                    ${nextMatchHtml}
+                    <div class="empty-state-links">
+                        <a href="/pages/events.html" class="empty-state-link primary">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                                <line x1="16" y1="2" x2="16" y2="6"/>
+                                <line x1="8" y1="2" x2="8" y2="6"/>
+                                <line x1="3" y1="10" x2="21" y2="10"/>
+                            </svg>
+                            Browse Events
+                        </a>
+                        <a href="/pages/league-select.html" class="empty-state-link secondary">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                                <circle cx="9" cy="7" r="4"/>
+                                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                            </svg>
+                            View Leagues
+                        </a>
+                    </div>
+                </div>
+            `;
         }
 
         function getTeamPlayers(match, side) {
@@ -886,6 +1558,8 @@
         // Cleanup on page unload
         window.addEventListener('beforeunload', () => {
             unsubscribers.forEach(unsub => unsub());
+            if (refreshCheckInterval) clearInterval(refreshCheckInterval);
+            if (autoRefreshTimer) clearTimeout(autoRefreshTimer);
         });
     </script>
     <script src="/js/nav-menu.js"></script>

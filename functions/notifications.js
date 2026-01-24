@@ -843,3 +843,152 @@ exports.notifyCaptainUnavailable = functions.https.onRequest((req, res) => {
         }
     });
 });
+
+/**
+ * Send Director Message - Bulk messaging for league directors
+ * Sends SMS/email to multiple players based on target type (all, captains, alternates, level)
+ */
+exports.sendDirectorMessage = functions.https.onRequest((req, res) => {
+    const cors = require('cors')({ origin: true });
+    cors(req, res, async () => {
+        if (req.method !== 'POST') {
+            return res.status(405).json({ error: 'Method not allowed' });
+        }
+
+        const {
+            league_id,
+            director_id,
+            recipient_ids,
+            message,
+            target_type,
+            target_level
+        } = req.body;
+
+        if (!league_id || !director_id || !recipient_ids || !message) {
+            return res.status(400).json({ error: 'Missing required fields' });
+        }
+
+        try {
+            // Verify director access
+            const leagueDoc = await db.collection('leagues').doc(league_id).get();
+            if (!leagueDoc.exists) {
+                return res.status(404).json({ error: 'League not found' });
+            }
+
+            const leagueData = leagueDoc.data();
+            const isDirector = leagueData.director_id === director_id ||
+                              leagueData.admin_pin === director_id ||
+                              (leagueData.directors && leagueData.directors.includes(director_id));
+
+            // Check master admin
+            const playerDoc = await db.collection('players').doc(director_id).get();
+            const isMasterAdmin = playerDoc.exists && playerDoc.data().master_admin === true;
+
+            if (!isDirector && !isMasterAdmin) {
+                return res.status(403).json({ error: 'Not authorized as league director' });
+            }
+
+            // Get recipient player data
+            const playersRef = db.collection('leagues').doc(league_id).collection('players');
+            const results = {
+                sent: 0,
+                failed: 0,
+                details: []
+            };
+
+            // Process recipients in batches
+            for (const playerId of recipient_ids) {
+                try {
+                    const playerDoc = await playersRef.doc(playerId).get();
+                    let playerData = playerDoc.exists ? playerDoc.data() : null;
+
+                    // Also check global players collection if not found in league
+                    if (!playerData) {
+                        const globalPlayerDoc = await db.collection('players').doc(playerId).get();
+                        playerData = globalPlayerDoc.exists ? globalPlayerDoc.data() : null;
+                    }
+
+                    if (!playerData) {
+                        results.failed++;
+                        results.details.push({ playerId, error: 'Player not found' });
+                        continue;
+                    }
+
+                    const phone = playerData.phone;
+                    const email = playerData.email;
+                    const playerName = playerData.name || playerData.player_name || 'Player';
+
+                    let sentToPlayer = false;
+
+                    // Send SMS if phone available
+                    if (phone) {
+                        const smsResult = await sendSMS(phone, message);
+                        if (smsResult.success) {
+                            sentToPlayer = true;
+                        }
+                    }
+
+                    // Send email if available
+                    if (email) {
+                        const leagueName = leagueData.league_name || leagueData.name || 'League';
+                        const emailHtml = `
+                            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                                <h2 style="color: #FF469A;">Message from League Director</h2>
+                                <p style="color: #666; font-size: 14px;">${leagueName}</p>
+                                <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                                    <p style="margin: 0; white-space: pre-wrap;">${message}</p>
+                                </div>
+                                <p style="color: #666; font-size: 12px;">BRDC Dart League</p>
+                            </div>
+                        `;
+
+                        const emailResult = await sendEmail(
+                            email,
+                            `${leagueName} - Director Message`,
+                            emailHtml,
+                            message
+                        );
+
+                        if (emailResult.success) {
+                            sentToPlayer = true;
+                        }
+                    }
+
+                    if (sentToPlayer) {
+                        results.sent++;
+                    } else {
+                        results.failed++;
+                        results.details.push({ playerId, playerName, error: 'No contact info' });
+                    }
+                } catch (err) {
+                    results.failed++;
+                    results.details.push({ playerId, error: err.message });
+                }
+            }
+
+            // Log the message
+            await db.collection('director_messages').add({
+                league_id,
+                director_id,
+                message,
+                target_type,
+                target_level: target_level || null,
+                recipient_count: recipient_ids.length,
+                sent_count: results.sent,
+                failed_count: results.failed,
+                sent_at: admin.firestore.FieldValue.serverTimestamp()
+            });
+
+            res.json({
+                success: true,
+                sent_count: results.sent,
+                failed_count: results.failed,
+                details: results.details
+            });
+
+        } catch (error) {
+            console.error('Send director message error:', error);
+            res.status(500).json({ error: error.message });
+        }
+    });
+});

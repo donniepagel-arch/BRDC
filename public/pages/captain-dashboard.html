@@ -181,6 +181,65 @@
         }
         .action-btn.replace { background: #ef4444; color: white; }
 
+        .attendance-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 10px;
+            padding: 8px 10px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 4px;
+        }
+        .attendance-toggle-label {
+            font-size: 12px;
+            color: #aaa;
+        }
+        .attendance-switch {
+            position: relative;
+            width: 50px;
+            height: 26px;
+            cursor: pointer;
+        }
+        .attendance-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .attendance-slider {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ef4444;
+            border-radius: 26px;
+            transition: 0.3s;
+        }
+        .attendance-slider:before {
+            content: "";
+            position: absolute;
+            height: 20px;
+            width: 20px;
+            left: 3px;
+            bottom: 3px;
+            background: white;
+            border-radius: 50%;
+            transition: 0.3s;
+        }
+        .attendance-switch input:checked + .attendance-slider {
+            background-color: #22c55e;
+        }
+        .attendance-switch input:checked + .attendance-slider:before {
+            transform: translateX(24px);
+        }
+        .attendance-status {
+            font-size: 11px;
+            font-weight: 700;
+            margin-left: 8px;
+        }
+        .attendance-status.available { color: #22c55e; }
+        .attendance-status.unavailable { color: #ef4444; }
+
         .schedule-table {
             width: 100%;
             border-collapse: collapse;
@@ -372,12 +431,99 @@
         @media (max-width: 768px) {
             .team-name { font-size: 32px; }
             .record { font-size: 24px; }
+            .tabs {
+                gap: 6px;
+                overflow-x: auto;
+                flex-wrap: nowrap;
+                padding-bottom: 8px;
+            }
+            .tab {
+                padding: 10px 14px;
+                font-size: 14px;
+                white-space: nowrap;
+                flex-shrink: 0;
+            }
+            .roster-grid {
+                grid-template-columns: 1fr;
+            }
+            .roster-card {
+                padding: 16px;
+            }
+            .player-name-roster {
+                font-size: 24px;
+            }
+            .schedule-table th,
+            .schedule-table td {
+                padding: 10px 8px;
+                font-size: 13px;
+            }
+            .availability-indicator {
+                flex-wrap: wrap;
+            }
+            .lineup-row {
+                flex-wrap: wrap;
+            }
+            .lineup-select {
+                width: 100%;
+            }
+            .modal-content {
+                width: 95%;
+                padding: 20px;
+            }
+            .dashboard-header {
+                flex-direction: column;
+                text-align: center;
+            }
+            .dashboard-header > div:last-child {
+                text-align: center;
+            }
+            .subs-list {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .team-name { font-size: 26px; }
+            .record { font-size: 20px; }
+            .header-title { font-size: 22px; }
+            .tab {
+                padding: 8px 12px;
+                font-size: 12px;
+            }
+            .player-stats-mini {
+                grid-template-columns: 1fr 1fr;
+                gap: 6px;
+            }
+            .stat-mini {
+                padding: 6px;
+            }
+            .stat-mini-value {
+                font-size: 18px;
+            }
+            .schedule-table th,
+            .schedule-table td {
+                padding: 8px 6px;
+                font-size: 12px;
+            }
+            .schedule-table th:nth-child(5),
+            .schedule-table td:nth-child(5),
+            .schedule-table th:nth-child(6),
+            .schedule-table td:nth-child(6) {
+                display: none;
+            }
+            .lineup-title {
+                font-size: 20px;
+            }
+            .brdc-btn, .action-btn {
+                padding: 10px 16px;
+                font-size: 14px;
+            }
         }
     </style>
 </head>
 <body>
     <div class="header-bar">
-        <button class="back-btn" onclick="window.location.href='/pages/dashboard.html'">← BACK</button>
+        <button class="back-btn" onclick="history.back()">← BACK</button>
         <img src="/images/gold_logo.png" alt="BRDC" class="header-logo">
         <span class="header-title">CAPTAIN DASHBOARD</span>
     </div>
@@ -424,12 +570,12 @@
         </div>
 
         <div class="tabs">
-            <button class="tab active" onclick="showTab('roster')">ROSTER</button>
-            <button class="tab" onclick="showTab('schedule')">SCHEDULE</button>
-            <button class="tab" onclick="showTab('lineup')">SET LINEUP</button>
-            <button class="tab" onclick="showTab('subs')">SUBSTITUTES</button>
-            <button class="tab" id="freeAgentsTab" onclick="showTab('freeagents')" style="display: none;">FREE AGENTS</button>
-            <button class="tab" onclick="showTab('notifications')">ALERTS <span id="alertCount"></span></button>
+            <button class="tab active" onclick="showTab('roster', event)">ROSTER</button>
+            <button class="tab" onclick="showTab('schedule', event)">SCHEDULE</button>
+            <button class="tab" onclick="showTab('lineup', event)">SET LINEUP</button>
+            <button class="tab" onclick="showTab('subs', event)">SUBSTITUTES</button>
+            <button class="tab" id="freeAgentsTab" onclick="showTab('freeagents', event)" style="display: none;">FREE AGENTS</button>
+            <button class="tab" onclick="showTab('notifications', event)">ALERTS <span id="alertCount"></span></button>
         </div>
 
         <!-- Roster Tab -->
@@ -716,16 +862,73 @@
             }
         };
 
+        // Toggle player attendance for a match
+        window.toggleAttendance = async function(playerId, matchId, isAvailable) {
+            const statusEl = document.getElementById(`status-${playerId}`);
+            const card = statusEl?.closest('.roster-card');
+
+            // Optimistic UI update
+            if (statusEl) {
+                statusEl.textContent = isAvailable ? 'IN' : 'OUT';
+                statusEl.className = `attendance-status ${isAvailable ? 'available' : 'unavailable'}`;
+            }
+            if (card) {
+                card.classList.toggle('unavailable', !isAvailable);
+            }
+
+            try {
+                const result = await callFunction('setPlayerAvailability', {
+                    league_id: currentLeagueId,
+                    match_id: matchId,
+                    player_id: playerId,
+                    available: isAvailable
+                });
+
+                if (!result.success) {
+                    // Revert on failure
+                    const checkbox = card?.querySelector('input[type="checkbox"]');
+                    if (checkbox) checkbox.checked = !isAvailable;
+                    if (statusEl) {
+                        statusEl.textContent = isAvailable ? 'OUT' : 'IN';
+                        statusEl.className = `attendance-status ${isAvailable ? 'unavailable' : 'available'}`;
+                    }
+                    if (card) card.classList.toggle('unavailable', isAvailable);
+                    alert(result.error || 'Failed to update availability');
+                } else {
+                    // Update local data
+                    const match = dashboardData?.matches?.find(m => m.id === matchId);
+                    if (match) {
+                        match.availability = match.availability || {};
+                        match.availability[playerId] = isAvailable ? 'available' : 'unavailable';
+                    }
+                }
+            } catch (error) {
+                console.error('Toggle attendance error:', error);
+                // Revert on error
+                const checkbox = card?.querySelector('input[type="checkbox"]');
+                if (checkbox) checkbox.checked = !isAvailable;
+                alert('Failed to update attendance');
+            }
+        };
+
         function renderRoster(team, playerStats) {
             const grid = document.getElementById('rosterGrid');
             const positions = ['A', 'B', 'C', 'D', 'E'];
+
+            // Find next upcoming match
+            const nextMatch = dashboardData?.matches?.find(m => m.status === 'scheduled');
+            const matchLabel = nextMatch ? `Week ${nextMatch.week}` : 'Next Match';
 
             grid.innerHTML = (team.players || []).map(player => {
                 const stats = playerStats.find(s => s.player_id === player.id) || {};
                 const posLabel = positions[player.position - 1] || player.position;
 
+                // Get availability for next match
+                const availability = nextMatch?.availability?.[player.id] || 'unknown';
+                const isAvailable = availability === 'available';
+
                 return `
-                    <div class="roster-card">
+                    <div class="roster-card ${availability === 'unavailable' ? 'unavailable' : ''}">
                         <div class="player-position">POSITION ${posLabel}</div>
                         <div class="player-name-roster">${player.name}</div>
                         <div class="player-stats-mini">
@@ -734,6 +937,18 @@
                             <div class="stat-mini"><div class="stat-mini-label">180s</div><div class="stat-mini-value">${stats.x01_tons_180 || stats.x01_ton_eighties || 0}</div></div>
                             <div class="stat-mini"><div class="stat-mini-label">High CO</div><div class="stat-mini-value">${stats.x01_high_checkout || '-'}</div></div>
                         </div>
+                        ${nextMatch ? `
+                        <div class="attendance-toggle">
+                            <span class="attendance-toggle-label">${matchLabel} Attendance</span>
+                            <div style="display: flex; align-items: center;">
+                                <label class="attendance-switch">
+                                    <input type="checkbox" ${isAvailable ? 'checked' : ''} onchange="toggleAttendance('${player.id}', '${nextMatch.id}', this.checked)">
+                                    <span class="attendance-slider"></span>
+                                </label>
+                                <span class="attendance-status ${isAvailable ? 'available' : 'unavailable'}" id="status-${player.id}">${isAvailable ? 'IN' : 'OUT'}</span>
+                            </div>
+                        </div>
+                        ` : ''}
                         <div class="player-actions">
                             <button class="action-btn replace" onclick="openReplaceModal('${player.id}', '${player.name}')">REPLACE</button>
                         </div>
@@ -856,10 +1071,16 @@
             } catch (error) { console.error('Replace error:', error); alert('Failed to replace player'); }
         };
 
-        window.showTab = function(tabName) {
+        window.showTab = function(tabName, clickEvent) {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-            event.target.classList.add('active');
+            // Use passed event or find tab by name
+            if (clickEvent && clickEvent.target) {
+                clickEvent.target.classList.add('active');
+            } else {
+                const tab = document.querySelector(`.tab[onclick*="showTab('${tabName}'"]`);
+                if (tab) tab.classList.add('active');
+            }
             document.getElementById('tab-' + tabName).classList.add('active');
         };
 
@@ -870,5 +1091,6 @@
     </script>
 <script src="/js/stats-helpers.js"></script>
 <script src="/js/feedback.js"></script>
+<script src="/js/nav-menu.js"></script>
 </body>
 </html>

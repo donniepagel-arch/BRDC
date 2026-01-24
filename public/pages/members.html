@@ -296,7 +296,7 @@
 <body>
     <div class="header">
         <div class="header-left">
-            <button class="back-btn" onclick="window.location.href='/'">&#8592;</button>
+            <button class="back-btn" onclick="window.location.href='/pages/dashboard.html'">&#8592;</button>
             <span class="header-title">MEMBERS</span>
         </div>
         <img src="/images/gold_logo.png" alt="BRDC" class="header-logo">
@@ -307,8 +307,8 @@
         <select class="sort-select" id="sortSelect" onchange="sortMembers()">
             <option value="name-asc">NAME A-Z</option>
             <option value="name-desc">NAME Z-A</option>
-            <option value="ppd-desc">PPD HIGH-LOW</option>
-            <option value="ppd-asc">PPD LOW-HIGH</option>
+            <option value="ppd-desc">3DA HIGH-LOW</option>
+            <option value="ppd-asc">3DA LOW-HIGH</option>
             <option value="mpr-desc">MPR HIGH-LOW</option>
             <option value="mpr-asc">MPR LOW-HIGH</option>
             <option value="winpct-desc">WIN% HIGH-LOW</option>
@@ -323,95 +323,57 @@
     </div>
 
     <script type="module">
-        import { db, collection, getDocs, query, orderBy, callFunction } from '/js/firebase-config.js';
+        import { db, doc, getDoc, collection, getDocs, query, orderBy, callFunction } from '/js/firebase-config.js';
 
         let allMembers = [];
         let searchTerm = '';
         let currentSort = 'name-asc';
+        let filterLeagueId = null;
+        let filterLeagueName = null;
 
-        // Load members only from triples league
+        // Parse URL parameters
+        function getUrlParams() {
+            const params = new URLSearchParams(window.location.search);
+            return {
+                league_id: params.get('league_id')
+            };
+        }
+
+        // Load members - optionally filtered by league_id
         async function loadMembers() {
             try {
+                const params = getUrlParams();
+                filterLeagueId = params.league_id;
+
                 const membersMap = new Map();
 
-                // Get all leagues
-                const leaguesSnap = await getDocs(collection(db, 'leagues'));
-
-                for (const leagueDoc of leaguesSnap.docs) {
-                    const league = leagueDoc.data();
-                    const leagueId = leagueDoc.id;
-
-                    // Skip completed leagues
-                    if (league.status === 'completed') continue;
-
-                    // Get players from this league's players subcollection
-                    const playersSnap = await getDocs(collection(db, 'leagues', leagueId, 'players'));
-
-                    for (const playerDoc of playersSnap.docs) {
-                        const player = playerDoc.data();
-
-                        // Skip bots
-                        if (player.isBot) continue;
-                        if ((player.name || '').toLowerCase().includes('bot')) continue;
-
-                        const key = (player.name || '').toLowerCase() || playerDoc.id;
-
-                        if (!membersMap.has(key)) {
-                            membersMap.set(key, {
-                                id: playerDoc.id,
-                                name: player.name || 'Unknown',
-                                team_name: player.team_name || '',
-                                is_captain: player.is_captain || false,
-                                level: player.preferred_level || '',
-                                league_id: leagueId,
-                                tournament_id: null,
-                                source: 'league',
-                                stats: null,
-                                ppd: null,
-                                mpr: null,
-                                winpct: null,
-                                ninemarks: 0
-                            });
-                        }
+                // If league_id provided, only load from that league
+                if (filterLeagueId) {
+                    // Get league name for title
+                    const leagueDoc = await getDoc(doc(db, 'leagues', filterLeagueId));
+                    if (leagueDoc.exists()) {
+                        filterLeagueName = leagueDoc.data().name || 'League';
+                        document.querySelector('.header-title').textContent = `${filterLeagueName} MEMBERS`;
                     }
-                }
 
-                // Also load tournament players
-                const tournamentsSnap = await getDocs(collection(db, 'tournaments'));
+                    // Load players from this league only
+                    await loadLeaguePlayers(filterLeagueId, membersMap);
+                } else {
+                    // Load from all active leagues
+                    const leaguesSnap = await getDocs(collection(db, 'leagues'));
 
-                for (const tournamentDoc of tournamentsSnap.docs) {
-                    const tournament = tournamentDoc.data();
-                    const tournamentId = tournamentDoc.id;
+                    for (const leagueDoc of leaguesSnap.docs) {
+                        const league = leagueDoc.data();
+                        const leagueId = leagueDoc.id;
 
-                    // Get players from tournament (stored as a map or subcollection)
-                    const players = tournament.players || {};
+                        // Skip completed leagues
+                        if (league.status === 'completed') continue;
 
-                    for (const [playerId, playerData] of Object.entries(players)) {
-                        const playerName = typeof playerData === 'string' ? playerData : (playerData.name || 'Unknown');
-
-                        // Skip bots
-                        if (playerName.toLowerCase().includes('bot')) continue;
-
-                        const key = playerName.toLowerCase();
-
-                        if (!membersMap.has(key)) {
-                            membersMap.set(key, {
-                                id: playerId,
-                                name: playerName,
-                                team_name: '',
-                                is_captain: false,
-                                level: '',
-                                league_id: null,
-                                tournament_id: tournamentId,
-                                source: 'tournament',
-                                stats: null,
-                                ppd: null,
-                                mpr: null,
-                                winpct: null,
-                                ninemarks: 0
-                            });
-                        }
+                        await loadLeaguePlayers(leagueId, membersMap);
                     }
+
+                    // Also load tournament players (only when showing all)
+                    await loadTournamentPlayers(membersMap);
                 }
 
                 allMembers = Array.from(membersMap.values())
@@ -434,6 +396,80 @@
                         <div>Error loading members</div>
                     </div>
                 `;
+            }
+        }
+
+        // Load players from a specific league
+        async function loadLeaguePlayers(leagueId, membersMap) {
+
+            const playersSnap = await getDocs(collection(db, 'leagues', leagueId, 'players'));
+
+            for (const playerDoc of playersSnap.docs) {
+                const player = playerDoc.data();
+
+                // Skip bots
+                if (player.isBot) continue;
+                if ((player.name || '').toLowerCase().includes('bot')) continue;
+
+                const key = (player.name || '').toLowerCase() || playerDoc.id;
+
+                if (!membersMap.has(key)) {
+                    membersMap.set(key, {
+                        id: playerDoc.id,
+                        name: player.name || 'Unknown',
+                        team_name: player.team_name || '',
+                        is_captain: player.is_captain || false,
+                        level: player.preferred_level || player.level || '',
+                        league_id: leagueId,
+                        tournament_id: null,
+                        source: 'league',
+                        stats: null,
+                        ppd: null,
+                        mpr: null,
+                        winpct: null,
+                        ninemarks: 0
+                    });
+                }
+            }
+        }
+
+        // Load tournament players
+        async function loadTournamentPlayers(membersMap) {
+            const tournamentsSnap = await getDocs(collection(db, 'tournaments'));
+
+            for (const tournamentDoc of tournamentsSnap.docs) {
+                const tournament = tournamentDoc.data();
+                const tournamentId = tournamentDoc.id;
+
+                // Get players from tournament (stored as a map or subcollection)
+                const players = tournament.players || {};
+
+                for (const [playerId, playerData] of Object.entries(players)) {
+                    const playerName = typeof playerData === 'string' ? playerData : (playerData.name || 'Unknown');
+
+                    // Skip bots
+                    if (playerName.toLowerCase().includes('bot')) continue;
+
+                    const key = playerName.toLowerCase();
+
+                    if (!membersMap.has(key)) {
+                        membersMap.set(key, {
+                            id: playerId,
+                            name: playerName,
+                            team_name: '',
+                            is_captain: false,
+                            level: '',
+                            league_id: null,
+                            tournament_id: tournamentId,
+                            source: 'tournament',
+                            stats: null,
+                            ppd: null,
+                            mpr: null,
+                            winpct: null,
+                            ninemarks: 0
+                        });
+                    }
+                }
             }
         }
 
@@ -460,22 +496,19 @@
                     });
 
                     if (result.success && result.stats && Array.isArray(result.stats)) {
-                        // Create lookup by player name (lowercase)
+                        // Create lookup by player ID only (RULE 1: IDs ONLY)
                         const statsLookup = {};
                         result.stats.forEach(s => {
-                            if (s.player_name) {
-                                statsLookup[s.player_name.toLowerCase()] = s;
-                            }
-                            // Also store by ID
+                            // Store by ID only - never use names for lookup
                             if (s.player_id) {
                                 statsLookup[s.player_id] = s;
                             }
                         });
 
-                        // Match stats to members
+                        // Match stats to members by ID only
                         membersByLeague[leagueId].forEach(member => {
-                            // Try matching by ID first, then by name
-                            let s = statsLookup[member.id] || statsLookup[member.name.toLowerCase()];
+                            // RULE 1: Match by ID only, never by name
+                            let s = statsLookup[member.id];
 
                             if (s) {
                                 member.stats = s;
@@ -620,7 +653,7 @@
                     <thead>
                         <tr>
                             <th onclick="setSort('name')">NAME</th>
-                            <th onclick="setSort('ppd')">PPD</th>
+                            <th onclick="setSort('ppd')">3DA</th>
                             <th onclick="setSort('mpr')">MPR</th>
                             <th onclick="setSort('ninemarks')">9s</th>
                             <th onclick="setSort('winpct')">WIN%</th>
@@ -649,7 +682,7 @@
         };
 
         window.viewMember = function(playerId, leagueId, tournamentId) {
-            let url = `/pages/player-public.html?player_id=${playerId}`;
+            let url = `/pages/player-profile.html?player_id=${playerId}`;
             if (leagueId) {
                 url += `&league_id=${leagueId}`;
             }

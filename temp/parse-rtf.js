@@ -99,6 +99,8 @@ function parse501Leg(lines) {
     let lastRound = 0;
     let checkoutDarts = 3; // Default to 3, will be overwritten if DO marker found
     let checkoutPlayer = null;
+    let checkoutRound = null;
+    let winnerSide = null;
 
     for (const line of lines) {
         if (!line.trim()) continue;
@@ -117,7 +119,7 @@ function parse501Leg(lines) {
 
         if (!inThrowData) continue;
 
-        // Check for DO marker in line
+        // Check for DO marker in line (checkout)
         const doMatch = line.match(/DO\s*\((\d+)\)/);
         if (doMatch) {
             checkoutDarts = parseInt(doMatch[1]);
@@ -179,6 +181,7 @@ function parse501Leg(lines) {
 
         if (!roundInfo) {
             // Special case: checkout-only row where only winner's throw is shown
+            // This means the opponent did NOT throw in this final round (cork winner checked out first)
             // Format: [round] [remaining=0] [score] [player] DO(n)
             if (players.length === 1 && numbers.length >= 2 && doMatch) {
                 const round = numbers[0].value;
@@ -187,23 +190,28 @@ function parse501Leg(lines) {
                 const player = players[0].name;
 
                 if (remaining === 0 || round > lastRound) {
-                    // This is a checkout row
+                    // This is a checkout row - only winner threw, opponent didn't get to throw
+                    const side = playerStats[player]?.side || 'away';
                     throws.push({
                         round: round,
-                        side: null, // Will determine from player
+                        side: side,
                         player: player,
                         score: numbers.length > 2 ? numbers[2].value : 0,
-                        remaining: 0
+                        remaining: 0,
+                        isCheckout: true,
+                        opponentDidNotThrow: true // Flag that opponent didn't throw this round
                     });
 
                     if (!playerStats[player]) {
-                        playerStats[player] = { darts: 0, points: 0, side: 'away' };
+                        playerStats[player] = { darts: 0, points: 0, side };
                     }
                     // For checkout, add score and darts
                     const checkoutScore = numbers.length > 2 ? numbers[2].value : 0;
                     playerStats[player].points += checkoutScore;
                     playerStats[player].darts += checkoutDarts;
                     checkoutPlayer = player;
+                    checkoutRound = round;
+                    winnerSide = side;
                     lastRound = round;
                 }
             }
@@ -291,15 +299,64 @@ function isHitNotation(str) {
     return /^[TDS]\d+/.test(str) || /^[TDS]B/.test(str) || (str.includes(',') && /[TDS]\d+/.test(str));
 }
 
+// Count darts from hit notation
+function countDartsFromHit(hitStr) {
+    if (!hitStr || hitStr === '∅' || hitStr === 'X' || hitStr === '-') return 0;
+
+    // Count individual hits (comma-separated or space-separated)
+    const hits = hitStr.split(/[,\s]+/).filter(h => h.trim());
+    let dartCount = 0;
+
+    for (const hit of hits) {
+        if (!hit) continue;
+        // Check for multiplier (e.g., S19x2, DBx2)
+        const multiplierMatch = hit.match(/x(\d+)$/);
+        const multiplier = multiplierMatch ? parseInt(multiplierMatch[1]) : 1;
+        dartCount += multiplier;
+    }
+
+    return dartCount || 0;
+}
+
 // Parse a single leg of cricket data
 // Format: [notable?] [home_player] [home_hit] [home_score] [round] [away_score] [away_hit] [away_player] [notable?]
-function parseCricketLeg(lines) {
+// Options: { winner: 'home'|'away', closeoutDarts: 1|2|3 } - if provided, adjusts dart count for winner's final throw
+function parseCricketLeg(lines, options = {}) {
     const throws = [];
     const playerStats = {};
     let inThrowData = false;
     let homePlayer = null;
     let awayPlayer = null;
     let lastRound = 0;
+    let lastHomeThrow = null;
+    let lastAwayThrow = null;
+    let summaryDarts = null; // Will try to extract from summary line
+
+    // Look for final scores at the beginning of the leg data
+    // Format: [home_final_score] / - / [away_final_score] / [duration]
+    let homeFinalScore = null;
+    let awayFinalScore = null;
+    let foundScores = 0;
+
+    for (let i = 0; i < Math.min(10, lines.length); i++) {
+        const l = lines[i].trim();
+        // Skip empty lines and the dash separator
+        if (!l || l === '-') continue;
+        // Stop if we hit the header
+        if (l.includes('Player') || l.includes('!')) break;
+        // Check for pure number (score) or time format (skip)
+        if (/^\d+$/.test(l)) {
+            const score = parseInt(l);
+            if (foundScores === 0) {
+                homeFinalScore = score;
+                foundScores++;
+            } else if (foundScores === 1) {
+                awayFinalScore = score;
+                foundScores++;
+                break;
+            }
+        }
+    }
 
     for (const line of lines) {
         if (!line.trim()) continue;
@@ -311,14 +368,81 @@ function parseCricketLeg(lines) {
             continue;
         }
 
+        // Check for summary line with dart count (e.g., "2.6	Darts: 34	3 Dart Avg")
+        const dartsMatch = normalizedLine.match(/Darts:\s*(\d+)/);
+        if (dartsMatch) {
+            summaryDarts = parseInt(dartsMatch[1]);
+        }
+
         // End of throw data
-        if (normalizedLine.includes('3 Dart Avg') || normalizedLine.includes('Darts:') || normalizedLine.includes('MPR')) {
+        if (normalizedLine.includes('3 Dart Avg') || normalizedLine.includes('MPR')) {
             break;
         }
 
         if (!inThrowData) continue;
 
         const parts = normalizedLine.split('\t').filter(p => p.trim() !== '');
+        if (parts.length < 3) continue;
+
+        // Check for winner-only closing line format: [round] [score] [hit] [player] [notable?]
+        // e.g., "17	370	DBx2	Donnie Pagel	3B"
+        if (parts.length >= 3 && parts.length <= 6) {
+            const firstNum = parseInt(parts[0]);
+            if (!isNaN(firstNum) && firstNum > lastRound && firstNum <= 50) {
+                // This might be a closing throw line
+                const round = firstNum;
+                const score = parseInt(parts[1]) || 0;
+                let hit = null;
+                let player = null;
+
+                // Find hit and player in remaining parts
+                for (let i = 2; i < parts.length; i++) {
+                    if (isHitNotation(parts[i]) || parts[i] === '∅') {
+                        hit = parts[i];
+                    } else if (isValidPlayerName(parts[i])) {
+                        player = parts[i];
+                    }
+                }
+
+                if (player && hit) {
+                    lastRound = round;
+                    const marks = parseHitNotation(hit);
+                    // Closing throw - use 3 darts, adjustment happens later if needed
+                    const dartsUsed = 3;
+
+                    // Determine side based on known players
+                    let side = 'away'; // Default to away for closing throws
+                    if (playerStats[player]) {
+                        side = playerStats[player].side;
+                    }
+
+                    const throwData = {
+                        round,
+                        side,
+                        player,
+                        hit,
+                        marks,
+                        score,
+                        isClosingThrow: true
+                    };
+                    throws.push(throwData);
+
+                    if (!playerStats[player]) {
+                        playerStats[player] = { darts: 0, marks: 0, side };
+                    }
+                    playerStats[player].marks += marks;
+                    playerStats[player].darts += dartsUsed;
+
+                    if (side === 'home') {
+                        lastHomeThrow = { player, round, darts: dartsUsed };
+                    } else {
+                        lastAwayThrow = { player, round, darts: dartsUsed };
+                    }
+                    continue;
+                }
+            }
+        }
+
         if (parts.length < 4) continue;
 
         // Find round number - look for expected next round first
@@ -331,7 +455,7 @@ function parseCricketLeg(lines) {
                 // Verify: before should be a score (number or 'Start'), after should be a score (number)
                 const before = parts[i - 1];
                 const after = parts[i + 1];
-                if ((/^\d+$/.test(before) || before === 'Start') && /^\d+$/.test(after)) {
+                if ((/^\d+$/.test(before) || before === 'Start') && (/^\d+$/.test(after) || after === 'Start')) {
                     roundIdx = i;
                     break;
                 }
@@ -345,7 +469,7 @@ function parseCricketLeg(lines) {
                 if (!isNaN(val) && val > 0 && val <= 50 && val >= expectedRound) {
                     const before = parts[i - 1];
                     const after = parts[i + 1];
-                    if ((/^\d+$/.test(before) || before === 'Start') && /^\d+$/.test(after)) {
+                    if ((/^\d+$/.test(before) || before === 'Start') && (/^\d+$/.test(after) || after === 'Start')) {
                         roundIdx = i;
                         break;
                     }
@@ -394,17 +518,19 @@ function parseCricketLeg(lines) {
             }
         }
 
-        // Record throws
+        // Record throws - always 3 darts per round (notation shows hits, not total darts)
         if (homePlayer) {
             const marks = parseHitNotation(homeHit);
-            throws.push({
+            const throwData = {
                 round,
                 side: 'home',
                 player: homePlayer,
                 hit: homeHit || '',
                 marks,
                 score: homeScore
-            });
+            };
+            throws.push(throwData);
+            lastHomeThrow = { player: homePlayer, round, darts: 3 };
 
             if (!playerStats[homePlayer]) {
                 playerStats[homePlayer] = { darts: 0, marks: 0, side: 'home' };
@@ -415,14 +541,16 @@ function parseCricketLeg(lines) {
 
         if (awayPlayer) {
             const marks = parseHitNotation(awayHit);
-            throws.push({
+            const throwData = {
                 round,
                 side: 'away',
                 player: awayPlayer,
                 hit: awayHit || '',
                 marks,
                 score: awayScore
-            });
+            };
+            throws.push(throwData);
+            lastAwayThrow = { player: awayPlayer, round, darts: 3 };
 
             if (!playerStats[awayPlayer]) {
                 playerStats[awayPlayer] = { darts: 0, marks: 0, side: 'away' };
@@ -432,7 +560,36 @@ function parseCricketLeg(lines) {
         }
     }
 
-    return { throws, playerStats };
+    // Adjust dart count for winner's closeout if provided externally
+    if (options.winner && options.closeoutDarts && options.closeoutDarts < 3) {
+        const lastThrow = options.winner === 'home' ? lastHomeThrow : lastAwayThrow;
+        if (lastThrow && playerStats[lastThrow.player]) {
+            // Only adjust if we counted 3 darts but should have counted fewer
+            if (lastThrow.darts === 3) {
+                const dartAdjustment = 3 - options.closeoutDarts;
+                playerStats[lastThrow.player].darts -= dartAdjustment;
+            }
+        }
+    }
+
+    // Determine winner from final scores (higher score wins in cricket)
+    let winner = null;
+    if (homeFinalScore !== null && awayFinalScore !== null) {
+        if (homeFinalScore > awayFinalScore) {
+            winner = 'home';
+        } else if (awayFinalScore > homeFinalScore) {
+            winner = 'away';
+        }
+        // If scores are equal, look for closing throw
+        if (!winner) {
+            const closingThrow = throws.find(t => t.isClosingThrow);
+            if (closingThrow) {
+                winner = closingThrow.side;
+            }
+        }
+    }
+
+    return { throws, playerStats, lastRound, summaryDarts, winner, homeFinalScore, awayFinalScore };
 }
 
 // Extract match metadata from header lines
@@ -546,6 +703,10 @@ function parseMatchSection(lines) {
                 const parsed = gameType === '501' ? parse501Leg(legLines) : parseCricketLeg(legLines);
                 currentLeg.throws = parsed.throws;
                 currentLeg.player_stats = calculateFinalStats(parsed.playerStats, gameType);
+                // For cricket, capture the winner from final scores
+                if (gameType === 'cricket' && parsed.winner) {
+                    currentLeg.winner = parsed.winner;
+                }
             }
 
             const gameNum = parseInt(gameMatch[1]);
@@ -591,6 +752,10 @@ function parseMatchSection(lines) {
         const parsed = gameType === '501' ? parse501Leg(legLines) : parseCricketLeg(legLines);
         currentLeg.throws = parsed.throws;
         currentLeg.player_stats = calculateFinalStats(parsed.playerStats, gameType);
+        // For cricket, capture the winner from final scores
+        if (gameType === 'cricket' && parsed.winner) {
+            currentLeg.winner = parsed.winner;
+        }
     }
     if (currentGame) games.push(currentGame);
 
@@ -730,10 +895,38 @@ function testWithVerification(filePath) {
     return games;
 }
 
+// Utility function to adjust cricket dart count for closeout
+// Call this after parsing when you know the winner and closeout darts
+// playerStats: the player_stats object from parsed leg
+// winnerSide: 'home' or 'away'
+// closeoutDarts: 1, 2, or 3 (actual darts used to close)
+function adjustCricketCloseoutDarts(playerStats, winnerSide, closeoutDarts) {
+    if (!playerStats || !winnerSide || closeoutDarts >= 3) return playerStats;
+
+    const dartAdjustment = 3 - closeoutDarts;
+
+    // Find the winner's player(s) and adjust their dart count
+    for (const [player, stats] of Object.entries(playerStats)) {
+        if (stats.side === winnerSide) {
+            // In doubles, both players on winning side might need adjustment
+            // For now, adjust all players on winning side proportionally
+            // This is a simplification - ideally we'd track who threw the closing darts
+            stats.darts -= dartAdjustment;
+            // Recalculate MPR if marks exist
+            if (stats.marks !== undefined && stats.darts > 0) {
+                stats.mpr = parseFloat(((stats.marks / stats.darts) * 3).toFixed(2));
+            }
+            break; // Only adjust one player (the one who closed) in singles
+        }
+    }
+
+    return playerStats;
+}
+
 // Run test
 const testFile = process.argv[2] || path.join(__dirname, 'dc', 'domjosh.rtf');
 if (fs.existsSync(testFile)) {
     testWithVerification(testFile);
 }
 
-module.exports = { parseRTFMatch, parseMultiMatchRTF, rtfToText, calculateFinalStats, parseHitNotation };
+module.exports = { parseRTFMatch, parseMultiMatchRTF, rtfToText, calculateFinalStats, parseHitNotation, adjustCricketCloseoutDarts };
