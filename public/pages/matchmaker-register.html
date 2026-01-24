@@ -338,6 +338,108 @@
 
         .hidden { display: none !important; }
 
+        /* Check-in Section */
+        .checkin-card {
+            background: var(--bg-panel);
+            border: 3px solid var(--teal);
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 6px 6px 0 rgba(0,0,0,0.4);
+            text-align: center;
+        }
+
+        .checkin-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 24px;
+            letter-spacing: 2px;
+            color: var(--teal);
+            margin-bottom: 15px;
+        }
+
+        .checkin-player-name {
+            font-size: 22px;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 10px;
+        }
+
+        .checkin-team-info {
+            color: var(--text-dim);
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+
+        .checkin-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border-radius: 30px;
+            font-weight: 700;
+            font-size: 14px;
+            text-transform: uppercase;
+            margin-bottom: 20px;
+        }
+
+        .checkin-status.registered {
+            background: rgba(253, 216, 53, 0.2);
+            border: 2px solid var(--yellow);
+            color: var(--yellow);
+        }
+
+        .checkin-status.checked-in {
+            background: rgba(34, 197, 94, 0.2);
+            border: 2px solid #22c55e;
+            color: #22c55e;
+        }
+
+        .checkin-btn {
+            width: 100%;
+            padding: 20px;
+            background: linear-gradient(135deg, var(--teal), #5ab8d4);
+            border: 4px solid #000;
+            color: #000;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 24px;
+            letter-spacing: 3px;
+            cursor: pointer;
+            box-shadow: 6px 6px 0 rgba(0,0,0,0.5);
+            transition: all 0.2s;
+            font-weight: 700;
+        }
+
+        .checkin-btn:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: 8px 8px 0 rgba(0,0,0,0.5);
+        }
+
+        .checkin-btn:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+            color: #999;
+        }
+
+        .checkin-time {
+            font-size: 12px;
+            color: var(--text-dim);
+            margin-top: 15px;
+        }
+
+        .or-register {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            color: var(--text-dim);
+            font-size: 13px;
+        }
+
+        .or-register a {
+            color: var(--pink);
+            cursor: pointer;
+            text-decoration: underline;
+        }
+
         @media (max-width: 500px) {
             .form-row { flex-direction: column; }
             .type-toggle { flex-direction: column; }
@@ -374,6 +476,42 @@
         </div>
 
         <div id="messageBox" class="message hidden"></div>
+
+        <!-- Check-in Section (shown when player is already registered) -->
+        <div id="checkinSection" class="checkin-card hidden">
+            <div class="checkin-title">ALREADY REGISTERED</div>
+            <div class="checkin-player-name" id="checkinPlayerName">-</div>
+            <div class="checkin-team-info" id="checkinTeamInfo"></div>
+            <div class="checkin-status registered" id="checkinStatusBadge">
+                <span id="checkinStatusIcon">&#x2713;</span>
+                <span id="checkinStatusText">REGISTERED</span>
+            </div>
+            <button class="checkin-btn" id="checkinBtn" onclick="checkInPlayer()">
+                CHECK IN AT VENUE
+            </button>
+            <div class="checkin-time hidden" id="checkinTime"></div>
+            <div class="or-register">
+                Not you? <a onclick="showRegistrationForm()">Register a different person</a>
+            </div>
+        </div>
+
+        <!-- PIN Entry for Check-in -->
+        <div id="pinCheckSection" class="form-section hidden">
+            <div class="section-title">ALREADY REGISTERED?</div>
+            <p style="color: var(--text-dim); margin-bottom: 15px; font-size: 14px;">
+                Enter your Player ID to check in at the venue.
+            </p>
+            <div class="form-group">
+                <label class="form-label">Your 8-Digit PIN</label>
+                <input type="password" class="form-input" id="checkinPinInput" placeholder="Enter your PIN" maxlength="8" inputmode="numeric">
+            </div>
+            <button class="submit-btn" onclick="lookupRegistration()" style="background: linear-gradient(135deg, var(--teal), #5ab8d4); color: #000; margin-top: 15px;">
+                FIND MY REGISTRATION
+            </button>
+            <div class="or-register" style="margin-top: 15px;">
+                New player? <a onclick="showRegistrationForm()">Register below</a>
+            </div>
+        </div>
 
         <!-- Registration Type Toggle -->
         <div class="type-toggle">
@@ -538,6 +676,9 @@
             p2: null
         };
 
+        // Check-in state
+        let currentRegistration = null;
+
         window.onload = async function() {
             if (!tournamentId) {
                 showMessage('Missing tournament ID', 'error');
@@ -545,6 +686,9 @@
             }
             await loadTournament();
             await loadStatus();
+
+            // Show PIN check section for returning players
+            document.getElementById('pinCheckSection').classList.remove('hidden');
         };
 
         async function loadTournament() {
@@ -720,6 +864,170 @@
                 setTimeout(() => box.classList.add('hidden'), 5000);
             }
         }
+
+        // ========== CHECK-IN FUNCTIONS ==========
+
+        window.lookupRegistration = async function() {
+            const pin = document.getElementById('checkinPinInput').value.trim();
+
+            if (!pin || pin.length < 4) {
+                showMessage('Please enter your PIN', 'error');
+                return;
+            }
+
+            try {
+                const result = await callFunction('findPlayerRegistration', {
+                    tournament_id: tournamentId,
+                    player_id: pin
+                });
+
+                if (result.success && result.found) {
+                    currentRegistration = result;
+                    showCheckinSection(result);
+                } else {
+                    showMessage('No registration found for this PIN. You can register below.', 'error');
+                    showRegistrationForm();
+                }
+            } catch (error) {
+                console.error('Lookup error:', error);
+                showMessage('Failed to look up registration: ' + error.message, 'error');
+            }
+        };
+
+        function showCheckinSection(regData) {
+            // Hide registration forms and PIN check
+            document.getElementById('pinCheckSection').classList.add('hidden');
+            document.getElementById('singleForm').classList.add('hidden');
+            document.getElementById('teamForm').classList.add('hidden');
+            document.querySelectorAll('.type-toggle').forEach(el => el.classList.add('hidden'));
+
+            // Show check-in section
+            const checkinSection = document.getElementById('checkinSection');
+            checkinSection.classList.remove('hidden');
+
+            // Update player name
+            document.getElementById('checkinPlayerName').textContent = regData.player_name;
+
+            // Update team info if applicable
+            const teamInfo = document.getElementById('checkinTeamInfo');
+            if (regData.team_name && regData.partner_name) {
+                teamInfo.textContent = `Team: ${regData.team_name} (with ${regData.partner_name})`;
+                teamInfo.classList.remove('hidden');
+            } else if (regData.registration_type === 'single') {
+                teamInfo.textContent = 'Registered as single - waiting to be matched';
+                teamInfo.classList.remove('hidden');
+            } else {
+                teamInfo.classList.add('hidden');
+            }
+
+            // Update status badge and button
+            const statusBadge = document.getElementById('checkinStatusBadge');
+            const statusText = document.getElementById('checkinStatusText');
+            const statusIcon = document.getElementById('checkinStatusIcon');
+            const checkinBtn = document.getElementById('checkinBtn');
+            const checkinTime = document.getElementById('checkinTime');
+
+            if (regData.checked_in) {
+                statusBadge.className = 'checkin-status checked-in';
+                statusText.textContent = 'CHECKED IN';
+                statusIcon.innerHTML = '&#x2713;';
+                checkinBtn.disabled = true;
+                checkinBtn.textContent = 'ALREADY CHECKED IN';
+
+                // Show check-in time
+                if (regData.checked_in_at) {
+                    const checkInDate = regData.checked_in_at.toDate ?
+                        regData.checked_in_at.toDate() : new Date(regData.checked_in_at);
+                    checkinTime.textContent = `Checked in at ${checkInDate.toLocaleTimeString()}`;
+                    checkinTime.classList.remove('hidden');
+                }
+            } else {
+                statusBadge.className = 'checkin-status registered';
+                statusText.textContent = 'REGISTERED';
+                statusIcon.innerHTML = '&#x2713;';
+                checkinBtn.disabled = false;
+                checkinBtn.textContent = 'CHECK IN AT VENUE';
+                checkinTime.classList.add('hidden');
+            }
+
+            // Handle no-show
+            if (regData.no_show) {
+                statusBadge.className = 'checkin-status';
+                statusBadge.style.background = 'rgba(239, 68, 68, 0.2)';
+                statusBadge.style.borderColor = '#ef4444';
+                statusBadge.style.color = '#ef4444';
+                statusText.textContent = 'NO SHOW';
+                checkinBtn.disabled = true;
+                checkinBtn.textContent = 'MARKED AS NO-SHOW';
+            }
+        }
+
+        window.checkInPlayer = async function() {
+            if (!currentRegistration) {
+                showMessage('No registration found', 'error');
+                return;
+            }
+
+            const checkinBtn = document.getElementById('checkinBtn');
+            checkinBtn.disabled = true;
+            checkinBtn.textContent = 'CHECKING IN...';
+
+            try {
+                const result = await callFunction('checkInPlayer', {
+                    tournament_id: tournamentId,
+                    registration_id: currentRegistration.registration_id,
+                    player_number: currentRegistration.player_number
+                });
+
+                if (result.success) {
+                    showMessage('You are checked in! See you at the boards.', 'success');
+
+                    // Update UI
+                    const statusBadge = document.getElementById('checkinStatusBadge');
+                    const statusText = document.getElementById('checkinStatusText');
+                    const checkinTime = document.getElementById('checkinTime');
+
+                    statusBadge.className = 'checkin-status checked-in';
+                    statusText.textContent = 'CHECKED IN';
+                    checkinBtn.textContent = 'ALREADY CHECKED IN';
+
+                    checkinTime.textContent = `Checked in at ${new Date().toLocaleTimeString()}`;
+                    checkinTime.classList.remove('hidden');
+
+                    // Update registration status
+                    await loadStatus();
+                } else {
+                    showMessage(result.error || 'Check-in failed', 'error');
+                    checkinBtn.disabled = false;
+                    checkinBtn.textContent = 'CHECK IN AT VENUE';
+                }
+            } catch (error) {
+                console.error('Check-in error:', error);
+                showMessage('Check-in failed: ' + error.message, 'error');
+                checkinBtn.disabled = false;
+                checkinBtn.textContent = 'CHECK IN AT VENUE';
+            }
+        };
+
+        window.showRegistrationForm = function() {
+            currentRegistration = null;
+
+            // Hide check-in section
+            document.getElementById('checkinSection').classList.add('hidden');
+            document.getElementById('pinCheckSection').classList.add('hidden');
+
+            // Show registration forms
+            document.querySelectorAll('.type-toggle').forEach(el => el.classList.remove('hidden'));
+
+            // Show appropriate form based on selected type
+            if (selectedType === 'single') {
+                document.getElementById('singleForm').classList.remove('hidden');
+                document.getElementById('teamForm').classList.add('hidden');
+            } else {
+                document.getElementById('singleForm').classList.add('hidden');
+                document.getElementById('teamForm').classList.remove('hidden');
+            }
+        };
     </script>
 </body>
 </html>

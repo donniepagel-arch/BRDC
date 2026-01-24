@@ -149,6 +149,15 @@
             margin-bottom: 20px;
             overflow: hidden;
             box-shadow: 5px 5px 0 rgba(0,0,0,0.4);
+            position: relative;
+        }
+
+        .match-card.in-progress {
+            border-color: var(--yellow);
+        }
+
+        .match-card.has-board {
+            border-color: var(--success);
         }
 
         .match-header {
@@ -160,6 +169,37 @@
             color: var(--text-dim);
             display: flex;
             justify-content: space-between;
+        }
+
+        /* Board badge */
+        .board-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
+
+        .board-badge.assigned {
+            background: var(--success);
+            color: white;
+        }
+
+        .board-badge.unassigned {
+            background: rgba(255,255,255,0.15);
+            color: var(--text-dim);
+        }
+
+        .board-badge.live {
+            background: var(--danger);
+            color: white;
+            animation: livePulse 1s ease-in-out infinite;
+        }
+
+        @keyframes livePulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
         }
 
         .match-body { padding: 0; }
@@ -517,7 +557,7 @@
     </div>
 
     <script type="module">
-        import { db, doc, getDoc, collection, getDocs, onSnapshot, callFunction } from '/js/firebase-config.js';
+        import { db, doc, getDoc, collection, getDocs, query, where, onSnapshot, callFunction } from '/js/firebase-config.js';
 
         const urlParams = new URLSearchParams(window.location.search);
         const tournamentId = urlParams.get('id');
@@ -525,6 +565,7 @@
         let tournamentData = null;
         let bracketData = null;
         let teams = [];
+        let matches = [];
         let currentBreakupTeam = null;
 
         window.onload = async function() {
@@ -535,6 +576,7 @@
 
             await loadTournament();
             await loadTeams();
+            await loadMatches();
             renderBracket();
 
             // Set up real-time listener for bracket updates
@@ -574,6 +616,42 @@
             }
         }
 
+        async function loadMatches() {
+            try {
+                const matchesSnap = await getDocs(collection(db, 'tournaments', tournamentId, 'matches'));
+                matches = matchesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            } catch (error) {
+                console.error('Error loading matches:', error);
+            }
+        }
+
+        function getMatchByTeams(team1Id, team2Id) {
+            return matches.find(m =>
+                (m.team1_id === team1Id && m.team2_id === team2Id) ||
+                (m.team1_id === team2Id && m.team2_id === team1Id)
+            );
+        }
+
+        function getBoardBadgeHtml(match) {
+            if (!match) return '';
+
+            if (match.status === 'in_progress' && match.board_number) {
+                return `<span class="board-badge live">LIVE - BOARD ${match.board_number}</span>`;
+            } else if (match.board_number) {
+                return `<span class="board-badge assigned">BOARD ${match.board_number}</span>`;
+            } else if (match.status === 'ready' || match.status === 'pending') {
+                return `<span class="board-badge unassigned">NO BOARD</span>`;
+            }
+            return '';
+        }
+
+        function getMatchCardClass(match) {
+            if (!match) return '';
+            if (match.status === 'in_progress') return 'in-progress';
+            if (match.board_number) return 'has-board';
+            return '';
+        }
+
         function renderBracket() {
             if (teams.length === 0) {
                 document.getElementById('winnersGrid').innerHTML = '<div class="loading">No teams registered yet</div>';
@@ -603,22 +681,30 @@
                     const team1 = team1Index !== null && team1Index < teams.length ? teams[team1Index] : null;
                     const team2 = team2Index !== null && team2Index < teams.length ? teams[team2Index] : null;
 
+                    // Check for actual match data
+                    const actualMatch = team1 && team2 ? getMatchByTeams(team1.id, team2.id) : null;
+                    const matchClass = getMatchCardClass(actualMatch);
+                    const boardBadge = getBoardBadgeHtml(actualMatch);
+                    const score1 = actualMatch?.team1_score ?? '-';
+                    const score2 = actualMatch?.team2_score ?? '-';
+
                     winnersHtml += `
-                        <div class="match-card">
+                        <div class="match-card ${matchClass}">
                             <div class="match-header">
                                 <span>Match ${matchNum}</span>
+                                ${boardBadge}
                                 <span>Bo${tournamentData?.winners_best_of || 5}</span>
                             </div>
                             <div class="match-body">
                                 <div class="team-slot ${team1 ? '' : 'empty'}" onclick="handleTeamClick('${team1?.id || ''}', 'winners')">
                                     <span class="team-seed">${team1Index !== null ? team1Index + 1 : '-'}</span>
                                     <span class="team-name">${team1?.team_name || 'TBD'}</span>
-                                    <span class="team-score">-</span>
+                                    <span class="team-score">${score1}</span>
                                 </div>
                                 <div class="team-slot ${team2 ? '' : 'empty'}" onclick="handleTeamClick('${team2?.id || ''}', 'winners')">
                                     <span class="team-seed">${team2Index !== null ? team2Index + 1 : '-'}</span>
                                     <span class="team-name">${team2?.team_name || 'TBD'}</span>
-                                    <span class="team-score">-</span>
+                                    <span class="team-score">${score2}</span>
                                 </div>
                             </div>
                         </div>

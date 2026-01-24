@@ -2156,12 +2156,14 @@ exports.createTeam = functions.https.onRequest(async (req, res) => {
             })),
             captain_id: player_ids[0], // P1 is captain
 
-            // Standings
+            // Standings (RULE 3 hierarchy: wins > sets > legs)
             wins: 0,
             losses: 0,
             ties: 0,
-            games_won: 0,
-            games_lost: 0,
+            games_won: 0,    // Sets won
+            games_lost: 0,   // Sets lost
+            legs_won: 0,     // Individual legs won (for tiebreakers)
+            legs_lost: 0,    // Individual legs lost (for tiebreakers)
             points: 0,
 
             created_at: admin.firestore.FieldValue.serverTimestamp()
@@ -2227,13 +2229,17 @@ exports.createTeamWithPlayers = functions.https.onRequest(async (req, res) => {
             return res.status(403).json({ success: false, error: 'Invalid PIN' });
         }
 
-        // Create the team
+        // Create the team (RULE 3 hierarchy: wins > sets > legs)
         const teamRef = await db.collection('leagues').doc(league_id)
             .collection('teams').add({
                 team_name: team_name.trim(),
                 wins: 0,
                 losses: 0,
                 ties: 0,
+                games_won: 0,    // Sets won
+                games_lost: 0,   // Sets lost
+                legs_won: 0,     // Individual legs won (for tiebreakers)
+                legs_lost: 0,    // Individual legs lost (for tiebreakers)
                 points_for: 0,
                 points_against: 0,
                 created_at: admin.firestore.FieldValue.serverTimestamp()
@@ -2353,26 +2359,39 @@ exports.getStandings = functions.https.onRequest(async (req, res) => {
         const teams = [];
         teamsSnapshot.forEach(doc => {
             const team = doc.data();
-            const totalMatches = team.wins + team.losses + team.ties;
-            const winPct = totalMatches > 0 ? (team.wins / totalMatches * 100).toFixed(1) : '0.0';
-            const totalGames = team.games_won + team.games_lost;
-            const gamePct = totalGames > 0 ? (team.games_won / totalGames * 100).toFixed(1) : '0.0';
+            const totalMatches = (team.wins || 0) + (team.losses || 0) + (team.ties || 0);
+            const winPct = totalMatches > 0 ? ((team.wins || 0) / totalMatches * 100).toFixed(1) : '0.0';
+            const totalGames = (team.games_won || 0) + (team.games_lost || 0);
+            const gamePct = totalGames > 0 ? ((team.games_won || 0) / totalGames * 100).toFixed(1) : '0.0';
+            // RULE 3: Also track leg totals and percentages
+            const totalLegs = (team.legs_won || 0) + (team.legs_lost || 0);
+            const legPct = totalLegs > 0 ? ((team.legs_won || 0) / totalLegs * 100).toFixed(1) : '0.0';
 
             teams.push({
                 id: doc.id,
                 ...team,
+                // Ensure these fields exist even if not in database yet
+                legs_won: team.legs_won || 0,
+                legs_lost: team.legs_lost || 0,
                 total_matches: totalMatches,
                 win_pct: parseFloat(winPct),
                 total_games: totalGames,
-                game_pct: parseFloat(gamePct)
+                game_pct: parseFloat(gamePct),
+                total_legs: totalLegs,
+                leg_pct: parseFloat(legPct)
             });
         });
 
-        // Sort by points, then wins, then game percentage
+        // Sort by RULE 3 hierarchy: Match wins > Set wins > Leg wins > Head-to-head
         teams.sort((a, b) => {
-            if (b.points !== a.points) return b.points - a.points;
+            // 1. Match wins (nights won)
             if (b.wins !== a.wins) return b.wins - a.wins;
-            return b.game_pct - a.game_pct;
+            // 2. Set wins (games_won = sets won within matches)
+            if ((b.games_won || 0) !== (a.games_won || 0)) return (b.games_won || 0) - (a.games_won || 0);
+            // 3. Leg wins (individual legs within sets)
+            if ((b.legs_won || 0) !== (a.legs_won || 0)) return (b.legs_won || 0) - (a.legs_won || 0);
+            // 4. Head-to-head (not implemented yet - would need match history lookup)
+            return 0;
         });
 
         // Add rank
@@ -4230,6 +4249,16 @@ exports.completeMatch = functions.https.onRequest(async (req, res) => {
             completed_at: admin.firestore.FieldValue.serverTimestamp()
         });
 
+        // Calculate total legs won/lost from games array (RULE 3: track legs for tiebreakers)
+        let homeTotalLegsWon = 0;
+        let awayTotalLegsWon = 0;
+        if (games && Array.isArray(games)) {
+            for (const game of games) {
+                homeTotalLegsWon += game.home_legs_won || 0;
+                awayTotalLegsWon += game.away_legs_won || 0;
+            }
+        }
+
         // Update team standings
         const batch = db.batch();
 
@@ -4243,24 +4272,32 @@ exports.completeMatch = functions.https.onRequest(async (req, res) => {
                 wins: admin.firestore.FieldValue.increment(1),
                 points: admin.firestore.FieldValue.increment(2),
                 games_won: admin.firestore.FieldValue.increment(home_score),
-                games_lost: admin.firestore.FieldValue.increment(away_score)
+                games_lost: admin.firestore.FieldValue.increment(away_score),
+                legs_won: admin.firestore.FieldValue.increment(homeTotalLegsWon),
+                legs_lost: admin.firestore.FieldValue.increment(awayTotalLegsWon)
             });
             batch.update(awayTeamRef, {
                 losses: admin.firestore.FieldValue.increment(1),
                 games_won: admin.firestore.FieldValue.increment(away_score),
-                games_lost: admin.firestore.FieldValue.increment(home_score)
+                games_lost: admin.firestore.FieldValue.increment(home_score),
+                legs_won: admin.firestore.FieldValue.increment(awayTotalLegsWon),
+                legs_lost: admin.firestore.FieldValue.increment(homeTotalLegsWon)
             });
         } else if (matchWinner === 'away') {
             batch.update(awayTeamRef, {
                 wins: admin.firestore.FieldValue.increment(1),
                 points: admin.firestore.FieldValue.increment(2),
                 games_won: admin.firestore.FieldValue.increment(away_score),
-                games_lost: admin.firestore.FieldValue.increment(home_score)
+                games_lost: admin.firestore.FieldValue.increment(home_score),
+                legs_won: admin.firestore.FieldValue.increment(awayTotalLegsWon),
+                legs_lost: admin.firestore.FieldValue.increment(homeTotalLegsWon)
             });
             batch.update(homeTeamRef, {
                 losses: admin.firestore.FieldValue.increment(1),
                 games_won: admin.firestore.FieldValue.increment(home_score),
-                games_lost: admin.firestore.FieldValue.increment(away_score)
+                games_lost: admin.firestore.FieldValue.increment(away_score),
+                legs_won: admin.firestore.FieldValue.increment(homeTotalLegsWon),
+                legs_lost: admin.firestore.FieldValue.increment(awayTotalLegsWon)
             });
         } else {
             // Tie - each team gets 1 point
@@ -4268,13 +4305,17 @@ exports.completeMatch = functions.https.onRequest(async (req, res) => {
                 ties: admin.firestore.FieldValue.increment(1),
                 points: admin.firestore.FieldValue.increment(1),
                 games_won: admin.firestore.FieldValue.increment(home_score),
-                games_lost: admin.firestore.FieldValue.increment(away_score)
+                games_lost: admin.firestore.FieldValue.increment(away_score),
+                legs_won: admin.firestore.FieldValue.increment(homeTotalLegsWon),
+                legs_lost: admin.firestore.FieldValue.increment(awayTotalLegsWon)
             });
             batch.update(awayTeamRef, {
                 ties: admin.firestore.FieldValue.increment(1),
                 points: admin.firestore.FieldValue.increment(1),
                 games_won: admin.firestore.FieldValue.increment(away_score),
-                games_lost: admin.firestore.FieldValue.increment(home_score)
+                games_lost: admin.firestore.FieldValue.increment(home_score),
+                legs_won: admin.firestore.FieldValue.increment(awayTotalLegsWon),
+                legs_lost: admin.firestore.FieldValue.increment(homeTotalLegsWon)
             });
         }
 
@@ -4454,7 +4495,9 @@ exports.setupBotLeague = functions.https.onRequest(async (req, res) => {
                 ],
                 captain_id: aPlayerId,
                 wins: 0, losses: 0, ties: 0,
-                games_won: 0, games_lost: 0, points: 0,
+                games_won: 0, games_lost: 0,
+                legs_won: 0, legs_lost: 0,  // RULE 3: track legs for tiebreakers
+                points: 0,
                 created_at: admin.firestore.FieldValue.serverTimestamp()
             };
 

@@ -42,6 +42,28 @@
             --border-medium: rgba(255, 255, 255, 0.15);
         }
 
+        /* Offline Banner */
+        .offline-banner {
+            display: none;
+            background: linear-gradient(90deg, #f59e0b 0%, #d97706 100%);
+            color: #000;
+            padding: 8px 16px;
+            text-align: center;
+            font-weight: 700;
+            font-size: 13px;
+            letter-spacing: 1px;
+            animation: pulse-offline 2s ease-in-out infinite;
+            position: relative;
+            z-index: 1000;
+        }
+        .offline-banner.visible {
+            display: block;
+        }
+        @keyframes pulse-offline {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.85; }
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -1114,6 +1136,9 @@
     </style>
 </head>
 <body>
+    <!-- Offline Banner -->
+    <div class="offline-banner" id="offlineBanner">OFFLINE - Game will sync when connected</div>
+
     <button class="exit-btn" onclick="exitGame()">EXIT</button>
 
     <!-- Casual Setup Screen -->
@@ -1405,6 +1430,18 @@ import { callWithQueue, setupOfflineQueue } from '/js/offline-storage.js';
 
 // Setup offline queue for automatic retry
 setupOfflineQueue(callFunction);
+
+// Offline detection
+function showOfflineBanner() {
+    document.getElementById('offlineBanner')?.classList.add('visible');
+}
+function hideOfflineBanner() {
+    document.getElementById('offlineBanner')?.classList.remove('visible');
+}
+window.addEventListener('online', hideOfflineBanner);
+window.addEventListener('offline', showOfflineBanner);
+// Check initial state
+if (!navigator.onLine) showOfflineBanner();
 
 // URL Parameters
 const params = new URLSearchParams(window.location.search);

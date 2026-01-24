@@ -162,12 +162,16 @@ exports.matchmakerRegister = functions.https.onRequest(async (req, res) => {
                 player1: {
                     name: player1.name,
                     player_id: player1.player_id || null,
-                    gender: player1.gender
+                    gender: player1.gender,
+                    checked_in: false,
+                    checked_in_at: null
                 },
                 player2: {
                     name: player2.name,
                     player_id: player2.player_id || null,
-                    gender: player2.gender
+                    gender: player2.gender,
+                    checked_in: false,
+                    checked_in_at: null
                 },
                 matched: true,  // Pre-formed teams are already matched
                 registered_at: timestamp
@@ -195,7 +199,9 @@ exports.matchmakerRegister = functions.https.onRequest(async (req, res) => {
                 player: {
                     name: player.name,
                     player_id: player.player_id || null,
-                    gender: player.gender
+                    gender: player.gender,
+                    checked_in: false,
+                    checked_in_at: null
                 },
                 matched: false,
                 matched_with: null,
@@ -1691,6 +1697,590 @@ exports.getAvailableNudgeTargets = functions.https.onRequest(async (req, res) =>
 
     } catch (error) {
         console.error('Get available nudge targets error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * Check in a player at the venue
+ * Updates the player's checked_in status and timestamp
+ */
+exports.checkInPlayer = functions.https.onRequest(async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+    if (req.method === 'OPTIONS') return res.status(204).send('');
+
+    try {
+        const { tournament_id, registration_id, player_number, director_pin } = req.body;
+
+        if (!tournament_id || !registration_id) {
+            return res.status(400).json({
+                success: false,
+                error: 'Missing required fields: tournament_id, registration_id'
+            });
+        }
+
+        const tournamentRef = db.collection('tournaments').doc(tournament_id);
+        const tournamentDoc = await tournamentRef.get();
+
+        if (!tournamentDoc.exists) {
+            return res.status(404).json({ success: false, error: 'Tournament not found' });
+        }
+
+        const tournament = tournamentDoc.data();
+
+        // Optional: Verify director PIN if provided
+        if (director_pin && tournament.director_pin !== director_pin) {
+            return res.status(403).json({ success: false, error: 'Invalid PIN' });
+        }
+
+        // Get the registration
+        const regRef = tournamentRef.collection('registrations').doc(registration_id);
+        const regDoc = await regRef.get();
+
+        if (!regDoc.exists) {
+            return res.status(404).json({ success: false, error: 'Registration not found' });
+        }
+
+        const reg = regDoc.data();
+        const timestamp = admin.firestore.FieldValue.serverTimestamp();
+
+        // Handle different registration types
+        if (reg.type === 'single') {
+            // Single registration - just check in the player
+            await regRef.update({
+                'player.checked_in': true,
+                'player.checked_in_at': timestamp
+            });
+
+            return res.json({
+                success: true,
+                message: `${reg.player.name} checked in successfully`,
+                player_name: reg.player.name,
+                checked_in_at: new Date().toISOString()
+            });
+
+        } else if (reg.type === 'team' || reg.type === 'matched_team' || reg.type === 'cupid_matched_team') {
+            // Team registration - check in specific player (1 or 2) or both
+            if (player_number === 1 || player_number === 'player1') {
+                await regRef.update({
+                    'player1.checked_in': true,
+                    'player1.checked_in_at': timestamp
+                });
+                return res.json({
+                    success: true,
+                    message: `${reg.player1.name} checked in successfully`,
+                    player_name: reg.player1.name,
+                    checked_in_at: new Date().toISOString()
+                });
+
+            } else if (player_number === 2 || player_number === 'player2') {
+                await regRef.update({
+                    'player2.checked_in': true,
+                    'player2.checked_in_at': timestamp
+                });
+                return res.json({
+                    success: true,
+                    message: `${reg.player2.name} checked in successfully`,
+                    player_name: reg.player2.name,
+                    checked_in_at: new Date().toISOString()
+                });
+
+            } else {
+                // Check in both players
+                await regRef.update({
+                    'player1.checked_in': true,
+                    'player1.checked_in_at': timestamp,
+                    'player2.checked_in': true,
+                    'player2.checked_in_at': timestamp
+                });
+                return res.json({
+                    success: true,
+                    message: `${reg.player1.name} & ${reg.player2.name} checked in successfully`,
+                    checked_in_at: new Date().toISOString()
+                });
+            }
+        } else {
+            return res.status(400).json({
+                success: false,
+                error: 'Unknown registration type'
+            });
+        }
+
+    } catch (error) {
+        console.error('Check in player error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * Get check-in status for a tournament
+ * Returns list of all registrations with check-in status
+ */
+exports.getCheckInStatus = functions.https.onRequest(async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+    if (req.method === 'OPTIONS') return res.status(204).send('');
+
+    try {
+        const tournament_id = req.query.tournament_id || req.body.tournament_id;
+
+        if (!tournament_id) {
+            return res.status(400).json({ success: false, error: 'Missing tournament_id' });
+        }
+
+        const tournamentRef = db.collection('tournaments').doc(tournament_id);
+        const tournamentDoc = await tournamentRef.get();
+
+        if (!tournamentDoc.exists) {
+            return res.status(404).json({ success: false, error: 'Tournament not found' });
+        }
+
+        const registrationsSnap = await tournamentRef.collection('registrations').get();
+
+        const registrations = [];
+        let totalPlayers = 0;
+        let checkedInPlayers = 0;
+
+        registrationsSnap.docs.forEach(doc => {
+            const reg = { id: doc.id, ...doc.data() };
+
+            if (reg.type === 'single') {
+                totalPlayers++;
+                if (reg.player?.checked_in) checkedInPlayers++;
+
+                registrations.push({
+                    id: doc.id,
+                    type: reg.type,
+                    name: reg.player?.name,
+                    gender: reg.player?.gender,
+                    checked_in: reg.player?.checked_in || false,
+                    checked_in_at: reg.player?.checked_in_at,
+                    registered_at: reg.registered_at,
+                    matched: reg.matched,
+                    no_show: reg.no_show || false
+                });
+
+            } else if (reg.type === 'team' || reg.type === 'matched_team' || reg.type === 'cupid_matched_team') {
+                totalPlayers += 2;
+                if (reg.player1?.checked_in) checkedInPlayers++;
+                if (reg.player2?.checked_in) checkedInPlayers++;
+
+                registrations.push({
+                    id: doc.id,
+                    type: reg.type,
+                    team_name: reg.team_name,
+                    player1: {
+                        name: reg.player1?.name,
+                        gender: reg.player1?.gender,
+                        checked_in: reg.player1?.checked_in || false,
+                        checked_in_at: reg.player1?.checked_in_at
+                    },
+                    player2: {
+                        name: reg.player2?.name,
+                        gender: reg.player2?.gender,
+                        checked_in: reg.player2?.checked_in || false,
+                        checked_in_at: reg.player2?.checked_in_at
+                    },
+                    registered_at: reg.registered_at,
+                    no_show: reg.no_show || false
+                });
+            }
+        });
+
+        // Sort by check-in status (not checked in first), then by registration time
+        registrations.sort((a, b) => {
+            // Singles
+            if (a.type === 'single' && b.type === 'single') {
+                if (a.checked_in !== b.checked_in) {
+                    return a.checked_in ? 1 : -1; // Not checked in first
+                }
+            }
+            // Teams - sort by whether team is fully checked in
+            const aFullyCheckedIn = a.type === 'single' ? a.checked_in :
+                (a.player1?.checked_in && a.player2?.checked_in);
+            const bFullyCheckedIn = b.type === 'single' ? b.checked_in :
+                (b.player1?.checked_in && b.player2?.checked_in);
+
+            if (aFullyCheckedIn !== bFullyCheckedIn) {
+                return aFullyCheckedIn ? 1 : -1;
+            }
+
+            return 0;
+        });
+
+        res.json({
+            success: true,
+            total_players: totalPlayers,
+            checked_in_players: checkedInPlayers,
+            check_in_percentage: totalPlayers > 0 ?
+                Math.round((checkedInPlayers / totalPlayers) * 100) : 0,
+            registrations: registrations
+        });
+
+    } catch (error) {
+        console.error('Get check-in status error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * Mark a player/team as no-show
+ * For players who registered but didn't arrive at the venue
+ */
+exports.markNoShow = functions.https.onRequest(async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+    if (req.method === 'OPTIONS') return res.status(204).send('');
+
+    try {
+        const { tournament_id, registration_id, director_pin, reason } = req.body;
+
+        if (!tournament_id || !registration_id || !director_pin) {
+            return res.status(400).json({
+                success: false,
+                error: 'Missing required fields: tournament_id, registration_id, director_pin'
+            });
+        }
+
+        const tournamentRef = db.collection('tournaments').doc(tournament_id);
+        const tournamentDoc = await tournamentRef.get();
+
+        if (!tournamentDoc.exists) {
+            return res.status(404).json({ success: false, error: 'Tournament not found' });
+        }
+
+        const tournament = tournamentDoc.data();
+
+        // Verify director PIN
+        if (tournament.director_pin !== director_pin) {
+            return res.status(403).json({ success: false, error: 'Invalid PIN' });
+        }
+
+        // Get the registration
+        const regRef = tournamentRef.collection('registrations').doc(registration_id);
+        const regDoc = await regRef.get();
+
+        if (!regDoc.exists) {
+            return res.status(404).json({ success: false, error: 'Registration not found' });
+        }
+
+        const reg = regDoc.data();
+        const timestamp = admin.firestore.FieldValue.serverTimestamp();
+
+        // Mark as no-show
+        await regRef.update({
+            no_show: true,
+            no_show_at: timestamp,
+            no_show_reason: reason || 'Did not arrive at venue'
+        });
+
+        // Get player/team name for response
+        let name = '';
+        if (reg.type === 'single') {
+            name = reg.player?.name || 'Unknown';
+        } else {
+            name = reg.team_name || `${reg.player1?.name} & ${reg.player2?.name}`;
+        }
+
+        res.json({
+            success: true,
+            message: `${name} marked as no-show`,
+            registration_id: registration_id,
+            no_show_at: new Date().toISOString()
+        });
+
+    } catch (error) {
+        console.error('Mark no-show error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * Find a player's registration by their player_id (PIN)
+ * Used for self-check-in from the registration page
+ */
+exports.findPlayerRegistration = functions.https.onRequest(async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+    if (req.method === 'OPTIONS') return res.status(204).send('');
+
+    try {
+        const tournament_id = req.query.tournament_id || req.body.tournament_id;
+        const player_id = req.query.player_id || req.body.player_id;
+
+        if (!tournament_id || !player_id) {
+            return res.status(400).json({
+                success: false,
+                error: 'Missing tournament_id or player_id'
+            });
+        }
+
+        const tournamentRef = db.collection('tournaments').doc(tournament_id);
+        const tournamentDoc = await tournamentRef.get();
+
+        if (!tournamentDoc.exists) {
+            return res.status(404).json({ success: false, error: 'Tournament not found' });
+        }
+
+        // Search for registration with this player_id
+        const registrationsSnap = await tournamentRef.collection('registrations').get();
+
+        let foundReg = null;
+        let playerNumber = null;
+
+        for (const doc of registrationsSnap.docs) {
+            const reg = doc.data();
+
+            if (reg.type === 'single' && reg.player?.player_id === player_id) {
+                foundReg = { id: doc.id, ...reg };
+                playerNumber = null;
+                break;
+            }
+
+            if ((reg.type === 'team' || reg.type === 'matched_team' || reg.type === 'cupid_matched_team')) {
+                if (reg.player1?.player_id === player_id) {
+                    foundReg = { id: doc.id, ...reg };
+                    playerNumber = 1;
+                    break;
+                }
+                if (reg.player2?.player_id === player_id) {
+                    foundReg = { id: doc.id, ...reg };
+                    playerNumber = 2;
+                    break;
+                }
+            }
+        }
+
+        if (!foundReg) {
+            return res.json({
+                success: true,
+                found: false,
+                message: 'No registration found for this player'
+            });
+        }
+
+        // Determine check-in status
+        let checked_in = false;
+        let player_name = '';
+
+        if (foundReg.type === 'single') {
+            checked_in = foundReg.player?.checked_in || false;
+            player_name = foundReg.player?.name || '';
+        } else {
+            if (playerNumber === 1) {
+                checked_in = foundReg.player1?.checked_in || false;
+                player_name = foundReg.player1?.name || '';
+            } else {
+                checked_in = foundReg.player2?.checked_in || false;
+                player_name = foundReg.player2?.name || '';
+            }
+        }
+
+        res.json({
+            success: true,
+            found: true,
+            registration_id: foundReg.id,
+            registration_type: foundReg.type,
+            player_number: playerNumber,
+            player_name: player_name,
+            team_name: foundReg.team_name || null,
+            partner_name: playerNumber === 1 ? foundReg.player2?.name :
+                         playerNumber === 2 ? foundReg.player1?.name : null,
+            checked_in: checked_in,
+            checked_in_at: foundReg.type === 'single' ?
+                foundReg.player?.checked_in_at :
+                (playerNumber === 1 ? foundReg.player1?.checked_in_at : foundReg.player2?.checked_in_at),
+            registered_at: foundReg.registered_at,
+            no_show: foundReg.no_show || false
+        });
+
+    } catch (error) {
+        console.error('Find player registration error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * Assign a dart board to a match
+ * Allows directors to specify which physical board a match will be played on
+ */
+exports.assignMatchBoard = functions.https.onRequest(async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+    if (req.method === 'OPTIONS') return res.status(204).send('');
+
+    try {
+        const { tournament_id, match_id, board_number, director_pin } = req.body;
+
+        if (!tournament_id || !match_id) {
+            return res.status(400).json({
+                success: false,
+                error: 'Missing required fields: tournament_id, match_id'
+            });
+        }
+
+        const tournamentRef = db.collection('tournaments').doc(tournament_id);
+        const tournamentDoc = await tournamentRef.get();
+
+        if (!tournamentDoc.exists) {
+            return res.status(404).json({ success: false, error: 'Tournament not found' });
+        }
+
+        const tournament = tournamentDoc.data();
+
+        // Verify director PIN if provided
+        if (director_pin && tournament.director_pin !== director_pin) {
+            return res.status(403).json({ success: false, error: 'Invalid PIN' });
+        }
+
+        // Validate board number against venue configuration
+        const venueBoardCount = tournament.venue_board_count || 0;
+        if (board_number !== null && board_number !== undefined) {
+            const boardNum = parseInt(board_number);
+            if (isNaN(boardNum) || boardNum < 1 || boardNum > venueBoardCount) {
+                return res.status(400).json({
+                    success: false,
+                    error: `Invalid board number. Must be between 1 and ${venueBoardCount}`
+                });
+            }
+        }
+
+        // Check if board is already assigned to another active match
+        if (board_number !== null && board_number !== undefined) {
+            const matchesSnap = await tournamentRef.collection('matches')
+                .where('board_number', '==', parseInt(board_number))
+                .where('status', 'in', ['in_progress', 'ready'])
+                .get();
+
+            const conflictingMatches = matchesSnap.docs.filter(doc => doc.id !== match_id);
+            if (conflictingMatches.length > 0) {
+                return res.status(400).json({
+                    success: false,
+                    error: `Board ${board_number} is already assigned to another active match`
+                });
+            }
+        }
+
+        // Update the match with the board assignment
+        const matchRef = tournamentRef.collection('matches').doc(match_id);
+        const matchDoc = await matchRef.get();
+
+        if (!matchDoc.exists) {
+            return res.status(404).json({ success: false, error: 'Match not found' });
+        }
+
+        const updateData = {
+            board_number: board_number !== null && board_number !== undefined ? parseInt(board_number) : null,
+            board_assigned_at: admin.firestore.FieldValue.serverTimestamp()
+        };
+
+        await matchRef.update(updateData);
+
+        res.json({
+            success: true,
+            message: board_number ? `Match assigned to Board ${board_number}` : 'Board assignment removed',
+            match_id: match_id,
+            board_number: updateData.board_number
+        });
+
+    } catch (error) {
+        console.error('Assign match board error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * Get board status for a tournament
+ * Returns current board assignments and availability
+ */
+exports.getBoardStatus = functions.https.onRequest(async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+    if (req.method === 'OPTIONS') return res.status(204).send('');
+
+    try {
+        const tournament_id = req.query.tournament_id || req.body.tournament_id;
+
+        if (!tournament_id) {
+            return res.status(400).json({ success: false, error: 'Missing tournament_id' });
+        }
+
+        const tournamentRef = db.collection('tournaments').doc(tournament_id);
+        const tournamentDoc = await tournamentRef.get();
+
+        if (!tournamentDoc.exists) {
+            return res.status(404).json({ success: false, error: 'Tournament not found' });
+        }
+
+        const tournament = tournamentDoc.data();
+        const venueBoardCount = tournament.venue_board_count || 0;
+
+        // Get all matches with board assignments
+        const matchesSnap = await tournamentRef.collection('matches').get();
+
+        const boards = {};
+        for (let i = 1; i <= venueBoardCount; i++) {
+            boards[i] = {
+                board_number: i,
+                status: 'available',
+                match: null
+            };
+        }
+
+        const activeMatches = [];
+        const pendingMatches = [];
+
+        matchesSnap.docs.forEach(doc => {
+            const match = { id: doc.id, ...doc.data() };
+
+            if (match.status === 'in_progress' || match.status === 'ready') {
+                if (match.status === 'in_progress') {
+                    activeMatches.push(match);
+                } else {
+                    pendingMatches.push(match);
+                }
+
+                if (match.board_number && boards[match.board_number]) {
+                    boards[match.board_number] = {
+                        board_number: match.board_number,
+                        status: match.status === 'in_progress' ? 'in_use' : 'assigned',
+                        match: {
+                            id: match.id,
+                            team1_name: match.team1_name,
+                            team2_name: match.team2_name,
+                            status: match.status,
+                            team1_score: match.team1_score || 0,
+                            team2_score: match.team2_score || 0
+                        }
+                    };
+                }
+            }
+        });
+
+        res.json({
+            success: true,
+            venue_board_count: venueBoardCount,
+            boards: Object.values(boards),
+            active_matches: activeMatches.length,
+            pending_matches: pendingMatches.length,
+            available_boards: Object.values(boards).filter(b => b.status === 'available').length
+        });
+
+    } catch (error) {
+        console.error('Get board status error:', error);
         res.status(500).json({ success: false, error: error.message });
     }
 });

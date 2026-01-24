@@ -182,6 +182,45 @@
             color: var(--text-dim);
         }
 
+        .bracket-match.in-progress {
+            border: 4px solid var(--yellow);
+            animation: matchPulse 2s ease-in-out infinite;
+        }
+
+        @keyframes matchPulse {
+            0%, 100% { box-shadow: 8px 8px 0 rgba(0,0,0,0.5); }
+            50% { box-shadow: 8px 8px 20px rgba(253, 216, 53, 0.4); }
+        }
+
+        .bracket-board-badge {
+            position: absolute;
+            top: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--yellow);
+            color: #000;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 20px;
+            padding: 5px 20px;
+            border-radius: 5px;
+            border: 3px solid #000;
+            letter-spacing: 2px;
+        }
+
+        .bracket-match {
+            position: relative;
+        }
+
+        .bracket-score.live {
+            color: var(--yellow);
+            animation: scorePulse 1s ease-in-out infinite;
+        }
+
+        @keyframes scorePulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
         /* ========== PARTNER REVEAL MODE ========== */
         #partnerRevealView {
             background: radial-gradient(ellipse at center, rgba(255, 70, 154, 0.2) 0%, transparent 70%);
@@ -363,6 +402,38 @@
             font-family: 'Bebas Neue', cursive;
             font-size: 56px;
             color: var(--text-dim);
+        }
+
+        .call-match.in-progress {
+            border-color: var(--yellow);
+            animation: liveMatchPulse 2s ease-in-out infinite;
+        }
+
+        @keyframes liveMatchPulse {
+            0%, 100% { box-shadow: 10px 10px 0 rgba(0,0,0,0.5); }
+            50% { box-shadow: 10px 10px 30px rgba(253, 216, 53, 0.5); }
+        }
+
+        .call-board.live {
+            background: linear-gradient(135deg, var(--danger), #dc2626);
+            animation: liveBoardPulse 1s ease-in-out infinite;
+        }
+
+        @keyframes liveBoardPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
+        }
+
+        .call-match.in-progress .call-vs {
+            color: var(--yellow);
+            font-size: 64px;
+        }
+
+        .call-score {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 48px;
+            color: var(--yellow);
+            margin-top: 10px;
         }
 
         /* ========== HEARTBREAKER ALERT MODE ========== */
@@ -714,16 +785,25 @@
             const score1 = match.team1_score || 0;
             const score2 = match.team2_score || 0;
             const isComplete = match.status === 'completed';
+            const isInProgress = match.status === 'in_progress';
             const winner = match.winner;
 
             const team1Class = isComplete && winner === 'team1' ? 'winner' : (isComplete ? 'loser' : '');
             const team2Class = isComplete && winner === 'team2' ? 'winner' : (isComplete ? 'loser' : '');
 
+            // Board badge for active matches
+            const boardBadge = (isInProgress || match.status === 'ready') && match.board_number
+                ? `<div class="bracket-board-badge">BOARD ${match.board_number}</div>`
+                : '';
+
             return `
-                <div class="bracket-match">
+                <div class="bracket-match ${isInProgress ? 'in-progress' : ''}">
+                    ${boardBadge}
                     <div class="bracket-team ${team1Class}">${team1}</div>
                     ${isComplete ? `
                         <div class="bracket-score">${score1} - ${score2}</div>
+                    ` : isInProgress ? `
+                        <div class="bracket-score live">${score1} - ${score2}</div>
                     ` : `
                         <div class="bracket-vs">VS</div>
                     `}
@@ -782,17 +862,27 @@
         // ========== MATCH CALL LISTENER ==========
         async function setupMatchCallListener() {
             try {
-                // Listen for current round matches
+                // Listen for active and ready matches (shows both pending and in-progress)
                 const matchesRef = collection(db, 'tournaments', tournamentId, 'matches');
-                const q = query(matchesRef, where('status', '==', 'ready'), orderBy('board_number'));
 
-                unsubscribeListener = onSnapshot(q, (snapshot) => {
-                    const matches = [];
+                unsubscribeListener = onSnapshot(matchesRef, (snapshot) => {
+                    const allMatches = [];
                     snapshot.forEach(doc => {
-                        matches.push({ id: doc.id, ...doc.data() });
+                        const match = { id: doc.id, ...doc.data() };
+                        // Show matches that are ready or in progress
+                        if (match.status === 'ready' || match.status === 'in_progress') {
+                            allMatches.push(match);
+                        }
                     });
 
-                    renderMatchCall(matches);
+                    // Sort by board number, then by status (in_progress first)
+                    allMatches.sort((a, b) => {
+                        if (a.status === 'in_progress' && b.status !== 'in_progress') return -1;
+                        if (b.status === 'in_progress' && a.status !== 'in_progress') return 1;
+                        return (a.board_number || 999) - (b.board_number || 999);
+                    });
+
+                    renderMatchCall(allMatches);
                 });
             } catch (error) {
                 console.error('Error setting up match call listener:', error);
@@ -808,9 +898,10 @@
                 return;
             }
 
-            // Get round name from first match
-            const roundName = matches[0]?.round_name || 'ROUND 1';
-            roundEl.textContent = roundName.toUpperCase();
+            // Count active vs ready
+            const activeCount = matches.filter(m => m.status === 'in_progress').length;
+            const readyCount = matches.filter(m => m.status === 'ready').length;
+            roundEl.textContent = activeCount > 0 ? `${activeCount} MATCH${activeCount !== 1 ? 'ES' : ''} IN PROGRESS` : 'NEXT MATCHES';
 
             container.innerHTML = matches.map(match => {
                 const boardNum = match.board_number || '?';
@@ -818,16 +909,20 @@
                 const team2 = match.team2_name || 'TBD';
                 const players1 = match.team1_players ? match.team1_players.join(' & ') : '';
                 const players2 = match.team2_players ? match.team2_players.join(' & ') : '';
+                const isInProgress = match.status === 'in_progress';
+                const score1 = match.team1_score || 0;
+                const score2 = match.team2_score || 0;
 
                 return `
-                    <div class="call-match">
-                        <div class="call-board">BOARD ${boardNum}</div>
+                    <div class="call-match ${isInProgress ? 'in-progress' : ''}">
+                        <div class="call-board ${isInProgress ? 'live' : ''}">${isInProgress ? 'LIVE - ' : ''}BOARD ${boardNum}</div>
                         <div class="call-teams">
                             <div class="call-team">
                                 <div class="call-team-name home">${team1}</div>
                                 <div class="call-team-players">${players1}</div>
+                                ${isInProgress ? `<div class="call-score">${score1}</div>` : ''}
                             </div>
-                            <div class="call-vs">VS</div>
+                            <div class="call-vs">${isInProgress ? `${score1} - ${score2}` : 'VS'}</div>
                             <div class="call-team">
                                 <div class="call-team-name away">${team2}</div>
                                 <div class="call-team-players">${players2}</div>

@@ -27,6 +27,56 @@
             --border-color: #2a2a4a;
         }
 
+        /* Offline Banner */
+        .offline-banner {
+            display: none;
+            background: linear-gradient(90deg, #f59e0b 0%, #d97706 100%);
+            color: #000;
+            padding: 8px 16px;
+            text-align: center;
+            font-weight: 700;
+            font-size: 13px;
+            letter-spacing: 1px;
+            animation: pulse-offline 2s ease-in-out infinite;
+            position: relative;
+            z-index: 1000;
+        }
+        .offline-banner.visible {
+            display: block;
+        }
+        @keyframes pulse-offline {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.85; }
+        }
+
+        /* Toast Notification */
+        .toast {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.8);
+            background: rgba(0, 0, 0, 0.9);
+            color: #fff;
+            padding: 20px 40px;
+            border-radius: 12px;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 32px;
+            letter-spacing: 3px;
+            z-index: 9999;
+            opacity: 0;
+            transition: all 0.2s ease-out;
+            pointer-events: none;
+            border: 3px solid #ef4444;
+        }
+        .toast.error {
+            border-color: #ef4444;
+            color: #ef4444;
+        }
+        .toast.visible {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+        }
+
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; user-select: none; touch-action: manipulation; -ms-touch-action: manipulation; }
         button, .calc-key, .side-btn, .action-btn, .modal-btn, .score-value, .score-input-value, .player-chip, .throw-item { touch-action: manipulation; -ms-touch-action: manipulation; }
         html { height: 100%; height: 100dvh; }
@@ -1003,6 +1053,12 @@
     </style>
 </head>
 <body>
+    <!-- Offline Banner -->
+    <div class="offline-banner" id="offlineBanner">OFFLINE - Game will sync when connected</div>
+
+    <!-- Toast Notification -->
+    <div class="toast" id="toast"></div>
+
     <div class="container">
         <div class="header">
             <div class="header-left">
@@ -1124,6 +1180,7 @@
                     <div class="keypad-container" id="keypadContainer">
                         <div class="side-buttons">
                             <button class="side-btn" onclick="quickScore(26)">26</button>
+                            <button class="side-btn" onclick="quickScore(40)">40</button>
                             <button class="side-btn" onclick="quickScore(41)">41</button>
                             <button class="side-btn" onclick="quickScore(45)">45</button>
                             <button class="side-btn" onclick="quickScore(60)">60</button>
@@ -1142,6 +1199,7 @@
                         <div class="side-buttons">
                             <button class="side-btn" onclick="quickScore(81)">81</button>
                             <button class="side-btn" onclick="quickScore(85)">85</button>
+                            <button class="side-btn" onclick="quickScore(100)">100</button>
                             <button class="side-btn" onclick="quickScore(121)">121</button>
                             <button class="side-btn" onclick="quickScore(180)">180</button>
                         </div>
@@ -1549,6 +1607,32 @@ import { callWithQueue, setupOfflineQueue, processCallQueue, saveGameState, getG
 
 // Setup offline queue for automatic retry
 setupOfflineQueue(callFunction);
+
+// Offline detection
+function showOfflineBanner() {
+    document.getElementById('offlineBanner')?.classList.add('visible');
+}
+function hideOfflineBanner() {
+    document.getElementById('offlineBanner')?.classList.remove('visible');
+}
+window.addEventListener('online', hideOfflineBanner);
+window.addEventListener('offline', showOfflineBanner);
+// Check initial state
+if (!navigator.onLine) showOfflineBanner();
+
+// Toast notification system
+function showToast(message, type = 'info') {
+    const toast = document.getElementById('toast');
+    if (!toast) return;
+    toast.textContent = message;
+    toast.className = 'toast ' + type + ' visible';
+    if (navigator.vibrate && type === 'error') {
+        navigator.vibrate(200);
+    }
+    setTimeout(() => {
+        toast.classList.remove('visible');
+    }, 1500);
+}
 
 // Checkout table
 const CHECKOUTS = {
@@ -2903,6 +2987,7 @@ window.submitScore = function(score, dartsUsed = 3) {
     // Bust check
     if (newScore < 0 || newScore === 1) {
         // Bust - no score, but track it
+        showToast('BUST!', 'error');
         throwHistory[activeTeam].push({ value: score, bust: true, remaining: team.score });
         team.darts += 3;
         inputValue = '0';

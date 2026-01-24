@@ -1487,10 +1487,11 @@
                     </div>
                 </div>
                 <div>
-                    <div class="option-label">DOUBLE OUT</div>
+                    <div class="option-label">OUT RULE</div>
                     <div class="toggle-group">
-                        <button class="toggle-btn active" onclick="toggleDO(false)">OFF</button>
-                        <button class="toggle-btn" onclick="toggleDO(true)">ON</button>
+                        <button class="toggle-btn active" onclick="setOutOption('free')">FREE</button>
+                        <button class="toggle-btn" onclick="setOutOption('double')">DOUBLE</button>
+                        <button class="toggle-btn" onclick="setOutOption('master')">MASTER</button>
                     </div>
                 </div>
             </div>
@@ -1687,6 +1688,30 @@
                 <p id="saveStatus" style="margin-top: 15px; font-size: 14px; color: #6b7280;"></p>
             </div>
             <button class="new-game-btn" id="newGameBtn" style="display: none;" onclick="resetToWelcome()">NEW GAME</button>
+        </div>
+    </div>
+
+    <!-- CHECKOUT CONFIRMATION MODAL (Double/Master Out) -->
+    <div class="winner-modal" id="checkoutModal">
+        <div class="winner-content" style="padding: 40px;">
+            <div style="font-size: 48px; margin-bottom: 20px;">🎯</div>
+            <div class="winner-title" id="checkoutModalTitle" style="font-size: 48px; margin-bottom: 30px;">CHECKOUT</div>
+            <div style="margin-bottom: 10px; font-size: 18px; font-weight: 700;">Was this a valid checkout?</div>
+            <div id="checkoutModalButtons" style="display: flex; flex-direction: column; gap: 15px; margin-top: 20px;"></div>
+        </div>
+    </div>
+
+    <!-- CHECKOUT DARTS MODAL -->
+    <div class="winner-modal" id="checkoutDartsModal">
+        <div class="winner-content" style="padding: 40px;">
+            <div style="font-size: 48px; margin-bottom: 20px;">🎯</div>
+            <div class="winner-title" id="checkoutDartsTitle" style="font-size: 48px; margin-bottom: 30px;">CHECKOUT</div>
+            <div style="margin-bottom: 20px; font-size: 18px; font-weight: 700;">How many darts to checkout?</div>
+            <div style="display: flex; gap: 15px; justify-content: center;">
+                <button class="cork-btn" onclick="selectCheckoutDarts(1)" style="font-size: 36px; padding: 20px 30px;">1</button>
+                <button class="cork-btn" onclick="selectCheckoutDarts(2)" style="font-size: 36px; padding: 20px 30px;">2</button>
+                <button class="cork-btn" onclick="selectCheckoutDarts(3)" style="font-size: 36px; padding: 20px 30px;">3</button>
+            </div>
         </div>
     </div>
 
@@ -2082,12 +2107,17 @@
             event.target.classList.add('active');
         }
 
-        function toggleDO(enabled) {
-            gameState.outOption = enabled ? 'double' : 'free';
+        function setOutOption(option) {
+            gameState.outOption = option;
             event.target.parentElement.querySelectorAll('.toggle-btn').forEach(btn => {
                 btn.classList.remove('active');
             });
             event.target.classList.add('active');
+        }
+
+        // Legacy function for backwards compatibility
+        function toggleDO(enabled) {
+            setOutOption(enabled ? 'double' : 'free');
         }
 
         // GAME START
@@ -2466,12 +2496,15 @@
             }
         }
 
+        // Impossible 3-dart scores between 160-180
+        const IMPOSSIBLE_SCORES = [163, 166, 169, 172, 173, 175, 176, 178, 179];
+
         function enterScore() {
             startScoring();
-            
+
             let score = 0;
             let expression = gameState.inputValue.replace(/x/g, '*').replace(/\s/g, '');
-            
+
             if (expression.includes('*')) {
                 const parts = expression.split('*');
                 if (parts.length === 2) {
@@ -2490,23 +2523,119 @@
                 return;
             }
 
+            // Check for impossible scores
+            if (IMPOSSIBLE_SCORES.includes(score)) {
+                alert('Invalid score - ' + score + ' is not achievable with 3 darts');
+                clearInput();
+                return;
+            }
+
             const currentPlayer = gameState.currentPlayer === 1 ? gameState.player1 : gameState.player2;
             const newScore = currentPlayer.score - score;
 
-            if (newScore < 0 || (gameState.outOption === 'double' && newScore === 1)) {
-                currentPlayer.throws.push({ total: score, bust: true });
-                alert('BUST!');
-            } else if (newScore === 0) {
-                currentPlayer.score = 0;
-                currentPlayer.throws.push({ total: score, checkout: true });
-                winLeg();
-                return;
-            } else {
-                currentPlayer.score = newScore;
-                currentPlayer.throws.push({ total: score });
+            // Check for bust conditions based on out option
+            let isBust = false;
+            if (newScore < 0) {
+                isBust = true;
+            } else if (gameState.outOption === 'double' && newScore === 1) {
+                // Can't checkout on 1 with double out
+                isBust = true;
+            } else if (gameState.outOption === 'master' && newScore === 1) {
+                // Can't checkout on 1 with master out (need double or triple)
+                isBust = true;
             }
 
+            if (isBust) {
+                currentPlayer.throws.push({ total: score, bust: true });
+                alert('BUST!');
+                endTurn();
+                return;
+            }
+
+            if (newScore === 0) {
+                // Checkout! But need to validate for double/master out
+                if (gameState.outOption === 'double') {
+                    // Show confirmation for double out
+                    showCheckoutModal(score, 'double');
+                } else if (gameState.outOption === 'master') {
+                    // Show confirmation for master out (double or triple)
+                    showCheckoutModal(score, 'master');
+                } else {
+                    // Free out - just show dart count modal
+                    showCheckoutDartsModal(score);
+                }
+                return;
+            }
+
+            // Regular score
+            currentPlayer.score = newScore;
+            currentPlayer.throws.push({ total: score });
             endTurn();
+        }
+
+        // Store pending checkout for confirmation flow
+        let pendingCheckout = null;
+
+        function showCheckoutModal(score, outType) {
+            pendingCheckout = { score, outType };
+            const modal = document.getElementById('checkoutModal');
+            const title = document.getElementById('checkoutModalTitle');
+            const buttons = document.getElementById('checkoutModalButtons');
+
+            if (outType === 'double') {
+                title.textContent = 'DOUBLE OUT CHECKOUT';
+                buttons.innerHTML = `
+                    <button class="cork-btn" onclick="confirmCheckout('double')">YES - DOUBLE OUT</button>
+                    <button class="cork-btn" style="background: #666;" onclick="cancelCheckout()">NO - BUST</button>
+                `;
+            } else if (outType === 'master') {
+                title.textContent = 'MASTER OUT CHECKOUT';
+                buttons.innerHTML = `
+                    <button class="cork-btn" onclick="confirmCheckout('double')">DOUBLE OUT</button>
+                    <button class="cork-btn" style="background: var(--teal); color: #000;" onclick="confirmCheckout('triple')">TRIPLE OUT</button>
+                    <button class="cork-btn" style="background: #666;" onclick="cancelCheckout()">BUST</button>
+                `;
+            }
+
+            modal.classList.add('active');
+        }
+
+        function confirmCheckout(finishType) {
+            document.getElementById('checkoutModal').classList.remove('active');
+            // Now show dart count modal
+            showCheckoutDartsModal(pendingCheckout.score, finishType);
+        }
+
+        function cancelCheckout() {
+            document.getElementById('checkoutModal').classList.remove('active');
+            const currentPlayer = gameState.currentPlayer === 1 ? gameState.player1 : gameState.player2;
+            currentPlayer.throws.push({ total: pendingCheckout.score, bust: true });
+            alert('BUST!');
+            pendingCheckout = null;
+            clearInput();
+            endTurn();
+        }
+
+        function showCheckoutDartsModal(score, finishType = 'free') {
+            pendingCheckout = { score, finishType };
+            const modal = document.getElementById('checkoutDartsModal');
+            document.getElementById('checkoutDartsTitle').textContent = 'CHECKOUT: ' + score;
+            modal.classList.add('active');
+        }
+
+        function selectCheckoutDarts(darts) {
+            document.getElementById('checkoutDartsModal').classList.remove('active');
+            const currentPlayer = gameState.currentPlayer === 1 ? gameState.player1 : gameState.player2;
+            currentPlayer.score = 0;
+            currentPlayer.throws.push({
+                total: pendingCheckout.score,
+                checkout: true,
+                checkout_darts: darts,
+                finish_type: pendingCheckout.finishType
+            });
+            pendingCheckout = null;
+            clearInput();
+            winLeg();
         }
 
         function missAll() {
@@ -2805,10 +2934,15 @@
             let checkoutDarts = 3; // default
 
             for (const t of throws) {
-                if (t.checkout && t.dart) {
+                if (t.checkout && (t.dart || t.checkout_darts)) {
                     // Checkout throw - use actual darts thrown (1, 2, or 3)
-                    totalDarts += t.dart;
-                    checkoutDarts = t.dart;
+                    const darts = t.checkout_darts || t.dart || 3;
+                    totalDarts += darts;
+                    checkoutDarts = darts;
+                } else if (t.checkout) {
+                    // Checkout without dart count - assume 3
+                    totalDarts += 3;
+                    checkoutDarts = 3;
                 } else {
                     // Normal throw - always 3 darts
                     totalDarts += 3;
@@ -2833,6 +2967,9 @@
                 const lastThrow = throws[throws.length - 1];
                 if (lastThrow && lastThrow.checkout) {
                     stats.checkout = lastThrow.total;
+                    if (lastThrow.finish_type) {
+                        stats.finish_type = lastThrow.finish_type;
+                    }
                 }
             }
 
@@ -2897,7 +3034,11 @@
                     match_config: {
                         bestOfLegs: gameState.bestOfLegs,
                         bestOfSets: gameState.bestOfSets,
+                        outOption: gameState.outOption, // 'free', 'double', or 'master'
+                        inOption: gameState.inOption,   // 'free' or 'double'
+                        // Legacy fields for backwards compatibility
                         doubleOut: gameState.outOption === 'double',
+                        masterOut: gameState.outOption === 'master',
                         doubleIn: gameState.inOption === 'double'
                     }
                 };
