@@ -516,6 +516,33 @@
             margin-top: 3px;
         }
 
+        /* Connection Status Indicator */
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 6px 12px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 20px;
+            margin-left: auto;
+        }
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .status-dot.connected { background: #4CAF50; }
+        .status-dot.disconnected { background: #f44336; animation: statusPulse 1s infinite; }
+        @keyframes statusPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
         @media (max-width: 600px) {
             .hero-name { font-size: 28px; }
             .status-grid { grid-template-columns: 1fr; }
@@ -530,6 +557,9 @@
         <button class="back-btn" onclick="history.back()">BACK</button>
         <img src="/images/gold_logo.png" alt="BRDC" class="header-logo">
         <span class="header-title">TOURNAMENT</span>
+        <div class="connection-status" id="connectionStatus">
+            <span class="status-dot connected"></span> Live
+        </div>
     </div>
 
     <div class="container">
@@ -781,15 +811,32 @@
             }
         }
 
+        function updateConnectionStatus(connected) {
+            const statusEl = document.getElementById('connectionStatus');
+            if (connected) {
+                statusEl.innerHTML = '<span class="status-dot connected"></span> Live';
+            } else {
+                statusEl.innerHTML = '<span class="status-dot disconnected"></span> Offline';
+            }
+        }
+
         // Set up real-time listener for tournament changes
         function setupTournamentListener() {
-            onSnapshot(doc(db, 'tournaments', tournamentId), (snapshot) => {
-                if (snapshot.exists()) {
-                    const data = snapshot.data();
-                    updateTournamentStatus(data);
-                    updateMinglePeriod(data);
+            onSnapshot(
+                doc(db, 'tournaments', tournamentId),
+                (snapshot) => {
+                    updateConnectionStatus(true);
+                    if (snapshot.exists()) {
+                        const data = snapshot.data();
+                        updateTournamentStatus(data);
+                        updateMinglePeriod(data);
+                    }
+                },
+                (error) => {
+                    console.error('Tournament listener error:', error);
+                    updateConnectionStatus(false);
                 }
-            });
+            );
         }
 
         // Update tournament status badge

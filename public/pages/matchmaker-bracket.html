@@ -447,6 +447,32 @@
 
         .hidden { display: none !important; }
 
+        /* Connection Status Indicator */
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 6px 12px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 20px;
+        }
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .status-dot.connected { background: #4CAF50; }
+        .status-dot.disconnected { background: #f44336; animation: statusPulse 1s infinite; }
+        @keyframes statusPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
         @media (max-width: 600px) {
             .bracket-grid { gap: 20px; }
             .bracket-round { min-width: 250px; }
@@ -457,6 +483,9 @@
     <div class="header-bar">
         <button class="back-btn" onclick="history.back()">BACK</button>
         <span class="header-title" id="tournamentName">MATCHMAKER BRACKET</span>
+        <div class="connection-status" id="connectionStatus">
+            <span class="status-dot connected"></span> Live
+        </div>
     </div>
 
     <div class="container">
@@ -567,6 +596,17 @@
         let teams = [];
         let matches = [];
         let currentBreakupTeam = null;
+        let unsubscribeTournament = null;
+        let unsubscribeMatches = null;
+
+        function updateConnectionStatus(connected) {
+            const statusEl = document.getElementById('connectionStatus');
+            if (connected) {
+                statusEl.innerHTML = '<span class="status-dot connected"></span> Live';
+            } else {
+                statusEl.innerHTML = '<span class="status-dot disconnected"></span> Offline';
+            }
+        }
 
         window.onload = async function() {
             if (!tournamentId) {
@@ -574,36 +614,52 @@
                 return;
             }
 
-            await loadTournament();
+            // Initial data load
             await loadTeams();
-            await loadMatches();
-            renderBracket();
 
-            // Set up real-time listener for bracket updates
-            // onSnapshot(doc(db, 'tournaments', tournamentId), (doc) => {
-            //     if (doc.exists()) {
-            //         tournamentData = doc.data();
-            //         renderBracket();
-            //     }
-            // });
+            // Set up real-time listener for tournament (includes bracket)
+            unsubscribeTournament = onSnapshot(
+                doc(db, 'tournaments', tournamentId),
+                (docSnap) => {
+                    updateConnectionStatus(true);
+                    if (docSnap.exists()) {
+                        tournamentData = docSnap.data();
+                        document.getElementById('tournamentName').textContent = tournamentData.tournament_name || 'MATCHMAKER BRACKET';
+
+                        if (tournamentData.champion) {
+                            document.getElementById('championCard').classList.remove('hidden');
+                            document.getElementById('championName').textContent = tournamentData.champion;
+                        } else {
+                            document.getElementById('championCard').classList.add('hidden');
+                        }
+
+                        renderBracket();
+                    }
+                },
+                (error) => {
+                    console.error('Tournament listener error:', error);
+                    updateConnectionStatus(false);
+                }
+            );
+
+            // Set up real-time listener for matches
+            unsubscribeMatches = onSnapshot(
+                collection(db, 'tournaments', tournamentId, 'matches'),
+                (snapshot) => {
+                    matches = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
+                    renderBracket();
+                },
+                (error) => {
+                    console.error('Matches listener error:', error);
+                }
+            );
         };
 
-        async function loadTournament() {
-            try {
-                const tournamentDoc = await getDoc(doc(db, 'tournaments', tournamentId));
-                if (tournamentDoc.exists()) {
-                    tournamentData = tournamentDoc.data();
-                    document.getElementById('tournamentName').textContent = tournamentData.tournament_name;
-
-                    if (tournamentData.champion) {
-                        document.getElementById('championCard').classList.remove('hidden');
-                        document.getElementById('championName').textContent = tournamentData.champion;
-                    }
-                }
-            } catch (error) {
-                console.error('Error loading tournament:', error);
-            }
-        }
+        // Clean up listeners on page unload
+        window.addEventListener('beforeunload', () => {
+            if (unsubscribeTournament) unsubscribeTournament();
+            if (unsubscribeMatches) unsubscribeMatches();
+        });
 
         async function loadTeams() {
             try {
@@ -613,15 +669,6 @@
                 }
             } catch (error) {
                 console.error('Error loading teams:', error);
-            }
-        }
-
-        async function loadMatches() {
-            try {
-                const matchesSnap = await getDocs(collection(db, 'tournaments', tournamentId, 'matches'));
-                matches = matchesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            } catch (error) {
-                console.error('Error loading matches:', error);
             }
         }
 

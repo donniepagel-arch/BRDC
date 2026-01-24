@@ -622,6 +622,50 @@
 
         .login-links {
             text-align: center;
+        }
+
+        /* Accessibility - Screen Reader Only */
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
+        /* Focus Indicators */
+        :focus-visible {
+            outline: 2px solid var(--yellow);
+            outline-offset: 2px;
+        }
+
+        button:focus-visible,
+        a:focus-visible,
+        input:focus-visible,
+        select:focus-visible,
+        textarea:focus-visible {
+            outline: 2px solid var(--yellow);
+            outline-offset: 2px;
+        }
+
+        /* Skip Link for Accessibility */
+        .skip-link {
+            position: absolute;
+            top: -40px;
+            left: 0;
+            background: var(--yellow);
+            color: #000;
+            padding: 8px 16px;
+            z-index: 9999;
+            font-weight: bold;
+        }
+
+        .skip-link:focus {
+            top: 0;
             margin-top: 20px;
             font-size: 13px;
         }
@@ -6676,6 +6720,40 @@
             .form-input { font-size: 20px; letter-spacing: 3px; }
             .quick-link-card span:last-child { font-size: 14px !important; }
         }
+
+        /* Tooltip hints for stats jargon */
+        [data-tooltip] {
+            position: relative;
+            cursor: help;
+            border-bottom: 1px dotted var(--text-dim);
+        }
+        [data-tooltip]:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--bg-dark);
+            border: 1px solid var(--teal);
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            white-space: nowrap;
+            z-index: 1000;
+            color: var(--text-light);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+            pointer-events: none;
+        }
+        [data-tooltip]:hover::before {
+            content: '';
+            position: absolute;
+            bottom: calc(100% - 5px);
+            left: 50%;
+            transform: translateX(-50%);
+            border: 5px solid transparent;
+            border-top-color: var(--teal);
+            z-index: 1001;
+        }
     </style>
 </head>
 <body>
@@ -6710,60 +6788,64 @@
         setTimeout(window.showFallbackLogin, 10000);
     </script>
 
+    <!-- Skip Link for Accessibility -->
+    <a href="#dashboardContent" class="skip-link">Skip to main content</a>
+
     <!-- Login Page (hidden initially) -->
-    <div class="login-page" id="loginPage" style="display: flex;">
-        <img src="/images/gold_logo.png" alt="BRDC" class="login-logo">
-        <h1 class="login-title">BRDC DASHBOARD</h1>
+    <div class="login-page" id="loginPage" style="display: flex;" role="main" aria-labelledby="loginPageTitle">
+        <img src="/images/gold_logo.png" alt="Burning River Dart Club logo" class="login-logo">
+        <h1 class="login-title" id="loginPageTitle">BRDC DASHBOARD</h1>
 
-        <div class="login-box">
-            <div class="login-form-title">LOGIN</div>
+        <div class="login-box" role="form" aria-labelledby="loginFormTitle">
+            <h2 class="login-form-title" id="loginFormTitle">LOGIN</h2>
 
-            <div class="login-error" id="loginError" style="display: none;"></div>
+            <div class="login-error" id="loginError" role="alert" aria-live="assertive" style="display: none;"></div>
 
             <div class="form-group">
-                <label class="form-label">Your 8-Digit PIN</label>
-                <input type="password" class="form-input" id="pinInput" placeholder="••••••••" maxlength="8" inputmode="numeric" pattern="[0-9]*" autocomplete="off">
+                <label class="form-label" for="pinInput">Your 8-Digit PIN</label>
+                <input type="password" class="form-input" id="pinInput" placeholder="••••••••" maxlength="8" inputmode="numeric" pattern="[0-9]*" autocomplete="off" aria-required="true" aria-describedby="loginError">
             </div>
 
             <button class="login-btn" id="loginBtn" onclick="login()">LOGIN</button>
 
-            <div class="login-links">
+            <nav class="login-links" aria-label="Login help links">
                 <a href="#" onclick="showForgotPin()">Forgot PIN?</a>
-                <span style="color: var(--text-dim); margin: 0 10px;">|</span>
+                <span style="color: var(--text-dim); margin: 0 10px;" aria-hidden="true">|</span>
                 <a href="/pages/register.html">New Player? Register</a>
-            </div>
+            </nav>
         </div>
     </div>
 
     <!-- Dashboard Content -->
-    <div class="dashboard-content" id="dashboardContent">
-        <div class="header-bar">
-            <a href="/" style="text-decoration: none;">
-                <img src="/images/gold_logo.png" alt="BRDC" class="header-logo" style="cursor: pointer;">
+    <div class="dashboard-content" id="dashboardContent" role="main">
+        <header class="header-bar" role="banner">
+            <a href="/" style="text-decoration: none;" aria-label="Go to homepage">
+                <img src="/images/gold_logo.png" alt="Burning River Dart Club" class="header-logo" style="cursor: pointer;">
             </a>
-            <span class="header-title">DASHBOARD</span>
-            <button class="logout-btn" onclick="logout()">LOGOUT</button>
-        </div>
+            <h1 class="header-title">DASHBOARD</h1>
+            <button class="logout-btn" onclick="logout()" aria-label="Log out of your account">LOGOUT</button>
+        </header>
 
         <div class="container">
             <!-- Profile Header - Clean Design -->
             <div class="profile-header">
                 <div class="player-avatar" id="playerAvatar" title="Click to change photo">
-                    <span id="avatarEmoji">👤</span>
-                    <img id="avatarImage" style="display: none;" alt="Profile">
-                    <div class="avatar-edit-overlay">📷</div>
-                    <input type="file" class="avatar-input" id="avatarInput" accept="image/*">
+                    <span id="avatarEmoji" aria-hidden="true">👤</span>
+                    <img id="avatarImage" style="display: none;" alt="Your profile photo">
+                    <div class="avatar-edit-overlay" aria-hidden="true">📷</div>
+                    <label for="avatarInput" class="sr-only">Upload profile photo</label>
+                    <input type="file" class="avatar-input" id="avatarInput" accept="image/*" aria-label="Upload profile photo">
                 </div>
                 <div class="profile-info">
                     <div class="profile-name" id="welcomeName">Welcome!</div>
                     <div class="profile-stats-row">
                         <div class="profile-stat">
                             <span class="profile-stat-value" id="statAvg">-</span>
-                            <span class="profile-stat-label">501</span>
+                            <span class="profile-stat-label" data-tooltip="Three Dart Average - points per 3 darts">3DA</span>
                         </div>
                         <div class="profile-stat">
                             <span class="profile-stat-value" id="statMpr">-</span>
-                            <span class="profile-stat-label">MPR</span>
+                            <span class="profile-stat-label" data-tooltip="Marks Per Round - cricket marks per 3 darts">MPR</span>
                         </div>
                     </div>
                     <a href="/pages/player-profile.html" class="profile-link" id="fullStatsLink">View Full Profile →</a>
@@ -6827,16 +6909,16 @@
             </div>
 
             <!-- Main Tabs -->
-            <div class="tab-container">
-                <div class="tab active" onclick="switchTab('schedule', event)">📅 SCHEDULE</div>
-                <div class="tab" onclick="switchTab('activity', event)" style="display: none;">🎯 ACTIVITY</div>
-                <div class="tab captain-tab" id="captainTabBtn" onclick="switchTab('captain', event)">🚢 CAPTAIN</div>
-                <div class="tab director-tab" id="directorTabBtn" onclick="switchTab('director', event)" style="display: none;">👑 DIRECTOR</div>
-                <div class="tab" onclick="switchTab('trader', event)">🏪 TRADER</div>
-            </div>
+            <nav class="tab-container" role="tablist" aria-label="Dashboard sections">
+                <button class="tab active" role="tab" aria-selected="true" aria-controls="scheduleTab" id="scheduleTabBtn" onclick="switchTab('schedule', event)">📅 SCHEDULE</button>
+                <button class="tab" role="tab" aria-selected="false" aria-controls="activityTab" id="activityTabBtn" onclick="switchTab('activity', event)" style="display: none;">🎯 ACTIVITY</button>
+                <button class="tab captain-tab" role="tab" aria-selected="false" aria-controls="captainTab" id="captainTabBtn" onclick="switchTab('captain', event)">🚢 CAPTAIN</button>
+                <button class="tab director-tab" role="tab" aria-selected="false" aria-controls="directorTab" id="directorTabBtn" onclick="switchTab('director', event)" style="display: none;">👑 DIRECTOR</button>
+                <button class="tab" role="tab" aria-selected="false" aria-controls="traderTab" id="traderTabBtn" onclick="switchTab('trader', event)">🏪 TRADER</button>
+            </nav>
 
             <!-- SCHEDULE Tab (formerly teams) -->
-            <div id="scheduleTab" class="tab-content active">
+            <section id="scheduleTab" class="tab-content active" role="tabpanel" aria-labelledby="scheduleTabBtn">
                 <!-- Calendar View -->
                 <div class="calendar-container" id="calendarContainer">
                     <!-- Week View (collapsed, default) -->

@@ -487,7 +487,7 @@ exports.getCaptainDashboard = functions.https.onRequest(async (req, res) => {
     if (req.method === 'OPTIONS') return res.status(204).send('');
 
     try {
-        const { league_id, team_id, captain_email } = req.query.league_id ? req.query : req.body;
+        const { league_id, team_id, captain_email, captain_id } = req.query.league_id ? req.query : req.body;
 
         if (!league_id || !team_id) {
             return res.status(400).json({ success: false, error: 'Missing league_id or team_id' });
@@ -502,6 +502,44 @@ exports.getCaptainDashboard = functions.https.onRequest(async (req, res) => {
         }
 
         const team = { id: teamDoc.id, ...teamDoc.data() };
+
+        // Verify captain authorization
+        // Captain must be verified by either:
+        // 1. captain_id matching team.captain_id
+        // 2. captain_email matching a captain player on this team
+        let isAuthorized = false;
+
+        if (captain_id && team.captain_id === captain_id) {
+            isAuthorized = true;
+        }
+
+        if (!isAuthorized && captain_email) {
+            // Check if email belongs to a captain on this team
+            const captainSnapshot = await db.collection('leagues').doc(league_id)
+                .collection('players')
+                .where('email', '==', captain_email.toLowerCase())
+                .where('team_id', '==', team_id)
+                .limit(1)
+                .get();
+
+            if (!captainSnapshot.empty) {
+                const captainPlayer = captainSnapshot.docs[0].data();
+                // Check if this player is the captain or is level A (for triples leagues)
+                if (captainSnapshot.docs[0].id === team.captain_id ||
+                    captainPlayer.is_captain === true ||
+                    captainPlayer.skill_level === 'A' ||
+                    captainPlayer.preferred_level === 'A') {
+                    isAuthorized = true;
+                }
+            }
+        }
+
+        if (!isAuthorized) {
+            return res.status(403).json({
+                success: false,
+                error: 'Not authorized as captain for this team'
+            });
+        }
 
         // Get league info
         const leagueDoc = await db.collection('leagues').doc(league_id).get();
@@ -527,9 +565,26 @@ exports.getCaptainDashboard = functions.https.onRequest(async (req, res) => {
             }
         });
 
+        // Get team players by querying players collection with team_id (per RULE 4)
+        const teamPlayersSnap = await db.collection('leagues').doc(league_id)
+            .collection('players')
+            .where('team_id', '==', team_id)
+            .get();
+
+        const teamPlayers = [];
+        teamPlayersSnap.forEach(doc => {
+            teamPlayers.push({ id: doc.id, ...doc.data() });
+        });
+
+        // Sort by position
+        teamPlayers.sort((a, b) => (a.position || 99) - (b.position || 99));
+
+        // Add players to team object for frontend compatibility
+        team.players = teamPlayers;
+
         // Get player stats
         const playerStats = [];
-        for (const player of team.players || []) {
+        for (const player of teamPlayers) {
             const statsDoc = await db.collection('leagues').doc(league_id)
                 .collection('stats').doc(player.id).get();
 
@@ -576,6 +631,70 @@ exports.getCaptainDashboard = functions.https.onRequest(async (req, res) => {
             notifications.push({ id: doc.id, ...doc.data() });
         });
 
+        // Get free agents (players without team_id who registered for this league)
+        const freeAgents = [];
+        if (league.allow_free_agents !== false) {
+            const freeAgentSnapshot = await db.collection('leagues').doc(league_id)
+                .collection('registrations')
+                .where('status', '==', 'free_agent')
+                .get();
+
+            freeAgentSnapshot.forEach(doc => {
+                const fa = doc.data();
+                delete fa.pin;
+                freeAgents.push({ id: doc.id, ...fa });
+            });
+        }
+
+        // Get pending fill-in requests for this team
+        const fillinRequestsSnapshot = await db.collection('leagues').doc(league_id)
+            .collection('fillin_requests')
+            .where('team_id', '==', team_id)
+            .where('status', '==', 'pending')
+            .orderBy('created_at', 'desc')
+            .limit(5)
+            .get();
+
+        const pendingFillinRequests = [];
+        for (const doc of fillinRequestsSnapshot.docs) {
+            const request = doc.data();
+            // Get responses summary
+            const responses = request.responses || {};
+            const interested = [];
+            const declined = [];
+            const pending = [];
+
+            for (const subId of request.sub_ids || []) {
+                const response = responses[subId];
+                let playerName = 'Unknown';
+                const playerDoc = await db.collection('leagues').doc(league_id)
+                    .collection('players').doc(subId).get();
+                if (playerDoc.exists) {
+                    playerName = playerDoc.data().name;
+                }
+
+                const entry = { id: subId, name: playerName };
+
+                if (response?.interested === true) {
+                    interested.push(entry);
+                } else if (response?.interested === false) {
+                    declined.push(entry);
+                } else {
+                    pending.push(entry);
+                }
+            }
+
+            pendingFillinRequests.push({
+                request_id: doc.id,
+                match_id: request.match_id,
+                match_week: request.match_week,
+                status: request.status,
+                interested,
+                declined,
+                pending
+            });
+        }
+
         res.json({
             success: true,
             team,
@@ -583,7 +702,9 @@ exports.getCaptainDashboard = functions.https.onRequest(async (req, res) => {
             matches,
             player_stats: playerStats,
             available_subs: subs,
-            notifications
+            free_agents: freeAgents,
+            notifications,
+            pending_fillin_requests: pendingFillinRequests
         });
 
     } catch (error) {

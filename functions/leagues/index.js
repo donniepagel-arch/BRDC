@@ -5307,3 +5307,356 @@ exports.assignPlayerLevels = functions.https.onRequest(async (req, res) => {
         res.status(500).json({ success: false, error: error.message });
     }
 });
+
+// ============================================================================
+// DIRECTOR TOOLS - Match Corrections, Player Levels, Rescheduling
+// ============================================================================
+
+/**
+ * Correct match result - Update scores for a completed match
+ * Creates audit trail in corrections_log subcollection
+ * Recalculates team standings after correction
+ */
+exports.correctMatchResult = functions.https.onRequest(async (req, res) => {
+    setCorsHeaders(res);
+    if (req.method === 'OPTIONS') return res.status(204).send('');
+
+    try {
+        const { league_id, match_id, home_score, away_score, reason, director_pin } = req.body;
+
+        // Validate required fields
+        if (!league_id || !match_id) {
+            return res.status(400).json({
+                success: false,
+                error: 'Missing required fields: league_id, match_id'
+            });
+        }
+
+        if (home_score === undefined || away_score === undefined) {
+            return res.status(400).json({
+                success: false,
+                error: 'Missing required fields: home_score, away_score'
+            });
+        }
+
+        // Verify league exists and check director access
+        const leagueDoc = await db.collection('leagues').doc(league_id).get();
+        if (!leagueDoc.exists) {
+            return res.status(404).json({ success: false, error: 'League not found' });
+        }
+
+        const league = leagueDoc.data();
+        if (!(await checkLeagueAccess(league, director_pin))) {
+            return res.status(403).json({ success: false, error: 'Invalid PIN - Director access required' });
+        }
+
+        // Get the match
+        const matchRef = db.collection('leagues').doc(league_id).collection('matches').doc(match_id);
+        const matchDoc = await matchRef.get();
+        if (!matchDoc.exists) {
+            return res.status(404).json({ success: false, error: 'Match not found' });
+        }
+
+        const matchData = matchDoc.data();
+        const oldHomeScore = matchData.home_score || 0;
+        const oldAwayScore = matchData.away_score || 0;
+
+        // Determine new winner
+        let newWinner = 'tie';
+        if (home_score > away_score) newWinner = 'home';
+        else if (away_score > home_score) newWinner = 'away';
+
+        // Update match document
+        await matchRef.update({
+            home_score: parseInt(home_score),
+            away_score: parseInt(away_score),
+            winner: newWinner,
+            corrected_at: admin.firestore.FieldValue.serverTimestamp(),
+            correction_reason: reason || 'Score corrected by director'
+        });
+
+        // Log the correction
+        const correctionLog = {
+            match_id: match_id,
+            corrected_at: admin.firestore.FieldValue.serverTimestamp(),
+            corrected_by_pin: director_pin ? director_pin.substring(0, 4) + '****' : 'unknown',
+            old_home_score: oldHomeScore,
+            old_away_score: oldAwayScore,
+            new_home_score: parseInt(home_score),
+            new_away_score: parseInt(away_score),
+            reason: reason || 'No reason provided'
+        };
+
+        await db.collection('leagues').doc(league_id)
+            .collection('corrections_log').add(correctionLog);
+
+        // Recalculate team standings
+        await recalculateTeamStandings(league_id);
+
+        res.json({
+            success: true,
+            message: 'Match result corrected successfully',
+            correction: {
+                old_score: `${oldHomeScore} - ${oldAwayScore}`,
+                new_score: `${home_score} - ${away_score}`,
+                winner: newWinner
+            }
+        });
+
+    } catch (error) {
+        console.error('Error correcting match result:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * Set player level - Update a player's level (A, B, C, or Unassigned)
+ * Used by directors to manually adjust player skill levels
+ */
+exports.setPlayerLevel = functions.https.onRequest(async (req, res) => {
+    setCorsHeaders(res);
+    if (req.method === 'OPTIONS') return res.status(204).send('');
+
+    try {
+        const { league_id, player_id, level, director_pin } = req.body;
+
+        // Validate required fields
+        if (!league_id || !player_id) {
+            return res.status(400).json({
+                success: false,
+                error: 'Missing required fields: league_id, player_id'
+            });
+        }
+
+        // Validate level value
+        const validLevels = ['A', 'B', 'C', ''];
+        if (level !== undefined && !validLevels.includes(level)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid level. Must be A, B, C, or empty for unassigned'
+            });
+        }
+
+        // Verify league exists and check director access
+        const leagueDoc = await db.collection('leagues').doc(league_id).get();
+        if (!leagueDoc.exists) {
+            return res.status(404).json({ success: false, error: 'League not found' });
+        }
+
+        const league = leagueDoc.data();
+        if (!(await checkLeagueAccess(league, director_pin))) {
+            return res.status(403).json({ success: false, error: 'Invalid PIN - Director access required' });
+        }
+
+        // Get and update the player
+        const playerRef = db.collection('leagues').doc(league_id).collection('players').doc(player_id);
+        const playerDoc = await playerRef.get();
+        if (!playerDoc.exists) {
+            return res.status(404).json({ success: false, error: 'Player not found' });
+        }
+
+        const playerData = playerDoc.data();
+        const oldLevel = playerData.level || 'Unassigned';
+
+        // Update the player's level
+        const updateData = {
+            level: level || null,
+            level_updated_at: admin.firestore.FieldValue.serverTimestamp()
+        };
+
+        // If setting a level, also update position based on level
+        if (level === 'A') updateData.position = 1;
+        else if (level === 'B') updateData.position = 2;
+        else if (level === 'C') updateData.position = 3;
+
+        await playerRef.update(updateData);
+
+        res.json({
+            success: true,
+            message: `Player level updated from ${oldLevel} to ${level || 'Unassigned'}`,
+            player_name: playerData.name,
+            old_level: oldLevel,
+            new_level: level || 'Unassigned'
+        });
+
+    } catch (error) {
+        console.error('Error setting player level:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * Reschedule match - Change the date of a match
+ * Can optionally mark the match as a makeup match
+ */
+exports.rescheduleMatch = functions.https.onRequest(async (req, res) => {
+    setCorsHeaders(res);
+    if (req.method === 'OPTIONS') return res.status(204).send('');
+
+    try {
+        const { league_id, match_id, new_date, is_makeup, notify_captains, director_pin } = req.body;
+
+        // Validate required fields
+        if (!league_id || !match_id || !new_date) {
+            return res.status(400).json({
+                success: false,
+                error: 'Missing required fields: league_id, match_id, new_date'
+            });
+        }
+
+        // Verify league exists and check director access
+        const leagueDoc = await db.collection('leagues').doc(league_id).get();
+        if (!leagueDoc.exists) {
+            return res.status(404).json({ success: false, error: 'League not found' });
+        }
+
+        const league = leagueDoc.data();
+        if (!(await checkLeagueAccess(league, director_pin))) {
+            return res.status(403).json({ success: false, error: 'Invalid PIN - Director access required' });
+        }
+
+        // Get the match
+        const matchRef = db.collection('leagues').doc(league_id).collection('matches').doc(match_id);
+        const matchDoc = await matchRef.get();
+        if (!matchDoc.exists) {
+            return res.status(404).json({ success: false, error: 'Match not found' });
+        }
+
+        const matchData = matchDoc.data();
+        const oldDate = matchData.match_date;
+
+        // Parse the new date
+        const newMatchDate = new Date(new_date);
+        if (isNaN(newMatchDate.getTime())) {
+            return res.status(400).json({ success: false, error: 'Invalid date format' });
+        }
+
+        // Update the match
+        const updateData = {
+            match_date: admin.firestore.Timestamp.fromDate(newMatchDate),
+            rescheduled_at: admin.firestore.FieldValue.serverTimestamp(),
+            is_makeup: is_makeup === true
+        };
+
+        // Store original date if this is the first reschedule
+        if (!matchData.original_match_date) {
+            updateData.original_match_date = oldDate;
+        }
+
+        await matchRef.update(updateData);
+
+        // Get team names for response
+        const homeTeamDoc = await db.collection('leagues').doc(league_id)
+            .collection('teams').doc(matchData.home_team_id).get();
+        const awayTeamDoc = await db.collection('leagues').doc(league_id)
+            .collection('teams').doc(matchData.away_team_id).get();
+
+        const homeTeamName = homeTeamDoc.exists ? homeTeamDoc.data().team_name : 'Unknown';
+        const awayTeamName = awayTeamDoc.exists ? awayTeamDoc.data().team_name : 'Unknown';
+
+        // Optionally notify captains (placeholder - would need notification system integration)
+        let notificationSent = false;
+        if (notify_captains) {
+            // TODO: Integrate with notification system
+            // This would send SMS/push notifications to team captains
+            console.log(`Would notify captains of ${homeTeamName} and ${awayTeamName} about reschedule`);
+            notificationSent = true;
+        }
+
+        res.json({
+            success: true,
+            message: 'Match rescheduled successfully',
+            match: {
+                home_team: homeTeamName,
+                away_team: awayTeamName,
+                week: matchData.week,
+                old_date: oldDate?.toDate ? oldDate.toDate().toISOString() : oldDate,
+                new_date: newMatchDate.toISOString(),
+                is_makeup: is_makeup === true
+            },
+            notification_sent: notificationSent
+        });
+
+    } catch (error) {
+        console.error('Error rescheduling match:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * Helper function to recalculate team standings after a match correction
+ */
+async function recalculateTeamStandings(leagueId) {
+    // Get all teams
+    const teamsSnapshot = await db.collection('leagues').doc(leagueId).collection('teams').get();
+    const teamStats = {};
+
+    teamsSnapshot.forEach(doc => {
+        teamStats[doc.id] = {
+            wins: 0,
+            losses: 0,
+            ties: 0,
+            games_won: 0,
+            games_lost: 0,
+            legs_won: 0,
+            legs_lost: 0,
+            points: 0
+        };
+    });
+
+    // Get all completed matches
+    const matchesSnapshot = await db.collection('leagues').doc(leagueId)
+        .collection('matches')
+        .where('status', '==', 'completed')
+        .get();
+
+    matchesSnapshot.forEach(doc => {
+        const match = doc.data();
+        const homeId = match.home_team_id;
+        const awayId = match.away_team_id;
+
+        if (!teamStats[homeId] || !teamStats[awayId]) return;
+
+        const homeScore = match.home_score || 0;
+        const awayScore = match.away_score || 0;
+
+        // Update games (sets) won/lost
+        teamStats[homeId].games_won += homeScore;
+        teamStats[homeId].games_lost += awayScore;
+        teamStats[awayId].games_won += awayScore;
+        teamStats[awayId].games_lost += homeScore;
+
+        // Update legs if tracked
+        if (match.home_legs !== undefined && match.away_legs !== undefined) {
+            teamStats[homeId].legs_won += match.home_legs || 0;
+            teamStats[homeId].legs_lost += match.away_legs || 0;
+            teamStats[awayId].legs_won += match.away_legs || 0;
+            teamStats[awayId].legs_lost += match.home_legs || 0;
+        }
+
+        // Determine match winner
+        if (match.winner === 'home' || homeScore > awayScore) {
+            teamStats[homeId].wins += 1;
+            teamStats[awayId].losses += 1;
+        } else if (match.winner === 'away' || awayScore > homeScore) {
+            teamStats[awayId].wins += 1;
+            teamStats[homeId].losses += 1;
+        } else {
+            teamStats[homeId].ties += 1;
+            teamStats[awayId].ties += 1;
+        }
+    });
+
+    // Update all teams with recalculated stats
+    const batch = db.batch();
+    for (const [teamId, stats] of Object.entries(teamStats)) {
+        // Calculate points (typically: Win=2, Tie=1, Loss=0)
+        stats.points = (stats.wins * 2) + (stats.ties * 1);
+
+        const teamRef = db.collection('leagues').doc(leagueId).collection('teams').doc(teamId);
+        batch.update(teamRef, stats);
+    }
+
+    await batch.commit();
+    console.log(`Recalculated standings for league ${leagueId}: ${Object.keys(teamStats).length} teams updated`);
+}

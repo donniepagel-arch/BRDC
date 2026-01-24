@@ -86,6 +86,38 @@
         }
         .back-btn:hover { border-color: var(--pink); color: var(--pink); }
 
+        /* Breadcrumbs */
+        .breadcrumbs {
+            padding: 8px 16px;
+            font-size: 12px;
+            color: var(--text-dim);
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+        .breadcrumbs ol {
+            list-style: none;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            margin: 0;
+            padding: 0;
+        }
+        .breadcrumbs li::after {
+            content: '>';
+            margin-left: 8px;
+            color: var(--text-dim);
+        }
+        .breadcrumbs li:last-child::after {
+            content: '';
+        }
+        .breadcrumbs a {
+            color: var(--teal);
+            text-decoration: none;
+        }
+        .breadcrumbs a:hover {
+            text-decoration: underline;
+        }
+
         /* Match Header Card */
         .match-header-card {
             background: var(--bg-panel);
@@ -1754,6 +1786,40 @@
             0% { transform: translateY(-100vh) rotate(0deg); opacity: 1; }
             100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
         }
+
+        /* Tooltip hints for stats jargon */
+        [data-tooltip] {
+            position: relative;
+            cursor: help;
+            border-bottom: 1px dotted var(--text-dim);
+        }
+        [data-tooltip]:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--bg-dark);
+            border: 1px solid var(--teal);
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            white-space: nowrap;
+            z-index: 1000;
+            color: var(--text-light);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+            pointer-events: none;
+        }
+        [data-tooltip]:hover::before {
+            content: '';
+            position: absolute;
+            bottom: calc(100% - 5px);
+            left: 50%;
+            transform: translateX(-50%);
+            border: 5px solid transparent;
+            border-top-color: var(--teal);
+            z-index: 1001;
+        }
     </style>
 </head>
 <body>
@@ -1762,6 +1828,14 @@
         <img src="/images/gold_logo.png" alt="BRDC" class="header-logo">
         <span class="header-title">MATCH REPORT</span>
     </div>
+
+    <nav class="breadcrumbs" aria-label="Breadcrumb" id="breadcrumbs">
+        <ol>
+            <li><a href="/pages/dashboard.html">Dashboard</a></li>
+            <li><a href="#" id="breadcrumbLeague">League</a></li>
+            <li aria-current="page">Match Report</li>
+        </ol>
+    </nav>
 
     <div id="loadingState">
         <!-- Skeleton loading state for match header -->
@@ -2085,6 +2159,13 @@
                 if (homeDoc.exists()) homeTeam = { id: homeDoc.id, ...homeDoc.data() };
                 if (awayDoc.exists()) awayTeam = { id: awayDoc.id, ...awayDoc.data() };
                 if (leagueDoc.exists()) leagueData = { id: leagueDoc.id, ...leagueDoc.data() };
+
+                // Update breadcrumb with league name and link
+                const breadcrumbLeagueEl = document.getElementById('breadcrumbLeague');
+                if (breadcrumbLeagueEl && leagueData) {
+                    breadcrumbLeagueEl.textContent = leagueData.name || 'League';
+                    breadcrumbLeagueEl.href = `/pages/league-view.html?league_id=${leagueId}`;
+                }
 
                 // Load rosters for both teams (players are stored separately with team_id)
                 const playersRef = collection(db, 'leagues', leagueId, 'players');

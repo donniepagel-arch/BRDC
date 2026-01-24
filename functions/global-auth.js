@@ -1780,6 +1780,170 @@ async function generateUniquePinWithPhone(phoneLast4) {
 }
 
 /**
+ * Generate a unique 8-digit PIN (fully random, no phone dependency)
+ */
+async function generateUniqueFullPin() {
+    let attempts = 0;
+    while (attempts < 100) {
+        // Generate full 8-digit random PIN
+        const pin = String(Math.floor(10000000 + Math.random() * 90000000));
+
+        // Check if PIN exists
+        const existingPlayer = await db.collection('players')
+            .where('pin', '==', pin)
+            .limit(1)
+            .get();
+
+        if (existingPlayer.empty) {
+            return pin;
+        }
+        attempts++;
+    }
+    throw new Error('Could not generate unique PIN');
+}
+
+/**
+ * Register new player from signup page
+ * Auto-generates 8-digit PIN, phone is optional
+ */
+exports.registerNewPlayer = functions.https.onRequest(async (req, res) => {
+    setCorsHeaders(res);
+    if (req.method === 'OPTIONS') return res.status(204).send('');
+
+    try {
+        const { first_name, last_name, email, phone, preferred_level } = req.body;
+
+        // Validate required fields
+        if (!first_name || !last_name) {
+            return res.status(400).json({ success: false, error: 'First name and last name are required' });
+        }
+
+        if (!email) {
+            return res.status(400).json({ success: false, error: 'Email is required' });
+        }
+
+        const emailLower = email.toLowerCase().trim();
+        const fullName = `${first_name.trim()} ${last_name.trim()}`;
+
+        // Validate email format
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(emailLower)) {
+            return res.status(400).json({ success: false, error: 'Please enter a valid email address' });
+        }
+
+        // Check if player already exists (by email)
+        const existingByEmail = await db.collection('players')
+            .where('email', '==', emailLower)
+            .limit(1)
+            .get();
+
+        if (!existingByEmail.empty) {
+            return res.status(400).json({
+                success: false,
+                error: 'An account with this email already exists. Use your PIN to login.'
+            });
+        }
+
+        // Clean phone if provided
+        let phoneClean = null;
+        let phoneLast4 = null;
+        if (phone) {
+            phoneClean = phone.replace(/\D/g, '');
+            if (phoneClean.length >= 4) {
+                phoneLast4 = phoneClean.slice(-4);
+            }
+
+            // Check if phone already registered
+            if (phoneClean.length >= 10) {
+                const existingByPhone = await db.collection('players')
+                    .where('phone', '==', phoneClean)
+                    .limit(1)
+                    .get();
+
+                if (!existingByPhone.empty) {
+                    return res.status(400).json({
+                        success: false,
+                        error: 'An account with this phone number already exists. Use your PIN to login.'
+                    });
+                }
+            }
+        }
+
+        // Generate unique 8-digit PIN
+        let pin;
+        if (phoneLast4) {
+            // If phone provided, use phone-based PIN generation
+            pin = await generateUniquePinWithPhone(phoneLast4);
+        } else {
+            // Otherwise use fully random PIN
+            pin = await generateUniqueFullPin();
+        }
+
+        // Create player document
+        const playerData = {
+            name: fullName,
+            first_name: first_name.trim(),
+            last_name: last_name.trim(),
+            email: emailLower,
+            phone: phoneClean,
+            phone_last4: phoneLast4,
+            pin: pin,
+            preferred_level: preferred_level || null,
+            photo_url: null,
+            isBot: false,
+            notification_preference: phoneClean ? 'sms' : 'email',
+            created_at: admin.firestore.FieldValue.serverTimestamp(),
+            updated_at: admin.firestore.FieldValue.serverTimestamp(),
+            stats: {
+                matches_played: 0,
+                matches_won: 0,
+                x01: { legs_played: 0, legs_won: 0, total_points: 0, total_darts: 0, ton_eighties: 0, high_checkout: 0 },
+                cricket: { legs_played: 0, legs_won: 0, total_marks: 0, total_rounds: 0 }
+            },
+            involvements: { leagues: [], tournaments: [], directing: [], captaining: [] }
+        };
+
+        const playerRef = await db.collection('players').add(playerData);
+
+        // Send welcome email with PIN
+        const emailResult = await sendWelcomeEmail(emailLower, fullName, pin);
+        let emailSent = emailResult.success || emailResult.simulated || false;
+
+        // Also send SMS if phone provided
+        let smsSent = false;
+        if (phoneClean && phoneClean.length >= 10) {
+            const smsResult = await sendWelcomeSMS(phoneClean, fullName, pin);
+            smsSent = smsResult.success || smsResult.simulated || false;
+        }
+
+        // Log the registration
+        await db.collection('notifications').add({
+            type: 'player_signup',
+            to_phone: phoneClean || null,
+            to_email: emailLower,
+            player_id: playerRef.id,
+            player_name: fullName,
+            sms_sent: smsSent,
+            email_sent: emailSent,
+            created_at: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        console.log(`New player signed up: ${fullName} (${playerRef.id})`);
+
+        res.json({
+            success: true,
+            player_id: playerRef.id,
+            pin: pin,
+            message: `Welcome ${fullName}! Your PIN is ${pin}. Save this - you'll use it to login.`
+        });
+
+    } catch (error) {
+        console.error('Register new player error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
  * Simple player registration - for game setup page
  * Auto-generates PIN and sends via SMS
  */

@@ -97,6 +97,10 @@ Object.assign(exports, miniTournamentFunctions);
 // const statsUnificationFunctions = require('./stats-unification');
 // Object.assign(exports, statsUnificationFunctions);
 
+// Draft System (Real-time player drafts for Draft Leagues)
+const draftFunctions = require('./draft');
+Object.assign(exports, draftFunctions);
+
 // Match Import Functions (temporary - for DartConnect data import)
 const importMatchFunctions = require('./import-matches');
 Object.assign(exports, importMatchFunctions);

@@ -441,6 +441,33 @@
             text-align: center;
             color: #ef4444;
         }
+
+        /* Connection Status Indicator */
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 6px 12px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 20px;
+            margin-left: auto;
+        }
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .status-dot.connected { background: #4CAF50; }
+        .status-dot.disconnected { background: #f44336; animation: statusPulse 1s infinite; }
+        @keyframes statusPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
     </style>
 </head>
 <body>
@@ -448,6 +475,9 @@
         <button class="back-btn" onclick="history.back()">BACK</button>
         <img src="/images/gold_logo.png" alt="BRDC" class="header-logo">
         <span class="header-title">TOURNAMENT</span>
+        <div class="connection-status" id="connectionStatus">
+            <span class="status-dot connected"></span> Live
+        </div>
     </div>
 
     <div class="container" id="mainContent">
@@ -468,7 +498,7 @@
     </div>
 
     <script type="module">
-        import { db, doc, getDoc, collection, getDocs, callFunction } from '/js/firebase-config.js';
+        import { db, doc, getDoc, collection, getDocs, callFunction, onSnapshot } from '/js/firebase-config.js';
 
         const urlParams = new URLSearchParams(window.location.search);
         const tournamentId = urlParams.get('tournament_id') || urlParams.get('id');
@@ -478,31 +508,66 @@
         let registrations = {};
         let memberData = null;
         let selectedEvents = new Set();
+        let unsubscribeTournament = null;
+        let unsubscribeEvents = null;
+
+        function updateConnectionStatus(connected) {
+            const statusEl = document.getElementById('connectionStatus');
+            if (connected) {
+                statusEl.innerHTML = '<span class="status-dot connected"></span> Live';
+            } else {
+                statusEl.innerHTML = '<span class="status-dot disconnected"></span> Offline';
+            }
+        }
 
         window.onload = async function() {
             if (!tournamentId) {
                 showError('Missing tournament_id in URL');
                 return;
             }
-            await loadTournamentData();
+            setupRealTimeListeners();
         };
 
-        async function loadTournamentData() {
-            try {
-                const tournamentDoc = await getDoc(doc(db, 'tournaments', tournamentId));
+        // Clean up listeners on page unload
+        window.addEventListener('beforeunload', () => {
+            if (unsubscribeTournament) unsubscribeTournament();
+            if (unsubscribeEvents) unsubscribeEvents();
+        });
 
-                if (!tournamentDoc.exists()) {
-                    throw new Error('Tournament not found');
+        function setupRealTimeListeners() {
+            // Real-time listener for tournament document
+            unsubscribeTournament = onSnapshot(
+                doc(db, 'tournaments', tournamentId),
+                async (docSnap) => {
+                    updateConnectionStatus(true);
+
+                    if (!docSnap.exists()) {
+                        showError('Tournament not found');
+                        return;
+                    }
+
+                    tournamentData = { id: tournamentId, ...docSnap.data() };
+
+                    // Check for events array in tournament doc (fallback)
+                    if (tournamentData.events && events.length === 0) {
+                        events = tournamentData.events.map((e, i) => ({ id: `event_${i}`, ...e }));
+                    }
+
+                    renderPage();
+                },
+                (error) => {
+                    console.error('Tournament listener error:', error);
+                    updateConnectionStatus(false);
                 }
+            );
 
-                tournamentData = { id: tournamentId, ...tournamentDoc.data() };
+            // Real-time listener for events subcollection
+            unsubscribeEvents = onSnapshot(
+                collection(db, 'tournaments', tournamentId, 'events'),
+                async (snapshot) => {
+                    events = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
 
-                // Load events
-                try {
-                    const eventsSnap = await getDocs(collection(db, 'tournaments', tournamentId, 'events'));
-                    events = eventsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-
-                    // Load registrations for each event
+                    // Load registrations for each event (one-time fetch since it changes less frequently)
                     for (const event of events) {
                         try {
                             const regsSnap = await getDocs(collection(db, 'tournaments', tournamentId, 'events', event.id, 'registrations'));
@@ -511,21 +576,13 @@
                             registrations[event.id] = [];
                         }
                     }
-                } catch (e) {
-                    events = [];
+
+                    renderPage();
+                },
+                (error) => {
+                    console.error('Events listener error:', error);
                 }
-
-                // If no events subcollection, check for events array in tournament doc
-                if (events.length === 0 && tournamentData.events) {
-                    events = tournamentData.events.map((e, i) => ({ id: `event_${i}`, ...e }));
-                }
-
-                renderPage();
-
-            } catch (error) {
-                console.error('Error loading tournament:', error);
-                showError('Failed to load tournament: ' + error.message);
-            }
+            );
         }
 
         function renderPage() {

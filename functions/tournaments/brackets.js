@@ -479,7 +479,7 @@ function generateSingleElimination(players, tournament_id) {
 
     // Create first round matches
     const firstRoundMatches = bracketSize / 2;
-    
+
     for (let i = 0; i < firstRoundMatches; i++) {
         const player1 = shuffled[i * 2];
         const player2 = shuffled[i * 2 + 1];
@@ -515,7 +515,7 @@ function generateSingleElimination(players, tournament_id) {
 
         for (let i = 0; i < roundMatches; i++) {
             const prevMatchBase = (round === 2) ? 0 : matches.filter(m => m.round < round).length;
-            
+
             matches.push({
                 id: `match-${matchNumber}`,
                 matchNumber: matchNumber++,
@@ -542,3 +542,358 @@ function generateSingleElimination(players, tournament_id) {
         createdAt: admin.firestore.Timestamp.now()
     };
 }
+
+// =============================================================================
+// BRACKET EDITING FUNCTIONS
+// =============================================================================
+
+/**
+ * Swap two positions in the bracket (only allowed before round 1 starts)
+ */
+exports.swapBracketPositions = functions.https.onRequest(async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+    if (req.method === 'OPTIONS') return res.status(204).send('');
+
+    try {
+        const { tournament_id, position1, position2, director_pin } = req.body;
+
+        if (!tournament_id || position1 === undefined || position2 === undefined) {
+            return res.status(400).json({ success: false, error: 'Missing required fields' });
+        }
+
+        const tournamentRef = admin.firestore().collection('tournaments').doc(tournament_id);
+        const tournamentDoc = await tournamentRef.get();
+
+        if (!tournamentDoc.exists) {
+            return res.status(404).json({ success: false, error: 'Tournament not found' });
+        }
+
+        const tournament = tournamentDoc.data();
+
+        // Verify director PIN if required
+        if (director_pin && tournament.director_pin && tournament.director_pin !== director_pin) {
+            return res.status(403).json({ success: false, error: 'Invalid director PIN' });
+        }
+
+        // Check if bracket is locked (round 1 has started)
+        if (tournament.bracket_locked) {
+            return res.status(400).json({
+                success: false,
+                error: 'Bracket is locked - matches have already started'
+            });
+        }
+
+        // Check if any match in round 1 has been completed
+        const bracket = tournament.bracket;
+        if (!bracket || !bracket.winners) {
+            return res.status(400).json({ success: false, error: 'No bracket found' });
+        }
+
+        // Check for any completed matches in round 1
+        const round1Completed = bracket.winners.some(m =>
+            m.round === 1 && m.status === 'completed' && !m.status !== 'bye'
+        );
+
+        if (round1Completed) {
+            // Lock the bracket
+            await tournamentRef.update({ bracket_locked: true });
+            return res.status(400).json({
+                success: false,
+                error: 'Cannot edit bracket - round 1 matches have been played'
+            });
+        }
+
+        // Find the matches at these positions in round 1
+        const match1 = bracket.winners.find(m => m.round === 1 && m.position === Math.floor(position1 / 2));
+        const match2 = bracket.winners.find(m => m.round === 1 && m.position === Math.floor(position2 / 2));
+
+        if (!match1 || !match2) {
+            return res.status(400).json({ success: false, error: 'Invalid positions' });
+        }
+
+        // Determine which slot (team1 or team2) within the match
+        const slot1 = position1 % 2 === 0 ? 'team1' : 'team2';
+        const slot2 = position2 % 2 === 0 ? 'team1' : 'team2';
+
+        // Get the teams/players to swap
+        const team1Data = {
+            id: match1[`${slot1}_id`],
+            team: match1[slot1]
+        };
+        const team2Data = {
+            id: match2[`${slot2}_id`],
+            team: match2[slot2]
+        };
+
+        // Perform the swap in memory
+        const matchIndex1 = bracket.winners.findIndex(m => m.id === match1.id);
+        const matchIndex2 = bracket.winners.findIndex(m => m.id === match2.id);
+
+        bracket.winners[matchIndex1][`${slot1}_id`] = team2Data.id;
+        bracket.winners[matchIndex1][slot1] = team2Data.team;
+        bracket.winners[matchIndex2][`${slot2}_id`] = team1Data.id;
+        bracket.winners[matchIndex2][slot2] = team1Data.team;
+
+        // Update status for bye handling
+        bracket.winners.forEach((match, idx) => {
+            if (match.round === 1) {
+                const hasTeam1 = match.team1_id || match.team1;
+                const hasTeam2 = match.team2_id || match.team2;
+
+                if (!hasTeam1 || !hasTeam2) {
+                    bracket.winners[idx].status = 'bye';
+                    // Auto-advance the non-null team
+                    if (hasTeam1) {
+                        bracket.winners[idx].winner_id = match.team1_id;
+                    } else if (hasTeam2) {
+                        bracket.winners[idx].winner_id = match.team2_id;
+                    }
+                } else {
+                    bracket.winners[idx].status = 'pending';
+                    bracket.winners[idx].winner_id = null;
+                }
+            }
+        });
+
+        // Save updated bracket
+        await tournamentRef.update({
+            bracket: bracket,
+            bracket_last_edited: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        res.json({
+            success: true,
+            message: 'Positions swapped successfully',
+            swapped: {
+                position1: { team: team1Data.team?.team_name || team1Data.team?.name || 'TBD', movedTo: position2 },
+                position2: { team: team2Data.team?.team_name || team2Data.team?.name || 'TBD', movedTo: position1 }
+            }
+        });
+
+    } catch (error) {
+        console.error('Swap positions error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * Regenerate bracket with new random seeding (only allowed before round 1 starts)
+ */
+exports.regenerateBracket = functions.https.onRequest(async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+    if (req.method === 'OPTIONS') return res.status(204).send('');
+
+    try {
+        const { tournament_id, director_pin } = req.body;
+
+        if (!tournament_id) {
+            return res.status(400).json({ success: false, error: 'Missing tournament_id' });
+        }
+
+        const tournamentRef = admin.firestore().collection('tournaments').doc(tournament_id);
+        const tournamentDoc = await tournamentRef.get();
+
+        if (!tournamentDoc.exists) {
+            return res.status(404).json({ success: false, error: 'Tournament not found' });
+        }
+
+        const tournament = tournamentDoc.data();
+
+        // Verify director PIN
+        if (director_pin && tournament.director_pin && tournament.director_pin !== director_pin) {
+            return res.status(403).json({ success: false, error: 'Invalid director PIN' });
+        }
+
+        // Check if bracket is locked
+        if (tournament.bracket_locked) {
+            return res.status(400).json({
+                success: false,
+                error: 'Bracket is locked - matches have already started'
+            });
+        }
+
+        const bracket = tournament.bracket;
+        if (!bracket || !bracket.winners) {
+            return res.status(400).json({ success: false, error: 'No bracket found' });
+        }
+
+        // Check for completed matches
+        const hasCompletedMatches = bracket.winners.some(m =>
+            m.round === 1 && m.status === 'completed' && m.status !== 'bye'
+        );
+
+        if (hasCompletedMatches) {
+            await tournamentRef.update({ bracket_locked: true });
+            return res.status(400).json({
+                success: false,
+                error: 'Cannot regenerate - matches have been played'
+            });
+        }
+
+        // Collect all teams from round 1
+        const teams = [];
+        bracket.winners.filter(m => m.round === 1).forEach(match => {
+            if (match.team1_id && match.team1) {
+                teams.push({ id: match.team1_id, ...match.team1 });
+            }
+            if (match.team2_id && match.team2) {
+                teams.push({ id: match.team2_id, ...match.team2 });
+            }
+        });
+
+        if (teams.length < 2) {
+            return res.status(400).json({ success: false, error: 'Not enough teams to regenerate' });
+        }
+
+        // Reshuffle teams
+        const shuffled = [...teams].sort(() => Math.random() - 0.5);
+
+        // Calculate bracket structure
+        const bracketSize = Math.pow(2, Math.ceil(Math.log2(shuffled.length)));
+        const firstRoundMatches = bracketSize / 2;
+
+        // Regenerate round 1 matches
+        let matchNum = 1;
+        bracket.winners = bracket.winners.map(match => {
+            if (match.round === 1) {
+                const pos = match.position;
+                const team1 = shuffled[pos * 2] || null;
+                const team2 = shuffled[pos * 2 + 1] || null;
+                const isBye = !team1 || !team2;
+
+                return {
+                    ...match,
+                    team1_id: team1?.id || null,
+                    team2_id: team2?.id || null,
+                    team1: team1 || null,
+                    team2: team2 || null,
+                    winner_id: isBye ? (team1?.id || team2?.id) : null,
+                    loser_id: null,
+                    scores: null,
+                    status: isBye ? 'bye' : 'pending',
+                    board: null,
+                    started_at: null,
+                    completed_at: isBye ? new Date().toISOString() : null
+                };
+            }
+            // Clear later rounds
+            return {
+                ...match,
+                team1_id: null,
+                team2_id: null,
+                team1: null,
+                team2: null,
+                winner_id: null,
+                loser_id: null,
+                scores: null,
+                status: 'waiting',
+                board: null,
+                started_at: null,
+                completed_at: null
+            };
+        });
+
+        // Clear losers bracket if exists
+        if (bracket.losers) {
+            bracket.losers = bracket.losers.map(match => ({
+                ...match,
+                team1_id: null,
+                team2_id: null,
+                team1: null,
+                team2: null,
+                winner_id: null,
+                loser_id: null,
+                scores: null,
+                status: 'waiting',
+                board: null,
+                started_at: null,
+                completed_at: null
+            }));
+        }
+
+        // Clear grand finals if exists
+        if (bracket.grand_finals) {
+            bracket.grand_finals = {
+                ...bracket.grand_finals,
+                match1: {
+                    ...bracket.grand_finals.match1,
+                    team1_id: null,
+                    team2_id: null,
+                    team1: null,
+                    team2: null,
+                    winner_id: null,
+                    scores: null,
+                    status: 'waiting',
+                    board: null
+                },
+                match2: null,
+                bracket_reset_needed: false
+            };
+        }
+
+        // Reset progress tracking
+        bracket.wc_champion_id = null;
+        bracket.lc_champion_id = null;
+        bracket.tournament_champion_id = null;
+        bracket.current_wc_round = 1;
+        bracket.current_lc_round = 0;
+        bracket.wc_complete = false;
+        bracket.lc_complete = false;
+
+        // Save regenerated bracket
+        await tournamentRef.update({
+            bracket: bracket,
+            bracket_regenerated_at: admin.firestore.FieldValue.serverTimestamp(),
+            bracket_locked: false
+        });
+
+        res.json({
+            success: true,
+            message: 'Bracket regenerated with new seeding',
+            team_count: teams.length,
+            new_order: shuffled.map(t => t.team_name || t.name || 'Team')
+        });
+
+    } catch (error) {
+        console.error('Regenerate bracket error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * Lock bracket (called when first match is completed)
+ */
+exports.lockBracket = functions.https.onRequest(async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+    if (req.method === 'OPTIONS') return res.status(204).send('');
+
+    try {
+        const { tournament_id } = req.body;
+
+        if (!tournament_id) {
+            return res.status(400).json({ success: false, error: 'Missing tournament_id' });
+        }
+
+        const tournamentRef = admin.firestore().collection('tournaments').doc(tournament_id);
+
+        await tournamentRef.update({
+            bracket_locked: true,
+            bracket_locked_at: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        res.json({ success: true, message: 'Bracket locked' });
+
+    } catch (error) {
+        console.error('Lock bracket error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});

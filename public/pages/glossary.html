@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Glossary - BRDC</title>
+    <link rel="icon" type="image/png" href="/images/favicon.png">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#FF469A">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap');
+
+        :root {
+            --pink: #FF469A;
+            --teal: #91D7EB;
+            --yellow: #FDD835;
+            --bg-dark: #1a1a2e;
+            --bg-panel: #16213e;
+            --bg-card: #1e2a47;
+            --text-light: #f0f0f0;
+            --text-dim: #8a8aa3;
+            --text-primary: #ffffff;
+            --border-color: rgba(255,255,255,0.15);
+            --success: #22c55e;
+            --danger: #ef4444;
+            --black: #000000;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+        html, body { min-height: 100%; overflow-x: hidden; width: 100%; }
+        body {
+            background: linear-gradient(135deg, var(--bg-dark) 0%, #0f0f23 100%);
+            color: var(--text-light);
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse at 20% 20%, rgba(255, 70, 154, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(145, 215, 235, 0.06) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        /* Header Bar */
+        .header-bar {
+            background: var(--bg-panel);
+            border-bottom: 3px solid var(--pink);
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+        }
+
+        .back-btn {
+            background: rgba(255,255,255,0.1);
+            border: 2px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.15s;
+            text-decoration: none;
+        }
+
+        .back-btn:hover {
+            background: rgba(255,255,255,0.2);
+            border-color: var(--pink);
+        }
+
+        .header-logo { width: 40px; height: 40px; }
+        .header-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 28px;
+            letter-spacing: 3px;
+            color: var(--pink);
+        }
+
+        /* Breadcrumbs */
+        .breadcrumbs {
+            padding: 8px 16px;
+            font-size: 12px;
+            color: var(--text-dim);
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+        .breadcrumbs ol {
+            list-style: none;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            margin: 0;
+            padding: 0;
+        }
+        .breadcrumbs li::after {
+            content: '>';
+            margin-left: 8px;
+            color: var(--text-dim);
+        }
+        .breadcrumbs li:last-child::after {
+            content: '';
+        }
+        .breadcrumbs a {
+            color: var(--teal);
+            text-decoration: none;
+        }
+        .breadcrumbs a:hover {
+            text-decoration: underline;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 0 20px 40px;
+        }
+
+        /* Search Box */
+        .search-box {
+            background: var(--bg-card);
+            border: 3px solid #000;
+            border-radius: 12px;
+            padding: 12px 16px;
+            margin-bottom: 20px;
+            box-shadow: 4px 4px 0 rgba(0,0,0,0.3);
+        }
+
+        .search-input {
+            width: 100%;
+            background: var(--bg-panel);
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px 16px;
+            font-size: 16px;
+            color: var(--text-light);
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .search-input:focus {
+            border-color: var(--teal);
+        }
+
+        .search-input::placeholder {
+            color: var(--text-dim);
+        }
+
+        /* Glossary List */
+        .glossary-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .glossary-item {
+            background: var(--bg-card);
+            border: 3px solid #000;
+            border-radius: 12px;
+            padding: 16px 20px;
+            box-shadow: 4px 4px 0 rgba(0,0,0,0.3);
+            transition: transform 0.15s, border-color 0.15s;
+        }
+
+        .glossary-item:hover {
+            transform: translateY(-2px);
+            border-color: var(--teal);
+        }
+
+        .glossary-item.hidden {
+            display: none;
+        }
+
+        .glossary-term {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 24px;
+            letter-spacing: 1px;
+            color: var(--yellow);
+            margin-bottom: 6px;
+        }
+
+        .glossary-definition {
+            font-size: 14px;
+            color: var(--text-light);
+            line-height: 1.6;
+        }
+
+        .glossary-example {
+            margin-top: 8px;
+            padding: 8px 12px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 6px;
+            border-left: 3px solid var(--teal);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            color: var(--text-dim);
+        }
+
+        .glossary-category {
+            display: inline-block;
+            background: var(--pink);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-left: 8px;
+            vertical-align: middle;
+        }
+
+        .glossary-category.stats { background: var(--teal); color: #000; }
+        .glossary-category.gameplay { background: var(--success); color: #000; }
+        .glossary-category.structure { background: var(--pink); }
+
+        /* Alphabet Jump Links */
+        .alphabet-nav {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            margin-bottom: 20px;
+            justify-content: center;
+        }
+
+        .alphabet-link {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-card);
+            border: 2px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-dim);
+            text-decoration: none;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 16px;
+            transition: all 0.15s;
+        }
+
+        .alphabet-link:hover {
+            border-color: var(--teal);
+            color: var(--teal);
+        }
+
+        .alphabet-link.active {
+            background: var(--teal);
+            border-color: var(--teal);
+            color: #000;
+        }
+
+        /* No Results */
+        .no-results {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-dim);
+            display: none;
+        }
+
+        .no-results.visible {
+            display: block;
+        }
+
+        .no-results h3 {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 24px;
+            color: var(--text-light);
+            margin-bottom: 8px;
+        }
+
+        /* Letter Headers */
+        .letter-header {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 36px;
+            color: var(--pink);
+            padding: 20px 0 10px;
+            border-bottom: 2px solid var(--border-color);
+            margin-bottom: 12px;
+        }
+
+        .letter-header.hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <header class="header-bar">
+        <a href="/pages/dashboard.html" class="back-btn">BACK</a>
+        <img src="/images/gold_logo.png" alt="BRDC" class="header-logo">
+        <h1 class="header-title">GLOSSARY</h1>
+    </header>
+
+    <nav class="breadcrumbs" aria-label="Breadcrumb">
+        <ol>
+            <li><a href="/pages/dashboard.html">Dashboard</a></li>
+            <li aria-current="page">Glossary</li>
+        </ol>
+    </nav>
+
+    <main class="container">
+        <div class="search-box">
+            <input type="text" class="search-input" id="searchInput" placeholder="Search terms..." oninput="filterGlossary()">
+        </div>
+
+        <div class="alphabet-nav" id="alphabetNav">
+            <!-- Generated by JS -->
+        </div>
+
+        <div class="no-results" id="noResults">
+            <h3>No Terms Found</h3>
+            <p>Try a different search term</p>
+        </div>
+
+        <div class="glossary-list" id="glossaryList">
+            <!-- 3DA -->
+            <div class="letter-header" data-letter="3">3</div>
+            <div class="glossary-item" data-term="3da three dart average" data-letter="3">
+                <div class="glossary-term">3DA <span class="glossary-category stats">Stats</span></div>
+                <div class="glossary-definition">
+                    <strong>Three Dart Average</strong> - The average number of points scored per 3 darts (one turn) in X01 games.
+                    A key measure of overall scoring ability. Higher is better.
+                </div>
+                <div class="glossary-example">Example: A 3DA of 60 means scoring 60 points per turn on average</div>
+            </div>
+
+            <!-- B -->
+            <div class="letter-header" data-letter="B">B</div>
+            <div class="glossary-item" data-term="bust busted" data-letter="B">
+                <div class="glossary-term">BUST <span class="glossary-category gameplay">Gameplay</span></div>
+                <div class="glossary-definition">
+                    When a player's score goes below zero OR lands on exactly 1 in X01 games. The turn is voided and the score reverts to what it was before that turn.
+                    Also called "busting" or "going bust."
+                </div>
+                <div class="glossary-example">Example: With 32 remaining, throwing 33 or more causes a bust</div>
+            </div>
+
+            <!-- C -->
+            <div class="letter-header" data-letter="C">C</div>
+            <div class="glossary-item" data-term="checkout check out finish" data-letter="C">
+                <div class="glossary-term">CHECKOUT <span class="glossary-category gameplay">Gameplay</span></div>
+                <div class="glossary-definition">
+                    Successfully finishing an X01 game by hitting the exact remaining score and ending on a double (in Double Out games).
+                    The final score required to win the leg.
+                </div>
+                <div class="glossary-example">Example: "32 checkout" = D16, "40 checkout" = D20</div>
+            </div>
+
+            <div class="glossary-item" data-term="cork diddle middle" data-letter="C">
+                <div class="glossary-term">CORK <span class="glossary-category gameplay">Gameplay</span></div>
+                <div class="glossary-definition">
+                    A throw to the bullseye to determine who throws first in a leg. Each player throws one dart at the bull -
+                    closest to center wins the cork and chooses whether to throw first or second.
+                    Also called "diddling for the middle."
+                </div>
+                <div class="glossary-example">Example: "Win the cork" = win the throw-off to decide who starts</div>
+            </div>
+
+            <!-- D -->
+            <div class="letter-header" data-letter="D">D</div>
+            <div class="glossary-item" data-term="dido double in double out" data-letter="D">
+                <div class="glossary-term">DIDO <span class="glossary-category gameplay">Gameplay</span></div>
+                <div class="glossary-definition">
+                    <strong>Double In, Double Out</strong> - A game format where players must hit a double to start scoring AND must finish on a double.
+                    More challenging than SIDO as you need doubles at both ends of the game.
+                </div>
+                <div class="glossary-example">Example: Must hit D20 to start, then D16 to finish on 32</div>
+            </div>
+
+            <!-- F -->
+            <div class="letter-header" data-letter="F">F</div>
+            <div class="glossary-item" data-term="fill-in sub substitute" data-letter="F">
+                <div class="glossary-term">FILL-IN <span class="glossary-category structure">Structure</span></div>
+                <div class="glossary-definition">
+                    A substitute player who fills in for an absent roster player. Fill-ins allow teams to play at full strength
+                    even when regular players can't attend.
+                </div>
+                <div class="glossary-example">Example: "Sarah is filling in for John tonight"</div>
+            </div>
+
+            <!-- L -->
+            <div class="letter-header" data-letter="L">L</div>
+            <div class="glossary-item" data-term="leg game" data-letter="L">
+                <div class="glossary-term">LEG <span class="glossary-category structure">Structure</span></div>
+                <div class="glossary-definition">
+                    A single game within a match. One complete game of 501, Cricket, or other format from start to finish.
+                    Multiple legs often make up a set.
+                </div>
+                <div class="glossary-example">Example: "Best of 3 legs" = first to win 2 legs wins the set</div>
+            </div>
+
+            <div class="glossary-item" data-term="level skill rating a b c" data-letter="L">
+                <div class="glossary-term">LEVEL <span class="glossary-category structure">Structure</span></div>
+                <div class="glossary-definition">
+                    A player's skill rating used for balanced team formation. Levels are:
+                    <br><strong>A</strong> - Advanced/high skill
+                    <br><strong>B</strong> - Intermediate/mid skill
+                    <br><strong>C</strong> - Developing/newer player
+                </div>
+                <div class="glossary-example">Example: Triples teams have one A, one B, and one C player</div>
+            </div>
+
+            <!-- M -->
+            <div class="letter-header" data-letter="M">M</div>
+            <div class="glossary-item" data-term="match night" data-letter="M">
+                <div class="glossary-term">MATCH <span class="glossary-category structure">Structure</span></div>
+                <div class="glossary-definition">
+                    A complete contest between two teams, consisting of multiple sets. A match typically represents
+                    one night of play where teams compete for a win in the standings.
+                </div>
+                <div class="glossary-example">Example: "Match night is every Tuesday"</div>
+            </div>
+
+            <div class="glossary-item" data-term="master out triple finish" data-letter="M">
+                <div class="glossary-term">MASTER OUT <span class="glossary-category gameplay">Gameplay</span></div>
+                <div class="glossary-definition">
+                    A game format where players can finish on either a double OR a triple. This gives more checkout
+                    options compared to standard Double Out rules.
+                </div>
+                <div class="glossary-example">Example: Can finish 45 with T15 instead of needing a double</div>
+            </div>
+
+            <div class="glossary-item" data-term="mpr marks per round cricket" data-letter="M">
+                <div class="glossary-term">MPR <span class="glossary-category stats">Stats</span></div>
+                <div class="glossary-definition">
+                    <strong>Marks Per Round</strong> - The average number of marks scored per 3 darts (one turn) in Cricket games.
+                    A key measure of Cricket efficiency. 3.0 MPR means averaging 9 marks per turn (the maximum).
+                </div>
+                <div class="glossary-example">Example: An MPR of 2.5 is considered strong league play</div>
+            </div>
+
+            <!-- S -->
+            <div class="letter-header" data-letter="S">S</div>
+            <div class="glossary-item" data-term="set game group" data-letter="S">
+                <div class="glossary-term">SET <span class="glossary-category structure">Structure</span></div>
+                <div class="glossary-definition">
+                    A group of legs played together, typically between the same players. In many formats,
+                    a set is won by winning a majority of legs (e.g., best of 3, first to 2 wins).
+                </div>
+                <div class="glossary-example">Example: "Won the set 2-1" = won 2 legs to opponent's 1</div>
+            </div>
+
+            <div class="glossary-item" data-term="sido single in double out" data-letter="S">
+                <div class="glossary-term">SIDO <span class="glossary-category gameplay">Gameplay</span></div>
+                <div class="glossary-definition">
+                    <strong>Single In, Double Out</strong> - The most common game format. Players can start scoring
+                    immediately (single in) but must finish on a double to win the leg.
+                </div>
+                <div class="glossary-example">Example: First dart starts scoring, last dart must hit a double</div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Build alphabet navigation
+        function buildAlphabetNav() {
+            const nav = document.getElementById('alphabetNav');
+            const letters = ['3', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
+            const availableLetters = new Set();
+
+            document.querySelectorAll('.glossary-item').forEach(item => {
+                availableLetters.add(item.dataset.letter);
+            });
+
+            letters.forEach(letter => {
+                if (availableLetters.has(letter)) {
+                    const link = document.createElement('a');
+                    link.href = '#';
+                    link.className = 'alphabet-link';
+                    link.textContent = letter;
+                    link.onclick = (e) => {
+                        e.preventDefault();
+                        scrollToLetter(letter);
+                    };
+                    nav.appendChild(link);
+                }
+            });
+        }
+
+        function scrollToLetter(letter) {
+            const header = document.querySelector(`.letter-header[data-letter="${letter}"]`);
+            if (header) {
+                header.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
+
+        function filterGlossary() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
+            const items = document.querySelectorAll('.glossary-item');
+            const headers = document.querySelectorAll('.letter-header');
+            let visibleCount = 0;
+            const visibleLetters = new Set();
+
+            items.forEach(item => {
+                const terms = item.dataset.term.toLowerCase();
+                const definition = item.querySelector('.glossary-definition').textContent.toLowerCase();
+                const matches = !searchTerm || terms.includes(searchTerm) || definition.includes(searchTerm);
+
+                item.classList.toggle('hidden', !matches);
+                if (matches) {
+                    visibleCount++;
+                    visibleLetters.add(item.dataset.letter);
+                }
+            });
+
+            // Show/hide letter headers based on visible items
+            headers.forEach(header => {
+                header.classList.toggle('hidden', !visibleLetters.has(header.dataset.letter));
+            });
+
+            // Show no results message
+            document.getElementById('noResults').classList.toggle('visible', visibleCount === 0);
+        }
+
+        // Initialize
+        buildAlphabetNav();
+    </script>
+</body>
+</html>

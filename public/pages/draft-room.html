@@ -1,0 +1,1570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Draft Room - BRDC</title>
+    <link rel="icon" type="image/png" href="/images/favicon.png">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap');
+
+        :root {
+            --pink: #FF469A;
+            --teal: #91D7EB;
+            --yellow: #FDD835;
+            --bg-dark: #1a1a2e;
+            --bg-panel: #16213e;
+            --bg-card: #1e2a47;
+            --text-light: #f0f0f0;
+            --text-dim: #8a8aa3;
+            --border-color: rgba(255,255,255,0.15);
+            --border-strong: #000;
+            --success: #22c55e;
+            --danger: #ef4444;
+            --glow-pink: rgba(255, 70, 154, 0.3);
+            --glow-teal: rgba(145, 215, 235, 0.3);
+            --glow-yellow: rgba(253, 216, 53, 0.3);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+        html, body { min-height: 100%; overflow-x: hidden; width: 100%; }
+        body {
+            background: linear-gradient(135deg, var(--bg-dark) 0%, #0f0f23 100%);
+            color: var(--text-light);
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse at 20% 20%, rgba(255, 70, 154, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(145, 215, 235, 0.06) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        /* Header Bar */
+        .header-bar {
+            background: var(--bg-panel);
+            border-bottom: 3px solid var(--pink);
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+        }
+
+        .back-btn {
+            background: rgba(255,255,255,0.1);
+            border: 2px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .back-btn:hover {
+            background: rgba(255,255,255,0.2);
+            border-color: var(--pink);
+        }
+
+        .header-logo {
+            width: 40px;
+            height: 40px;
+        }
+
+        .header-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 28px;
+            letter-spacing: 3px;
+            color: var(--pink);
+        }
+
+        .header-status {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .status-badge {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-weight: 700;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .status-badge.pending { background: rgba(253, 216, 53, 0.2); color: var(--yellow); border: 2px solid var(--yellow); }
+        .status-badge.in-progress { background: rgba(34, 197, 94, 0.2); color: var(--success); border: 2px solid var(--success); animation: pulse 2s infinite; }
+        .status-badge.completed { background: rgba(145, 215, 235, 0.2); color: var(--teal); border: 2px solid var(--teal); }
+        .status-badge.paused { background: rgba(239, 68, 68, 0.2); color: var(--danger); border: 2px solid var(--danger); }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        /* Container */
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Draft Grid Layout */
+        .draft-grid {
+            display: grid;
+            grid-template-columns: 280px 1fr 320px;
+            gap: 20px;
+            margin-top: 10px;
+        }
+
+        @media (max-width: 1200px) {
+            .draft-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Cards */
+        .card {
+            background: var(--bg-panel);
+            border: 4px solid var(--border-strong);
+            border-radius: 16px;
+            box-shadow: 8px 8px 0 rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+        }
+
+        .card-header {
+            padding: 16px 20px;
+            border-bottom: 3px solid var(--border-strong);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .card-header.pink { background: linear-gradient(135deg, var(--pink), #d63384); }
+        .card-header.teal { background: linear-gradient(135deg, var(--teal), #5ab8d4); }
+        .card-header.yellow { background: linear-gradient(135deg, var(--yellow), #f9a825); }
+
+        .card-icon {
+            width: 36px;
+            height: 36px;
+            background: rgba(0,0,0,0.2);
+            border: 2px solid rgba(0,0,0,0.3);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+
+        .card-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 22px;
+            letter-spacing: 2px;
+            color: white;
+            text-shadow: 2px 2px 0 rgba(0,0,0,0.3);
+        }
+
+        .card-body {
+            padding: 16px;
+        }
+
+        /* Timer Section */
+        .timer-section {
+            text-align: center;
+            padding: 20px;
+            background: linear-gradient(135deg, rgba(253, 216, 53, 0.1), rgba(255, 70, 154, 0.1));
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .current-picker {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 18px;
+            letter-spacing: 2px;
+            color: var(--teal);
+            margin-bottom: 8px;
+        }
+
+        .current-team-name {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 32px;
+            letter-spacing: 2px;
+            color: var(--yellow);
+            text-shadow: 2px 2px 0 rgba(0,0,0,0.3);
+        }
+
+        .timer-display {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 72px;
+            font-weight: 700;
+            color: var(--text-light);
+            margin: 15px 0;
+            text-shadow: 3px 3px 0 rgba(0,0,0,0.5);
+        }
+
+        .timer-display.warning { color: var(--yellow); }
+        .timer-display.critical { color: var(--danger); animation: blink 0.5s infinite; }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .pick-number {
+            font-size: 14px;
+            color: var(--text-dim);
+        }
+
+        /* Draft Order */
+        .draft-order-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .draft-order-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-color);
+            transition: all 0.2s;
+        }
+
+        .draft-order-item:hover {
+            background: rgba(255,255,255,0.05);
+        }
+
+        .draft-order-item.current {
+            background: rgba(253, 216, 53, 0.15);
+            border-left: 4px solid var(--yellow);
+        }
+
+        .draft-order-item.completed {
+            opacity: 0.5;
+        }
+
+        .pick-num {
+            width: 28px;
+            height: 28px;
+            background: var(--bg-card);
+            border: 2px solid var(--border-strong);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .draft-order-item.current .pick-num {
+            background: var(--yellow);
+            color: var(--bg-dark);
+        }
+
+        .team-info {
+            flex: 1;
+        }
+
+        .team-name {
+            font-weight: 700;
+            font-size: 14px;
+        }
+
+        .captain-name {
+            font-size: 12px;
+            color: var(--text-dim);
+        }
+
+        .pick-indicator {
+            font-size: 16px;
+        }
+
+        /* Available Players */
+        .filter-section {
+            padding: 12px 16px;
+            background: rgba(0,0,0,0.2);
+            border-bottom: 2px solid var(--border-color);
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            padding: 6px 14px;
+            background: var(--bg-card);
+            border: 2px solid var(--border-strong);
+            border-radius: 6px;
+            color: var(--text-light);
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .filter-btn:hover {
+            background: rgba(255,255,255,0.1);
+        }
+
+        .filter-btn.active {
+            background: var(--pink);
+            border-color: var(--pink);
+        }
+
+        .search-input {
+            flex: 1;
+            min-width: 150px;
+            padding: 8px 12px;
+            background: var(--bg-card);
+            border: 2px solid var(--border-strong);
+            border-radius: 6px;
+            color: var(--text-light);
+            font-size: 14px;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--teal);
+        }
+
+        .player-list {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .player-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .player-item:hover {
+            background: rgba(145, 215, 235, 0.1);
+        }
+
+        .player-item.selected {
+            background: rgba(253, 216, 53, 0.2);
+            border-left: 4px solid var(--yellow);
+        }
+
+        .player-item.drafted {
+            opacity: 0.4;
+            pointer-events: none;
+            text-decoration: line-through;
+        }
+
+        .player-level {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 18px;
+            font-weight: 700;
+            border: 2px solid var(--border-strong);
+        }
+
+        .player-level.A { background: linear-gradient(135deg, #FFD700, #FFA000); color: #000; }
+        .player-level.B { background: linear-gradient(135deg, #C0C0C0, #888); color: #000; }
+        .player-level.C { background: linear-gradient(135deg, #CD7F32, #8B4513); color: #fff; }
+
+        .player-info {
+            flex: 1;
+        }
+
+        .player-name {
+            font-weight: 700;
+            font-size: 15px;
+        }
+
+        .player-stats {
+            font-size: 12px;
+            color: var(--text-dim);
+            display: flex;
+            gap: 12px;
+        }
+
+        .stat {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .stat-label {
+            color: var(--teal);
+        }
+
+        .pick-btn {
+            padding: 8px 16px;
+            background: linear-gradient(135deg, var(--pink), #d63384);
+            border: 2px solid var(--border-strong);
+            border-radius: 6px;
+            color: white;
+            font-weight: 700;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 3px 3px 0 rgba(0,0,0,0.3);
+        }
+
+        .pick-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 5px 5px 0 rgba(0,0,0,0.3);
+        }
+
+        .pick-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Pick History */
+        .pick-history-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .pick-history-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .pick-history-item:nth-child(odd) {
+            background: rgba(0,0,0,0.1);
+        }
+
+        .history-pick-num {
+            width: 24px;
+            height: 24px;
+            background: var(--bg-card);
+            border: 2px solid var(--border-strong);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            font-weight: 700;
+        }
+
+        .history-team {
+            font-weight: 600;
+            font-size: 12px;
+            color: var(--teal);
+            min-width: 80px;
+        }
+
+        .history-player {
+            flex: 1;
+            font-weight: 700;
+            font-size: 14px;
+        }
+
+        .history-level {
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: 700;
+        }
+
+        .history-level.A { background: rgba(255, 215, 0, 0.3); color: #FFD700; }
+        .history-level.B { background: rgba(192, 192, 192, 0.3); color: #C0C0C0; }
+        .history-level.C { background: rgba(205, 127, 50, 0.3); color: #CD7F32; }
+
+        /* Team Rosters Section */
+        .team-rosters {
+            margin-top: 20px;
+        }
+
+        .rosters-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 16px;
+            padding: 16px;
+        }
+
+        .roster-card {
+            background: var(--bg-card);
+            border: 3px solid var(--border-strong);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 4px 4px 0 rgba(0,0,0,0.3);
+        }
+
+        .roster-card.picking {
+            border-color: var(--yellow);
+            box-shadow: 0 0 20px var(--glow-yellow);
+        }
+
+        .roster-header {
+            padding: 12px 16px;
+            background: rgba(0,0,0,0.3);
+            border-bottom: 2px solid var(--border-strong);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .roster-team-name {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 18px;
+            letter-spacing: 1px;
+            color: var(--teal);
+        }
+
+        .roster-count {
+            font-size: 12px;
+            color: var(--text-dim);
+        }
+
+        .roster-players {
+            padding: 8px;
+        }
+
+        .roster-player {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 8px;
+            border-radius: 6px;
+        }
+
+        .roster-player:nth-child(odd) {
+            background: rgba(0,0,0,0.2);
+        }
+
+        .roster-player-level {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 700;
+            border: 1px solid var(--border-strong);
+        }
+
+        .roster-player-name {
+            flex: 1;
+            font-size: 13px;
+        }
+
+        .roster-empty {
+            padding: 20px;
+            text-align: center;
+            color: var(--text-dim);
+            font-style: italic;
+        }
+
+        /* Director Controls */
+        .director-controls {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 12px;
+            padding: 16px 24px;
+            background: var(--bg-panel);
+            border: 4px solid var(--border-strong);
+            border-radius: 16px;
+            box-shadow: 8px 8px 0 rgba(0,0,0,0.5);
+            z-index: 1000;
+        }
+
+        .director-controls.hidden {
+            display: none;
+        }
+
+        .control-btn {
+            padding: 12px 24px;
+            border: 3px solid var(--border-strong);
+            border-radius: 8px;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 18px;
+            letter-spacing: 2px;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 4px 4px 0 rgba(0,0,0,0.3);
+        }
+
+        .control-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 6px 6px 0 rgba(0,0,0,0.3);
+        }
+
+        .control-btn.start { background: linear-gradient(135deg, var(--success), #16a34a); color: white; }
+        .control-btn.pause { background: linear-gradient(135deg, var(--yellow), #f9a825); color: #000; }
+        .control-btn.resume { background: linear-gradient(135deg, var(--teal), #5ab8d4); color: #000; }
+        .control-btn.undo { background: linear-gradient(135deg, #f97316, #ea580c); color: white; }
+        .control-btn.force { background: linear-gradient(135deg, var(--pink), #d63384); color: white; }
+        .control-btn.complete { background: linear-gradient(135deg, var(--teal), #5ab8d4); color: #000; }
+
+        /* Loading State */
+        .loading-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+
+        .loading-overlay.hidden {
+            display: none;
+        }
+
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid var(--bg-panel);
+            border-top-color: var(--pink);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Not Your Turn Overlay */
+        .not-your-turn {
+            position: absolute;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+
+        .not-your-turn-text {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 24px;
+            letter-spacing: 2px;
+            color: var(--text-dim);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .draft-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .director-controls {
+                flex-wrap: wrap;
+                width: calc(100% - 40px);
+                justify-content: center;
+            }
+
+            .timer-display {
+                font-size: 48px;
+            }
+        }
+
+        /* Login Page */
+        .login-page {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .login-logo {
+            width: 120px;
+            height: 120px;
+            margin-bottom: 20px;
+        }
+
+        .login-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 36px;
+            letter-spacing: 4px;
+            color: var(--pink);
+            margin-bottom: 30px;
+        }
+
+        .login-box {
+            background: var(--bg-panel);
+            border: 4px solid var(--border-strong);
+            border-radius: 16px;
+            padding: 30px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 8px 8px 0 rgba(0,0,0,0.4);
+        }
+
+        .login-form-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 24px;
+            letter-spacing: 2px;
+            color: var(--teal);
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 14px;
+            letter-spacing: 1px;
+            color: var(--text-dim);
+            margin-bottom: 8px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 14px 18px;
+            background: var(--bg-card);
+            border: 3px solid var(--border-strong);
+            border-radius: 8px;
+            color: var(--yellow);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 24px;
+            text-align: center;
+            letter-spacing: 4px;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--teal);
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(180deg, var(--pink) 0%, #d63384 100%);
+            border: 3px solid var(--border-strong);
+            border-radius: 8px;
+            color: white;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 22px;
+            letter-spacing: 3px;
+            cursor: pointer;
+            box-shadow: 4px 4px 0 rgba(0,0,0,0.4);
+            transition: all 0.2s;
+        }
+
+        .login-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 6px 6px 0 rgba(0,0,0,0.4);
+        }
+
+        .login-error {
+            background: rgba(239, 68, 68, 0.2);
+            border: 2px solid var(--danger);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 20px;
+            color: var(--danger);
+            font-size: 14px;
+            text-align: center;
+        }
+
+        .login-error.hidden {
+            display: none;
+        }
+
+        /* Main Content */
+        .main-content {
+            display: none;
+        }
+
+        .main-content.visible {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Overlay -->
+    <div class="loading-overlay hidden" id="loadingOverlay">
+        <div class="loading-spinner"></div>
+    </div>
+
+    <!-- Login Page -->
+    <div class="login-page" id="loginPage">
+        <img src="/images/gold_logo.png" alt="BRDC" class="login-logo">
+        <h1 class="login-title">DRAFT ROOM</h1>
+
+        <div class="login-box">
+            <div class="login-form-title">CAPTAIN LOGIN</div>
+            <div class="login-error hidden" id="loginError"></div>
+            <div class="form-group">
+                <label class="form-label">Your 8-Digit PIN</label>
+                <input type="password" class="form-input" id="pinInput" placeholder="********" maxlength="8" inputmode="numeric">
+            </div>
+            <button class="login-btn" onclick="login()">ENTER DRAFT</button>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content" id="mainContent">
+        <!-- Header -->
+        <div class="header-bar">
+            <button class="back-btn" onclick="goBack()">BACK</button>
+            <img src="/images/gold_logo.png" alt="BRDC" class="header-logo">
+            <div class="header-title">DRAFT ROOM</div>
+            <div class="header-status">
+                <span id="leagueName" style="color: var(--teal); font-weight: 600;"></span>
+                <span class="status-badge pending" id="draftStatus">PENDING</span>
+            </div>
+        </div>
+
+        <div class="container">
+            <!-- Timer Section -->
+            <div class="card" style="margin-bottom: 20px;">
+                <div class="timer-section">
+                    <div class="current-picker">NOW PICKING:</div>
+                    <div class="current-team-name" id="currentTeam">Waiting to Start...</div>
+                    <div class="timer-display" id="timerDisplay">--:--</div>
+                    <div class="pick-number" id="pickNumber">Pick 0 of 0</div>
+                </div>
+            </div>
+
+            <div class="draft-grid">
+                <!-- Draft Order -->
+                <div class="card">
+                    <div class="card-header pink">
+                        <div class="card-icon">1</div>
+                        <div class="card-title">DRAFT ORDER</div>
+                    </div>
+                    <div class="card-body" style="padding: 0;">
+                        <div class="draft-order-list" id="draftOrderList">
+                            <!-- Draft order items will be populated here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Available Players -->
+                <div class="card" style="position: relative;">
+                    <div class="card-header teal">
+                        <div class="card-icon">@@</div>
+                        <div class="card-title">AVAILABLE PLAYERS</div>
+                    </div>
+                    <div class="filter-section">
+                        <button class="filter-btn active" data-level="all" onclick="filterPlayers('all')">ALL</button>
+                        <button class="filter-btn" data-level="A" onclick="filterPlayers('A')">A</button>
+                        <button class="filter-btn" data-level="B" onclick="filterPlayers('B')">B</button>
+                        <button class="filter-btn" data-level="C" onclick="filterPlayers('C')">C</button>
+                        <input type="text" class="search-input" placeholder="Search players..." id="playerSearch" oninput="searchPlayers()">
+                    </div>
+                    <div class="card-body" style="padding: 0;">
+                        <div class="player-list" id="playerList">
+                            <!-- Players will be populated here -->
+                        </div>
+                    </div>
+                    <div class="not-your-turn hidden" id="notYourTurn">
+                        <div class="not-your-turn-text">WAITING FOR YOUR TURN...</div>
+                    </div>
+                </div>
+
+                <!-- Pick History -->
+                <div class="card">
+                    <div class="card-header yellow">
+                        <div class="card-icon">H</div>
+                        <div class="card-title">PICK HISTORY</div>
+                    </div>
+                    <div class="card-body" style="padding: 0;">
+                        <div class="pick-history-list" id="pickHistoryList">
+                            <div style="padding: 20px; text-align: center; color: var(--text-dim);">
+                                No picks yet
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Team Rosters -->
+            <div class="card team-rosters">
+                <div class="card-header pink">
+                    <div class="card-icon">T</div>
+                    <div class="card-title">TEAM ROSTERS</div>
+                </div>
+                <div class="rosters-grid" id="rostersGrid">
+                    <!-- Team rosters will be populated here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Director Controls -->
+        <div class="director-controls hidden" id="directorControls">
+            <button class="control-btn start" id="startDraftBtn" onclick="startDraft()">START DRAFT</button>
+            <button class="control-btn pause hidden" id="pauseDraftBtn" onclick="pauseDraft()">PAUSE</button>
+            <button class="control-btn resume hidden" id="resumeDraftBtn" onclick="resumeDraft()">RESUME</button>
+            <button class="control-btn undo" id="undoPickBtn" onclick="undoLastPick()">UNDO LAST</button>
+            <button class="control-btn force" id="forcePickBtn" onclick="forcePick()">FORCE PICK</button>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+
+    <script>
+        // Firebase config
+        const firebaseConfig = {
+            apiKey: "AIzaSyCYiPlKdt2CyV6DkJD4rJhZTFMzxKwrAOA",
+            authDomain: "brdc-v2.firebaseapp.com",
+            projectId: "brdc-v2",
+            storageBucket: "brdc-v2.appspot.com",
+            messagingSenderId: "1001952022577",
+            appId: "1:1001952022577:web:ddb3f8b89a4e64b6d42cc4"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // API URL
+        const API_BASE = 'https://us-central1-brdc-v2.cloudfunctions.net';
+
+        // State
+        let leagueId = null;
+        let draftState = null;
+        let currentUser = null;
+        let isDirector = false;
+        let myTeamId = null;
+        let players = [];
+        let teams = [];
+        let timerInterval = null;
+        let unsubscribeDraft = null;
+
+        // Get league ID from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        leagueId = urlParams.get('league_id');
+
+        if (!leagueId) {
+            alert('No league specified');
+            window.location.href = '/pages/dashboard.html';
+        }
+
+        // Login function
+        async function login() {
+            const pin = document.getElementById('pinInput').value.trim();
+            if (pin.length !== 8) {
+                showError('Please enter a valid 8-digit PIN');
+                return;
+            }
+
+            showLoading(true);
+
+            try {
+                // Check if user is a player in this league
+                const response = await fetch(`${API_BASE}/captainLogin`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ league_id: leagueId, pin })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    currentUser = data.player;
+                    myTeamId = data.team?.id || null;
+                    isDirector = data.is_captain || false;
+
+                    // Also check if they're the league director
+                    const leagueDoc = await db.collection('leagues').doc(leagueId).get();
+                    const leagueData = leagueDoc.data();
+                    if (leagueData.director_pin === pin || leagueData.admin_pin === pin) {
+                        isDirector = true;
+                    }
+
+                    sessionStorage.setItem('draft_pin', pin);
+                    sessionStorage.setItem('draft_user', JSON.stringify(currentUser));
+                    sessionStorage.setItem('draft_team_id', myTeamId || '');
+                    sessionStorage.setItem('draft_is_director', isDirector);
+
+                    enterDraftRoom();
+                } else {
+                    showError(data.error || 'Invalid PIN');
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                showError('Connection error. Please try again.');
+            }
+
+            showLoading(false);
+        }
+
+        function showError(message) {
+            const errorEl = document.getElementById('loginError');
+            errorEl.textContent = message;
+            errorEl.classList.remove('hidden');
+        }
+
+        function showLoading(show) {
+            document.getElementById('loadingOverlay').classList.toggle('hidden', !show);
+        }
+
+        // Enter draft room
+        async function enterDraftRoom() {
+            document.getElementById('loginPage').style.display = 'none';
+            document.getElementById('mainContent').classList.add('visible');
+
+            // Show director controls if applicable
+            if (isDirector) {
+                document.getElementById('directorControls').classList.remove('hidden');
+            }
+
+            // Load initial data
+            await loadLeagueData();
+            await loadPlayers();
+            await loadTeams();
+            await loadDraftState();
+
+            // Set up real-time listener for draft state
+            setupDraftListener();
+        }
+
+        // Load league data
+        async function loadLeagueData() {
+            try {
+                const leagueDoc = await db.collection('leagues').doc(leagueId).get();
+                const leagueData = leagueDoc.data();
+                document.getElementById('leagueName').textContent = leagueData.name || 'League';
+            } catch (error) {
+                console.error('Error loading league:', error);
+            }
+        }
+
+        // Load players
+        async function loadPlayers() {
+            try {
+                const playersSnap = await db.collection('leagues').doc(leagueId).collection('players').get();
+                players = [];
+                playersSnap.forEach(doc => {
+                    const data = doc.data();
+                    if (!data.team_id) { // Only show unassigned players
+                        players.push({ id: doc.id, ...data });
+                    }
+                });
+
+                // Also load stats for players
+                const statsSnap = await db.collection('leagues').doc(leagueId).collection('stats').get();
+                const statsById = {};
+                statsSnap.forEach(doc => {
+                    statsById[doc.id] = doc.data();
+                });
+
+                // Merge stats into players
+                players.forEach(p => {
+                    const stats = statsById[p.id] || {};
+                    p.x01_three_dart_avg = stats.x01_three_dart_avg || stats.three_dart_avg || null;
+                    p.cricket_mpr = stats.cricket_mpr || stats.mpr || null;
+                });
+
+                renderPlayers();
+            } catch (error) {
+                console.error('Error loading players:', error);
+            }
+        }
+
+        // Load teams
+        async function loadTeams() {
+            try {
+                const teamsSnap = await db.collection('leagues').doc(leagueId).collection('teams').get();
+                teams = [];
+                teamsSnap.forEach(doc => {
+                    teams.push({ id: doc.id, ...doc.data() });
+                });
+                renderTeamRosters();
+            } catch (error) {
+                console.error('Error loading teams:', error);
+            }
+        }
+
+        // Load draft state
+        async function loadDraftState() {
+            try {
+                const draftDoc = await db.collection('leagues').doc(leagueId).collection('draft').doc('current').get();
+                if (draftDoc.exists) {
+                    draftState = draftDoc.data();
+                    renderDraftState();
+                } else {
+                    // No draft exists yet
+                    draftState = {
+                        status: 'pending',
+                        draft_order: [],
+                        current_pick_index: 0,
+                        picks: [],
+                        time_per_pick_seconds: 60,
+                        snake_draft: true
+                    };
+                }
+            } catch (error) {
+                console.error('Error loading draft state:', error);
+            }
+        }
+
+        // Set up real-time listener
+        function setupDraftListener() {
+            unsubscribeDraft = db.collection('leagues').doc(leagueId).collection('draft').doc('current')
+                .onSnapshot(doc => {
+                    if (doc.exists) {
+                        draftState = doc.data();
+                        renderDraftState();
+                        updateTimer();
+                    }
+                });
+        }
+
+        // Render draft state
+        function renderDraftState() {
+            if (!draftState) return;
+
+            // Update status badge
+            const statusEl = document.getElementById('draftStatus');
+            statusEl.className = 'status-badge ' + draftState.status.replace('_', '-');
+            statusEl.textContent = draftState.status.toUpperCase().replace('_', ' ');
+
+            // Update current team
+            const currentPickIndex = draftState.current_pick_index || 0;
+            const pickOrder = draftState.pick_order || [];
+            const currentTeamId = pickOrder[currentPickIndex];
+            const currentTeam = teams.find(t => t.id === currentTeamId);
+
+            document.getElementById('currentTeam').textContent = currentTeam?.name || currentTeam?.team_name || 'Waiting...';
+            document.getElementById('pickNumber').textContent = `Pick ${currentPickIndex + 1} of ${pickOrder.length}`;
+
+            // Update draft order
+            renderDraftOrder();
+
+            // Update pick history
+            renderPickHistory();
+
+            // Update not your turn overlay
+            const isMyTurn = currentTeamId === myTeamId;
+            document.getElementById('notYourTurn').classList.toggle('hidden', isMyTurn || isDirector || draftState.status !== 'in_progress');
+
+            // Update director controls
+            if (isDirector) {
+                document.getElementById('startDraftBtn').classList.toggle('hidden', draftState.status !== 'pending');
+                document.getElementById('pauseDraftBtn').classList.toggle('hidden', draftState.status !== 'in_progress');
+                document.getElementById('resumeDraftBtn').classList.toggle('hidden', draftState.status !== 'paused');
+            }
+
+            // Update available players (mark drafted ones)
+            const draftedIds = (draftState.picks || []).map(p => p.player_id);
+            players.forEach(p => {
+                p.isDrafted = draftedIds.includes(p.id);
+            });
+            renderPlayers();
+
+            // Update team rosters
+            renderTeamRosters();
+        }
+
+        // Render draft order
+        function renderDraftOrder() {
+            const container = document.getElementById('draftOrderList');
+            const pickOrder = draftState.pick_order || [];
+            const currentPickIndex = draftState.current_pick_index || 0;
+
+            let html = '';
+            pickOrder.forEach((teamId, idx) => {
+                const team = teams.find(t => t.id === teamId);
+                const isCurrent = idx === currentPickIndex && draftState.status === 'in_progress';
+                const isCompleted = idx < currentPickIndex;
+                const pick = (draftState.picks || [])[idx];
+
+                html += `
+                    <div class="draft-order-item ${isCurrent ? 'current' : ''} ${isCompleted ? 'completed' : ''}">
+                        <div class="pick-num">${idx + 1}</div>
+                        <div class="team-info">
+                            <div class="team-name">${team?.name || team?.team_name || 'Unknown'}</div>
+                            ${pick ? `<div class="captain-name">Picked: ${pick.player_name}</div>` : ''}
+                        </div>
+                        <div class="pick-indicator">${isCurrent ? '*' : isCompleted ? '&check;' : ''}</div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html || '<div style="padding: 20px; text-align: center; color: var(--text-dim);">Draft order not set</div>';
+        }
+
+        // Render pick history
+        function renderPickHistory() {
+            const container = document.getElementById('pickHistoryList');
+            const picks = draftState.picks || [];
+
+            if (picks.length === 0) {
+                container.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-dim);">No picks yet</div>';
+                return;
+            }
+
+            let html = '';
+            picks.forEach((pick, idx) => {
+                const team = teams.find(t => t.id === pick.team_id);
+                html += `
+                    <div class="pick-history-item">
+                        <div class="history-pick-num">${idx + 1}</div>
+                        <div class="history-team">${team?.name || team?.team_name || 'Unknown'}</div>
+                        <div class="history-player">${pick.player_name}</div>
+                        <div class="history-level ${pick.player_level || ''}">${pick.player_level || '-'}</div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        // Render players
+        function renderPlayers() {
+            const container = document.getElementById('playerList');
+            const searchTerm = document.getElementById('playerSearch').value.toLowerCase();
+            const activeFilter = document.querySelector('.filter-btn.active')?.dataset.level || 'all';
+
+            let filtered = players.filter(p => {
+                if (searchTerm && !p.name?.toLowerCase().includes(searchTerm)) return false;
+                if (activeFilter !== 'all' && p.level !== activeFilter && p.preferred_level !== activeFilter) return false;
+                return true;
+            });
+
+            // Sort by level (A, B, C) then by stats
+            filtered.sort((a, b) => {
+                const levelOrder = { 'A': 0, 'B': 1, 'C': 2 };
+                const aLevel = levelOrder[a.level || a.preferred_level] ?? 3;
+                const bLevel = levelOrder[b.level || b.preferred_level] ?? 3;
+                if (aLevel !== bLevel) return aLevel - bLevel;
+                return (b.x01_three_dart_avg || 0) - (a.x01_three_dart_avg || 0);
+            });
+
+            let html = '';
+            filtered.forEach(player => {
+                const level = player.level || player.preferred_level || '-';
+                const avg = player.x01_three_dart_avg ? player.x01_three_dart_avg.toFixed(1) : '-';
+                const mpr = player.cricket_mpr ? player.cricket_mpr.toFixed(2) : '-';
+                const canPick = draftState?.status === 'in_progress' && !player.isDrafted && (isMyTurn() || isDirector);
+
+                html += `
+                    <div class="player-item ${player.isDrafted ? 'drafted' : ''}" data-player-id="${player.id}">
+                        <div class="player-level ${level}">${level}</div>
+                        <div class="player-info">
+                            <div class="player-name">${player.name}</div>
+                            <div class="player-stats">
+                                <span class="stat"><span class="stat-label">3DA:</span> ${avg}</span>
+                                <span class="stat"><span class="stat-label">MPR:</span> ${mpr}</span>
+                            </div>
+                        </div>
+                        ${canPick ? `<button class="pick-btn" onclick="makePick('${player.id}', '${player.name}', '${level}')">PICK</button>` : ''}
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html || '<div style="padding: 20px; text-align: center; color: var(--text-dim);">No players available</div>';
+        }
+
+        // Render team rosters
+        function renderTeamRosters() {
+            const container = document.getElementById('rostersGrid');
+            const pickOrder = draftState?.pick_order || [];
+            const currentPickIndex = draftState?.current_pick_index || 0;
+            const currentTeamId = pickOrder[currentPickIndex];
+            const picks = draftState?.picks || [];
+
+            // Group picks by team
+            const teamPicks = {};
+            picks.forEach(pick => {
+                if (!teamPicks[pick.team_id]) teamPicks[pick.team_id] = [];
+                teamPicks[pick.team_id].push(pick);
+            });
+
+            let html = '';
+            teams.forEach(team => {
+                const isPicking = team.id === currentTeamId && draftState?.status === 'in_progress';
+                const roster = teamPicks[team.id] || [];
+
+                html += `
+                    <div class="roster-card ${isPicking ? 'picking' : ''}">
+                        <div class="roster-header">
+                            <div class="roster-team-name">${team.name || team.team_name}</div>
+                            <div class="roster-count">${roster.length} players</div>
+                        </div>
+                        <div class="roster-players">
+                            ${roster.length > 0 ? roster.map(p => `
+                                <div class="roster-player">
+                                    <div class="roster-player-level player-level ${p.player_level || ''}">${p.player_level || '-'}</div>
+                                    <div class="roster-player-name">${p.player_name}</div>
+                                </div>
+                            `).join('') : '<div class="roster-empty">No players drafted yet</div>'}
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html || '<div style="padding: 20px; text-align: center; color: var(--text-dim);">No teams set up</div>';
+        }
+
+        // Check if it's my turn
+        function isMyTurn() {
+            if (!draftState || !myTeamId) return false;
+            const pickOrder = draftState.pick_order || [];
+            const currentPickIndex = draftState.current_pick_index || 0;
+            return pickOrder[currentPickIndex] === myTeamId;
+        }
+
+        // Filter players
+        function filterPlayers(level) {
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.level === level);
+            });
+            renderPlayers();
+        }
+
+        // Search players
+        function searchPlayers() {
+            renderPlayers();
+        }
+
+        // Timer functions
+        function updateTimer() {
+            if (timerInterval) clearInterval(timerInterval);
+
+            if (draftState?.status !== 'in_progress' || !draftState.pick_deadline) {
+                document.getElementById('timerDisplay').textContent = '--:--';
+                return;
+            }
+
+            timerInterval = setInterval(() => {
+                const deadline = draftState.pick_deadline.toDate ? draftState.pick_deadline.toDate() : new Date(draftState.pick_deadline);
+                const now = new Date();
+                const diff = Math.max(0, Math.floor((deadline - now) / 1000));
+
+                const minutes = Math.floor(diff / 60);
+                const seconds = diff % 60;
+                const display = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+
+                const timerEl = document.getElementById('timerDisplay');
+                timerEl.textContent = display;
+                timerEl.classList.remove('warning', 'critical');
+
+                if (diff <= 10) {
+                    timerEl.classList.add('critical');
+                } else if (diff <= 30) {
+                    timerEl.classList.add('warning');
+                }
+
+                if (diff === 0) {
+                    clearInterval(timerInterval);
+                    // Auto-pick will be handled by backend
+                }
+            }, 1000);
+        }
+
+        // Make a pick
+        async function makePick(playerId, playerName, playerLevel) {
+            if (!confirm(`Draft ${playerName}?`)) return;
+
+            showLoading(true);
+            const pin = sessionStorage.getItem('draft_pin');
+
+            try {
+                const response = await fetch(`${API_BASE}/makeDraftPick`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        league_id: leagueId,
+                        player_id: playerId,
+                        team_id: isDirector ? (draftState.pick_order[draftState.current_pick_index]) : myTeamId,
+                        pin
+                    })
+                });
+
+                const data = await response.json();
+                if (!data.success) {
+                    alert(data.error || 'Failed to make pick');
+                }
+            } catch (error) {
+                console.error('Pick error:', error);
+                alert('Connection error. Please try again.');
+            }
+
+            showLoading(false);
+        }
+
+        // Director controls
+        async function startDraft() {
+            if (!confirm('Start the draft? Make sure all teams are ready.')) return;
+
+            showLoading(true);
+            const pin = sessionStorage.getItem('draft_pin');
+
+            try {
+                const response = await fetch(`${API_BASE}/initializeDraft`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        league_id: leagueId,
+                        pin,
+                        time_per_pick: 60,
+                        snake_draft: true,
+                        auto_pick_enabled: true
+                    })
+                });
+
+                const data = await response.json();
+                if (!data.success) {
+                    alert(data.error || 'Failed to start draft');
+                }
+            } catch (error) {
+                console.error('Start draft error:', error);
+                alert('Connection error. Please try again.');
+            }
+
+            showLoading(false);
+        }
+
+        async function pauseDraft() {
+            showLoading(true);
+            const pin = sessionStorage.getItem('draft_pin');
+
+            try {
+                const response = await fetch(`${API_BASE}/pauseDraft`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ league_id: leagueId, pin })
+                });
+
+                const data = await response.json();
+                if (!data.success) {
+                    alert(data.error || 'Failed to pause draft');
+                }
+            } catch (error) {
+                console.error('Pause error:', error);
+                alert('Connection error.');
+            }
+
+            showLoading(false);
+        }
+
+        async function resumeDraft() {
+            showLoading(true);
+            const pin = sessionStorage.getItem('draft_pin');
+
+            try {
+                const response = await fetch(`${API_BASE}/resumeDraft`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ league_id: leagueId, pin })
+                });
+
+                const data = await response.json();
+                if (!data.success) {
+                    alert(data.error || 'Failed to resume draft');
+                }
+            } catch (error) {
+                console.error('Resume error:', error);
+                alert('Connection error.');
+            }
+
+            showLoading(false);
+        }
+
+        async function undoLastPick() {
+            if (!confirm('Undo the last pick? This cannot be undone.')) return;
+
+            showLoading(true);
+            const pin = sessionStorage.getItem('draft_pin');
+
+            try {
+                const response = await fetch(`${API_BASE}/undoDraftPick`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ league_id: leagueId, pin })
+                });
+
+                const data = await response.json();
+                if (!data.success) {
+                    alert(data.error || 'Failed to undo pick');
+                }
+            } catch (error) {
+                console.error('Undo error:', error);
+                alert('Connection error.');
+            }
+
+            showLoading(false);
+        }
+
+        async function forcePick() {
+            // Auto-pick for current team
+            showLoading(true);
+            const pin = sessionStorage.getItem('draft_pin');
+
+            try {
+                const response = await fetch(`${API_BASE}/autoPick`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ league_id: leagueId, pin })
+                });
+
+                const data = await response.json();
+                if (!data.success) {
+                    alert(data.error || 'Failed to auto-pick');
+                }
+            } catch (error) {
+                console.error('Force pick error:', error);
+                alert('Connection error.');
+            }
+
+            showLoading(false);
+        }
+
+        function goBack() {
+            if (unsubscribeDraft) unsubscribeDraft();
+            if (timerInterval) clearInterval(timerInterval);
+            window.location.href = `/pages/league-view.html?league_id=${leagueId}`;
+        }
+
+        // Check for stored session
+        window.onload = function() {
+            const storedPin = sessionStorage.getItem('draft_pin');
+            const storedUser = sessionStorage.getItem('draft_user');
+
+            if (storedPin && storedUser) {
+                currentUser = JSON.parse(storedUser);
+                myTeamId = sessionStorage.getItem('draft_team_id') || null;
+                isDirector = sessionStorage.getItem('draft_is_director') === 'true';
+                enterDraftRoom();
+            }
+
+            // Handle Enter key on PIN input
+            document.getElementById('pinInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') login();
+            });
+        };
+
+        // Cleanup on page unload
+        window.onbeforeunload = function() {
+            if (unsubscribeDraft) unsubscribeDraft();
+            if (timerInterval) clearInterval(timerInterval);
+        };
+    </script>
+</body>
+</html>

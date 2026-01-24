@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Join BRDC - Burning River Dart Club</title>
+    <link rel="icon" type="image/png" href="/images/favicon.png">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="BRDC">
+    <link rel="apple-touch-icon" href="/images/gold_logo.png">
+    <meta name="theme-color" content="#0a0a1a">
+    <meta name="description" content="Join Burning River Dart Club - Cleveland's home for competitive darts.">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono&display=swap');
+
+        :root {
+            --pink: #FF469A;
+            --teal: #91D7EB;
+            --yellow: #FDD835;
+            --bg-dark: #0a0a1a;
+            --bg-panel: #12122a;
+            --bg-card: #1a1a3a;
+            --bg-input: #252538;
+            --text-light: #f0f0f0;
+            --text-dim: #8a8aa3;
+            --success: #22c55e;
+            --error: #ef4444;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+        html, body { min-height: 100%; min-height: 100dvh; }
+        body {
+            background: linear-gradient(180deg, var(--bg-dark) 0%, #050510 100%);
+            color: var(--text-light);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse at 30% 20%, rgba(255, 70, 154, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 70% 80%, rgba(145, 215, 235, 0.06) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
+        :focus { outline: 2px solid var(--yellow); outline-offset: 2px; }
+        :focus:not(:focus-visible) { outline: none; }
+        :focus-visible { outline: 2px solid var(--yellow); outline-offset: 2px; }
+
+        .signup-container {
+            width: 100%;
+            max-width: 450px;
+            text-align: center;
+            margin-top: 40px;
+        }
+
+        .logo-container {
+            margin-bottom: 24px;
+        }
+
+        .logo {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 12px;
+        }
+
+        .brand-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 36px;
+            letter-spacing: 4px;
+            color: var(--pink);
+            margin-bottom: 4px;
+        }
+
+        .brand-subtitle {
+            font-size: 12px;
+            color: var(--text-dim);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        .signup-card {
+            background: var(--bg-panel);
+            border: 3px solid rgba(255,255,255,0.1);
+            border-radius: 16px;
+            padding: 32px 24px;
+            margin-top: 24px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+        }
+
+        .signup-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 28px;
+            color: var(--yellow);
+            letter-spacing: 2px;
+            margin-bottom: 8px;
+        }
+
+        .signup-subtitle {
+            font-size: 13px;
+            color: var(--text-dim);
+            margin-bottom: 24px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--teal);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 14px 16px;
+            font-size: 16px;
+            background: var(--bg-input);
+            border: 2px solid rgba(255,255,255,0.1);
+            border-radius: 10px;
+            color: var(--text-light);
+            transition: all 0.2s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--pink);
+            box-shadow: 0 0 0 3px rgba(255, 70, 154, 0.2);
+        }
+
+        .form-input::placeholder {
+            color: var(--text-dim);
+        }
+
+        .form-input.error {
+            border-color: var(--error);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .form-select {
+            width: 100%;
+            padding: 14px 16px;
+            font-size: 16px;
+            background: var(--bg-input);
+            border: 2px solid rgba(255,255,255,0.1);
+            border-radius: 10px;
+            color: var(--text-light);
+            cursor: pointer;
+            transition: all 0.2s;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%238a8aa3' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10l-5 5z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 16px center;
+        }
+
+        .form-select:focus {
+            outline: none;
+            border-color: var(--pink);
+            box-shadow: 0 0 0 3px rgba(255, 70, 154, 0.2);
+        }
+
+        .form-hint {
+            font-size: 11px;
+            color: var(--text-dim);
+            margin-top: 6px;
+        }
+
+        .signup-btn {
+            width: 100%;
+            background: linear-gradient(180deg, var(--pink) 0%, #cc3879 100%);
+            color: white;
+            border: 3px solid #000;
+            padding: 16px;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 22px;
+            letter-spacing: 2px;
+            cursor: pointer;
+            border-radius: 10px;
+            box-shadow: 4px 4px 0 rgba(0,0,0,0.4);
+            transition: all 0.15s;
+            margin-top: 8px;
+        }
+
+        .signup-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 6px 6px 0 rgba(0,0,0,0.4);
+        }
+
+        .signup-btn:active:not(:disabled) {
+            transform: translateY(0);
+            box-shadow: 2px 2px 0 rgba(0,0,0,0.4);
+        }
+
+        .signup-btn:disabled {
+            background: #4a5568;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .signup-btn:focus-visible {
+            outline: 3px solid var(--yellow);
+            outline-offset: 3px;
+        }
+
+        .error-message {
+            color: var(--error);
+            font-size: 14px;
+            margin-top: 16px;
+            display: none;
+        }
+
+        .error-message.visible {
+            display: block;
+            animation: shake 0.3s ease-in-out;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        .loading-spinner {
+            display: none;
+            width: 24px;
+            height: 24px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto;
+        }
+
+        .loading-spinner.visible {
+            display: inline-block;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Success State */
+        .success-screen {
+            display: none;
+        }
+
+        .success-screen.visible {
+            display: block;
+        }
+
+        .success-icon {
+            font-size: 64px;
+            color: var(--success);
+            animation: popIn 0.4s ease-out;
+            margin-bottom: 16px;
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0); opacity: 0; }
+            70% { transform: scale(1.2); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .success-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 32px;
+            color: var(--success);
+            letter-spacing: 2px;
+            margin-bottom: 8px;
+        }
+
+        .success-message {
+            font-size: 14px;
+            color: var(--text-dim);
+            margin-bottom: 24px;
+        }
+
+        .pin-display {
+            background: rgba(0,0,0,0.3);
+            border: 3px solid var(--yellow);
+            border-radius: 12px;
+            padding: 20px;
+            margin: 24px 0;
+        }
+
+        .pin-label {
+            font-size: 12px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+
+        .pin-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 42px;
+            color: var(--yellow);
+            letter-spacing: 8px;
+            font-weight: 700;
+        }
+
+        .pin-warning {
+            font-size: 13px;
+            color: var(--pink);
+            margin-top: 12px;
+            font-weight: 600;
+        }
+
+        .continue-btn {
+            width: 100%;
+            background: linear-gradient(180deg, var(--success) 0%, #16a34a 100%);
+            color: white;
+            border: 3px solid #000;
+            padding: 16px;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 22px;
+            letter-spacing: 2px;
+            cursor: pointer;
+            border-radius: 10px;
+            box-shadow: 4px 4px 0 rgba(0,0,0,0.4);
+            margin-top: 16px;
+            transition: all 0.15s;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .continue-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 6px 6px 0 rgba(0,0,0,0.4);
+        }
+
+        .form-card.hidden {
+            display: none;
+        }
+
+        .footer-text {
+            margin-top: 32px;
+            font-size: 12px;
+            color: var(--text-dim);
+        }
+
+        .footer-text a {
+            color: var(--teal);
+            text-decoration: none;
+        }
+
+        .footer-text a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 500px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .signup-card {
+                padding: 24px 16px;
+            }
+
+            .pin-value {
+                font-size: 32px;
+                letter-spacing: 6px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="signup-container">
+        <!-- Logo and Branding -->
+        <header class="logo-container">
+            <a href="/">
+                <img src="/images/gold_logo.png" alt="Burning River Dart Club logo" class="logo">
+            </a>
+            <h1 class="brand-title">BRDC</h1>
+            <p class="brand-subtitle">Join the Club</p>
+        </header>
+
+        <!-- Registration Form -->
+        <div class="form-card" id="formCard">
+            <div class="signup-card">
+                <h2 class="signup-title">Create Account</h2>
+                <p class="signup-subtitle">Sign up to join leagues, tournaments, and track your stats</p>
+
+                <form id="signupForm" onsubmit="handleSignup(event)">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="firstName" class="form-label">First Name *</label>
+                            <input type="text"
+                                   id="firstName"
+                                   class="form-input"
+                                   placeholder="John"
+                                   required
+                                   autocomplete="given-name">
+                        </div>
+                        <div class="form-group">
+                            <label for="lastName" class="form-label">Last Name *</label>
+                            <input type="text"
+                                   id="lastName"
+                                   class="form-input"
+                                   placeholder="Doe"
+                                   required
+                                   autocomplete="family-name">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="email" class="form-label">Email Address *</label>
+                        <input type="email"
+                               id="email"
+                               class="form-input"
+                               placeholder="john@example.com"
+                               required
+                               autocomplete="email">
+                        <p class="form-hint">Used for account recovery and notifications</p>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="phone" class="form-label">Phone Number</label>
+                        <input type="tel"
+                               id="phone"
+                               class="form-input"
+                               placeholder="(216) 555-1234"
+                               autocomplete="tel">
+                        <p class="form-hint">Optional - for match reminders via SMS</p>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="level" class="form-label">Skill Level</label>
+                        <select id="level" class="form-select">
+                            <option value="">Select your level...</option>
+                            <option value="A">A - Advanced / Competitive</option>
+                            <option value="B">B - Intermediate</option>
+                            <option value="C">C - Beginner / Learning</option>
+                            <option value="not_sure">Not Sure - Help me decide</option>
+                        </select>
+                        <p class="form-hint">This helps us place you in appropriate leagues</p>
+                    </div>
+
+                    <button type="submit" class="signup-btn" id="submitBtn">
+                        <span id="submitText">Create Account</span>
+                        <span class="loading-spinner" id="loadingSpinner"></span>
+                    </button>
+
+                    <p class="error-message" id="errorMessage" role="alert"></p>
+                </form>
+            </div>
+        </div>
+
+        <!-- Success Screen -->
+        <div class="success-screen" id="successScreen">
+            <div class="signup-card">
+                <div class="success-icon" role="img" aria-label="Success">&#10003;</div>
+                <h2 class="success-title">Welcome to BRDC!</h2>
+                <p class="success-message">Your account has been created successfully.</p>
+
+                <div class="pin-display">
+                    <p class="pin-label">Your 8-Digit PIN</p>
+                    <p class="pin-value" id="displayPin">--------</p>
+                    <p class="pin-warning">Save this PIN! You'll need it to log in.</p>
+                </div>
+
+                <p class="success-message">
+                    Your PIN has also been sent to your email address.
+                </p>
+
+                <a href="/pages/dashboard.html" class="continue-btn" id="continueToDashboard">
+                    Go to Dashboard
+                </a>
+            </div>
+        </div>
+
+        <footer class="footer-text">
+            Already have an account? <a href="/">Log in here</a>
+        </footer>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
+    <script>
+        // Firebase config
+        const firebaseConfig = {
+            apiKey: "AIzaSyApov-xE5l1EJo0CADJ3OXP5aPvFmTmrZA",
+            authDomain: "brdc-v2.firebaseapp.com",
+            projectId: "brdc-v2",
+            storageBucket: "brdc-v2.firebasestorage.app",
+            messagingSenderId: "858304543457",
+            appId: "1:858304543457:web:e119e7c6fb7d616ea57ba3"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // Cloud function URL
+        const REGISTER_URL = 'https://us-central1-brdc-v2.cloudfunctions.net/registerNewPlayer';
+
+        // Format phone number as user types
+        document.getElementById('phone').addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value.length > 0) {
+                if (value.length <= 3) {
+                    value = '(' + value;
+                } else if (value.length <= 6) {
+                    value = '(' + value.slice(0, 3) + ') ' + value.slice(3);
+                } else {
+                    value = '(' + value.slice(0, 3) + ') ' + value.slice(3, 6) + '-' + value.slice(6, 10);
+                }
+            }
+            e.target.value = value;
+        });
+
+        async function handleSignup(event) {
+            event.preventDefault();
+
+            const firstName = document.getElementById('firstName').value.trim();
+            const lastName = document.getElementById('lastName').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const phone = document.getElementById('phone').value.replace(/\D/g, '');
+            const level = document.getElementById('level').value;
+
+            const submitBtn = document.getElementById('submitBtn');
+            const submitText = document.getElementById('submitText');
+            const loadingSpinner = document.getElementById('loadingSpinner');
+            const errorMessage = document.getElementById('errorMessage');
+
+            // Clear previous errors
+            errorMessage.classList.remove('visible');
+            document.querySelectorAll('.form-input').forEach(el => el.classList.remove('error'));
+
+            // Validate required fields
+            if (!firstName) {
+                showError('Please enter your first name', 'firstName');
+                return;
+            }
+            if (!lastName) {
+                showError('Please enter your last name', 'lastName');
+                return;
+            }
+            if (!email) {
+                showError('Please enter your email address', 'email');
+                return;
+            }
+            if (!isValidEmail(email)) {
+                showError('Please enter a valid email address', 'email');
+                return;
+            }
+
+            // Show loading state
+            submitBtn.disabled = true;
+            submitText.style.display = 'none';
+            loadingSpinner.classList.add('visible');
+
+            try {
+                const response = await fetch(REGISTER_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        first_name: firstName,
+                        last_name: lastName,
+                        email: email,
+                        phone: phone || null,
+                        preferred_level: level || null
+                    })
+                });
+
+                const result = await response.json();
+
+                if (!response.ok || !result.success) {
+                    throw new Error(result.error || 'Registration failed');
+                }
+
+                // Success! Show the PIN
+                showSuccess(result.pin, result.player_id);
+
+            } catch (error) {
+                console.error('Registration error:', error);
+                showError(error.message || 'Registration failed. Please try again.');
+                resetButton();
+            }
+        }
+
+        function showError(message, fieldId) {
+            const errorMessage = document.getElementById('errorMessage');
+            errorMessage.textContent = message;
+            errorMessage.classList.add('visible');
+
+            if (fieldId) {
+                document.getElementById(fieldId).classList.add('error');
+                document.getElementById(fieldId).focus();
+            }
+        }
+
+        function resetButton() {
+            document.getElementById('submitBtn').disabled = false;
+            document.getElementById('submitText').style.display = 'inline';
+            document.getElementById('loadingSpinner').classList.remove('visible');
+        }
+
+        function showSuccess(pin, playerId) {
+            // Hide form, show success
+            document.getElementById('formCard').classList.add('hidden');
+            document.getElementById('successScreen').classList.add('visible');
+
+            // Display the PIN
+            document.getElementById('displayPin').textContent = pin;
+
+            // Save session for auto-login
+            const firstName = document.getElementById('firstName').value.trim();
+            const lastName = document.getElementById('lastName').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const phone = document.getElementById('phone').value.replace(/\D/g, '');
+
+            const sessionData = {
+                player_id: playerId,
+                name: `${firstName} ${lastName}`,
+                first_name: firstName,
+                last_name: lastName,
+                phone: phone,
+                email: email,
+                pin: pin,
+                logged_in_at: new Date().toISOString()
+            };
+
+            localStorage.setItem('brdc_session', JSON.stringify(sessionData));
+        }
+
+        function isValidEmail(email) {
+            return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+        }
+
+        // Service worker registration
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW error:', err));
+        }
+    </script>
+</body>
+</html>

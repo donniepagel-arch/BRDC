@@ -626,6 +626,88 @@
             .stats-row { grid-template-columns: repeat(2, 1fr); }
             .board-overview { grid-template-columns: repeat(2, 1fr); }
         }
+
+        /* Connection Status Indicator */
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .status-dot.connected { background: #4CAF50; }
+        .status-dot.disconnected { background: #f44336; animation: pulse 1s infinite; }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Bracket Edit Styles */
+        .bracket-slot {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 15px;
+            background: rgba(255,255,255,0.05);
+            border: 2px solid transparent;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .bracket-slot:hover {
+            background: rgba(255,255,255,0.1);
+            border-color: var(--teal);
+        }
+        .bracket-slot.selected {
+            background: rgba(253, 216, 53, 0.2);
+            border-color: var(--yellow);
+        }
+        .bracket-slot.edit-mode {
+            cursor: pointer;
+        }
+        .bracket-slot .seed-num {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 18px;
+            color: var(--teal);
+            width: 30px;
+        }
+        .bracket-slot .team-name {
+            flex: 1;
+            font-weight: 600;
+        }
+        .bracket-slot .team-name.bye {
+            color: var(--text-dim);
+            font-style: italic;
+        }
+        .bracket-match-card {
+            background: rgba(255,255,255,0.03);
+            border: 2px solid rgba(255,255,255,0.1);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 10px;
+        }
+        .bracket-match-card .match-header {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 14px;
+            color: var(--text-dim);
+            margin-bottom: 10px;
+            letter-spacing: 1px;
+        }
+        .bracket-match-card .vs-divider {
+            text-align: center;
+            padding: 5px 0;
+            color: var(--pink);
+            font-weight: 700;
+            font-size: 12px;
+        }
     </style>
 </head>
 <body>
@@ -953,22 +1035,54 @@
                 <div class="card">
                     <div class="card-header pink">
                         <span class="card-title">BRACKET MANAGEMENT</span>
+                        <div class="connection-status" id="bracketConnection">
+                            <span class="status-dot connected"></span> Live
+                        </div>
                     </div>
                     <div class="card-body">
                         <div id="bracketStatus">
-                            <p style="margin-bottom: 20px;"><strong>Teams Ready:</strong> <span id="teamsReadyCount">0</span></p>
+                            <p style="margin-bottom: 10px;"><strong>Teams Ready:</strong> <span id="teamsReadyCount">0</span></p>
+                            <p style="margin-bottom: 20px;"><strong>Bracket Status:</strong> <span id="bracketLockStatus" style="color: var(--success);">EDITABLE</span></p>
                         </div>
 
-                        <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                        <div style="display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 20px;">
                             <button class="action-btn pink" onclick="generateBracket()" id="genBracketBtn">
                                 GENERATE BRACKET
+                            </button>
+                            <button class="action-btn yellow" onclick="toggleEditMode()" id="editBracketBtn" style="display: none; color: #000;">
+                                EDIT BRACKET
+                            </button>
+                            <button class="action-btn teal" onclick="regenerateBracket()" id="regenBracketBtn" style="display: none; color: #000;">
+                                REGENERATE
                             </button>
                             <a href="#" id="viewBracketLink" class="action-btn teal hidden" style="text-decoration: none;">
                                 VIEW BRACKET
                             </a>
                         </div>
+
+                        <!-- Edit Mode Instructions -->
+                        <div id="editModeInstructions" style="display: none; background: rgba(253, 216, 53, 0.1); border: 2px solid var(--yellow); padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                            <p style="font-weight: 700; color: var(--yellow); margin-bottom: 10px;">EDIT MODE ACTIVE</p>
+                            <p style="color: var(--text-dim); font-size: 14px;">Click two positions to swap them. Changes take effect immediately.</p>
+                            <div style="margin-top: 15px; display: flex; gap: 10px;">
+                                <button class="action-btn" onclick="cancelEditMode()" style="background: #666; padding: 8px 16px; font-size: 14px;">CANCEL</button>
+                            </div>
+                        </div>
+
+                        <!-- Bracket Preview -->
+                        <div id="bracketPreview" style="display: none; margin-top: 20px;">
+                            <div style="font-family: 'Bebas Neue', cursive; font-size: 20px; letter-spacing: 2px; margin-bottom: 15px; color: var(--teal);">
+                                ROUND 1 MATCHUPS
+                            </div>
+                            <div id="round1Preview" style="display: grid; gap: 10px;">
+                                <!-- Dynamically filled -->
+                            </div>
+                        </div>
                     </div>
                 </div>
+
+                <!-- Bracket Edit Messages -->
+                <div id="bracketMessage" class="message hidden" style="margin-top: 15px;"></div>
             </div>
 
             <!-- TV Display Tab -->
@@ -2306,6 +2420,293 @@
             populateSettings();
             updateTVDisplayLink();
             setupMatchesListener();
+            setupBracketListener();
+        };
+
+        // ========== BRACKET EDITING FUNCTIONS ==========
+        let bracketData = null;
+        let editMode = false;
+        let selectedPosition = null;
+        let bracketUnsubscribe = null;
+
+        function setupBracketListener() {
+            if (bracketUnsubscribe) bracketUnsubscribe();
+
+            const connStatus = document.getElementById('bracketConnection');
+            if (!connStatus) return;
+
+            bracketUnsubscribe = onSnapshot(
+                doc(db, 'tournaments', tournamentId),
+                (snapshot) => {
+                    // Show connected
+                    connStatus.innerHTML = '<span class="status-dot connected"></span> Live';
+
+                    if (snapshot.exists()) {
+                        const data = snapshot.data();
+                        bracketData = data.bracket;
+                        const isLocked = data.bracket_locked || false;
+
+                        updateBracketUI(isLocked);
+                    }
+                },
+                (error) => {
+                    // Show disconnected
+                    connStatus.innerHTML = '<span class="status-dot disconnected"></span> Offline';
+                    console.error('Bracket listener error:', error);
+                }
+            );
+        }
+
+        function updateBracketUI(isLocked) {
+            const lockStatus = document.getElementById('bracketLockStatus');
+            const editBtn = document.getElementById('editBracketBtn');
+            const regenBtn = document.getElementById('regenBracketBtn');
+            const viewLink = document.getElementById('viewBracketLink');
+            const genBtn = document.getElementById('genBracketBtn');
+            const preview = document.getElementById('bracketPreview');
+
+            if (bracketData && bracketData.winners && bracketData.winners.length > 0) {
+                // Bracket exists
+                viewLink.classList.remove('hidden');
+                genBtn.style.display = 'none';
+
+                if (isLocked) {
+                    lockStatus.textContent = 'LOCKED (matches in progress)';
+                    lockStatus.style.color = 'var(--danger)';
+                    editBtn.style.display = 'none';
+                    regenBtn.style.display = 'none';
+                    preview.style.display = 'none';
+                } else {
+                    lockStatus.textContent = 'EDITABLE';
+                    lockStatus.style.color = 'var(--success)';
+                    editBtn.style.display = 'block';
+                    regenBtn.style.display = 'block';
+                    preview.style.display = 'block';
+                    renderBracketPreview();
+                }
+            } else {
+                // No bracket yet
+                viewLink.classList.add('hidden');
+                genBtn.style.display = 'block';
+                editBtn.style.display = 'none';
+                regenBtn.style.display = 'none';
+                preview.style.display = 'none';
+                lockStatus.textContent = 'NOT GENERATED';
+                lockStatus.style.color = 'var(--text-dim)';
+            }
+        }
+
+        function renderBracketPreview() {
+            const container = document.getElementById('round1Preview');
+            if (!bracketData || !bracketData.winners) {
+                container.innerHTML = '<p style="color: var(--text-dim);">No bracket data</p>';
+                return;
+            }
+
+            const round1Matches = bracketData.winners.filter(m => m.round === 1);
+
+            if (round1Matches.length === 0) {
+                container.innerHTML = '<p style="color: var(--text-dim);">No round 1 matches</p>';
+                return;
+            }
+
+            let html = round1Matches.map((match, idx) => {
+                const team1Name = match.team1?.team_name || match.team1?.name || 'BYE';
+                const team2Name = match.team2?.team_name || match.team2?.name || 'BYE';
+                const team1IsBye = !match.team1_id;
+                const team2IsBye = !match.team2_id;
+                const pos1 = match.position * 2;
+                const pos2 = match.position * 2 + 1;
+
+                const slot1Selected = editMode && selectedPosition === pos1 ? 'selected' : '';
+                const slot2Selected = editMode && selectedPosition === pos2 ? 'selected' : '';
+                const editClass = editMode ? 'edit-mode' : '';
+
+                return `
+                    <div class="bracket-match-card">
+                        <div class="match-header">MATCH ${idx + 1}</div>
+                        <div class="bracket-slot ${editClass} ${slot1Selected}" data-position="${pos1}" onclick="selectBracketPosition(${pos1})">
+                            <span class="seed-num">#${pos1 + 1}</span>
+                            <span class="team-name ${team1IsBye ? 'bye' : ''}">${team1Name}</span>
+                        </div>
+                        <div class="vs-divider">VS</div>
+                        <div class="bracket-slot ${editClass} ${slot2Selected}" data-position="${pos2}" onclick="selectBracketPosition(${pos2})">
+                            <span class="seed-num">#${pos2 + 1}</span>
+                            <span class="team-name ${team2IsBye ? 'bye' : ''}">${team2Name}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            container.innerHTML = html;
+        }
+
+        window.toggleEditMode = function() {
+            editMode = !editMode;
+            selectedPosition = null;
+
+            const instructions = document.getElementById('editModeInstructions');
+            const editBtn = document.getElementById('editBracketBtn');
+
+            if (editMode) {
+                instructions.style.display = 'block';
+                editBtn.textContent = 'EXIT EDIT MODE';
+                editBtn.style.background = 'var(--danger)';
+                editBtn.style.color = 'white';
+            } else {
+                instructions.style.display = 'none';
+                editBtn.textContent = 'EDIT BRACKET';
+                editBtn.style.background = 'linear-gradient(135deg, var(--yellow), #e6c200)';
+                editBtn.style.color = '#000';
+            }
+
+            renderBracketPreview();
+        };
+
+        window.cancelEditMode = function() {
+            editMode = false;
+            selectedPosition = null;
+            document.getElementById('editModeInstructions').style.display = 'none';
+
+            const editBtn = document.getElementById('editBracketBtn');
+            editBtn.textContent = 'EDIT BRACKET';
+            editBtn.style.background = 'linear-gradient(135deg, var(--yellow), #e6c200)';
+            editBtn.style.color = '#000';
+
+            renderBracketPreview();
+        };
+
+        window.selectBracketPosition = async function(position) {
+            if (!editMode) return;
+
+            if (selectedPosition === null) {
+                // First selection
+                selectedPosition = position;
+                renderBracketPreview();
+            } else if (selectedPosition === position) {
+                // Deselect
+                selectedPosition = null;
+                renderBracketPreview();
+            } else {
+                // Second selection - perform swap
+                await swapPositions(selectedPosition, position);
+                selectedPosition = null;
+            }
+        };
+
+        async function swapPositions(pos1, pos2) {
+            const msgBox = document.getElementById('bracketMessage');
+            msgBox.textContent = 'Swapping positions...';
+            msgBox.className = 'message info';
+            msgBox.classList.remove('hidden');
+
+            try {
+                const response = await fetch('https://us-central1-brdc-v2.cloudfunctions.net/swapBracketPositions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        tournament_id: tournamentId,
+                        position1: pos1,
+                        position2: pos2,
+                        director_pin: directorPin
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    msgBox.textContent = `Swapped: ${result.swapped.position1.team} ↔ ${result.swapped.position2.team}`;
+                    msgBox.className = 'message success';
+                    // Bracket will auto-update via listener
+                } else {
+                    msgBox.textContent = result.error || 'Swap failed';
+                    msgBox.className = 'message error';
+                }
+            } catch (error) {
+                console.error('Swap error:', error);
+                msgBox.textContent = 'Failed to swap positions: ' + error.message;
+                msgBox.className = 'message error';
+            }
+
+            setTimeout(() => msgBox.classList.add('hidden'), 4000);
+        }
+
+        window.regenerateBracket = async function() {
+            const confirmed = confirm(
+                'REGENERATE BRACKET?\n\n' +
+                'This will reshuffle all teams into new positions.\n' +
+                'This action cannot be undone.\n\n' +
+                'Continue?'
+            );
+
+            if (!confirmed) return;
+
+            const msgBox = document.getElementById('bracketMessage');
+            msgBox.textContent = 'Regenerating bracket...';
+            msgBox.className = 'message info';
+            msgBox.classList.remove('hidden');
+
+            const regenBtn = document.getElementById('regenBracketBtn');
+            regenBtn.disabled = true;
+            regenBtn.textContent = 'REGENERATING...';
+
+            try {
+                const response = await fetch('https://us-central1-brdc-v2.cloudfunctions.net/regenerateBracket', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        tournament_id: tournamentId,
+                        director_pin: directorPin
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    msgBox.innerHTML = `Bracket regenerated!<br>New order: ${result.new_order.join(' → ')}`;
+                    msgBox.className = 'message success';
+                    // Bracket will auto-update via listener
+                } else {
+                    msgBox.textContent = result.error || 'Regeneration failed';
+                    msgBox.className = 'message error';
+                }
+            } catch (error) {
+                console.error('Regenerate error:', error);
+                msgBox.textContent = 'Failed to regenerate: ' + error.message;
+                msgBox.className = 'message error';
+            }
+
+            regenBtn.disabled = false;
+            regenBtn.textContent = 'REGENERATE';
+
+            setTimeout(() => msgBox.classList.add('hidden'), 5000);
+        };
+
+        // Override generateBracket to call actual function
+        window.generateBracket = async function() {
+            const genBtn = document.getElementById('genBracketBtn');
+            genBtn.disabled = true;
+            genBtn.textContent = 'GENERATING...';
+
+            try {
+                const result = await callFunction('generateDoubleEliminationBracket', {
+                    tournament_id: tournamentId,
+                    director_pin: directorPin
+                });
+
+                if (result.success) {
+                    showMessage(`Bracket generated with ${result.team_count} teams!`, 'success');
+                    // Bracket will auto-update via listener
+                } else {
+                    showMessage(result.error || 'Failed to generate bracket', 'error');
+                }
+            } catch (error) {
+                console.error('Generate bracket error:', error);
+                showMessage('Failed to generate bracket: ' + error.message, 'error');
+            }
+
+            genBtn.disabled = false;
+            genBtn.textContent = 'GENERATE BRACKET';
         };
     </script>
 </body>
