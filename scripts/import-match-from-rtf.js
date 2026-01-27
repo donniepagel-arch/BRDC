@@ -41,14 +41,6 @@ function getTeamForPlayer(playerName, homeTeam, awayTeam) {
 // Match IDs from Firestore
 const MATCHES = [
     // Add matches here to import
-    // Example:
-    // {
-    //     name: 'Team A v Team B (Week X)',
-    //     matchId: 'FIRESTORE_MATCH_ID',
-    //     rtfFile: '../temp/trips league/week X/filename.rtf',
-    //     homeTeam: 'Team A',
-    //     awayTeam: 'Team B'
-    // }
 ];
 
 // Helper to identify player combo for reordering

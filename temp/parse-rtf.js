@@ -184,12 +184,13 @@ function parse501Leg(lines) {
             // This means the opponent did NOT throw in this final round (cork winner checked out first)
             // Format: [round] [remaining=0] [score] [player] DO(n)
             if (players.length === 1 && numbers.length >= 2 && doMatch) {
-                const round = numbers[0].value;
-                const remaining = numbers[1].value;
-                const score = numbers.length > 2 ? numbers[2].value : (501 - remaining);
+                // Use lastRound + 1 as the round number (more reliable than parsing)
+                const round = lastRound + 1;
+                const remaining = 0; // Checkout means remaining is always 0
+                const score = numbers.length > 2 ? numbers[2].value : numbers[0].value;
                 const player = players[0].name;
 
-                if (remaining === 0 || round > lastRound) {
+                if (true) { // Always process checkout-only rows
                     // This is a checkout row - only winner threw, opponent didn't get to throw
                     const side = playerStats[player]?.side || 'away';
                     throws.push({
@@ -711,6 +712,12 @@ function parseMatchSection(lines) {
                 if (gameType === 'cricket' && parsed.winner) {
                     currentLeg.winner = parsed.winner;
                 }
+                // Detect doubles by player count (4 players = doubles)
+                const playerCount = Object.keys(currentLeg.player_stats || {}).length;
+                if (playerCount === 4) {
+                    currentLeg.isDoubles = true;
+                    if (currentGame) currentGame.isDoubles = true;
+                }
             }
 
             const gameNum = parseInt(gameMatch[1]);
@@ -763,6 +770,12 @@ function parseMatchSection(lines) {
         // For cricket, capture the winner from final scores
         if (gameType === 'cricket' && parsed.winner) {
             currentLeg.winner = parsed.winner;
+        }
+        // Detect doubles by player count (4 players = doubles)
+        const playerCount = Object.keys(currentLeg.player_stats || {}).length;
+        if (playerCount === 4) {
+            currentLeg.isDoubles = true;
+            if (currentGame) currentGame.isDoubles = true;
         }
     }
     if (currentGame) games.push(currentGame);
