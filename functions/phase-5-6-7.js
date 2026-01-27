@@ -2599,12 +2599,36 @@ exports.getTeamScheduleEnhanced = functions.https.onRequest(async (req, res) => 
             statsMap[doc.id] = doc.data();
         });
 
+        // Get all players in the league (for teams that don't have player_ids array)
+        const playersSnap = await db.collection('leagues').doc(league_id).collection('players').get();
+        const playersMap = {};
+        const playersByTeam = {};
+        playersSnap.forEach(doc => {
+            const player = { id: doc.id, ...doc.data() };
+            playersMap[doc.id] = player;
+            const tid = player.team_id;
+            if (tid) {
+                if (!playersByTeam[tid]) playersByTeam[tid] = [];
+                playersByTeam[tid].push(player);
+            }
+        });
+
         // Helper to build roster with stats
         const buildRosterWithStats = (team) => {
             if (!team) return [];
-            const playerIds = team.player_ids || [];
-            const playerNames = team.player_names || [];
-            const playerLevels = team.player_levels || [];
+
+            // First try: use player_ids/player_names arrays if they exist on team doc
+            let playerIds = team.player_ids || [];
+            let playerNames = team.player_names || [];
+            let playerLevels = team.player_levels || [];
+
+            // Fallback: get players from the players collection by team_id
+            if (playerIds.length === 0 && playersByTeam[team.id]) {
+                const teamPlayers = playersByTeam[team.id].sort((a, b) => (a.position || 99) - (b.position || 99));
+                playerIds = teamPlayers.map(p => p.id);
+                playerNames = teamPlayers.map(p => p.name || p.full_name || 'Unknown');
+                playerLevels = teamPlayers.map(p => p.level || '');
+            }
 
             return playerIds.map((pid, idx) => {
                 const stats = statsMap[pid] || {};

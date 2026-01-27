@@ -4,7 +4,7 @@
  */
 
 const functions = require('firebase-functions');
-const { onSchedule } = require('firebase-functions/scheduler');
+// const { onSchedule } = require('firebase-functions/scheduler'); // DISABLED - v2 scheduler not compatible with v4
 const { logger } = require('firebase-functions');
 const admin = require('firebase-admin');
 const cors = require('cors')({origin: true});
@@ -664,36 +664,37 @@ exports.getOnlineMatchHistory = functions.https.onRequest((req, res) => {
 
 /**
  * Scheduled: Expire old pending challenges
+ * DISABLED - v2 scheduler not compatible with v4
  */
-exports.expireChallenges = onSchedule('0 * * * *', async (event) => {
-        console.log('Expiring old challenges...');
-
-        try {
-            const now = admin.firestore.Timestamp.now();
-
-            const expiredSnapshot = await db.collection('challenges')
-                .where('status', '==', 'pending')
-                .where('expires_at', '<', now)
-                .limit(100)
-                .get();
-
-            if (expiredSnapshot.empty) {
-                console.log('No challenges to expire');
-                return null;
-            }
-
-            const batch = db.batch();
-            expiredSnapshot.docs.forEach(doc => {
-                batch.update(doc.ref, { status: 'expired' });
-            });
-
-            await batch.commit();
-            console.log(`Expired ${expiredSnapshot.size} challenges`);
-
-            return null;
-
-        } catch (error) {
-            console.error('Error expiring challenges:', error);
-            return null;
-        }
-    });
+// exports.expireChallenges = onSchedule('0 * * * *', async (event) => {
+//         console.log('Expiring old challenges...');
+//
+//         try {
+//             const now = admin.firestore.Timestamp.now();
+//
+//             const expiredSnapshot = await db.collection('challenges')
+//                 .where('status', '==', 'pending')
+//                 .where('expires_at', '<', now)
+//                 .limit(100)
+//                 .get();
+//
+//             if (expiredSnapshot.empty) {
+//                 console.log('No challenges to expire');
+//                 return null;
+//             }
+//
+//             const batch = db.batch();
+//             expiredSnapshot.docs.forEach(doc => {
+//                 batch.update(doc.ref, { status: 'expired' });
+//             });
+//
+//             await batch.commit();
+//             console.log(`Expired ${expiredSnapshot.size} challenges`);
+//
+//             return null;
+//
+//         } catch (error) {
+//             console.error('Error expiring challenges:', error);
+//             return null;
+//         }
+//     });

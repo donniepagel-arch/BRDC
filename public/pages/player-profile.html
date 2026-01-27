@@ -1361,6 +1361,28 @@
                     // Store captaining teams from dashboard roles
                     captainingTeams = result.dashboard.roles?.captaining || [];
                     currentPlayer.is_captain = captainingTeams.length > 0;
+
+                    // Populate team_id and league_id from roles if not set
+                    const playingRoles = result.dashboard.roles?.playing_on || result.dashboard.roles?.playing || [];
+                    if (!currentPlayer.team_id && playingRoles.length > 0) {
+                        // Use first playing role's team_id
+                        currentPlayer.team_id = playingRoles[0].team_id;
+                        console.log('Populated team_id from roles.playing:', currentPlayer.team_id);
+                    }
+                    if (!currentLeagueId && playingRoles.length > 0) {
+                        // Use first playing role's league_id
+                        currentLeagueId = playingRoles[0].id || playingRoles[0].league_id;
+                        console.log('Populated league_id from roles.playing:', currentLeagueId);
+                    }
+                    // Also check captaining teams for team_id
+                    if (!currentPlayer.team_id && captainingTeams.length > 0) {
+                        currentPlayer.team_id = captainingTeams[0].team_id;
+                        if (!currentLeagueId) {
+                            currentLeagueId = captainingTeams[0].league_id;
+                        }
+                        console.log('Populated team_id from captaining:', currentPlayer.team_id);
+                    }
+
                     showProfile();
                 } else {
                     // Show login if we couldn't load data
@@ -1390,7 +1412,7 @@
                     currentPlayer = result.player;
                     currentLeagueId = result.league_id;
 
-                    // Fetch captain status from dashboard data
+                    // Fetch captain status and team info from dashboard data
                     try {
                         const dashResult = await callFunction('getDashboardData', {
                             player_id: currentPlayer.id || currentPlayer.player_id,
@@ -1400,6 +1422,21 @@
                         if (dashResult.success) {
                             captainingTeams = dashResult.dashboard.roles?.captaining || [];
                             currentPlayer.is_captain = captainingTeams.length > 0;
+
+                            // Populate team_id and league_id from roles if not set
+                            const playingRoles = dashResult.dashboard.roles?.playing_on || dashResult.dashboard.roles?.playing || [];
+                            if (!currentPlayer.team_id && playingRoles.length > 0) {
+                                currentPlayer.team_id = playingRoles[0].team_id;
+                            }
+                            if (!currentLeagueId && playingRoles.length > 0) {
+                                currentLeagueId = playingRoles[0].id || playingRoles[0].league_id;
+                            }
+                            if (!currentPlayer.team_id && captainingTeams.length > 0) {
+                                currentPlayer.team_id = captainingTeams[0].team_id;
+                                if (!currentLeagueId) {
+                                    currentLeagueId = captainingTeams[0].league_id;
+                                }
+                            }
                         }
                     } catch (e) {
                         console.error('Error fetching captain status:', e);
@@ -1473,10 +1510,17 @@
             const playerId = currentPlayer.player_id || currentPlayer.id;
             if (!playerId) return;
 
+            // Social features require authentication
+            const playerPin = localStorage.getItem('brdc_player_pin');
+            if (!playerPin) {
+                console.log('Social data requires login - skipping');
+                return;
+            }
+
             try {
                 // Load player's social data
                 const result = await callFunction('getPlayerPublicProfile', {
-                    player_pin: localStorage.getItem('brdc_player_pin'),
+                    player_pin: playerPin,
                     target_player_id: playerId
                 });
 

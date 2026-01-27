@@ -289,7 +289,7 @@ function parse501Leg(lines) {
         }
     }
 
-    return { throws, playerStats };
+    return { throws, playerStats, checkout_darts: checkoutDarts, checkout_player: checkoutPlayer };
 }
 
 // Check if string looks like cricket hit notation
@@ -703,6 +703,10 @@ function parseMatchSection(lines) {
                 const parsed = gameType === '501' ? parse501Leg(legLines) : parseCricketLeg(legLines);
                 currentLeg.throws = parsed.throws;
                 currentLeg.player_stats = calculateFinalStats(parsed.playerStats, gameType);
+                // Store checkout_darts for 501 games
+                if (gameType === '501' && parsed.checkout_darts) {
+                    currentLeg.checkout_darts = parsed.checkout_darts;
+                }
                 // For cricket, capture the winner from final scores
                 if (gameType === 'cricket' && parsed.winner) {
                     currentLeg.winner = parsed.winner;
@@ -752,6 +756,10 @@ function parseMatchSection(lines) {
         const parsed = gameType === '501' ? parse501Leg(legLines) : parseCricketLeg(legLines);
         currentLeg.throws = parsed.throws;
         currentLeg.player_stats = calculateFinalStats(parsed.playerStats, gameType);
+        // Store checkout_darts for 501 games
+        if (gameType === '501' && parsed.checkout_darts) {
+            currentLeg.checkout_darts = parsed.checkout_darts;
+        }
         // For cricket, capture the winner from final scores
         if (gameType === 'cricket' && parsed.winner) {
             currentLeg.winner = parsed.winner;

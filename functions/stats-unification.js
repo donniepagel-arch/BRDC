@@ -7,7 +7,7 @@
  */
 
 const functions = require('firebase-functions');
-const { onSchedule } = require('firebase-functions/scheduler');
+// const { onSchedule } = require('firebase-functions/scheduler'); // DISABLED - v2 scheduler not compatible with v4
 const { logger } = require('firebase-functions');
 const admin = require('firebase-admin');
 const cors = require('cors')({ origin: true });
@@ -973,87 +973,88 @@ exports.getPracticeHistory = functions.https.onRequest((req, res) => {
 
 /**
  * Recalculate all player unified stats (weekly)
+ * DISABLED - v2 scheduler not compatible with v4
  */
-exports.weeklyStatsRecalculation = onSchedule('0 4 * * 0', async (event) => {
-        try {
-            console.log('Starting weekly stats recalculation...');
-
-            const playersSnapshot = await db.collection('players').get();
-            let processed = 0;
-
-            const batch = db.batch();
-
-            for (const doc of playersSnapshot.docs) {
-                const playerId = doc.id;
-
-                try {
-                    const [
-                        leagueStats,
-                        tournamentStats,
-                        onlineStats,
-                        miniTournamentStats,
-                        practiceStats
-                    ] = await Promise.all([
-                        getLeagueStats(playerId),
-                        getTournamentStats(playerId),
-                        getOnlineStats(playerId),
-                        getMiniTournamentStats(playerId),
-                        getPracticeStats(playerId)
-                    ]);
-
-                    // Calculate unified average
-                    const allStats = [
-                        { ...leagueStats, weight: 1.0 },
-                        { ...tournamentStats, weight: 1.0 },
-                        { ...onlineStats, weight: 0.9 },
-                        { ...miniTournamentStats, weight: 0.8 },
-                        { ...practiceStats, weight: 0.3 }
-                    ];
-
-                    let totalWeightedScore = 0;
-                    let totalWeightedLegs = 0;
-
-                    allStats.forEach(stat => {
-                        if (stat.legs_played > 0) {
-                            totalWeightedScore += stat.total_score * stat.weight;
-                            totalWeightedLegs += stat.legs_played * stat.weight;
-                        }
-                    });
-
-                    const unifiedAverage = totalWeightedLegs > 0
-                        ? totalWeightedScore / totalWeightedLegs
-                        : 0;
-
-                    batch.update(doc.ref, {
-                        unified_average: parseFloat(unifiedAverage.toFixed(2)),
-                        'unified_stats.league': leagueStats,
-                        'unified_stats.tournament': tournamentStats,
-                        'unified_stats.online': onlineStats,
-                        'unified_stats.mini_tournament': miniTournamentStats,
-                        'unified_stats.practice': practiceStats,
-                        'unified_stats.totals.legs_played': allStats.reduce((sum, s) => sum + (s.legs_played || 0), 0),
-                        'unified_stats.totals.matches_won': allStats.reduce((sum, s) => sum + (s.matches_won || 0), 0),
-                        'unified_stats.totals.matches_lost': allStats.reduce((sum, s) => sum + (s.matches_lost || 0), 0),
-                        stats_updated_at: admin.firestore.FieldValue.serverTimestamp()
-                    });
-
-                    processed++;
-
-                    // Commit in batches of 400
-                    if (processed % 400 === 0) {
-                        await batch.commit();
-                    }
-                } catch (err) {
-                    console.error(`Error processing player ${playerId}:`, err);
-                }
-            }
-
-            // Final commit
-            await batch.commit();
-
-            console.log(`Weekly stats recalculation complete. Processed ${processed} players.`);
-
-        } catch (error) {
-            console.error('Error in weekly stats recalculation:', error);
-        }
-    });
+// exports.weeklyStatsRecalculation = onSchedule('0 4 * * 0', async (event) => {
+//         try {
+//             console.log('Starting weekly stats recalculation...');
+//
+//             const playersSnapshot = await db.collection('players').get();
+//             let processed = 0;
+//
+//             const batch = db.batch();
+//
+//             for (const doc of playersSnapshot.docs) {
+//                 const playerId = doc.id;
+//
+//                 try {
+//                     const [
+//                         leagueStats,
+//                         tournamentStats,
+//                         onlineStats,
+//                         miniTournamentStats,
+//                         practiceStats
+//                     ] = await Promise.all([
+//                         getLeagueStats(playerId),
+//                         getTournamentStats(playerId),
+//                         getOnlineStats(playerId),
+//                         getMiniTournamentStats(playerId),
+//                         getPracticeStats(playerId)
+//                     ]);
+//
+//                     // Calculate unified average
+//                     const allStats = [
+//                         { ...leagueStats, weight: 1.0 },
+//                         { ...tournamentStats, weight: 1.0 },
+//                         { ...onlineStats, weight: 0.9 },
+//                         { ...miniTournamentStats, weight: 0.8 },
+//                         { ...practiceStats, weight: 0.3 }
+//                     ];
+//
+//                     let totalWeightedScore = 0;
+//                     let totalWeightedLegs = 0;
+//
+//                     allStats.forEach(stat => {
+//                         if (stat.legs_played > 0) {
+//                             totalWeightedScore += stat.total_score * stat.weight;
+//                             totalWeightedLegs += stat.legs_played * stat.weight;
+//                         }
+//                     });
+//
+//                     const unifiedAverage = totalWeightedLegs > 0
+//                         ? totalWeightedScore / totalWeightedLegs
+//                         : 0;
+//
+//                     batch.update(doc.ref, {
+//                         unified_average: parseFloat(unifiedAverage.toFixed(2)),
+//                         'unified_stats.league': leagueStats,
+//                         'unified_stats.tournament': tournamentStats,
+//                         'unified_stats.online': onlineStats,
+//                         'unified_stats.mini_tournament': miniTournamentStats,
+//                         'unified_stats.practice': practiceStats,
+//                         'unified_stats.totals.legs_played': allStats.reduce((sum, s) => sum + (s.legs_played || 0), 0),
+//                         'unified_stats.totals.matches_won': allStats.reduce((sum, s) => sum + (s.matches_won || 0), 0),
+//                         'unified_stats.totals.matches_lost': allStats.reduce((sum, s) => sum + (s.matches_lost || 0), 0),
+//                         stats_updated_at: admin.firestore.FieldValue.serverTimestamp()
+//                     });
+//
+//                     processed++;
+//
+//                     // Commit in batches of 400
+//                     if (processed % 400 === 0) {
+//                         await batch.commit();
+//                     }
+//                 } catch (err) {
+//                     console.error(`Error processing player ${playerId}:`, err);
+//                 }
+//             }
+//
+//             // Final commit
+//             await batch.commit();
+//
+//             console.log(`Weekly stats recalculation complete. Processed ${processed} players.`);
+//
+//         } catch (error) {
+//             console.error('Error in weekly stats recalculation:', error);
+//         }
+//     });

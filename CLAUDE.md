@@ -781,19 +781,73 @@ Static match metadata at top of page (like DC's Match Report header):
 
 **DartConnect match data is stored in RTF files in `temp/trips league/`**
 
-### Data Files for Winter Triple Draft League
-| Match | RTF File | Status |
-|-------|----------|--------|
-| Pagel v Pagel | `pagel v pagel MATCH.rtf` + `pagel v pagel performance.rtf` | ✅ IMPORTED |
-| Yasenchak v Kull | `yasenchak v kull.rtf` + `yasenchak v kull performance.rtf` | PENDING |
-| Partlo v Olschansky | `partlo v olschansky.rtf` + `partlo v olschansky performance.rtf` | PENDING |
-| Massimiani v Ragnoni | `massimiani v ragnoni.rtf` + `massimiani v ragnoni performance.rtf` | PENDING |
-| Mezlak v Russano | `mezlak v russano.rtf` + `mezlak v russano performance.rtf` | PENDING |
+### ✅ THE CORRECT IMPORT WORKFLOW
 
-### Import System
-- Cloud function: `populatePagelMatch` (example for Pagel v Pagel)
-- Template file: `functions/populate-match-data.js`
-- Call URL: `https://us-central1-brdc-v2.cloudfunctions.net/populatePagelMatch`
+**Use this script:** `scripts/import-match-from-rtf.js`
+
+This is the ONLY working importer that:
+- ✅ Properly extracts `checkout_darts` from `DO (n)` markers
+- ✅ Handles team roster mapping correctly
+- ✅ Works with the `importMatchData` cloud function
+- ✅ Updates player stats via `updateImportedMatchStats`
+
+### How to Import a Match
+
+1. **Add match to the MATCHES array in `scripts/import-match-from-rtf.js`:**
+```javascript
+const MATCHES = [
+    {
+        name: 'Mezlak v E.O March (Week 2)',
+        matchId: 'tcI1eFfOlHaTyhjaCGOj',  // Get from Firestore
+        rtfFile: 'trips league/week 2/mezlak V e.o.rtf',
+        homeTeam: 'N. Mezlak',
+        awayTeam: 'E.O. March'
+    }
+];
+```
+
+2. **Add team rosters to TEAM_ROSTERS if new teams:**
+```javascript
+const TEAM_ROSTERS = {
+    'N. Mezlak': ['Nick Mezlak', 'Cory Jacobs', 'Dillon Ulisses', 'Dillon U'],
+    'E.O. March': ['Eddie Olschansky', 'Jeff Boss', 'Michael Gonzalez']
+};
+```
+
+3. **Run the import:**
+```bash
+cd scripts
+node import-match-from-rtf.js
+```
+
+### Import System Components
+
+**Parser:** `temp/parse-rtf.js`
+- Extracts `DO (n)` markers → `checkout_darts`
+- Returns structured game/leg data with throws
+
+**Importer:** `scripts/import-match-from-rtf.js`
+- Converts parsed data to Firestore format
+- Posts to `importMatchData` cloud function
+- Posts to `updateImportedMatchStats` to recalculate player stats
+
+**Cloud Functions:**
+- `importMatchData` - Writes match data to Firestore
+- `updateImportedMatchStats` - Recalculates player stats from match data
+
+### ❌ DO NOT USE These Scripts
+
+**`scripts/DEPRECATED-convert-rtf-to-match-json.js`** - BROKEN
+- Generates JSON format that doesn't match `importMatchData` expectations
+- Creates undefined values in throws array that Firestore rejects
+- Was renamed to mark as deprecated
+
+**`functions/populate-*-match.js`** - OLD APPROACH
+- Individual cloud functions per match (not scalable)
+- Use `scripts/import-match-from-rtf.js` instead
+
+**`temp/import-week1-matches.js`** - SAME AS WORKING SCRIPT
+- This is the source file, but use `scripts/import-match-from-rtf.js` as the canonical location
 
 ### Data Structure for Import
 Each match needs:

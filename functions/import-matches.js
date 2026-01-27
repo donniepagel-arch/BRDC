@@ -714,6 +714,14 @@ exports.importMatchData = functions.https.onRequest(async (req, res) => {
                     player_stats: leg.player_stats,
                     throws: leg.throws
                 };
+                // Add checkout_darts if present (for 501 games)
+                if (leg.checkout_darts) {
+                    baseLeg.checkout_darts = leg.checkout_darts;
+                }
+                // Add checkout score if present
+                if (leg.checkout) {
+                    baseLeg.checkout = leg.checkout;
+                }
                 return needsSwap ? swapLegData(baseLeg) : baseLeg;
             });
 

@@ -4,19 +4,16 @@
  * v29 - Added Virtual Darts offline support, improved fallback page
  */
 
-const CACHE_VERSION = 'brdc-v29';
+const CACHE_VERSION = 'brdc-v30';
 const CACHE_NAME = `brdc-cache-${CACHE_VERSION}`;
 
 // Critical pages - scorer pages prioritized for offline use
 const CRITICAL_PAGES = [
     '/',
-    '/pages/league-501.html',      // Primary scorer - CRITICAL
-    '/pages/league-cricket.html',  // Primary scorer - CRITICAL
-    '/pages/x01.html',             // Casual scorer
-    '/pages/cricket.html',         // Casual scorer
+    '/pages/x01-scorer.html',      // Primary 501 scorer - CRITICAL
+    '/pages/league-cricket.html',  // Primary cricket scorer - CRITICAL
     '/pages/scorer-hub.html',      // Scorer navigation
     '/pages/game-setup.html',      // Game setup
-    '/pages/match-night.html',     // Match night flow
     '/pages/knockout.html',        // Knockout games
     '/pages/dashboard.html',       // Player dashboard
     '/pages/login.html',           // Login page

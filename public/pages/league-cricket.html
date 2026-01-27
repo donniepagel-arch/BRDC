@@ -4,6 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Cricket Scorer - BRDC</title>
+
+    <!-- Preconnect to external domains for faster loading -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://firestore.googleapis.com">
+    <link rel="preconnect" href="https://us-central1-brdc-35f92.cloudfunctions.net">
+    <link rel="dns-prefetch" href="https://www.gstatic.com">
+
     <link rel="icon" type="image/png" href="/images/favicon.png">
     <link rel="manifest" href="/manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -11,8 +19,10 @@
     <meta name="apple-mobile-web-app-title" content="BRDC">
     <link rel="apple-touch-icon" href="/images/gold_logo.png">
     <meta name="theme-color" content="#FF469A">
+
+    <!-- Fonts - non-blocking with display=swap -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@500;600;700&family=JetBrains+Mono:wght@600;700&display=swap">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@500;600;700&family=JetBrains+Mono:wght@600;700&display=swap');
 
         :root {
             --pink: #FF469A;
@@ -40,28 +50,6 @@
             --text-dim: #5555770;
             --border-subtle: rgba(255, 255, 255, 0.08);
             --border-medium: rgba(255, 255, 255, 0.15);
-        }
-
-        /* Offline Banner */
-        .offline-banner {
-            display: none;
-            background: linear-gradient(90deg, #f59e0b 0%, #d97706 100%);
-            color: #000;
-            padding: 8px 16px;
-            text-align: center;
-            font-weight: 700;
-            font-size: 13px;
-            letter-spacing: 1px;
-            animation: pulse-offline 2s ease-in-out infinite;
-            position: relative;
-            z-index: 1000;
-        }
-        .offline-banner.visible {
-            display: block;
-        }
-        @keyframes pulse-offline {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.85; }
         }
 
         * {
@@ -1136,9 +1124,6 @@
     </style>
 </head>
 <body>
-    <!-- Offline Banner -->
-    <div class="offline-banner" id="offlineBanner">OFFLINE - Game will sync when connected</div>
-
     <button class="exit-btn" onclick="exitGame()">EXIT</button>
 
     <!-- Casual Setup Screen -->
@@ -1430,18 +1415,6 @@ import { callWithQueue, setupOfflineQueue } from '/js/offline-storage.js';
 
 // Setup offline queue for automatic retry
 setupOfflineQueue(callFunction);
-
-// Offline detection
-function showOfflineBanner() {
-    document.getElementById('offlineBanner')?.classList.add('visible');
-}
-function hideOfflineBanner() {
-    document.getElementById('offlineBanner')?.classList.remove('visible');
-}
-window.addEventListener('online', hideOfflineBanner);
-window.addEventListener('offline', showOfflineBanner);
-// Check initial state
-if (!navigator.onLine) showOfflineBanner();
 
 // URL Parameters
 const params = new URLSearchParams(window.location.search);
@@ -2408,7 +2381,7 @@ window.nextLeg = function() {
                     newParams.set('in_rule', nextLeg.inRule || 'straight');
                     newParams.set('out_rule', nextLeg.outRule || 'double');
                     newParams.set('checkout', nextLeg.outRule || 'double');
-                    window.location.href = `/pages/league-501.html?${newParams.toString()}`;
+                    window.location.href = `/pages/x01-scorer.html?${newParams.toString()}`;
                 }
                 return;
             }
@@ -2820,7 +2793,7 @@ window.saveAndExit = async function() {
             params.set('practice_mode', chicagoMatch.practice_mode);
         }
 
-        window.location.href = `/pages/league-501.html?${params.toString()}`;
+        window.location.href = `/pages/x01-scorer.html?${params.toString()}`;
         return;
     }
 
@@ -3617,7 +3590,7 @@ function navigateToGame(type, score, inRule, outRule, legIndex) {
         params.set('in_rule', inRule);
         params.set('out_rule', outRule);
         params.set('checkout', outRule);
-        window.location.href = `/pages/league-501.html?${params.toString()}`;
+        window.location.href = `/pages/x01-scorer.html?${params.toString()}`;
     }
 }
 

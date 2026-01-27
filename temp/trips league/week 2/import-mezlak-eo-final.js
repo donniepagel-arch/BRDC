@@ -1,27 +1,19 @@
 /**
- * Import Week 1 matches from RTF files to Firestore
- * Run: node import-week1-matches.js
+ * Import Week 2 - Pagel v Kull match from RTF file to Firestore
+ * Run: node import-week2-pagel-kull.js
  */
 
-const { parseRTFMatch, parseMultiMatchRTF } = require('./parse-rtf.js');
+const { parseRTFMatch } = require('./parse-rtf.js');
 const path = require('path');
 const https = require('https');
 
 const LEAGUE_ID = 'aOq4Y0ETxPZ66tM1uUtP';
+const MATCH_ID = 'Iychqt7Wto8S9m7proeH';
 
 // Team rosters for player-to-team mapping
 const TEAM_ROSTERS = {
-    'M. Pagel': ['Matt Pagel', 'Joe Peters', 'John Linden'],
     'D. Pagel': ['Donnie Pagel', 'Christian Ketchem', 'Jenn M', 'Jennifer Malek'],
-    'N. Kull': ['Nathan Kull', 'Nate Kull', 'Michael Jarvis', 'Stephanie Kull', 'Steph Kull'],
-    'K. Yasenchak': ['Kevin Yasenchak', 'Brian Smith', 'Cesar Andino'],
-    'D. Partlo': ['Dan Partlo', 'Joe Donley', 'Kevin Mckelvey'],
-    'E. Olschansky': ['Eddie Olschansky', 'Eddie Olschanskey', 'Jeff Boss', 'Michael Gonzalez', 'Mike Gonzalez', 'Mike Gonzales'],
-    'T. Massimiani': ['Tony Massimiani', 'Dominick Russano', 'Dom Russano', 'Chris Benco'],
-    'J. Ragnoni': ['John Ragnoni', 'Marc Tate', 'David Brunner', 'Derek Fess', 'Josh Kelly', 'Joshua kelly'],
-    'N. Mezlak': ['Nick Mezlak', 'Cory Jacobs', 'Dillon Ulisses', 'Dillon U', 'Dillon Ullises'],
-    'D. Russano': ['Danny Russano', 'Chris Russano', 'Eric Duale', 'Eric'],
-    'E.O. March': ['Eddie Olschansky', 'Jeff Boss', 'Michael Gonzalez', 'Mike Gonzales']
+    'N. Kull': ['Nathan Kull', 'Nate Kull', 'Michael Jarvis', 'Mike Jarvis', 'Stephanie Kull', 'Steph Kull']
 };
 
 function getTeamForPlayer(playerName, homeTeam, awayTeam) {
@@ -38,71 +30,13 @@ function getTeamForPlayer(playerName, homeTeam, awayTeam) {
     return null;
 }
 
-// Match IDs from Firestore
-const MATCHES = [
-    {
-        name: 'Mezlak v E.O March (Week 2)',
-        matchId: 'tcI1eFfOlHaTyhjaCGOj',
-        rtfFile: 'trips league/week 2/mezlak V e.o.rtf',
-        homeTeam: 'N. Mezlak',
-        awayTeam: 'E.O. March'
-    }
-];
-
-// Helper to identify player combo for reordering
-function getPlayerCombo(game, homeTeam, awayTeam) {
-    const players = new Set();
-    for (const leg of game.legs) {
-        Object.keys(leg.player_stats || {}).forEach(p => players.add(p.toLowerCase()));
-    }
-    const playerList = Array.from(players);
-
-    // For Massimioni team: tony, chris (benco), dom (russano)
-    const hasT = playerList.some(p => p.includes('tony'));
-    const hasC = playerList.some(p => p.includes('chris') || p.includes('benco'));
-    const hasD = playerList.some(p => p.includes('dom') || p.includes('russano'));
-
-    if (hasT && hasC && !hasD) return 'tony/chris';
-    if (hasT && hasD && !hasC) return 'tony/dom';
-    if (hasC && hasD && !hasT) return 'chris/dom';
-    if (hasT && !hasC && !hasD) return 'tony';
-    if (hasC && !hasT && !hasD) return 'chris';
-    if (hasD && !hasT && !hasC) return 'dom';
-    return '???';
-}
-
-// Reorder games based on player pattern
-function reorderGames(games, expectedOrder, homeTeam, awayTeam) {
-    const byCombo = {};
-    for (const g of games) {
-        const combo = getPlayerCombo(g, homeTeam, awayTeam);
-        if (!byCombo[combo]) byCombo[combo] = [];
-        byCombo[combo].push(g);
-    }
-
-    const reordered = [];
-    const used = {};
-    for (const combo of expectedOrder) {
-        if (!used[combo]) used[combo] = 0;
-        if (byCombo[combo] && byCombo[combo][used[combo]]) {
-            const game = byCombo[combo][used[combo]];
-            game.gameNumber = reordered.length + 1;
-            reordered.push(game);
-            used[combo]++;
-        }
-    }
-    return reordered;
-}
-
-// Group throws by round - each throw object should have both home and away
-// Uses player names to determine actual team (not RTF home/away which varies)
+// Group throws by round
 function groupThrowsByRound(throws, homeTeam, awayTeam) {
     const byRound = {};
     for (const t of throws) {
         if (!byRound[t.round]) {
             byRound[t.round] = { round: t.round, home: null, away: null };
         }
-        // Map to actual team based on player name
         const actualSide = getTeamForPlayer(t.player, homeTeam, awayTeam) || t.side;
         byRound[t.round][actualSide] = {
             player: t.player,
@@ -123,9 +57,7 @@ function convertToFirestoreFormat(parsedGames, homeTeam, awayTeam) {
     let homeScore = 0;
     let awayScore = 0;
 
-    // Group games by set number
-    // Check if all games have the same gameNumber (e.g., all "Game 1.x" format)
-    // If so, assign unique sequential game numbers
+    // Ensure unique game numbers
     const gameNumbers = parsedGames.map(g => g.gameNumber);
     const allSameGameNum = gameNumbers.every(n => n === gameNumbers[0]);
     if (allSameGameNum && parsedGames.length > 1) {
@@ -149,11 +81,9 @@ function convertToFirestoreFormat(parsedGames, homeTeam, awayTeam) {
         for (const leg of game.legs) {
             totalLegs++;
 
-            // Determine winner from player_stats
             const playerStats = leg.player_stats || {};
-            const players = Object.keys(playerStats);
 
-            // Map players to actual teams using player names (not RTF home/away which varies)
+            // Map players to actual teams
             let actualHomePlayers = [];
             let actualAwayPlayers = [];
             for (const [name, stats] of Object.entries(playerStats)) {
@@ -163,14 +93,13 @@ function convertToFirestoreFormat(parsedGames, homeTeam, awayTeam) {
                 totalDarts += stats.darts || 0;
             }
 
-            // Determine winner - check throws for checkout
+            // Determine winner
             let winner = null;
             const throws = leg.throws || [];
-            const lastThrow = throws[throws.length - 1];
             const legType = (leg.type || game.type || '').toLowerCase();
             const is501 = legType.includes('501');
 
-            // Check throws for remaining === 0 (checkout) - map player to actual team
+            // Check for checkout (remaining === 0)
             for (const t of throws) {
                 if (t.remaining === 0) {
                     winner = getTeamForPlayer(t.player, homeTeam, awayTeam);
@@ -178,7 +107,7 @@ function convertToFirestoreFormat(parsedGames, homeTeam, awayTeam) {
                 }
             }
 
-            // For 501, also check if total points equals 501 (means they checked out)
+            // For 501, check if total points === 501
             if (!winner && is501) {
                 let homePoints = 0;
                 let awayPoints = 0;
@@ -191,13 +120,9 @@ function convertToFirestoreFormat(parsedGames, homeTeam, awayTeam) {
                 else if (awayPoints === 501) winner = 'away';
             }
 
-            // For cricket, use the winner from the parser (based on final scores)
-            // but map to actual team using player names
+            // For cricket, use parser winner
             if (!winner && legType.includes('cricket')) {
-                // First check if the leg has a winner from parsing
                 if (leg.winner) {
-                    // Parser gives us 'home'/'away' from RTF, need to map to actual team
-                    // Find a player from that side and map to their actual team
                     const parsedWinnerSide = leg.winner;
                     for (const [name, stats] of Object.entries(playerStats)) {
                         if (stats.side === parsedWinnerSide) {
@@ -206,12 +131,12 @@ function convertToFirestoreFormat(parsedGames, homeTeam, awayTeam) {
                         }
                     }
                 } else {
-                    // Fallback: look for explicit closing throw marker
+                    // Look for closing throw
                     const closingThrow = throws.find(t => t.isClosingThrow);
                     if (closingThrow) {
                         winner = getTeamForPlayer(closingThrow.player, homeTeam, awayTeam);
                     } else {
-                        // Last resort: find the last round where only one side threw
+                        // Find last round with single-side throw
                         const roundMap = {};
                         for (const t of throws) {
                             if (!roundMap[t.round]) roundMap[t.round] = { home: null, away: null };
@@ -235,7 +160,7 @@ function convertToFirestoreFormat(parsedGames, homeTeam, awayTeam) {
             if (winner === 'home') setMap[setNum].homeLegsWon++;
             else if (winner === 'away') setMap[setNum].awayLegsWon++;
 
-            // Calculate home and away stats from player_stats using actual team mapping
+            // Calculate stats
             let homeStats = { darts: 0, points: 0, marks: 0 };
             let awayStats = { darts: 0, points: 0, marks: 0 };
 
@@ -274,18 +199,11 @@ function convertToFirestoreFormat(parsedGames, homeTeam, awayTeam) {
             };
 
             // Add checkout info for 501
-            if (format === '501') {
-                // Add checkout_darts if available
-                if (leg.checkout_darts) {
-                    legData.checkout_darts = leg.checkout_darts;
-                }
-                // Add checkout score
-                if (winner) {
-                    const winningThrow = throws.find(t => t.remaining === 0 &&
-                        getTeamForPlayer(t.player, homeTeam, awayTeam) === winner);
-                    if (winningThrow) {
-                        legData.checkout = winningThrow.score;
-                    }
+            if (format === '501' && winner) {
+                const winningThrow = throws.find(t => t.remaining === 0 &&
+                    getTeamForPlayer(t.player, homeTeam, awayTeam) === winner);
+                if (winningThrow) {
+                    legData.checkout = winningThrow.score;
                 }
             }
 
@@ -301,7 +219,7 @@ function convertToFirestoreFormat(parsedGames, homeTeam, awayTeam) {
         if (gameWinner === 'home') homeScore++;
         else if (gameWinner === 'away') awayScore++;
 
-        // Get players from legs - use actual team mapping, not RTF side
+        // Get players from legs
         const homePlayersSet = new Set();
         const awayPlayersSet = new Set();
 
@@ -375,70 +293,52 @@ function postToCloudFunction(url, data) {
     });
 }
 
-async function importMatch(match) {
-    console.log(`\n=== Importing: ${match.name} ===`);
+async function importMatch() {
+    const homeTeam = 'D. Pagel';
+    const awayTeam = 'N. Kull';
 
-    const rtfPath = path.join(__dirname, match.rtfFile);
+    console.log(`\n=== Importing Week 2: ${homeTeam} vs ${awayTeam} ===`);
+
+    const rtfPath = path.join(__dirname, 'trips league/week 2/pagel v kull.rtf');
     console.log(`Reading: ${rtfPath}`);
 
     try {
         let parsedGames = parseRTFMatch(rtfPath);
         console.log(`Parsed ${parsedGames.length} games`);
 
-        // Reorder games if needed (for files with out-of-order sets)
-        if (match.reorderByPlayers) {
-            console.log(`Reordering games by player pattern...`);
-            parsedGames = reorderGames(parsedGames, match.reorderByPlayers, match.homeTeam, match.awayTeam);
-            console.log(`Reordered to ${parsedGames.length} games`);
-        }
-
-        const matchData = convertToFirestoreFormat(parsedGames, match.homeTeam, match.awayTeam);
+        const matchData = convertToFirestoreFormat(parsedGames, homeTeam, awayTeam);
         console.log(`Converted to ${matchData.games.length} sets, ${matchData.total_legs} legs`);
-        console.log(`Score: ${match.homeTeam} ${matchData.final_score.home} - ${matchData.final_score.away} ${match.awayTeam}`);
-        console.log(`DEBUG: First game first leg checkout_darts:`, matchData.games[0]?.legs[0]?.checkout_darts || 'NONE');
+        console.log(`Score: ${homeTeam} ${matchData.final_score.home} - ${matchData.final_score.away} ${awayTeam}`);
+
+        // Show set breakdown
+        matchData.games.forEach(g => {
+            console.log(`  Set ${g.set}: ${g.home_players.join('/')} vs ${g.away_players.join('/')} => ${g.result.home_legs}-${g.result.away_legs} (${g.winner})`);
+        });
 
         // Import match data
         const importUrl = 'https://us-central1-brdc-v2.cloudfunctions.net/importMatchData';
+        console.log('\nImporting to Firestore...');
         const importResult = await postToCloudFunction(importUrl, {
             leagueId: LEAGUE_ID,
-            matchId: match.matchId,
+            matchId: MATCH_ID,
             matchData: matchData
         });
         console.log('Import result:', JSON.stringify(importResult, null, 2));
 
-        // Update stats
-        const statsUrl = 'https://us-central1-brdc-v2.cloudfunctions.net/updateImportedMatchStats';
-        const statsResult = await postToCloudFunction(statsUrl, {
-            leagueId: LEAGUE_ID,
-            matchId: match.matchId
-        });
-        console.log('Stats result:', JSON.stringify(statsResult, null, 2));
-
-        return { success: true, match: match.name, import: importResult, stats: statsResult };
-    } catch (error) {
-        console.error(`Error importing ${match.name}:`, error.message);
-        return { success: false, match: match.name, error: error.message };
-    }
-}
-
-async function main() {
-    console.log('Starting Week 1 match imports...');
-    console.log(`League ID: ${LEAGUE_ID}`);
-
-    const results = [];
-    for (const match of MATCHES) {
-        const result = await importMatch(match);
-        results.push(result);
-    }
-
-    console.log('\n=== SUMMARY ===');
-    for (const result of results) {
-        if (result.success) {
-            console.log(`[OK] ${result.match}`);
-        } else {
-            console.log(`[FAIL] ${result.match}: ${result.error}`);
+        if (importResult.success) {
+            // Update player stats
+            console.log('\nUpdating player stats...');
+            const statsUrl = 'https://us-central1-brdc-v2.cloudfunctions.net/updateImportedMatchStats';
+            const statsResult = await postToCloudFunction(statsUrl, {
+                leagueId: LEAGUE_ID,
+                matchId: MATCH_ID
+            });
+            console.log('Stats update result:', JSON.stringify(statsResult, null, 2));
         }
+
+    } catch (error) {
+        console.error('Error:', error);
     }
 }
 
-main().catch(console.error);
+importMatch();

@@ -53,6 +53,14 @@ Object.assign(exports, globalAuthFunctions);
 // const notificationFunctions = require('./notifications');
 // Object.assign(exports, notificationFunctions);
 
+// Notification API (HTTP endpoints for notification management)
+const notificationApiFunctions = require('./notification-api');
+Object.assign(exports, notificationApiFunctions);
+
+// Data Migration Functions (one-time scripts to normalize data)
+const migrationFunctions = require('./migrations');
+Object.assign(exports, migrationFunctions);
+
 // Admin Functions
 const adminFunctions = require('./admin-functions');
 Object.assign(exports, adminFunctions);
@@ -78,10 +86,14 @@ Object.assign(exports, presenceFunctions);
 const socialFunctions = require('./social');
 Object.assign(exports, socialFunctions);
 
+// Friend System (Social Connections - friend requests, blocking, discovery)
+const friendsFunctions = require('./friends');
+Object.assign(exports, friendsFunctions);
+
 // Online Play (Phase 4 Social Platform - challenges, online matches)
-// TEMPORARILY DISABLED - uses firebase-functions v2 scheduler not compatible with v4
-// const onlinePlayFunctions = require('./online-play');
-// Object.assign(exports, onlinePlayFunctions);
+// Scheduler function disabled in online-play.js, but HTTP functions are enabled
+const onlinePlayFunctions = require('./online-play');
+Object.assign(exports, onlinePlayFunctions);
 
 // Mini Tournaments (Phase 5 Social Platform - quick brackets in scorer)
 const miniTournamentFunctions = require('./mini-tournaments');
@@ -93,9 +105,9 @@ Object.assign(exports, miniTournamentFunctions);
 // Object.assign(exports, advancedFeaturesFunctions);
 
 // Stats Unification (Phase 7 - unified average, leaderboards, practice mode)
-// TEMPORARILY DISABLED - uses firebase-functions v2 scheduler not compatible with v4
-// const statsUnificationFunctions = require('./stats-unification');
-// Object.assign(exports, statsUnificationFunctions);
+// Scheduler function disabled in stats-unification.js, but HTTP functions are enabled
+const statsUnificationFunctions = require('./stats-unification');
+Object.assign(exports, statsUnificationFunctions);
 
 // Draft System (Real-time player drafts for Draft Leagues)
 const draftFunctions = require('./draft');
@@ -171,6 +183,10 @@ Object.assign(exports, notablePerformancesFunctions);
 // Stats Verification (verified skill ratings for subs/fill-ins)
 const statsVerificationFunctions = require('./stats-verification');
 Object.assign(exports, statsVerificationFunctions);
+
+// Social Feed Posts (posts, reactions, comments, feed aggregation)
+const postsFunctions = require('./posts');
+Object.assign(exports, postsFunctions);
 
 // Push Notifications (tiered: FCM > SMS > Email)
 // TEMPORARILY DISABLED - uses firebase-functions v2 scheduler not compatible with v4
@@ -1427,4 +1443,233 @@ exports.listLeagueMatches = functions.https.onRequest(async (req, res) => {
     console.error('Error listing matches:', error);
     res.status(500).json({ success: false, error: error.message });
   }
+});
+
+/**
+ * Get player stats filtered by source
+ * GET /getPlayerStatsFiltered?player_id=xxx&source=league|tournament|social|combined
+ *
+ * Returns stats in the canonical format expected by displayStats():
+ * x01_total_points, x01_total_darts, x01_legs_played, x01_legs_won, etc.
+ * cricket_total_marks, cricket_total_darts, cricket_legs_played, etc.
+ */
+exports.getPlayerStatsFiltered = functions.https.onRequest((req, res) => {
+  cors(req, res, async () => {
+    try {
+      const { player_id, source } = req.method === 'POST' ? req.body : req.query;
+
+      if (!player_id) {
+        return res.status(400).json({ success: false, error: 'player_id required' });
+      }
+
+      const playerDoc = await db.collection('players').doc(player_id).get();
+      if (!playerDoc.exists) {
+        return res.status(404).json({ success: false, error: 'Player not found' });
+      }
+
+      const player = playerDoc.data();
+      const involvements = player.involvements || {};
+      const searchPin = player.pin;
+      const searchName = player.name;
+
+      // Helper to create empty stats object with all expected fields
+      const createEmptyStats = () => ({
+        x01_total_points: 0,
+        x01_total_darts: 0,
+        x01_legs_played: 0,
+        x01_legs_won: 0,
+        x01_first9_points: 0,
+        x01_first9_darts: 0,
+        x01_best_leg: null,
+        x01_high_score: null,
+        x01_high_checkout: null,
+        x01_checkout_opps: 0,
+        x01_checkouts: 0,
+        x01_checkout_totals: 0,
+        x01_tons_100: 0,
+        x01_tons_120: 0,
+        x01_tons_140: 0,
+        x01_tons_160: 0,
+        x01_tons_180: 0,
+        x01_one_seventy_ones: 0,
+        x01_ton_plus_checkouts: 0,
+        cricket_total_marks: 0,
+        cricket_total_darts: 0,
+        cricket_legs_played: 0,
+        cricket_legs_won: 0,
+        cricket_missed_darts: 0,
+        cricket_triple_bull_darts: 0,
+        cricket_five_mark_rounds: 0,
+        cricket_seven_mark_rounds: 0,
+        cricket_eight_mark_rounds: 0,
+        cricket_nine_mark_rounds: 0,
+        cricket_three_bulls: 0,
+        cricket_hat_tricks: 0
+      });
+
+      // Helper to aggregate stats from multiple sources
+      const aggregateStats = (target, source) => {
+        if (!source) return;
+
+        // X01 stats - sum most, take best for high scores
+        target.x01_total_points += source.x01_total_points || 0;
+        target.x01_total_darts += source.x01_total_darts || 0;
+        target.x01_legs_played += source.x01_legs_played || 0;
+        target.x01_legs_won += source.x01_legs_won || 0;
+        target.x01_first9_points += source.x01_first9_points || 0;
+        target.x01_first9_darts += source.x01_first9_darts || 0;
+        target.x01_checkout_opps += source.x01_checkout_opps || source.x01_checkout_attempts || 0;
+        target.x01_checkouts += source.x01_checkouts || source.x01_checkouts_hit || 0;
+        target.x01_checkout_totals += source.x01_checkout_totals || 0;
+        target.x01_tons_100 += source.x01_tons_100 || 0;
+        target.x01_tons_120 += source.x01_tons_120 || 0;
+        target.x01_tons_140 += source.x01_tons_140 || 0;
+        target.x01_tons_160 += source.x01_tons_160 || 0;
+        target.x01_tons_180 += source.x01_tons_180 || 0;
+        target.x01_one_seventy_ones += source.x01_one_seventy_ones || 0;
+        target.x01_ton_plus_checkouts += source.x01_ton_plus_checkouts || 0;
+
+        // Best leg (lower is better)
+        const sourceBestLeg = source.x01_best_leg;
+        if (sourceBestLeg && sourceBestLeg < 999) {
+          if (!target.x01_best_leg || sourceBestLeg < target.x01_best_leg) {
+            target.x01_best_leg = sourceBestLeg;
+          }
+        }
+
+        // High scores (higher is better)
+        if (source.x01_high_score && (!target.x01_high_score || source.x01_high_score > target.x01_high_score)) {
+          target.x01_high_score = source.x01_high_score;
+        }
+        if (source.x01_high_checkout && (!target.x01_high_checkout || source.x01_high_checkout > target.x01_high_checkout)) {
+          target.x01_high_checkout = source.x01_high_checkout;
+        }
+
+        // Cricket stats
+        target.cricket_total_marks += source.cricket_total_marks || 0;
+        target.cricket_total_darts += source.cricket_total_darts || 0;
+        target.cricket_legs_played += source.cricket_legs_played || 0;
+        target.cricket_legs_won += source.cricket_legs_won || 0;
+        target.cricket_missed_darts += source.cricket_missed_darts || 0;
+        target.cricket_triple_bull_darts += source.cricket_triple_bull_darts || 0;
+        target.cricket_five_mark_rounds += source.cricket_five_mark_rounds || 0;
+        target.cricket_seven_mark_rounds += source.cricket_seven_mark_rounds || 0;
+        target.cricket_eight_mark_rounds += source.cricket_eight_mark_rounds || 0;
+        target.cricket_nine_mark_rounds += source.cricket_nine_mark_rounds || 0;
+        target.cricket_three_bulls += source.cricket_three_bulls || 0;
+        target.cricket_hat_tricks += source.cricket_hat_tricks || 0;
+      };
+
+      // Helper to find player in league and get their stats
+      const getLeagueStats = async (leagueId) => {
+        try {
+          // Find player in league by PIN first, then by name
+          let leaguePlayerDoc;
+
+          if (searchPin) {
+            const byPin = await db.collection('leagues')
+              .doc(leagueId)
+              .collection('players')
+              .where('pin', '==', searchPin)
+              .limit(1)
+              .get();
+            if (!byPin.empty) leaguePlayerDoc = byPin.docs[0];
+          }
+
+          if (!leaguePlayerDoc) {
+            const byName = await db.collection('leagues')
+              .doc(leagueId)
+              .collection('players')
+              .where('name', '==', searchName)
+              .limit(1)
+              .get();
+            if (!byName.empty) leaguePlayerDoc = byName.docs[0];
+          }
+
+          if (!leaguePlayerDoc) return null;
+
+          // Get stats from stats collection
+          const statsDoc = await db.collection('leagues')
+            .doc(leagueId)
+            .collection('stats')
+            .doc(leaguePlayerDoc.id)
+            .get();
+
+          if (statsDoc.exists) {
+            return statsDoc.data();
+          }
+          return null;
+        } catch (e) {
+          console.error(`Error fetching league ${leagueId} stats:`, e.message);
+          return null;
+        }
+      };
+
+      let stats = createEmptyStats();
+
+      // Gather league IDs from involvements
+      const leagueIds = new Set();
+      (involvements.leagues || []).forEach(l => leagueIds.add(l.id));
+      (involvements.captaining || []).forEach(c => leagueIds.add(c.league_id));
+      (involvements.directing || []).filter(d => d.type === 'league').forEach(d => leagueIds.add(d.id));
+
+      switch (source) {
+        case 'league':
+          // Get stats from all leagues the player is in
+          for (const leagueId of leagueIds) {
+            const leagueStats = await getLeagueStats(leagueId);
+            if (leagueStats) {
+              aggregateStats(stats, leagueStats);
+            }
+          }
+          stats.source = 'league';
+          break;
+
+        case 'tournament':
+          // Tournament stats - search player's tournament involvement
+          // For now, return empty stats as tournament stats aren't tracked separately yet
+          stats.source = 'tournament';
+          break;
+
+        case 'social':
+          // Social/online play stats - not tracked in league stats collections
+          // For now, return empty stats as online play stats aren't aggregated yet
+          stats.source = 'social';
+          break;
+
+        case 'combined':
+        default:
+          // Combined: aggregate all available stats
+          // Start with league stats (most comprehensive)
+          for (const leagueId of leagueIds) {
+            const leagueStats = await getLeagueStats(leagueId);
+            if (leagueStats) {
+              aggregateStats(stats, leagueStats);
+            }
+          }
+
+          // If no league stats found, check unified_stats on player doc
+          if (stats.x01_legs_played === 0 && stats.cricket_legs_played === 0) {
+            const unifiedStats = player.unified_stats || player.stats;
+            if (unifiedStats) {
+              aggregateStats(stats, unifiedStats);
+            }
+          }
+
+          stats.source = 'combined';
+          break;
+      }
+
+      res.json({
+        success: true,
+        player_id,
+        player_name: player.name || `${player.first_name || ''} ${player.last_name || ''}`.trim(),
+        stats
+      });
+
+    } catch (error) {
+      console.error('Error getting filtered stats:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
 });

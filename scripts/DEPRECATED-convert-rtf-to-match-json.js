@@ -853,7 +853,8 @@ const matchFiles = [
     { file: 'yasenchak v kull.rtf', homeTeam: 'Team 9', awayTeam: 'Team 6', matchId: 'yasenchak-v-kull' },
     { file: 'partlo v olschansky.rtf', homeTeam: 'Team 8', awayTeam: 'Team 3', matchId: 'partlo-v-olschansky' },
     { file: 'mezlak v russano.rtf', homeTeam: 'Team 7', awayTeam: 'Team 4', matchId: 'mezlak-v-russano' },
-    { file: 'massimiani v ragnoni.rtf', homeTeam: 'Team 1', awayTeam: 'Team 2', matchId: 'massimiani-v-ragnoni' }
+    { file: 'massimiani v ragnoni.rtf', homeTeam: 'Team 1', awayTeam: 'Team 2', matchId: 'massimiani-v-ragnoni' },
+    { file: 'week 2/mezlak V e.o.rtf', homeTeam: 'N. Mezlak', awayTeam: 'E.O. March', matchId: 'tcI1eFfOlHaTyhjaCGOj' }
 ];
 
 const baseDir = path.join(__dirname, '../temp/trips league');
