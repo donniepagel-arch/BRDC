@@ -3,7 +3,7 @@
  * Run: node import-week1-matches.js
  */
 
-const { parseRTFMatch, parseMultiMatchRTF } = require('./parse-rtf.js');
+const { parseRTFMatch, parseMultiMatchRTF } = require('../temp/parse-rtf.js');
 const path = require('path');
 const https = require('https');
 
@@ -40,13 +40,15 @@ function getTeamForPlayer(playerName, homeTeam, awayTeam) {
 
 // Match IDs from Firestore
 const MATCHES = [
-    {
-        name: 'Mezlak v E.O March (Week 2)',
-        matchId: 'tcI1eFfOlHaTyhjaCGOj',
-        rtfFile: 'trips league/week 2/mezlak V e.o.rtf',
-        homeTeam: 'N. Mezlak',
-        awayTeam: 'E.O. March'
-    }
+    // Add matches here to import
+    // Example:
+    // {
+    //     name: 'Team A v Team B (Week X)',
+    //     matchId: 'FIRESTORE_MATCH_ID',
+    //     rtfFile: '../temp/trips league/week X/filename.rtf',
+    //     homeTeam: 'Team A',
+    //     awayTeam: 'Team B'
+    // }
 ];
 
 // Helper to identify player combo for reordering
