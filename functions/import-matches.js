@@ -1185,6 +1185,7 @@ exports.updateImportedMatchStats = functions.https.onRequest(async (req, res) =>
             'John Ragnoni': 'SwnH8GUBmrcdmOAs07Vp',
             'Marc Tate': 'ZwdiN0qfmIY5MMCOLJps',
             'David Brunner': 'ctnV5Je72HAIyVpE5zjS',
+            'Dave Brunner': 'ctnV5Je72HAIyVpE5zjS',
             // Neon Nightmares (T. Massimiani) team
             'Tony Massimiani': 'gqhzEQLifL402lQwDMpH',
             'Dominick Russano': 'pL9CGc688ZpxbPKJ11cZ',
@@ -1198,6 +1199,7 @@ exports.updateImportedMatchStats = functions.https.onRequest(async (req, res) =>
             'Danny Russano': 'gmZ8d6De0ZlqPVV0V9Q6',
             'Chris Russano': 'NJgDQ0d4RzpDVuCnqYZO',
             'Eric Duale': 'NCeaIaMXsXVN135pX91L',
+            'Eric D': 'NCeaIaMXsXVN135pX91L',
             // Fill-ins
             'Josh Kelly': '34GDgRRFk0uFmOvyykHE',
             'Derek Fess': 'vVR4AOITXYzhR2H4GqzI'

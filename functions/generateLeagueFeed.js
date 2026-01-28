@@ -18,7 +18,9 @@ exports.generateLeagueFeed = onCall(async (request) => {
 
         // Get league info
         const leagueDoc = await db.collection('leagues').doc(league_id).get();
-        const leagueName = leagueDoc.exists ? (leagueDoc.data().name || 'League') : 'League';
+        const leagueData = leagueDoc.exists ? leagueDoc.data() : {};
+        // Check multiple possible field names (different league types use different fields)
+        const leagueName = leagueData.name || leagueData.league_name || leagueData.title || 'League';
 
         // Get all matches
         const matchesSnap = await db.collection('leagues').doc(league_id).collection('matches').get();

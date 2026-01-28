@@ -4,7 +4,7 @@
  * v29 - Added Virtual Darts offline support, improved fallback page
  */
 
-const CACHE_VERSION = 'brdc-v31';
+const CACHE_VERSION = 'brdc-v33';
 const CACHE_NAME = `brdc-cache-${CACHE_VERSION}`;
 
 // Critical pages - scorer pages prioritized for offline use

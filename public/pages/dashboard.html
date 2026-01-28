@@ -262,6 +262,19 @@
             opacity: 0.85;
         }
 
+        .fb-story-card.past {
+            background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
+            opacity: 0.7;
+        }
+
+        .fb-story-card.past .fb-story-event,
+        .fb-story-card.past .fb-story-week,
+        .fb-story-card.past .fb-story-date,
+        .fb-story-card.past .fb-story-opponent,
+        .fb-story-card.past .fb-story-record {
+            color: #a0aec0;
+        }
+
         .fb-story-week {
             font-size: 9px;
             color: var(--pink);
@@ -354,6 +367,11 @@
         .fb-story-status.today-status {
             background: rgba(255, 70, 154, 0.3);
             color: var(--pink);
+        }
+
+        .fb-story-status.past-status {
+            background: rgba(113, 128, 150, 0.3);
+            color: #a0aec0;
         }
 
         .fb-story-status.completed {
@@ -1365,12 +1383,21 @@
                 }
             }
 
-            // Sort: upcoming first (by date), then completed (most recent first) at end
+            // Calculate isPast for each event based on actual date
+            const now = new Date();
+            now.setHours(0, 0, 0, 0);
+            events.forEach(event => {
+                const eventDate = new Date(event.date);
+                eventDate.setHours(0, 0, 0, 0);
+                event.isPast = eventDate < now;
+            });
+
+            // Sort: future events first (by date asc), then past events at end (by date desc)
             events.sort((a, b) => {
-                if (a.completed && !b.completed) return 1;  // Completed goes after upcoming
-                if (!a.completed && b.completed) return -1; // Upcoming goes before completed
-                if (a.completed && b.completed) return b.date - a.date; // Most recent completed first
-                return a.date - b.date; // Earliest upcoming first
+                if (a.isPast && !b.isPast) return 1;  // Past goes after future
+                if (!a.isPast && b.isPast) return -1; // Future goes before past
+                if (a.isPast && b.isPast) return b.date - a.date; // Most recent past first
+                return a.date - b.date; // Earliest future first
             });
 
             // Render story cards
@@ -1386,7 +1413,8 @@
                     const dayNum = eventDate.getDate();
                     const monthName = eventDate.toLocaleDateString('en-US', { month: 'short' }).toUpperCase();
 
-                    // Determine status
+                    // Determine status and past state
+                    const isPast = matchEvent.isPast;
                     let statusClass = 'scheduled';
                     let statusText = 'UPCOMING';
                     if (matchEvent.completed) {
@@ -1395,6 +1423,9 @@
                     } else if (isToday) {
                         statusClass = 'today-status';
                         statusText = 'TODAY';
+                    } else if (isPast) {
+                        statusClass = 'past-status';
+                        statusText = 'PAST';
                     }
 
                     // Build card HTML
@@ -1404,7 +1435,7 @@
                         const theirScoreClass = matchEvent.won ? 'loser' : 'winner';
 
                         return `
-                            <div class="fb-story-card ${matchEvent.type} completed" onclick="openStoryModal('${matchEvent.id || ''}', '${matchEvent.type || 'league'}', '${matchEvent.leagueId || ''}')">
+                            <div class="fb-story-card ${matchEvent.type} completed past" onclick="openStoryModal('${matchEvent.id || ''}', '${matchEvent.type || 'league'}', '${matchEvent.leagueId || ''}')">
                                 <div class="fb-story-event">${formatLeagueName(matchEvent.leagueName)}</div>
                                 <div class="fb-story-week">WEEK ${matchEvent.week || '?'}</div>
                                 <div class="fb-story-date">${dayName} ${monthName} ${dayNum}</div>
@@ -1419,11 +1450,14 @@
                             </div>
                         `;
                     } else {
-                        // Upcoming match card - show stats preview
+                        // Non-completed match card - show stats preview
                         const hasStats = matchEvent.myAvg || matchEvent.oppAvg;
+                        const cardClasses = ['fb-story-card', matchEvent.type];
+                        if (isToday) cardClasses.push('today');
+                        if (isPast) cardClasses.push('past');
 
                         return `
-                            <div class="fb-story-card ${matchEvent.type} ${isToday ? 'today' : ''}" onclick="openStoryModal('${matchEvent.id || ''}', '${matchEvent.type || 'league'}', '${matchEvent.leagueId || ''}')">
+                            <div class="${cardClasses.join(' ')}" onclick="openStoryModal('${matchEvent.id || ''}', '${matchEvent.type || 'league'}', '${matchEvent.leagueId || ''}')">
                                 <div class="fb-story-event">${formatLeagueName(matchEvent.leagueName)}</div>
                                 <div class="fb-story-week">WEEK ${matchEvent.week || '?'}</div>
                                 <div class="fb-story-date">${dayName} ${monthName} ${dayNum}</div>
@@ -1480,6 +1514,11 @@
             if (date._seconds) return new Date(date._seconds * 1000);
             if (date.seconds) return new Date(date.seconds * 1000);
             if (date.toDate) return date.toDate();
+            // Handle date strings like "2026-01-28" - parse as local time, not UTC
+            if (typeof date === 'string' && date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                const [year, month, day] = date.split('-').map(Number);
+                return new Date(year, month - 1, day);
+            }
             return new Date(date);
         }
 
