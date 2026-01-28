@@ -82,6 +82,30 @@
                 linear-gradient(175deg, var(--bg-dark) 0%, var(--bg-deep) 40%, #030308 100%);
         }
 
+        /* ========== VERIFICATION MODE BANNER ========== */
+        .verification-banner {
+            background: linear-gradient(135deg, #FDD835 0%, #F9A825 100%);
+            color: var(--bg-dark);
+            padding: 8px 16px;
+            text-align: center;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: 3px;
+            box-shadow: 0 2px 8px rgba(253, 216, 53, 0.4);
+            border-bottom: 3px solid rgba(0,0,0,0.3);
+            display: none;
+            flex-shrink: 0;
+        }
+        .verification-banner.active {
+            display: block;
+        }
+        .verification-banner-icon {
+            display: inline-block;
+            margin-right: 8px;
+            font-size: 20px;
+        }
+
         /* ========== PREMIUM HEADER SCOREBOARD ========== */
         .scoreboard {
             display: grid;
@@ -1124,6 +1148,10 @@
     </style>
 </head>
 <body>
+    <div class="verification-banner" id="verificationBanner">
+        <span class="verification-banner-icon">⚠️</span>
+        STATS VERIFICATION MODE
+    </div>
     <button class="exit-btn" onclick="exitGame()">EXIT</button>
 
     <!-- Casual Setup Screen -->
@@ -1705,6 +1733,11 @@ if (isMixedGame) {
 }
 
 function init() {
+    // Show verification mode banner if in verification mode
+    if (isVerificationMode) {
+        document.getElementById('verificationBanner').classList.add('active');
+    }
+
     document.getElementById('homeName').textContent = players[0].name;
     document.getElementById('awayName').textContent = players[1].name;
     renderBoard();
@@ -2769,7 +2802,7 @@ window.saveAndExit = async function() {
             const matchWinner = chicagoMatch.home_wins >= 2 ? 'Home' : 'Away';
             alert(`Chicago Match Over! ${matchWinner} wins ${chicagoMatch.home_wins}-${chicagoMatch.away_wins}`);
             sessionStorage.removeItem('chicagoMatch');
-            window.location.href = '/pages/scorer-hub.html';
+            window.location.href = '/pages/game-setup.html';
             return;
         }
 
@@ -3336,7 +3369,7 @@ window.viewMatchReport = function() {
     if (leagueId && matchId) {
         window.location.href = `/pages/match-hub.html?league_id=${leagueId}&match_id=${matchId}&tab=games`;
     } else {
-        window.location.href = '/pages/scorer-hub.html';
+        window.location.href = '/pages/game-setup.html';
     }
 };
 
@@ -3344,7 +3377,7 @@ window.backToHub = function() {
     if (leagueId && matchId) {
         window.location.href = `/pages/match-hub.html?league_id=${leagueId}&match_id=${matchId}`;
     } else {
-        window.location.href = '/pages/scorer-hub.html';
+        window.location.href = '/pages/game-setup.html';
     }
 };
 
@@ -3353,7 +3386,7 @@ function navigateAway() {
     if (leagueId && matchId) {
         window.location.href = `/pages/match-hub.html?league_id=${leagueId}&match_id=${matchId}`;
     } else {
-        window.location.href = '/pages/scorer-hub.html';
+        window.location.href = '/pages/game-setup.html';
     }
 }
 

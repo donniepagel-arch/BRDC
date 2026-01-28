@@ -46,15 +46,15 @@
             overflow: hidden;
             background: linear-gradient(180deg, var(--bg-dark) 0%, #050510 100%);
             color: var(--text-light);
-            padding-bottom: env(safe-area-inset-bottom, 0);
         }
 
-        .container { display: flex; flex-direction: column; height: 100%; max-height: 100dvh; }
+        .container { display: flex; flex-direction: column; height: 100%; max-height: var(--viewport-height, 100dvh); }
 
         /* Header */
         .header {
             background: var(--bg-panel);
             padding: 8px 12px;
+            padding-top: calc(8px + env(safe-area-inset-top, 0));
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -144,6 +144,29 @@
         }
         .team-label.home { color: var(--pink); }
         .team-label.away { color: var(--teal); }
+
+        /* Verification Mode Banner */
+        .verification-banner {
+            background: linear-gradient(135deg, #FDD835 0%, #F9A825 100%);
+            color: var(--bg-dark);
+            padding: 8px 16px;
+            text-align: center;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: 3px;
+            box-shadow: 0 2px 8px rgba(253, 216, 53, 0.4);
+            border-bottom: 3px solid rgba(0,0,0,0.3);
+            display: none;
+        }
+        .verification-banner.active {
+            display: block;
+        }
+        .verification-banner-icon {
+            display: inline-block;
+            margin-right: 8px;
+            font-size: 20px;
+        }
 
         .player-names {
             font-family: 'Bebas Neue', cursive;
@@ -247,6 +270,7 @@
         }
 
         .keypad-area {
+            position: relative;
             flex: 1;
             min-width: 0;
             padding: 0 10px;
@@ -722,11 +746,22 @@
 
         /* Quick Out Selector */
         .quick-out-container {
-            background: rgba(253, 216, 53, 0.1);
+            position: absolute;
+            top: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            max-width: 400px;
+            width: 90%;
+            max-height: 200px;
+            overflow-y: auto;
+            background: rgba(26, 26, 46, 0.95);
+            backdrop-filter: blur(10px);
             border: 2px solid var(--yellow);
             border-radius: 12px;
             padding: 12px;
-            margin-bottom: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+            -webkit-overflow-scrolling: touch;
         }
         .quick-out-grid {
             display: flex;
@@ -1010,10 +1045,76 @@
                 min-height: 44px;
             }
         }
+
+        /* Height-based responsive design (for landscape and short screens) */
+        @media (max-height: 700px) {
+            .calc-key {
+                min-height: 54px;
+                padding: 14px 8px;
+                font-size: 30px;
+            }
+            .calc-bottom-row .calc-key {
+                min-height: 52px;
+                padding: 12px 6px;
+                font-size: 24px;
+            }
+            .score-input-value {
+                min-height: 60px;
+                font-size: 32px;
+            }
+            .action-btn {
+                padding: 14px;
+            }
+            .side-btn {
+                min-height: 52px;
+                font-size: 22px;
+            }
+        }
+
+        @media (max-height: 600px) {
+            .calc-key {
+                min-height: 48px;
+                padding: 12px 6px;
+                font-size: 26px;
+            }
+            .calc-bottom-row .calc-key {
+                min-height: 46px;
+                padding: 10px 4px;
+                font-size: 20px;
+            }
+            .score-input-value {
+                min-height: 50px;
+                font-size: 28px;
+            }
+            .action-btn {
+                padding: 12px;
+                font-size: 14px;
+            }
+            .side-btn {
+                min-height: 46px;
+                font-size: 18px;
+            }
+            .quick-out-container {
+                display: none !important;
+            }
+        }
+
+        /* Smooth scrolling and hardware acceleration */
+        .history-throws {
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .modal, .quick-out-container {
+            will-change: transform, opacity;
+        }
     </style>
 </head>
 <body>
     <div class="container">
+        <div class="verification-banner" id="verificationBanner">
+            <span class="verification-banner-icon">⚠️</span>
+            STATS VERIFICATION MODE
+        </div>
         <div class="header">
             <div class="header-left">
                 <button class="back-btn" onclick="exitGame()">EXIT</button>
@@ -1557,6 +1658,19 @@
 import { callFunction, showLoading, hideLoading } from '/js/firebase-config.js';
 import { callWithQueue, setupOfflineQueue, processCallQueue, saveGameState, getGameState, clearGameState, initOfflineStorage } from '/js/offline-storage.js';
 
+// Visual Viewport Height Fix (for iOS keyboard resize)
+if (window.visualViewport) {
+    function handleViewportResize() {
+        const vh = window.visualViewport.height;
+        document.documentElement.style.setProperty('--viewport-height', `${vh}px`);
+    }
+    window.visualViewport.addEventListener('resize', handleViewportResize);
+    handleViewportResize(); // Set initial value
+}
+
+// Double-tap prevention flag
+let isSubmitting = false;
+
 // Setup offline queue for automatic retry
 setupOfflineQueue(callFunction);
 
@@ -1599,7 +1713,7 @@ const CHECKOUTS = {
 };
 
 // Impossible 3-dart scores (mathematically not achievable)
-const IMPOSSIBLE_SCORES = [163, 166, 169, 172, 173, 175, 176, 178, 179];
+const IMPOSSIBLE_SCORES = [159, 162, 163, 165, 166, 168, 169, 172, 173, 175, 176, 178, 179];
 
 // URL Parameters (mutable for PIN-loaded matches)
 const params = new URLSearchParams(window.location.search);
@@ -1778,8 +1892,27 @@ function generateBotScore(teamIndex, currentScore) {
     // Clamp to valid range
     score = Math.max(0, Math.min(180, score));
 
-    // Don't bust - if score would bust, play safe
-    if (score >= currentScore) {
+    // Check if this score would bust (below 0 or landing on 1)
+    const wouldBust = (currentScore - score < 0) || (currentScore - score === 1);
+
+    if (wouldBust) {
+        // Bots occasionally bust based on skill level
+        // Higher skill = lower bust rate when in danger zone
+        const bustChance = 1 - (skills.avg / 100); // ~40% chance for 60avg bot, ~20% for 80avg bot
+
+        if (Math.random() < bustChance) {
+            // Bot busts - return the busting score
+            return { score, isCheckout: false, dartsUsed: 3 };
+        } else {
+            // Bot plays safe - reduce score to avoid bust
+            if (currentScore <= 170) {
+                score = Math.floor(currentScore * 0.3); // Play safe, leave checkout
+            } else {
+                score = Math.floor(currentScore * 0.6); // Reduce score
+            }
+        }
+    } else if (score >= currentScore) {
+        // Would hit exactly but not checkout (not on double when required)
         // Leave a good checkout if possible
         if (currentScore <= 170) {
             score = Math.floor(currentScore * 0.3); // Play safe, leave checkout
@@ -1792,7 +1925,11 @@ function generateBotScore(teamIndex, currentScore) {
     const remaining = currentScore - score;
     const impossibleScores = [169, 168, 166, 165, 163, 162, 159];
     if (impossibleScores.includes(remaining)) {
-        score = Math.max(0, score - 1);
+        // Adjust slightly but check we don't create a bust
+        const adjusted = score - 1;
+        if (currentScore - adjusted >= 2) {
+            score = adjusted;
+        }
     }
 
     return { score, isCheckout: false, dartsUsed: 3 };
@@ -1983,6 +2120,55 @@ if (isMixedGame) {
     const awayLegsParam = parseInt(params.get('away_legs') || '0');
     teams[0].legs = homeLegsParam;
     teams[1].legs = awayLegsParam;
+
+    // Restore cumulative X01 stats from previous 501 legs in mixed format
+    const mixedConfig = JSON.parse(sessionStorage.getItem('mixedGameConfig') || '{}');
+    if (mixedConfig.x01_stats) {
+        const homeStats = mixedConfig.x01_stats.home || {};
+        const awayStats = mixedConfig.x01_stats.away || {};
+
+        // Restore home team cumulative stats
+        teams[0].darts = homeStats.darts || 0;
+        teams[0].points = homeStats.points || 0;
+        teams[0].tons = homeStats.tons || 0;
+        teams[0].ton40s = homeStats.ton40s || 0;
+        teams[0].ton80s = homeStats.ton80s || 0;
+        teams[0].ton_00 = homeStats.ton_00 || 0;
+        teams[0].ton_20 = homeStats.ton_20 || 0;
+        teams[0].ton_40 = homeStats.ton_40 || 0;
+        teams[0].ton_60 = homeStats.ton_60 || 0;
+        teams[0].ton_80 = homeStats.ton_80 || 0;
+        teams[0].ton_71 = homeStats.ton_71 || 0;
+        teams[0].totalCheckouts = homeStats.totalCheckouts || 0;
+        teams[0].checkoutAttempts = homeStats.checkoutAttempts || 0;
+        teams[0].checkoutDarts = homeStats.checkoutDarts || 0;
+        teams[0].highCheckout = homeStats.highCheckout || 0;
+        teams[0].highScore = homeStats.highScore || 0;
+        teams[0].bestLeg = homeStats.bestLeg || 999;
+        teams[0].first9Darts = homeStats.first9Darts || 0;
+        teams[0].first9Points = homeStats.first9Points || 0;
+
+        // Restore away team cumulative stats
+        teams[1].darts = awayStats.darts || 0;
+        teams[1].points = awayStats.points || 0;
+        teams[1].tons = awayStats.tons || 0;
+        teams[1].ton40s = awayStats.ton40s || 0;
+        teams[1].ton80s = awayStats.ton80s || 0;
+        teams[1].ton_00 = awayStats.ton_00 || 0;
+        teams[1].ton_20 = awayStats.ton_20 || 0;
+        teams[1].ton_40 = awayStats.ton_40 || 0;
+        teams[1].ton_60 = awayStats.ton_60 || 0;
+        teams[1].ton_80 = awayStats.ton_80 || 0;
+        teams[1].ton_71 = awayStats.ton_71 || 0;
+        teams[1].totalCheckouts = awayStats.totalCheckouts || 0;
+        teams[1].checkoutAttempts = awayStats.checkoutAttempts || 0;
+        teams[1].checkoutDarts = awayStats.checkoutDarts || 0;
+        teams[1].highCheckout = awayStats.highCheckout || 0;
+        teams[1].highScore = awayStats.highScore || 0;
+        teams[1].bestLeg = awayStats.bestLeg || 999;
+        teams[1].first9Darts = awayStats.first9Darts || 0;
+        teams[1].first9Points = awayStats.first9Points || 0;
+    }
 }
 
 // ============================================
@@ -2105,6 +2291,11 @@ async function clearSavedGame() {
 }
 
 async function init() {
+    // Show verification mode banner if in verification mode
+    if (isVerificationMode) {
+        document.getElementById('verificationBanner').classList.add('active');
+    }
+
     document.getElementById('gameTitle').textContent = `GAME ${gameNumber}`;
     // Build format display: e.g., "501 DI/DO" or "301 SI/DO"
     const inDisplay = inRule === 'double' ? 'DI' : 'SI';
@@ -2513,6 +2704,10 @@ window.selectCorksChoiceGame = function(gameType) {
     } else {
         // X01 game - update current page settings
         const newScore = parseInt(gameType);
+        if (isNaN(newScore) || newScore < 101) {
+            console.error('Invalid game type:', gameType);
+            return;
+        }
         STARTING_SCORE = newScore;
         isCorksChoice = false; // Disable for this game
 
@@ -2864,6 +3059,10 @@ window.submitCurrentScore = function() {
 };
 
 window.submitScore = function(score, dartsUsed = 3) {
+    // Double-tap prevention
+    if (isSubmitting) return;
+    isSubmitting = true;
+
     // Hide wrong game button after first score
     hideWrongGameBtn();
 
@@ -3084,6 +3283,9 @@ window.submitScore = function(score, dartsUsed = 3) {
     updateInputDisplay();
     updateThrowHistory();
     switchTeam();
+
+    // Reset double-tap prevention after delay
+    setTimeout(() => { isSubmitting = false; }, 500);
 };
 
 window.confirmCheckout = function(darts) {
@@ -3606,6 +3808,12 @@ window.editThrow = function(teamIdx, throwIdx) {
         return;
     }
 
+    // Check for impossible scores
+    if (IMPOSSIBLE_SCORES.includes(newScore)) {
+        alert('Invalid score - ' + newScore + ' is not achievable with 3 darts');
+        return;
+    }
+
     // Update the throw
     const oldValue = throwHistory[teamIdx][throwIdx].value;
     const wasBust = throwHistory[teamIdx][throwIdx].bust;
@@ -3752,6 +3960,54 @@ window.nextLeg = function() {
             mixedConfig.current_leg = nextLegIndex;
             mixedConfig.home_legs = teams[0].legs;
             mixedConfig.away_legs = teams[1].legs;
+
+            // Save cumulative X01 stats for mixed format (so 501 avg includes all 501 legs)
+            if (!mixedConfig.x01_stats) {
+                mixedConfig.x01_stats = { home: {}, away: {} };
+            }
+            mixedConfig.x01_stats.home = {
+                darts: teams[0].darts || 0,
+                points: teams[0].points || 0,
+                tons: teams[0].tons || 0,
+                ton40s: teams[0].ton40s || 0,
+                ton80s: teams[0].ton80s || 0,
+                ton_00: teams[0].ton_00 || 0,
+                ton_20: teams[0].ton_20 || 0,
+                ton_40: teams[0].ton_40 || 0,
+                ton_60: teams[0].ton_60 || 0,
+                ton_80: teams[0].ton_80 || 0,
+                ton_71: teams[0].ton_71 || 0,
+                totalCheckouts: teams[0].totalCheckouts || 0,
+                checkoutAttempts: teams[0].checkoutAttempts || 0,
+                checkoutDarts: teams[0].checkoutDarts || 0,
+                highCheckout: teams[0].highCheckout || 0,
+                highScore: teams[0].highScore || 0,
+                bestLeg: teams[0].bestLeg || 999,
+                first9Darts: teams[0].first9Darts || 0,
+                first9Points: teams[0].first9Points || 0
+            };
+            mixedConfig.x01_stats.away = {
+                darts: teams[1].darts || 0,
+                points: teams[1].points || 0,
+                tons: teams[1].tons || 0,
+                ton40s: teams[1].ton40s || 0,
+                ton80s: teams[1].ton80s || 0,
+                ton_00: teams[1].ton_00 || 0,
+                ton_20: teams[1].ton_20 || 0,
+                ton_40: teams[1].ton_40 || 0,
+                ton_60: teams[1].ton_60 || 0,
+                ton_80: teams[1].ton_80 || 0,
+                ton_71: teams[1].ton_71 || 0,
+                totalCheckouts: teams[1].totalCheckouts || 0,
+                checkoutAttempts: teams[1].checkoutAttempts || 0,
+                checkoutDarts: teams[1].checkoutDarts || 0,
+                highCheckout: teams[1].highCheckout || 0,
+                highScore: teams[1].highScore || 0,
+                bestLeg: teams[1].bestLeg || 999,
+                first9Darts: teams[1].first9Darts || 0,
+                first9Points: teams[1].first9Points || 0
+            };
+
             sessionStorage.setItem('mixedGameConfig', JSON.stringify(mixedConfig));
 
             // Check if there are more legs
@@ -4204,7 +4460,7 @@ window.saveGame = async function() {
             const matchWinner = chicagoMatch.home_wins >= 2 ? 'Home' : 'Away';
             alert(`Chicago Match Over! ${matchWinner} wins ${chicagoMatch.home_wins}-${chicagoMatch.away_wins}`);
             sessionStorage.removeItem('chicagoMatch');
-            window.location.href = '/pages/scorer-hub.html';
+            window.location.href = '/pages/game-setup.html';
             return;
         }
 
@@ -4886,7 +5142,7 @@ window.viewMatchReport = function() {
     if (leagueId && matchId) {
         window.location.href = `/pages/match-hub.html?league_id=${leagueId}&match_id=${matchId}&tab=games`;
     } else {
-        window.location.href = '/pages/scorer-hub.html';
+        window.location.href = '/pages/game-setup.html';
     }
 };
 
@@ -4894,7 +5150,7 @@ window.backToHub = function() {
     if (leagueId && matchId) {
         window.location.href = `/pages/match-hub.html?league_id=${leagueId}&match_id=${matchId}`;
     } else {
-        window.location.href = '/pages/scorer-hub.html';
+        window.location.href = '/pages/game-setup.html';
     }
 };
 
@@ -4910,7 +5166,7 @@ async function navigateAway() {
     if (leagueId && matchId) {
         window.location.href = `/pages/match-hub.html?league_id=${leagueId}&match_id=${matchId}`;
     } else {
-        window.location.href = '/pages/scorer-hub.html';
+        window.location.href = '/pages/game-setup.html';
     }
 }
 
@@ -5130,7 +5386,12 @@ window.selectNextGame = function(type) {
 };
 
 window.confirmX01Selection = function() {
-    const score = parseInt(document.getElementById('x01CustomScore').value) || 501;
+    const rawScore = parseInt(document.getElementById('x01CustomScore').value);
+    if (isNaN(rawScore) || rawScore < 101 || rawScore > 1001) {
+        alert('Invalid score. Must be between 101 and 1001.');
+        return;
+    }
+    const score = rawScore;
     const inRule = document.getElementById('x01CustomIn').value;
     const outRule = document.getElementById('x01CustomOut').value;
     applyGameSelection('x01', score, inRule, outRule);
