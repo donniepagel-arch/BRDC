@@ -34,6 +34,15 @@ exports.generateLeagueFeed = onCall(async (request) => {
             playersById[doc.id] = { id: doc.id, ...doc.data() };
         });
 
+        // Group matches by week for league night summaries
+        const weekGroups = {};
+        for (const match of matches) {
+            if (match.status !== 'completed') continue;
+            const week = match.week || 0;
+            if (!weekGroups[week]) weekGroups[week] = [];
+            weekGroups[week].push(match);
+        }
+
         // Process each match
         for (const match of matches) {
             if (match.status !== 'completed') continue;
@@ -45,164 +54,62 @@ exports.generateLeagueFeed = onCall(async (request) => {
 
             const matchDate = match.match_date?.toDate ? match.match_date.toDate() : new Date(match.match_date);
 
-            // 1. MATCH RESULT
-            const winner = match.home_score > match.away_score ? homeTeam : awayTeam;
-            const loser = match.home_score > match.away_score ? awayTeam : homeTeam;
-            const winnerScore = Math.max(match.home_score || 0, match.away_score || 0);
-            const loserScore = Math.min(match.home_score || 0, match.away_score || 0);
+            // Get top performers by level from this match
+            const topPerformers = getTopPerformersByLevel(match, playersById);
 
+            // 1. MATCH RESULT with top performers
             feedItems.push({
                 type: 'match_result',
                 created_at: matchDate,
                 match_id: match.id,
                 week: match.week || 0,
+                league_id: league_id,
                 data: {
-                    winner_team_id: winner?.id || '',
-                    winner_team_name: winner?.name || 'Unknown Team',
-                    loser_team_id: loser?.id || '',
-                    loser_team_name: loser?.name || 'Unknown Team',
-                    winner_score: winnerScore,
-                    loser_score: loserScore,
+                    home_team_id: homeTeam.id || '',
                     home_team_name: homeTeam?.name || 'Home Team',
-                    away_team_name: awayTeam?.name || 'Away Team',
                     home_score: match.home_score || 0,
-                    away_score: match.away_score || 0
+                    away_team_id: awayTeam.id || '',
+                    away_team_name: awayTeam?.name || 'Away Team',
+                    away_score: match.away_score || 0,
+                    top_performers: topPerformers
                 }
             });
 
-            // 2. ANALYZE GAMES FOR NOTABLE EVENTS
-            if (match.games && Array.isArray(match.games)) {
-                // Track tons per player per set for hat trick detection
-                const setTons = {};
-
-                for (const game of match.games) {
-                    if (!game.legs || !Array.isArray(game.legs)) continue;
-
-                    const setNum = game.set || 0;
-
-                    for (const leg of game.legs) {
-                        if (!leg.throws || !Array.isArray(leg.throws)) continue;
-
-                        // Scan throws for notable events
-                        for (const throwRound of leg.throws) {
-                            // Check home side
-                            if (throwRound.home && throwRound.home.player) {
-                                const events = analyzeThrow(throwRound.home, 'home', leg.format);
-
-                                // Track tons for hat trick detection
-                                if (throwRound.home.score >= 100 && leg.format !== 'cricket') {
-                                    const key = `${throwRound.home.player}_${setNum}`;
-                                    if (!setTons[key]) setTons[key] = { player: throwRound.home.player, count: 0, teamId: match.home_team_id, teamName: homeTeam.name };
-                                    setTons[key].count++;
-                                }
-
-                                for (const event of events) {
-                                    feedItems.push({
-                                        type: event.type,
-                                        created_at: matchDate,
-                                        match_id: match.id,
-                                        week: match.week || 0,
-                                        player_name: throwRound.home.player || 'Unknown Player',
-                                        team_id: match.home_team_id || '',
-                                        team_name: homeTeam.name || 'Unknown Team',
-                                        data: {
-                                            ...event.data,
-                                            game_format: leg.format || 'unknown',
-                                            opponent_team: awayTeam.name || 'Unknown Team'
-                                        }
-                                    });
-                                }
-                            }
-
-                            // Check away side
-                            if (throwRound.away && throwRound.away.player) {
-                                const events = analyzeThrow(throwRound.away, 'away', leg.format);
-
-                                // Track tons for hat trick detection
-                                if (throwRound.away.score >= 100 && leg.format !== 'cricket') {
-                                    const key = `${throwRound.away.player}_${setNum}`;
-                                    if (!setTons[key]) setTons[key] = { player: throwRound.away.player, count: 0, teamId: match.away_team_id, teamName: awayTeam.name };
-                                    setTons[key].count++;
-                                }
-
-                                for (const event of events) {
-                                    feedItems.push({
-                                        type: event.type,
-                                        created_at: matchDate,
-                                        match_id: match.id,
-                                        week: match.week || 0,
-                                        player_name: throwRound.away.player || 'Unknown Player',
-                                        team_id: match.away_team_id || '',
-                                        team_name: awayTeam.name || 'Unknown Team',
-                                        data: {
-                                            ...event.data,
-                                            game_format: leg.format || 'unknown',
-                                            opponent_team: homeTeam.name || 'Unknown Team'
-                                        }
-                                    });
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Check for hat tricks (3+ tons in a set)
-                for (const [key, data] of Object.entries(setTons)) {
-                    if (data.count >= 3) {
-                        feedItems.push({
-                            type: 'hat_trick',
-                            created_at: matchDate,
-                            match_id: match.id,
-                            week: match.week || 0,
-                            player_name: data.player || 'Unknown Player',
-                            team_id: data.teamId || '',
-                            team_name: data.teamName || 'Unknown Team',
-                            data: {
-                                ton_count: data.count,
-                                opponent_team: data.teamId === match.home_team_id ? awayTeam.name : homeTeam.name
-                            }
-                        });
-                    }
-                }
-            }
-
-            // Check for upsets (lower-ranked team beats higher-ranked)
-            // Calculate standings up to this week
-            const standingsAtMatch = calculateStandings(matches.filter(m =>
-                (m.week || 0) < (match.week || 0) && m.status === 'completed'
-            ));
-
-            const winnerRank = standingsAtMatch.findIndex(t => t.id === winner.id) + 1;
-            const loserRank = standingsAtMatch.findIndex(t => t.id === loser.id) + 1;
-
-            // Upset if winner was ranked 3+ spots below loser
-            if (winnerRank > 0 && loserRank > 0 && winnerRank - loserRank >= 3) {
-                feedItems.push({
-                    type: 'upset',
-                    created_at: matchDate,
-                    match_id: match.id,
-                    week: match.week || 0,
-                    data: {
-                        winner_team_id: winner.id || '',
-                        winner_team_name: winner.name || 'Unknown Team',
-                        winner_rank: winnerRank,
-                        loser_team_id: loser.id || '',
-                        loser_team_name: loser.name || 'Unknown Team',
-                        loser_rank: loserRank,
-                        winner_score: winnerScore,
-                        loser_score: loserScore
-                    }
-                });
-            }
         }
 
-        // 3. CALCULATE WEEKLY LEADERS
-        const weeklyLeaders = calculateWeeklyLeaders(matches, playersById);
-        feedItems.push(...weeklyLeaders);
+        // 2. CREATE LEAGUE NIGHT SUMMARIES (one per week)
+        for (const [week, weekMatches] of Object.entries(weekGroups)) {
+            if (weekMatches.length === 0) continue;
 
-        // 4. DETECT MILESTONES
-        const milestones = await detectMilestones(league_id, playersById);
-        feedItems.push(...milestones);
+            const weekNum = parseInt(week);
+            const matchDate = weekMatches[0].match_date?.toDate ? weekMatches[0].match_date.toDate() : new Date(weekMatches[0].match_date);
+
+            // Get top performers across all matches this week by level
+            const weekTopPerformers = getWeekTopPerformersByLevel(weekMatches, playersById);
+
+            // Calculate standings after this week
+            const standingsAfterWeek = calculateStandings(matches.filter(m =>
+                m.status === 'completed' && (m.week || 0) <= weekNum
+            ));
+
+            feedItems.push({
+                type: 'league_night',
+                created_at: matchDate,
+                week: weekNum,
+                league_id: league_id,
+                data: {
+                    matches_played: weekMatches.length,
+                    top_performers: weekTopPerformers,
+                    standings_top3: standingsAfterWeek.slice(0, 3).map((t, idx) => ({
+                        rank: idx + 1,
+                        team_id: t.id,
+                        team_name: teamsById[t.id]?.name || 'Unknown',
+                        wins: t.wins,
+                        losses: t.losses
+                    }))
+                }
+            });
+        }
 
         // Sort by date (newest first)
         feedItems.sort((a, b) => b.created_at - a.created_at);
@@ -246,229 +153,158 @@ exports.generateLeagueFeed = onCall(async (request) => {
 });
 
 /**
- * Analyze a single throw for notable events
+ * Get top performer from each ABC level in a match
  */
-function analyzeThrow(throwData, side, format) {
-    const events = [];
+function getTopPerformersByLevel(match, playersById) {
+    const levelStats = { A: {}, B: {}, C: {} };
 
-    if (format === '501' || format === '301' || format === '701') {
-        // 180 Maximum
-        if (throwData.score === 180) {
-            events.push({
-                type: 'maximum',
-                data: { score: 180 }
-            });
-        }
+    if (!match.games || !Array.isArray(match.games)) return {};
 
-        // Ton-80 or higher (but not 180)
-        if (throwData.score >= 140 && throwData.score < 180) {
-            events.push({
-                type: 'high_score',
-                data: { score: throwData.score }
-            });
-        }
+    // Aggregate stats by player
+    for (const game of match.games) {
+        if (!game.legs) continue;
 
-        // Big Checkouts (100+)
-        if (throwData.checkout && throwData.score >= 100) {
-            const checkoutType = throwData.score >= 161 ? 'big_checkout' : 'ton_checkout';
-            events.push({
-                type: checkoutType,
-                data: {
-                    checkout: throwData.score,
-                    checkout_darts: throwData.checkout_darts || 3
+        for (const leg of game.legs) {
+            if (!leg.player_stats) continue;
+
+            for (const [playerName, stats] of Object.entries(leg.player_stats)) {
+                // Find player to get their level
+                const player = Object.values(playersById).find(p =>
+                    p.name && p.name.toLowerCase() === playerName.toLowerCase()
+                );
+
+                if (!player || !player.level) continue;
+
+                const level = player.level; // A, B, or C
+
+                if (!levelStats[level][playerName]) {
+                    levelStats[level][playerName] = {
+                        player_id: player.id,
+                        x01_darts: 0,
+                        x01_points: 0,
+                        cricket_darts: 0,
+                        cricket_marks: 0
+                    };
                 }
-            });
-        }
 
-    } else if (format === 'cricket') {
-        // 9-Mark (Maximum)
-        if (throwData.marks === 9) {
-            events.push({
-                type: 'nine_mark',
-                data: { marks: 9 }
-            });
-        }
-
-        // 6+ Marks
-        if (throwData.marks >= 6 && throwData.marks < 9) {
-            events.push({
-                type: 'high_marks',
-                data: { marks: throwData.marks }
-            });
-        }
-
-        // Triple Bull or better
-        if (throwData.notable && (throwData.notable.includes('3B') || throwData.notable.includes('5B'))) {
-            events.push({
-                type: 'bull_run',
-                data: {
-                    notable: throwData.notable,
-                    marks: throwData.marks
+                if (leg.format === '501' || leg.format === '301' || leg.format === '701') {
+                    levelStats[level][playerName].x01_darts += stats.darts || 0;
+                    levelStats[level][playerName].x01_points += stats.points || 0;
+                } else if (leg.format === 'cricket') {
+                    levelStats[level][playerName].cricket_darts += stats.darts || 0;
+                    levelStats[level][playerName].cricket_marks += stats.marks || 0;
                 }
-            });
+            }
         }
     }
 
-    return events;
+    // Find top performer in each level
+    const topPerformers = {};
+    for (const [level, players] of Object.entries(levelStats)) {
+        let topPlayer = null;
+        let topScore = 0;
+
+        for (const [playerName, stats] of Object.entries(players)) {
+            const avg3DA = stats.x01_darts > 0 ? (stats.x01_points / stats.x01_darts) * 3 : 0;
+            const mpr = stats.cricket_darts > 0 ? stats.cricket_marks / (stats.cricket_darts / 3) : 0;
+
+            // Combined score (weighted average)
+            const score = avg3DA + (mpr * 10); // MPR roughly matches 3DA when multiplied by ~10
+
+            if (score > topScore) {
+                topScore = score;
+                topPlayer = {
+                    name: playerName,
+                    player_id: stats.player_id,
+                    avg_3da: avg3DA > 0 ? avg3DA.toFixed(1) : null,
+                    mpr: mpr > 0 ? mpr.toFixed(2) : null
+                };
+            }
+        }
+
+        if (topPlayer) {
+            topPerformers[level] = topPlayer;
+        }
+    }
+
+    return topPerformers;
 }
 
 /**
- * Calculate weekly leaders for 3DA and MPR
+ * Get top performers by level across all matches in a week
  */
-function calculateWeeklyLeaders(matches, playersById) {
-    const items = [];
-    const weekMap = {};
+function getWeekTopPerformersByLevel(weekMatches, playersById) {
+    const levelStats = { A: {}, B: {}, C: {} };
 
-    // Group matches by week
-    for (const match of matches) {
-        if (match.status !== 'completed' || !match.week) continue;
-        if (!weekMap[match.week]) weekMap[match.week] = [];
-        weekMap[match.week].push(match);
-    }
+    for (const match of weekMatches) {
+        if (!match.games || !Array.isArray(match.games)) continue;
 
-    // For each week, find top performers
-    for (const [week, weekMatches] of Object.entries(weekMap)) {
-        const weekStats = {};
+        for (const game of match.games) {
+            if (!game.legs) continue;
 
-        // Aggregate stats for this week
-        for (const match of weekMatches) {
-            if (!match.games) continue;
+            for (const leg of game.legs) {
+                if (!leg.player_stats) continue;
 
-            for (const game of match.games) {
-                if (!game.legs) continue;
+                for (const [playerName, stats] of Object.entries(leg.player_stats)) {
+                    const player = Object.values(playersById).find(p =>
+                        p.name && p.name.toLowerCase() === playerName.toLowerCase()
+                    );
 
-                for (const leg of game.legs) {
-                    if (!leg.player_stats) continue;
+                    if (!player || !player.level) continue;
 
-                    for (const [playerName, stats] of Object.entries(leg.player_stats)) {
-                        if (!weekStats[playerName]) {
-                            weekStats[playerName] = {
-                                x01_darts: 0,
-                                x01_points: 0,
-                                cricket_darts: 0,
-                                cricket_marks: 0
-                            };
-                        }
+                    const level = player.level;
 
-                        if (leg.format === '501' || leg.format === '301' || leg.format === '701') {
-                            weekStats[playerName].x01_darts += stats.darts || 0;
-                            weekStats[playerName].x01_points += stats.points || 0;
-                        } else if (leg.format === 'cricket') {
-                            weekStats[playerName].cricket_darts += stats.darts || 0;
-                            weekStats[playerName].cricket_marks += stats.marks || 0;
-                        }
+                    if (!levelStats[level][playerName]) {
+                        levelStats[level][playerName] = {
+                            player_id: player.id,
+                            x01_darts: 0,
+                            x01_points: 0,
+                            cricket_darts: 0,
+                            cricket_marks: 0
+                        };
+                    }
+
+                    if (leg.format === '501' || leg.format === '301' || leg.format === '701') {
+                        levelStats[level][playerName].x01_darts += stats.darts || 0;
+                        levelStats[level][playerName].x01_points += stats.points || 0;
+                    } else if (leg.format === 'cricket') {
+                        levelStats[level][playerName].cricket_darts += stats.darts || 0;
+                        levelStats[level][playerName].cricket_marks += stats.marks || 0;
                     }
                 }
             }
         }
+    }
 
-        // Calculate averages and find leaders
-        const playerAvgs = [];
-        for (const [playerName, stats] of Object.entries(weekStats)) {
+    // Find top performer in each level
+    const topPerformers = {};
+    for (const [level, players] of Object.entries(levelStats)) {
+        let topPlayer = null;
+        let topScore = 0;
+
+        for (const [playerName, stats] of Object.entries(players)) {
             const avg3DA = stats.x01_darts > 0 ? (stats.x01_points / stats.x01_darts) * 3 : 0;
             const mpr = stats.cricket_darts > 0 ? stats.cricket_marks / (stats.cricket_darts / 3) : 0;
 
-            if (avg3DA > 0 || mpr > 0) {
-                playerAvgs.push({ playerName, avg3DA, mpr });
+            const score = avg3DA + (mpr * 10);
+
+            if (score > topScore) {
+                topScore = score;
+                topPlayer = {
+                    name: playerName,
+                    player_id: stats.player_id,
+                    avg_3da: avg3DA > 0 ? avg3DA.toFixed(1) : null,
+                    mpr: mpr > 0 ? mpr.toFixed(2) : null
+                };
             }
         }
 
-        // Sort by 3DA
-        playerAvgs.sort((a, b) => b.avg3DA - a.avg3DA);
-        const top3DA = playerAvgs[0];
-
-        // Sort by MPR
-        playerAvgs.sort((a, b) => b.mpr - a.mpr);
-        const topMPR = playerAvgs[0];
-
-        // Create leader items
-        if (top3DA && top3DA.avg3DA > 0 && weekMatches.length > 0) {
-            const matchDate = weekMatches[0].match_date?.toDate ? weekMatches[0].match_date.toDate() : new Date(weekMatches[0].match_date);
-            items.push({
-                type: 'weekly_leader',
-                created_at: matchDate,
-                week: parseInt(week) || 0,
-                player_name: top3DA.playerName || 'Unknown Player',
-                data: {
-                    stat_type: '3DA',
-                    value: top3DA.avg3DA.toFixed(1)
-                }
-            });
-        }
-
-        if (topMPR && topMPR.mpr > 0 && topMPR.playerName !== top3DA?.playerName && weekMatches.length > 0) {
-            const matchDate = weekMatches[0].match_date?.toDate ? weekMatches[0].match_date.toDate() : new Date(weekMatches[0].match_date);
-            items.push({
-                type: 'weekly_leader',
-                created_at: matchDate,
-                week: parseInt(week) || 0,
-                player_name: topMPR.playerName || 'Unknown Player',
-                data: {
-                    stat_type: 'MPR',
-                    value: topMPR.mpr.toFixed(2)
-                }
-            });
+        if (topPlayer) {
+            topPerformers[level] = topPlayer;
         }
     }
 
-    return items;
-}
-
-/**
- * Detect player milestones
- */
-async function detectMilestones(league_id, playersById) {
-    const items = [];
-    const statsSnap = await db.collection('leagues').doc(league_id).collection('stats').get();
-
-    statsSnap.forEach(doc => {
-        const stats = doc.data();
-        const player = playersById[doc.id];
-        if (!player || !player.name) return;
-
-        const totalLegs = (stats.x01_legs_played || 0) + (stats.cricket_legs_played || 0);
-
-        // Milestone: 50 legs
-        if (totalLegs >= 50 && totalLegs < 60) {
-            items.push({
-                type: 'milestone',
-                created_at: new Date(),
-                player_name: player.name || 'Unknown Player',
-                data: {
-                    milestone_type: 'legs_played',
-                    value: 50
-                }
-            });
-        }
-
-        // Milestone: 100 legs
-        if (totalLegs >= 100 && totalLegs < 110) {
-            items.push({
-                type: 'milestone',
-                created_at: new Date(),
-                player_name: player.name || 'Unknown Player',
-                data: {
-                    milestone_type: 'legs_played',
-                    value: 100
-                }
-            });
-        }
-
-        // Milestone: First 180
-        if (stats.x01_180s === 1) {
-            items.push({
-                type: 'milestone',
-                created_at: new Date(),
-                player_name: player.name || 'Unknown Player',
-                data: {
-                    milestone_type: 'first_180',
-                    value: 180
-                }
-            });
-        }
-    });
-
-    return items;
+    return topPerformers;
 }
 
 /**

@@ -1559,22 +1559,8 @@
             switch (item.type) {
                 case 'match_result':
                     return renderMatchResultFeedCard(item);
-                case 'maximum':
-                case 'high_score':
-                case 'ton_checkout':
-                case 'big_checkout':
-                case 'nine_mark':
-                case 'high_marks':
-                case 'bull_run':
-                    return renderNotableThrowCard(item);
-                case 'hat_trick':
-                    return renderHatTrickCard(item);
-                case 'upset':
-                    return renderUpsetCard(item);
-                case 'weekly_leader':
-                    return renderWeeklyLeaderCard(item);
-                case 'milestone':
-                    return renderMilestoneCard(item);
+                case 'league_night':
+                    return renderLeagueNightCard(item);
                 default:
                     return '';
             }
@@ -1608,46 +1594,139 @@
             `;
         }
 
-        // Render match result feed card
+        // Render match result feed card with top performers
         function renderMatchResultFeedCard(item) {
             const data = item.data;
             const matchDate = getDateFromTimestamp(item.created_at);
             const dateStr = matchDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 
+            const homeWon = data.home_score > data.away_score;
+
+            // Render top performers by level
+            let performersHtml = '';
+            if (data.top_performers) {
+                const levels = ['A', 'B', 'C'];
+                const performersList = levels.map(level => {
+                    const perf = data.top_performers[level];
+                    if (!perf) return '';
+                    const stat = perf.avg_3da || perf.mpr;
+                    const statLabel = perf.avg_3da ? `${perf.avg_3da} 3DA` : `${perf.mpr} MPR`;
+                    return `<span style="color: var(--text-light); font-size: 12px;">${level}: ${perf.name} (${statLabel})</span>`;
+                }).filter(x => x).join(' • ');
+
+                if (performersList) {
+                    performersHtml = `<div style="text-align: center; margin-top: 8px;">${performersList}</div>`;
+                }
+            }
+
             return `
                 <div class="fb-feed-card">
                     <div class="fb-feed-card-header">
                         <div class="fb-feed-avatar" style="background: var(--teal)">
-                            &#127942;
+                            &#127919;
                         </div>
                         <div class="fb-feed-meta">
-                            <div class="fb-feed-author">Week ${item.week} Match Result</div>
+                            <div class="fb-feed-author">Week ${item.week} Match</div>
                             <div class="fb-feed-time">${dateStr}</div>
                         </div>
                     </div>
                     <div class="fb-feed-card-body">
                         <div class="fb-match-result">
                             <div class="fb-match-teams">
-                                <div class="fb-match-team">
+                                <div class="fb-match-team ${homeWon ? 'winner' : ''}">
                                     <div class="fb-match-team-name">${data.home_team_name}</div>
                                 </div>
                                 <div class="fb-match-score">
-                                    <span class="${data.home_score > data.away_score ? 'winner' : ''}">${data.home_score}</span>
+                                    <span class="${homeWon ? 'winner' : ''}">${data.home_score}</span>
                                     <span style="color: var(--text-dim); margin: 0 4px;">-</span>
-                                    <span class="${data.away_score > data.home_score ? 'winner' : ''}">${data.away_score}</span>
+                                    <span class="${!homeWon ? 'winner' : ''}">${data.away_score}</span>
                                 </div>
-                                <div class="fb-match-team">
+                                <div class="fb-match-team ${!homeWon ? 'winner' : ''}">
                                     <div class="fb-match-team-name">${data.away_team_name}</div>
                                 </div>
                             </div>
                         </div>
-                        <div style="text-align: center; margin-top: 8px; color: var(--text-light);">
-                            <strong>${data.winner_team_name}</strong> defeats ${data.loser_team_name}
-                        </div>
+                        ${performersHtml}
                     </div>
                     <div class="fb-feed-card-actions">
-                        <button class="fb-feed-action-btn" onclick="viewMatch('${item.match_id}', '${item.leagueId}')">
-                            &#128202; View Details
+                        <button class="fb-feed-action-btn" onclick="window.location.href='/pages/match-hub.html?league_id=${item.league_id}&match_id=${item.match_id}'">
+                            &#128202; View Match
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Render league night summary card
+        function renderLeagueNightCard(item) {
+            const data = item.data;
+            const matchDate = getDateFromTimestamp(item.created_at);
+            const dateStr = matchDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+
+            // Render top performers by level
+            let performersHtml = '';
+            if (data.top_performers) {
+                const levels = ['A', 'B', 'C'];
+                const performersList = levels.map(level => {
+                    const perf = data.top_performers[level];
+                    if (!perf) return '';
+                    const stat = perf.avg_3da || perf.mpr;
+                    const statLabel = perf.avg_3da ? `${perf.avg_3da} 3DA` : `${perf.mpr} MPR`;
+                    return `
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0;">
+                            <span style="color: var(--pink); font-weight: 600;">${level} Level</span>
+                            <span style="color: var(--text-light);">${perf.name}</span>
+                            <span style="color: var(--yellow);">${statLabel}</span>
+                        </div>
+                    `;
+                }).join('');
+
+                if (performersList) {
+                    performersHtml = `
+                        <div style="margin-top: 12px;">
+                            <div style="font-weight: 600; margin-bottom: 6px; color: var(--text-light);">Top Performers</div>
+                            ${performersList}
+                        </div>
+                    `;
+                }
+            }
+
+            // Render top 3 standings
+            let standingsHtml = '';
+            if (data.standings_top3 && data.standings_top3.length > 0) {
+                const standingsList = data.standings_top3.map(team => `
+                    <div style="display: flex; justify-content: space-between; padding: 4px 0;">
+                        <span>${team.rank}. ${team.team_name}</span>
+                        <span style="color: var(--text-dim);">${team.wins}-${team.losses}</span>
+                    </div>
+                `).join('');
+
+                standingsHtml = `
+                    <div style="margin-top: 12px;">
+                        <div style="font-weight: 600; margin-bottom: 6px; color: var(--text-light);">Standings</div>
+                        ${standingsList}
+                    </div>
+                `;
+            }
+
+            return `
+                <div class="fb-feed-card">
+                    <div class="fb-feed-card-header">
+                        <div class="fb-feed-avatar" style="background: var(--pink); font-size: 20px;">
+                            📅
+                        </div>
+                        <div class="fb-feed-meta">
+                            <div class="fb-feed-author">Week ${item.week} League Night</div>
+                            <div class="fb-feed-time">${dateStr} • ${data.matches_played} matches</div>
+                        </div>
+                    </div>
+                    <div class="fb-feed-card-body">
+                        ${performersHtml}
+                        ${standingsHtml}
+                    </div>
+                    <div class="fb-feed-card-actions">
+                        <button class="fb-feed-action-btn" onclick="window.location.href='/pages/league-view.html?league_id=${item.league_id}'">
+                            📊 View League
                         </button>
                     </div>
                 </div>
