@@ -89,6 +89,10 @@ leagues/{leagueId}/feed/{feedItemId}
 - **High Marks (6-8):** 🎯 [marks] Marks!
 - **Bull Run:** 🐂 Bull Run! (3B, 5B)
 
+### Performance Events
+- **Hat Trick:** 🎩 3+ tons in a single set
+- **Upset:** ⚡ Lower-ranked team beats higher-ranked (3+ position gap)
+
 ### Weekly Leaders
 - 👑 Top 3DA for the week
 - 👑 Top MPR for the week
@@ -101,19 +105,34 @@ leagues/{leagueId}/feed/{feedItemId}
 ## Feed Generation Stats
 
 **Winter Triple Draft League:**
-- 106 feed items generated
+- 129 feed items generated (up from 106)
 - Includes all matches through Week 2
 - All notable events from imported match data
 
+**Breakdown:**
+- Match results
+- 180s and high scores
+- Checkouts (ton and big)
+- High marks and 9-marks
+- 23 hat tricks detected
+- Upset alerts
+- Weekly leaders
+- Player milestones
+
 ## Future Enhancements
 
+### ✅ Completed
+1. ~~**Upset detection:**~~ Flag when lower-ranked teams beat higher-ranked teams
+2. ~~**Hat tricks:**~~ Track 3+ tons in a single set
+
+### 🔜 Planned
 1. **Real-time updates:** Trigger feed generation automatically when matches complete
-2. **Upset detection:** Flag when lower-ranked teams beat higher-ranked teams
-3. **Hat tricks:** Track 3+ tons in a single set
-4. **Streaks:** Track winning/losing streaks
-5. **Personal feed:** Filter feed to show only user's team or friends
-6. **Social features:** Allow likes/comments on feed items
-7. **Push notifications:** Notify players of notable events
+2. **Streaks:** Track winning/losing streaks (3+ wins/losses in a row)
+3. **Personal feed:** Filter feed to show only user's team or friends
+4. **Social features:** Allow likes/comments on feed items
+5. **Push notifications:** Notify players of notable events
+6. **Multi-180 sets:** Detect when player throws 2+ maximums in one set
+7. **Perfect legs:** Track legs with 100+ 3DA or 5.0+ MPR
 
 ## Deployment
 
