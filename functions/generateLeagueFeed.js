@@ -16,6 +16,10 @@ exports.generateLeagueFeed = onCall(async (request) => {
     try {
         const feedItems = [];
 
+        // Get league info
+        const leagueDoc = await db.collection('leagues').doc(league_id).get();
+        const leagueName = leagueDoc.exists ? (leagueDoc.data().name || 'League') : 'League';
+
         // Get all matches
         const matchesSnap = await db.collection('leagues').doc(league_id).collection('matches').get();
         const matches = matchesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -68,15 +72,16 @@ exports.generateLeagueFeed = onCall(async (request) => {
                 match_id: match.id,
                 week: match.week || 0,
                 league_id: league_id,
+                league_name: leagueName,
                 data: {
                     home_team_id: homeTeam.id || '',
                     home_team_name: homeTeam?.name || 'Home Team',
                     home_score: match.home_score || 0,
-                    home_roster: homeRoster.map(p => ({ name: p.name, level: p.level })),
+                    home_roster: homeRoster.map(p => ({ name: p.name || 'Unknown', level: p.level || 'C' })),
                     away_team_id: awayTeam.id || '',
                     away_team_name: awayTeam?.name || 'Away Team',
                     away_score: match.away_score || 0,
-                    away_roster: awayRoster.map(p => ({ name: p.name, level: p.level })),
+                    away_roster: awayRoster.map(p => ({ name: p.name || 'Unknown', level: p.level || 'C' })),
                     top_performers: topPerformers
                 }
             });
@@ -103,6 +108,7 @@ exports.generateLeagueFeed = onCall(async (request) => {
                 created_at: matchDate,
                 week: weekNum,
                 league_id: league_id,
+                league_name: leagueName,
                 data: {
                     matches_played: weekMatches.length,
                     top_performers: weekTopPerformers,
