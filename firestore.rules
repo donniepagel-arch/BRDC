@@ -140,6 +140,12 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // League activity feed
+    match /leagues/{leagueId}/feed/{feedId} {
+      allow read: if true;
+      allow write: if false;  // Only cloud functions
+    }
+
     // Legacy league collections
     match /league_matches/{matchId} {
       allow read: if true;
@@ -438,6 +444,23 @@ service cloud.firestore {
     match /friendships/{friendshipId} {
       allow read: if true;  // Filtered by cloud functions
       allow write: if false;  // Only cloud functions can manage friendships
+    }
+
+    // ===== FEEDBACK =====
+
+    // User feedback submissions from floating bug button
+    match /feedback/{feedbackId} {
+      allow read: if true;  // Admins can read
+      allow create: if hasValidData();  // Anyone can submit feedback
+      allow update, delete: if false;  // Only cloud functions
+    }
+
+    // ===== ACTIVITY FEED =====
+
+    // Global activity feed (if used)
+    match /activity/{activityId} {
+      allow read: if true;
+      allow write: if false;  // Only cloud functions
     }
 
     // ===== GENERAL =====

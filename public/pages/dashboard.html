@@ -1328,7 +1328,7 @@
                                     oppAvg: oppAvg,
                                     id: match.id,
                                     leagueId: team.league_id || team.id,
-                                    leagueName: team.league_name || team.name || 'League',
+                                    leagueName: formatLeagueName(team.league_name || team.name),
                                     completed: false,
                                     isHome: match.is_home
                                 });
@@ -1350,7 +1350,7 @@
                                     oppStanding: match.opponent?.standing || '',
                                     id: match.id,
                                     leagueId: team.league_id || team.id,
-                                    leagueName: team.league_name || team.name || 'League',
+                                    leagueName: formatLeagueName(team.league_name || team.name),
                                     completed: true,
                                     won: match.won,
                                     myScore: match.my_score ?? '-',
@@ -1405,7 +1405,7 @@
 
                         return `
                             <div class="fb-story-card ${matchEvent.type} completed" onclick="openStoryModal('${matchEvent.id || ''}', '${matchEvent.type || 'league'}', '${matchEvent.leagueId || ''}')">
-                                <div class="fb-story-event">${matchEvent.leagueName || 'League'}</div>
+                                <div class="fb-story-event">${formatLeagueName(matchEvent.leagueName)}</div>
                                 <div class="fb-story-week">WEEK ${matchEvent.week || '?'}</div>
                                 <div class="fb-story-date">${dayName} ${monthName} ${dayNum}</div>
                                 <div class="fb-story-opponent">${matchEvent.isHome ? 'vs' : '@'} ${matchEvent.opponent}${matchEvent.oppStanding ? ` (${matchEvent.oppStanding})` : ''}</div>
@@ -1424,7 +1424,7 @@
 
                         return `
                             <div class="fb-story-card ${matchEvent.type} ${isToday ? 'today' : ''}" onclick="openStoryModal('${matchEvent.id || ''}', '${matchEvent.type || 'league'}', '${matchEvent.leagueId || ''}')">
-                                <div class="fb-story-event">${matchEvent.leagueName || 'League'}</div>
+                                <div class="fb-story-event">${formatLeagueName(matchEvent.leagueName)}</div>
                                 <div class="fb-story-week">WEEK ${matchEvent.week || '?'}</div>
                                 <div class="fb-story-date">${dayName} ${monthName} ${dayNum}</div>
                                 <div class="fb-story-opponent">${matchEvent.isHome ? 'vs' : '@'} ${matchEvent.opponent}${matchEvent.oppStanding ? ` (${matchEvent.oppStanding})` : ''}</div>
@@ -1567,6 +1567,10 @@
                 case 'high_marks':
                 case 'bull_run':
                     return renderNotableThrowCard(item);
+                case 'hat_trick':
+                    return renderHatTrickCard(item);
+                case 'upset':
+                    return renderUpsetCard(item);
                 case 'weekly_leader':
                     return renderWeeklyLeaderCard(item);
                 case 'milestone':
@@ -1770,6 +1774,59 @@
             `;
         }
 
+        // Render hat trick card
+        function renderHatTrickCard(item) {
+            const data = item.data;
+            const matchDate = getDateFromTimestamp(item.created_at);
+            const dateStr = matchDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+
+            return `
+                <div class="fb-feed-card">
+                    <div class="fb-feed-card-header">
+                        <div class="fb-feed-avatar" style="background: var(--yellow); font-size: 20px;">
+                            🎩
+                        </div>
+                        <div class="fb-feed-meta">
+                            <div class="fb-feed-author">Hat Trick!</div>
+                            <div class="fb-feed-time">${dateStr} • Week ${item.week}</div>
+                        </div>
+                    </div>
+                    <div class="fb-feed-card-body">
+                        <div class="fb-feed-text">
+                            <strong>${item.player_name}</strong> throws ${data.ton_count} tons in one set!
+                        </div>
+                        <span class="fb-feed-event-tag">${item.team_name} vs ${data.opponent_team}</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Render upset card
+        function renderUpsetCard(item) {
+            const data = item.data;
+            const matchDate = getDateFromTimestamp(item.created_at);
+            const dateStr = matchDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+
+            return `
+                <div class="fb-feed-card">
+                    <div class="fb-feed-card-header">
+                        <div class="fb-feed-avatar" style="background: var(--danger); font-size: 20px;">
+                            ⚡
+                        </div>
+                        <div class="fb-feed-meta">
+                            <div class="fb-feed-author">UPSET!</div>
+                            <div class="fb-feed-time">${dateStr} • Week ${item.week}</div>
+                        </div>
+                    </div>
+                    <div class="fb-feed-card-body">
+                        <div class="fb-feed-text">
+                            <strong>#${data.winner_rank} ${data.winner_team_name}</strong> defeats <strong>#${data.loser_rank} ${data.loser_team_name}</strong> ${data.winner_score}-${data.loser_score}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
         function renderEventCard(event) {
             return `
                 <div class="fb-feed-card">
@@ -1935,7 +1992,7 @@
                                     console.log('my_team roster:', matchData?.my_team?.roster);
                                     console.log('opponent roster:', matchData?.opponent?.roster);
                                     if (matchData) {
-                                        matchData.leagueName = result.league_name || 'League';
+                                        matchData.leagueName = formatLeagueName(result.league_name);
                                         break;
                                     }
                                 }
@@ -1959,7 +2016,8 @@
             }
         };
 
-        // Render match preview modal content
+        // Render match preview modal content - matches league-view.html format
+        // Home team always on LEFT, away team always on RIGHT
         function renderMatchPreviewModal(match, leagueId) {
             const matchDate = getDateFromTimestamp(match.match_date);
             const dateStr = matchDate.toLocaleDateString('en-US', {
@@ -1971,49 +2029,72 @@
             const myTeam = match.my_team || {};
             const opponent = match.opponent || {};
             const isCompleted = match.completed || false;
+            const isHome = match.is_home;
+
+            // Determine home/away teams (home always on left, away always on right)
+            const homeTeam = isHome ? myTeam : opponent;
+            const awayTeam = isHome ? opponent : myTeam;
+            const homeRoster = homeTeam.roster || [];
+            const awayRoster = awayTeam.roster || [];
 
             // Calculate team averages
-            const myAvg = calculateTeamAvg(myTeam.roster || []);
-            const oppAvg = calculateTeamAvg(opponent.roster || []);
+            const homeAvg = calculateTeamAvg(homeRoster);
+            const awayAvg = calculateTeamAvg(awayRoster);
 
-            // Determine winner styling for completed matches
-            const homeWon = isCompleted && match.is_home ? match.won : (!match.is_home && !match.won);
-            const awayWon = isCompleted && !homeWon;
+            // Calculate team MPR
+            const calcTeamMPR = (roster) => {
+                if (!roster || roster.length === 0) return null;
+                const validMprs = roster.map(p => parseFloat(p.cricket_mpr)).filter(m => !isNaN(m) && m > 0);
+                if (validMprs.length === 0) return null;
+                return (validMprs.reduce((sum, m) => sum + m, 0) / validMprs.length).toFixed(2);
+            };
+            const homeMPR = calcTeamMPR(homeRoster);
+            const awayMPR = calcTeamMPR(awayRoster);
 
-            // Build roster HTML
-            const myRosterHTML = (myTeam.roster || []).map(p => `
-                <div style="display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
-                    <span style="color: var(--text-light);">${p.name || 'Unknown'}</span>
-                    <span style="color: var(--text-dim); font-family: 'JetBrains Mono', monospace; font-size: 12px;">
-                        ${p.x01_three_dart_avg || '-'} / ${p.cricket_mpr || '-'}
-                    </span>
-                </div>
-            `).join('');
+            // Determine scores for completed matches
+            const homeScore = isHome ? match.my_score : match.their_score;
+            const awayScore = isHome ? match.their_score : match.my_score;
+            const homeWon = isCompleted && homeScore > awayScore;
+            const awayWon = isCompleted && awayScore > homeScore;
 
-            const oppRosterHTML = (opponent.roster || []).map(p => `
-                <div style="display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
-                    <span style="color: var(--text-light);">${p.name || 'Unknown'}</span>
-                    <span style="color: var(--text-dim); font-family: 'JetBrains Mono', monospace; font-size: 12px;">
-                        ${p.x01_three_dart_avg || '-'} / ${p.cricket_mpr || '-'}
-                    </span>
-                </div>
-            `).join('');
+            // Build roster rows (side by side like league-view)
+            const maxPlayers = Math.max(homeRoster.length, awayRoster.length, 3);
+            let rosterRows = '';
+            for (let i = 0; i < maxPlayers; i++) {
+                const homePlayer = homeRoster[i];
+                const awayPlayer = awayRoster[i];
+                const homeName = homePlayer ? homePlayer.name : '';
+                const awayName = awayPlayer ? awayPlayer.name : '';
+                const home3DA = homePlayer ? (homePlayer.x01_three_dart_avg || '-') : '';
+                const homePlayerMpr = homePlayer ? (homePlayer.cricket_mpr || '-') : '';
+                const away3DA = awayPlayer ? (awayPlayer.x01_three_dart_avg || '-') : '';
+                const awayPlayerMpr = awayPlayer ? (awayPlayer.cricket_mpr || '-') : '';
+
+                rosterRows += `
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                        <div style="flex: 1; text-align: right; padding-right: 8px;">
+                            ${homePlayer ? `<span style="color: var(--text-dim); font-family: 'JetBrains Mono', monospace; font-size: 11px; margin-right: 8px;">${home3DA} / ${homePlayerMpr}</span>` : ''}
+                            <span style="color: var(--text-light); font-size: 13px;">${homeName}</span>
+                        </div>
+                        <div style="flex: 1; text-align: left; padding-left: 8px;">
+                            <span style="color: var(--text-light); font-size: 13px;">${awayName}</span>
+                            ${awayPlayer ? `<span style="color: var(--text-dim); font-family: 'JetBrains Mono', monospace; font-size: 11px; margin-left: 8px;">${away3DA} / ${awayPlayerMpr}</span>` : ''}
+                        </div>
+                    </div>
+                `;
+            }
 
             // Build score section for completed matches
             let scoreSection = '';
             if (isCompleted) {
-                const myScoreClass = match.won ? 'color: var(--yellow);' : 'color: var(--text-dim);';
-                const theirScoreClass = match.won ? 'color: var(--text-dim);' : 'color: var(--yellow);';
                 scoreSection = `
-                    <div style="text-align: center; margin: 16px 0;">
-                        <div style="font-family: 'Bebas Neue', cursive; font-size: 48px;">
-                            <span style="${myScoreClass}">${match.my_score}</span>
-                            <span style="color: var(--text-dim); margin: 0 8px;">-</span>
-                            <span style="${theirScoreClass}">${match.their_score}</span>
-                        </div>
-                        <div style="font-size: 12px; color: ${match.won ? 'var(--success)' : 'var(--danger)'}; text-transform: uppercase; font-weight: 700;">
-                            ${match.won ? 'VICTORY' : 'DEFEAT'}
-                        </div>
+                    <div style="display: flex; justify-content: center; align-items: center; gap: 16px; margin: 16px 0;">
+                        <div style="font-family: 'Bebas Neue', cursive; font-size: 48px; ${homeWon ? 'color: var(--yellow);' : 'color: var(--text-dim);'}">${homeScore}</div>
+                        <div style="font-family: 'Bebas Neue', cursive; font-size: 24px; color: var(--text-dim);">-</div>
+                        <div style="font-family: 'Bebas Neue', cursive; font-size: 48px; ${awayWon ? 'color: var(--yellow);' : 'color: var(--text-dim);'}">${awayScore}</div>
+                    </div>
+                    <div style="text-align: center; font-size: 12px; color: ${match.won ? 'var(--success)' : 'var(--danger)'}; text-transform: uppercase; font-weight: 700; margin-bottom: 12px;">
+                        ${match.won ? 'VICTORY' : 'DEFEAT'}
                     </div>
                 `;
             }
@@ -2023,59 +2104,66 @@
                     <!-- Header -->
                     <div style="text-align: center; margin-bottom: 16px;">
                         <div style="font-size: 10px; color: var(--pink); text-transform: uppercase; letter-spacing: 1px; font-weight: 700;">
-                            ${match.leagueName || 'League'} - WEEK ${match.week || '?'}
+                            ${formatLeagueName(match.leagueName)} - WEEK ${match.week || '?'}
                         </div>
                         <div style="font-size: 14px; color: var(--text-dim); margin-top: 4px;">
                             ${dateStr}
                         </div>
-                        ${!isCompleted ? `<div style="font-size: 11px; color: var(--teal); margin-top: 4px;">
-                            ${match.is_home ? 'HOME' : 'AWAY'} MATCH
-                        </div>` : ''}
+                    </div>
+
+                    <!-- Teams Header - Home on LEFT, Away on RIGHT -->
+                    <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; margin-bottom: 8px; align-items: start;">
+                        <!-- Home Team (Left) -->
+                        <div style="text-align: right;">
+                            ${homeWon ? '<div style="color: var(--yellow); font-size: 14px; margin-bottom: 2px;">★</div>' : ''}
+                            <div style="font-family: 'Bebas Neue', cursive; font-size: 18px; color: ${isHome ? 'var(--pink)' : 'var(--teal)'};">
+                                ${homeTeam.name || 'Home Team'}
+                            </div>
+                            <div style="display: flex; justify-content: flex-end; gap: 6px; margin-top: 4px;">
+                                ${homeTeam.standing ? `<span style="background: var(--pink); color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold;">${homeTeam.standing}</span>` : ''}
+                                <span style="background: #333; color: #888; padding: 2px 6px; border-radius: 3px; font-size: 10px;">${homeTeam.record || '0-0'}</span>
+                            </div>
+                            <div style="font-size: 11px; color: ${isHome ? 'var(--pink)' : 'var(--teal)'}; font-family: 'JetBrains Mono', monospace; margin-top: 4px;">
+                                ${homeAvg || '-'} / ${homeMPR || '-'}
+                            </div>
+                        </div>
+
+                        <!-- Center -->
+                        <div style="text-align: center; padding-top: 8px;">
+                            <div style="font-family: 'Bebas Neue', cursive; font-size: 14px; color: var(--text-dim);">
+                                ${isCompleted ? 'FINAL' : (isHome ? 'VS' : '@')}
+                            </div>
+                        </div>
+
+                        <!-- Away Team (Right) -->
+                        <div style="text-align: left;">
+                            ${awayWon ? '<div style="color: var(--yellow); font-size: 14px; margin-bottom: 2px;">★</div>' : ''}
+                            <div style="font-family: 'Bebas Neue', cursive; font-size: 18px; color: ${!isHome ? 'var(--pink)' : 'var(--teal)'};">
+                                ${awayTeam.name || 'Away Team'}
+                            </div>
+                            <div style="display: flex; justify-content: flex-start; gap: 6px; margin-top: 4px;">
+                                ${awayTeam.standing ? `<span style="background: var(--pink); color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold;">${awayTeam.standing}</span>` : ''}
+                                <span style="background: #333; color: #888; padding: 2px 6px; border-radius: 3px; font-size: 10px;">${awayTeam.record || '0-0'}</span>
+                            </div>
+                            <div style="font-size: 11px; color: ${!isHome ? 'var(--pink)' : 'var(--teal)'}; font-family: 'JetBrains Mono', monospace; margin-top: 4px;">
+                                ${awayAvg || '-'} / ${awayMPR || '-'}
+                            </div>
+                        </div>
                     </div>
 
                     ${scoreSection}
 
-                    <!-- Teams Header -->
-                    <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; margin-bottom: 12px; align-items: center;">
-                        <div style="text-align: right;">
-                            <div style="font-family: 'Bebas Neue', cursive; font-size: 18px; color: var(--pink);">
-                                ${myTeam.name || 'My Team'}
+                    <!-- Rosters - Side by side like league-view -->
+                    <div style="background: rgba(0,0,0,0.2); border-radius: 8px; padding: 12px; margin-bottom: 16px;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                            <div style="font-size: 10px; color: ${isHome ? 'var(--pink)' : 'var(--teal)'}; text-transform: uppercase; letter-spacing: 1px; font-weight: 700;">
+                                ${isHome ? 'YOUR TEAM' : 'OPPONENT'} (HOME)
                             </div>
-                            <div style="font-size: 10px; color: var(--text-dim);">
-                                ${myTeam.standing || ''} ${myTeam.record || ''}
-                            </div>
-                            <div style="font-size: 11px; color: var(--pink); font-family: 'JetBrains Mono', monospace;">
-                                ${myAvg || '-'} 3DA
+                            <div style="font-size: 10px; color: ${!isHome ? 'var(--pink)' : 'var(--teal)'}; text-transform: uppercase; letter-spacing: 1px; font-weight: 700;">
+                                ${!isHome ? 'YOUR TEAM' : 'OPPONENT'} (AWAY)
                             </div>
                         </div>
-                        <div style="font-family: 'Bebas Neue', cursive; font-size: 16px; color: var(--text-dim);">VS</div>
-                        <div style="text-align: left;">
-                            <div style="font-family: 'Bebas Neue', cursive; font-size: 18px; color: var(--teal);">
-                                ${opponent.name || 'Opponent'}
-                            </div>
-                            <div style="font-size: 10px; color: var(--text-dim);">
-                                ${opponent.standing || ''} ${opponent.record || ''}
-                            </div>
-                            <div style="font-size: 11px; color: var(--teal); font-family: 'JetBrains Mono', monospace;">
-                                ${oppAvg || '-'} 3DA
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Rosters -->
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
-                        <div style="background: rgba(255,70,154,0.1); border-radius: 8px; padding: 10px;">
-                            <div style="font-size: 10px; color: var(--pink); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; font-weight: 700;">
-                                Your Team
-                            </div>
-                            ${myRosterHTML || '<div style="color: var(--text-dim); font-size: 12px;">No roster data</div>'}
-                        </div>
-                        <div style="background: rgba(145,215,235,0.1); border-radius: 8px; padding: 10px;">
-                            <div style="font-size: 10px; color: var(--teal); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; font-weight: 700;">
-                                Opponent
-                            </div>
-                            ${oppRosterHTML || '<div style="color: var(--text-dim); font-size: 12px;">No roster data</div>'}
-                        </div>
+                        ${rosterRows || '<div style="color: var(--text-dim); font-size: 12px; text-align: center; padding: 12px;">No roster data available</div>'}
                     </div>
 
                     <!-- Action Buttons -->
@@ -2091,7 +2179,7 @@
                             font-size: 16px;
                             letter-spacing: 1px;
                             cursor: pointer;
-                        ">VIEW MATCH HUB</button>
+                        ">${isCompleted ? 'VIEW REPORT' : 'VIEW MATCH HUB'}</button>
                         ${!isCompleted ? `
                             <button onclick="confirmAttendance('${match.id}', '${leagueId}', 'confirmed')" style="
                                 padding: 12px 16px;
@@ -2209,6 +2297,7 @@
     <!-- FB Nav Script (creates footer and sidebar) -->
     <script src="/js/fb-nav.js"></script>
     <script src="/js/stats-helpers.js"></script>
+    <script src="/js/display-helpers.js"></script>
     <script src="/js/feedback.js"></script>
 
     <!-- Service Worker Registration -->

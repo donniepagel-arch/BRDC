@@ -72,8 +72,13 @@ exports.generateLeagueFeed = onCall(async (request) => {
 
             // 2. ANALYZE GAMES FOR NOTABLE EVENTS
             if (match.games && Array.isArray(match.games)) {
+                // Track tons per player per set for hat trick detection
+                const setTons = {};
+
                 for (const game of match.games) {
                     if (!game.legs || !Array.isArray(game.legs)) continue;
+
+                    const setNum = game.set || 0;
 
                     for (const leg of game.legs) {
                         if (!leg.throws || !Array.isArray(leg.throws)) continue;
@@ -83,6 +88,14 @@ exports.generateLeagueFeed = onCall(async (request) => {
                             // Check home side
                             if (throwRound.home && throwRound.home.player) {
                                 const events = analyzeThrow(throwRound.home, 'home', leg.format);
+
+                                // Track tons for hat trick detection
+                                if (throwRound.home.score >= 100 && leg.format !== 'cricket') {
+                                    const key = `${throwRound.home.player}_${setNum}`;
+                                    if (!setTons[key]) setTons[key] = { player: throwRound.home.player, count: 0, teamId: match.home_team_id, teamName: homeTeam.name };
+                                    setTons[key].count++;
+                                }
+
                                 for (const event of events) {
                                     feedItems.push({
                                         type: event.type,
@@ -104,6 +117,14 @@ exports.generateLeagueFeed = onCall(async (request) => {
                             // Check away side
                             if (throwRound.away && throwRound.away.player) {
                                 const events = analyzeThrow(throwRound.away, 'away', leg.format);
+
+                                // Track tons for hat trick detection
+                                if (throwRound.away.score >= 100 && leg.format !== 'cricket') {
+                                    const key = `${throwRound.away.player}_${setNum}`;
+                                    if (!setTons[key]) setTons[key] = { player: throwRound.away.player, count: 0, teamId: match.away_team_id, teamName: awayTeam.name };
+                                    setTons[key].count++;
+                                }
+
                                 for (const event of events) {
                                     feedItems.push({
                                         type: event.type,
@@ -124,6 +145,54 @@ exports.generateLeagueFeed = onCall(async (request) => {
                         }
                     }
                 }
+
+                // Check for hat tricks (3+ tons in a set)
+                for (const [key, data] of Object.entries(setTons)) {
+                    if (data.count >= 3) {
+                        feedItems.push({
+                            type: 'hat_trick',
+                            created_at: matchDate,
+                            match_id: match.id,
+                            week: match.week || 0,
+                            player_name: data.player || 'Unknown Player',
+                            team_id: data.teamId || '',
+                            team_name: data.teamName || 'Unknown Team',
+                            data: {
+                                ton_count: data.count,
+                                opponent_team: data.teamId === match.home_team_id ? awayTeam.name : homeTeam.name
+                            }
+                        });
+                    }
+                }
+            }
+
+            // Check for upsets (lower-ranked team beats higher-ranked)
+            // Calculate standings up to this week
+            const standingsAtMatch = calculateStandings(matches.filter(m =>
+                (m.week || 0) < (match.week || 0) && m.status === 'completed'
+            ));
+
+            const winnerRank = standingsAtMatch.findIndex(t => t.id === winner.id) + 1;
+            const loserRank = standingsAtMatch.findIndex(t => t.id === loser.id) + 1;
+
+            // Upset if winner was ranked 3+ spots below loser
+            if (winnerRank > 0 && loserRank > 0 && winnerRank - loserRank >= 3) {
+                feedItems.push({
+                    type: 'upset',
+                    created_at: matchDate,
+                    match_id: match.id,
+                    week: match.week || 0,
+                    data: {
+                        winner_team_id: winner.id || '',
+                        winner_team_name: winner.name || 'Unknown Team',
+                        winner_rank: winnerRank,
+                        loser_team_id: loser.id || '',
+                        loser_team_name: loser.name || 'Unknown Team',
+                        loser_rank: loserRank,
+                        winner_score: winnerScore,
+                        loser_score: loserScore
+                    }
+                });
             }
         }
 
@@ -400,4 +469,48 @@ async function detectMilestones(league_id, playersById) {
     });
 
     return items;
+}
+
+/**
+ * Calculate team standings from completed matches
+ */
+function calculateStandings(completedMatches) {
+    const teamRecords = {};
+
+    // Count wins/losses for each team
+    for (const match of completedMatches) {
+        if (!match.home_team_id || !match.away_team_id) continue;
+
+        if (!teamRecords[match.home_team_id]) {
+            teamRecords[match.home_team_id] = { id: match.home_team_id, wins: 0, losses: 0, setsWon: 0, setsLost: 0 };
+        }
+        if (!teamRecords[match.away_team_id]) {
+            teamRecords[match.away_team_id] = { id: match.away_team_id, wins: 0, losses: 0, setsWon: 0, setsLost: 0 };
+        }
+
+        const homeScore = match.home_score || 0;
+        const awayScore = match.away_score || 0;
+
+        teamRecords[match.home_team_id].setsWon += homeScore;
+        teamRecords[match.home_team_id].setsLost += awayScore;
+        teamRecords[match.away_team_id].setsWon += awayScore;
+        teamRecords[match.away_team_id].setsLost += homeScore;
+
+        if (homeScore > awayScore) {
+            teamRecords[match.home_team_id].wins++;
+            teamRecords[match.away_team_id].losses++;
+        } else if (awayScore > homeScore) {
+            teamRecords[match.away_team_id].wins++;
+            teamRecords[match.home_team_id].losses++;
+        }
+    }
+
+    // Sort by wins (desc), then sets won (desc)
+    const standings = Object.values(teamRecords);
+    standings.sort((a, b) => {
+        if (b.wins !== a.wins) return b.wins - a.wins;
+        return b.setsWon - a.setsWon;
+    });
+
+    return standings;
 }

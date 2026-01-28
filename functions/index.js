@@ -10,6 +10,7 @@ const cors = require('cors')({origin: true});
 admin.initializeApp();
 
 const db = admin.firestore();
+db.settings({ ignoreUndefinedProperties: true });
 
 // Tournament Functions
 const { createTournament, addBotToTournament, updateTournamentSettings, deleteTournament } = require('./tournaments/create');
