@@ -20,7 +20,12 @@ exports.generateLeagueFeed = onCall(async (request) => {
         const leagueDoc = await db.collection('leagues').doc(league_id).get();
         const leagueData = leagueDoc.exists ? leagueDoc.data() : {};
         // Check multiple possible field names (different league types use different fields)
-        const leagueName = leagueData.name || leagueData.league_name || leagueData.title || 'League';
+        let leagueName = leagueData.name || leagueData.league_name || leagueData.title || 'League';
+
+        // Ensure "League" is in the name if it's not already
+        if (!leagueName.toLowerCase().includes('league') && !leagueName.toLowerCase().includes('tournament')) {
+            leagueName = leagueName + ' League';
+        }
 
         // Get all matches
         const matchesSnap = await db.collection('leagues').doc(league_id).collection('matches').get();
@@ -114,13 +119,16 @@ exports.generateLeagueFeed = onCall(async (request) => {
                 data: {
                     matches_played: weekMatches.length,
                     top_performers: weekTopPerformers,
-                    standings_top3: standingsAfterWeek.slice(0, 3).map((t, idx) => ({
-                        rank: idx + 1,
-                        team_id: t.id,
-                        team_name: teamsById[t.id]?.name || 'Unknown',
-                        wins: t.wins,
-                        losses: t.losses
-                    }))
+                    standings_top3: standingsAfterWeek.slice(0, 3).map((t, idx) => {
+                        const team = teamsById[t.id];
+                        return {
+                            rank: idx + 1,
+                            team_id: t.id,
+                            team_name: team ? (team.name || team.team_name || 'Unknown') : 'Unknown',
+                            wins: t.wins,
+                            losses: t.losses
+                        };
+                    })
                 }
             });
         }
