@@ -32,6 +32,10 @@ exports.startDoubleElimMatch = startDoubleElimMatch;
 const leagueFunctions = require('./leagues/index');
 Object.assign(exports, leagueFunctions);
 
+// League Feed Generation
+const { generateLeagueFeed } = require('./generateLeagueFeed');
+exports.generateLeagueFeed = generateLeagueFeed;
+
 // Player Profile & Captain Functions
 const playerFunctions = require('./player-profile');
 Object.assign(exports, playerFunctions);

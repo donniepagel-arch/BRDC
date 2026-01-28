@@ -877,6 +877,7 @@
     <div id="initialLoader">
         <img src="/images/gold_logo.png" alt="BRDC" style="height: 80px; margin-bottom: 20px;">
         <div class="loader-spinner"></div>
+        <div id="initialLoaderText" style="margin-top: 16px; color: var(--pink); font-weight: 600;"></div>
     </div>
 
     <!-- Login Overlay -->
@@ -884,7 +885,13 @@
         <img src="/images/gold_logo.png" alt="Burning River Dart Club logo" class="login-logo">
         <h1 class="login-title">BRDC DASHBOARD</h1>
 
-        <div class="login-box">
+        <div class="login-box" style="position: relative;">
+            <!-- Loading overlay -->
+            <div id="loginLoader" class="hidden" style="position: absolute; inset: 0; background: rgba(22, 33, 62, 0.95); display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 16px; z-index: 10;">
+                <div class="loader-spinner"></div>
+                <div style="margin-top: 16px; color: var(--pink); font-weight: 600;">Logging in...</div>
+            </div>
+
             <h2 class="login-form-title">LOGIN</h2>
 
             <div class="login-error hidden" id="loginError"></div>
@@ -938,8 +945,9 @@
     <!-- Main Content (hidden until logged in) -->
     <main class="fb-main" id="mainContent" style="display: none;">
 
-        <!-- Schedule Stories Row -->
+        <!-- My Events Row -->
         <section class="fb-stories-container">
+            <h3 class="fb-section-title" style="margin: 0 16px 8px; font-family: 'Bebas Neue', cursive; font-size: 18px; color: var(--text-light);">My Events</h3>
             <div class="fb-stories-scroll" id="scheduleStories">
                 <!-- Story cards populated by JS -->
                 <div class="fb-story-card">
@@ -947,7 +955,7 @@
                     <div class="fb-story-day">...</div>
                 </div>
             </div>
-            <a href="/pages/browse-events.html" class="fb-see-all-link">See Full Schedule</a>
+            <a href="/pages/events-hub.html" class="fb-see-all-link">See All Events</a>
         </section>
 
         <!-- Stats Summary Cards -->
@@ -1044,9 +1052,13 @@
                 try {
                     const session = JSON.parse(savedSession);
                     if (session.player_id) {
-                        // Show main content immediately
-                        document.getElementById('loginOverlay').classList.add('hidden');
-                        document.getElementById('mainContent').style.display = 'block';
+                        // Ensure player_pin is set for chat/social features
+                        if (session.pin) {
+                            localStorage.setItem('brdc_player_pin', session.pin.toUpperCase());
+                        }
+
+                        // Show loading state while dashboard data loads
+                        showInitialLoader('Loading your dashboard...');
 
                         // Load dashboard data
                         loadDashboard(session.player_id, session.source_type, session.league_id);
@@ -1064,14 +1076,47 @@
             if (loader) loader.style.display = 'none';
         }
 
+        function showInitialLoader(message) {
+            const loader = document.getElementById('initialLoader');
+            const text = document.getElementById('initialLoaderText');
+            if (loader) {
+                loader.style.display = 'flex';
+                if (text && message) text.textContent = message;
+            }
+        }
+
         function showLoginPage() {
             hideInitialLoader();
+
+            // Reset login form visibility
+            const loginBox = document.querySelector('.login-box');
+            if (loginBox) {
+                loginBox.querySelector('h2').style.display = '';
+                loginBox.querySelector('.form-group').style.display = '';
+                loginBox.querySelector('.login-btn').style.display = '';
+                loginBox.querySelector('.login-links').style.display = '';
+            }
+
+            // Hide login loader
+            const loginLoader = document.getElementById('loginLoader');
+            if (loginLoader) {
+                loginLoader.classList.add('hidden');
+                loginLoader.style.display = 'none';
+            }
+
             document.getElementById('loginOverlay').classList.remove('hidden');
             document.getElementById('mainContent').style.display = 'none';
         }
 
         function showDashboard() {
+            // Hide all loaders
             hideInitialLoader();
+            const loginLoader = document.getElementById('loginLoader');
+            if (loginLoader) {
+                loginLoader.classList.add('hidden');
+                loginLoader.style.display = 'none';
+            }
+
             document.getElementById('loginOverlay').classList.add('hidden');
             document.getElementById('mainContent').style.display = 'block';
 
@@ -1086,6 +1131,7 @@
             const pin = document.getElementById('pinInput').value.trim();
             const errorDiv = document.getElementById('loginError');
             const btn = document.getElementById('loginBtn');
+            const loader = document.getElementById('loginLoader');
 
             errorDiv.classList.add('hidden');
 
@@ -1095,8 +1141,10 @@
                 return;
             }
 
+            // Show loading overlay
             btn.disabled = true;
-            btn.textContent = 'LOGGING IN...';
+            loader.classList.remove('hidden');
+            loader.style.display = 'flex';
 
             try {
                 const result = await callFunction('globalLogin', { pin: pin });
@@ -1111,17 +1159,29 @@
                         league_id: currentPlayer.league_id || null,
                         logged_in_at: Date.now()
                     }));
+                    // Also store PIN separately for chat/social features
+                    localStorage.setItem('brdc_player_pin', pin.toUpperCase());
+
+                    // Hide login loader and show initial loader for dashboard loading
+                    loader.classList.add('hidden');
+                    loader.style.display = 'none';
+                    document.getElementById('loginOverlay').classList.add('hidden');
+                    showInitialLoader('Loading your dashboard...');
+
                     loadDashboard(currentPlayer.id, currentPlayer.source_type, currentPlayer.league_id);
                 } else {
+                    loader.classList.add('hidden');
+                    loader.style.display = 'none';
                     errorDiv.textContent = result.error || 'Login failed';
                     errorDiv.classList.remove('hidden');
                 }
             } catch (error) {
+                loader.classList.add('hidden');
+                loader.style.display = 'none';
                 errorDiv.textContent = error.message || 'Login failed. Please try again.';
                 errorDiv.classList.remove('hidden');
             } finally {
                 btn.disabled = false;
-                btn.textContent = 'LOGIN';
             }
         };
 
@@ -1243,8 +1303,8 @@
                         });
 
                         if (result.success) {
-                            // Add upcoming matches
-                            (result.upcoming || []).slice(0, 4).forEach(match => {
+                            // Add all upcoming matches
+                            (result.upcoming || []).forEach(match => {
                                 const matchDate = getDateFromTimestamp(match.match_date);
 
                                 // Calculate team averages from rosters
@@ -1274,8 +1334,8 @@
                                 });
                             });
 
-                            // Add recent completed matches (up to 3)
-                            (result.past || []).slice(0, 3).forEach(match => {
+                            // Add recent completed matches
+                            (result.past || []).forEach(match => {
                                 const matchDate = getDateFromTimestamp(match.match_date);
 
                                 events.push({
@@ -1305,10 +1365,10 @@
                 }
             }
 
-            // Sort: completed first (most recent), then upcoming by date
+            // Sort: upcoming first (by date), then completed (most recent first) at end
             events.sort((a, b) => {
-                if (a.completed && !b.completed) return -1;
-                if (!a.completed && b.completed) return 1;
+                if (a.completed && !b.completed) return 1;  // Completed goes after upcoming
+                if (!a.completed && b.completed) return -1; // Upcoming goes before completed
                 if (a.completed && b.completed) return b.date - a.date; // Most recent completed first
                 return a.date - b.date; // Earliest upcoming first
             });
@@ -1318,7 +1378,7 @@
                 const today = new Date();
                 today.setHours(0, 0, 0, 0);
 
-                container.innerHTML = events.slice(0, 7).map(matchEvent => {
+                container.innerHTML = events.map(matchEvent => {
                     const eventDate = new Date(matchEvent.date);
                     eventDate.setHours(0, 0, 0, 0);
                     const isToday = eventDate.getTime() === today.getTime();
@@ -1348,7 +1408,7 @@
                                 <div class="fb-story-event">${matchEvent.leagueName || 'League'}</div>
                                 <div class="fb-story-week">WEEK ${matchEvent.week || '?'}</div>
                                 <div class="fb-story-date">${dayName} ${monthName} ${dayNum}</div>
-                                <div class="fb-story-opponent">vs ${matchEvent.opponent}${matchEvent.oppStanding ? ` (${matchEvent.oppStanding})` : ''}</div>
+                                <div class="fb-story-opponent">${matchEvent.isHome ? 'vs' : '@'} ${matchEvent.opponent}${matchEvent.oppStanding ? ` (${matchEvent.oppStanding})` : ''}</div>
                                 <div class="fb-story-score">
                                     <span class="${myScoreClass}">${matchEvent.myScore}</span>
                                     <span style="color: var(--text-dim);">-</span>
@@ -1367,7 +1427,7 @@
                                 <div class="fb-story-event">${matchEvent.leagueName || 'League'}</div>
                                 <div class="fb-story-week">WEEK ${matchEvent.week || '?'}</div>
                                 <div class="fb-story-date">${dayName} ${monthName} ${dayNum}</div>
-                                <div class="fb-story-opponent">vs ${matchEvent.opponent}${matchEvent.oppStanding ? ` (${matchEvent.oppStanding})` : ''}</div>
+                                <div class="fb-story-opponent">${matchEvent.isHome ? 'vs' : '@'} ${matchEvent.opponent}${matchEvent.oppStanding ? ` (${matchEvent.oppStanding})` : ''}</div>
                                 ${hasStats ? `
                                     <div class="fb-story-stats">
                                         <span class="home-avg">${matchEvent.myAvg || '-'}</span>
@@ -1423,91 +1483,97 @@
             return new Date(date);
         }
 
-        // Load news feed
+        // Load news feed from Firestore
         async function loadFeed(filter = 'all') {
             const container = document.getElementById('newsFeed');
             container.innerHTML = '<div class="fb-feed-loading">Loading your feed...</div>';
 
-            const feedItems = [];
-            const roles = dashboardData?.roles;
+            try {
+                const roles = dashboardData?.roles;
+                const feedItems = [];
 
-            // 1. Get completed matches from user's leagues
-            if (roles && roles.playing) {
-                for (const team of roles.playing) {
-                    try {
-                        const result = await callFunction('getTeamScheduleEnhanced', {
-                            league_id: team.league_id || team.id,
-                            team_id: team.team_id,
-                            player_id: currentPlayer.id
+                // Get feed from all leagues player is in
+                if (roles && roles.playing) {
+                    for (const team of roles.playing) {
+                        const leagueId = team.league_id || team.id;
+
+                        // Get feed items from this league
+                        const feedSnap = await getDocs(
+                            query(
+                                collection(db, 'leagues', leagueId, 'feed'),
+                                orderBy('created_at', 'desc'),
+                                limit(50)
+                            )
+                        );
+
+                        feedSnap.forEach(doc => {
+                            const item = { id: doc.id, ...doc.data(), leagueId };
+                            feedItems.push(item);
                         });
-
-                        if (result.success) {
-                            // Add completed matches as results
-                            (result.completed || []).slice(0, 5).forEach(match => {
-                                feedItems.push({
-                                    type: 'match_result',
-                                    match: match,
-                                    team: team,
-                                    leagueId: team.league_id || team.id,
-                                    leagueName: team.league_name || 'League',
-                                    date: match.match_date
-                                });
-                            });
-                        }
-                    } catch (e) {
-                        console.error('Error loading team schedule:', e);
                     }
                 }
-            }
 
-            // 2. Sort by date (most recent first)
-            feedItems.sort((a, b) => {
-                const dateA = getTimestamp(a.date);
-                const dateB = getTimestamp(b.date);
-                return dateB - dateA;
-            });
+                // Sort all feed items by date
+                feedItems.sort((a, b) => {
+                    const dateA = getTimestamp(a.created_at);
+                    const dateB = getTimestamp(b.created_at);
+                    return dateB - dateA;
+                });
 
-            // 3. Filter based on selected filter
-            let filtered = feedItems;
-            if (filter === 'results') {
-                filtered = feedItems.filter(i => i.type === 'match_result');
-            } else if (filter === 'events') {
-                filtered = feedItems.filter(i => i.type === 'event');
-            }
+                // Filter based on selected filter
+                let filtered = feedItems;
+                if (filter === 'results') {
+                    filtered = feedItems.filter(i => i.type === 'match_result');
+                } else if (filter === 'events') {
+                    filtered = feedItems.filter(i => i.type === 'event');
+                } else if (filter === 'friends') {
+                    // TODO: filter by friends
+                    filtered = feedItems;
+                }
 
-            // 4. Render
-            if (filtered.length > 0) {
-                container.innerHTML = filtered.slice(0, 20).map(item => {
-                    if (item.type === 'match_result') {
-                        return renderMatchResultCard(item);
-                    }
-                    return '';
-                }).join('');
-            } else {
+                // Render
+                if (filtered.length > 0) {
+                    container.innerHTML = filtered.slice(0, 20).map(item => renderFeedCard(item)).join('');
+                } else {
+                    container.innerHTML = `
+                        <div class="fb-feed-empty">
+                            <div class="fb-feed-empty-icon">&#127919;</div>
+                            <p>No recent activity</p>
+                            <p style="font-size: 13px; margin-top: 8px;">Join a league or tournament to see updates here!</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error loading feed:', error);
                 container.innerHTML = `
                     <div class="fb-feed-empty">
-                        <div class="fb-feed-empty-icon">&#127919;</div>
-                        <p>No recent activity</p>
-                        <p style="font-size: 13px; margin-top: 8px;">Join a league or tournament to see updates here!</p>
+                        <div class="fb-feed-empty-icon">⚠️</div>
+                        <p>Error loading feed</p>
                     </div>
                 `;
             }
         }
 
-        function renderFeed(items) {
-            const container = document.getElementById('newsFeed');
-            container.innerHTML = items.map(item => {
-                switch (item.type) {
-                    case 'post':
-                        return renderPostCard(item);
-                    case 'match_result':
-                        return renderMatchResultCard(item);
-                    case 'event':
-                        return renderEventCard(item);
-                    default:
-                        return '';
-                }
-            }).join('');
+        // Render a single feed card based on type
+        function renderFeedCard(item) {
+            switch (item.type) {
+                case 'match_result':
+                    return renderMatchResultFeedCard(item);
+                case 'maximum':
+                case 'high_score':
+                case 'ton_checkout':
+                case 'big_checkout':
+                case 'nine_mark':
+                case 'high_marks':
+                case 'bull_run':
+                    return renderNotableThrowCard(item);
+                case 'weekly_leader':
+                    return renderWeeklyLeaderCard(item);
+                case 'milestone':
+                    return renderMilestoneCard(item);
+                default:
+                    return '';
+            }
         }
 
         function renderPostCard(post) {
@@ -1538,70 +1604,167 @@
             `;
         }
 
-        function renderMatchResultCard(item) {
-            const match = item.match;
-            const team = item.team;
-            const leagueName = item.leagueName || 'League';
-            const leagueId = item.leagueId || team.league_id || team.id;
-
-            // Determine home/away
-            const isHome = match.is_home;
-            const homeName = isHome ? (team.team_name || 'My Team') : (match.opponent_name || 'Opponent');
-            const awayName = isHome ? (match.opponent_name || 'Opponent') : (team.team_name || 'My Team');
-            const homeScore = match.home_score || 0;
-            const awayScore = match.away_score || 0;
-            const homeWon = homeScore > awayScore;
-            const awayWon = awayScore > homeScore;
-
-            // Determine if user's team won
-            const userWon = (isHome && homeWon) || (!isHome && awayWon);
-
-            // Format date
-            const matchDate = getDateFromTimestamp(match.match_date);
+        // Render match result feed card
+        function renderMatchResultFeedCard(item) {
+            const data = item.data;
+            const matchDate = getDateFromTimestamp(item.created_at);
             const dateStr = matchDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-
-            // Total legs
-            const homeLegTotal = match.home_leg_total || homeScore;
-            const awayLegTotal = match.away_leg_total || awayScore;
-            const showLegs = homeLegTotal !== homeScore || awayLegTotal !== awayScore;
 
             return `
                 <div class="fb-feed-card">
                     <div class="fb-feed-card-header">
-                        <div class="fb-feed-avatar" style="background: ${userWon ? 'var(--success)' : 'var(--pink)'}">
-                            ${userWon ? '&#127942;' : '&#127919;'}
+                        <div class="fb-feed-avatar" style="background: var(--teal)">
+                            &#127942;
                         </div>
                         <div class="fb-feed-meta">
-                            <div class="fb-feed-author">${leagueName} - Week ${match.week || '?'}</div>
+                            <div class="fb-feed-author">Week ${item.week} Match Result</div>
                             <div class="fb-feed-time">${dateStr}</div>
                         </div>
                     </div>
                     <div class="fb-feed-card-body">
                         <div class="fb-match-result">
                             <div class="fb-match-teams">
-                                <div class="fb-match-team ${homeWon ? 'winner' : ''}">
-                                    <div class="fb-match-team-name">${homeName}</div>
-                                    ${showLegs ? `<div class="fb-match-legs">(${homeLegTotal})</div>` : ''}
+                                <div class="fb-match-team">
+                                    <div class="fb-match-team-name">${data.home_team_name}</div>
                                 </div>
                                 <div class="fb-match-score">
-                                    <span class="${homeWon ? 'winner' : ''}">${homeScore}</span>
+                                    <span class="${data.home_score > data.away_score ? 'winner' : ''}">${data.home_score}</span>
                                     <span style="color: var(--text-dim); margin: 0 4px;">-</span>
-                                    <span class="${awayWon ? 'winner' : ''}">${awayScore}</span>
+                                    <span class="${data.away_score > data.home_score ? 'winner' : ''}">${data.away_score}</span>
                                 </div>
-                                <div class="fb-match-team ${awayWon ? 'winner' : ''}">
-                                    <div class="fb-match-team-name">${awayName}</div>
-                                    ${showLegs ? `<div class="fb-match-legs">(${awayLegTotal})</div>` : ''}
+                                <div class="fb-match-team">
+                                    <div class="fb-match-team-name">${data.away_team_name}</div>
                                 </div>
                             </div>
                         </div>
+                        <div style="text-align: center; margin-top: 8px; color: var(--text-light);">
+                            <strong>${data.winner_team_name}</strong> defeats ${data.loser_team_name}
+                        </div>
                     </div>
                     <div class="fb-feed-card-actions">
-                        <button class="fb-feed-action-btn" onclick="viewMatch('${match.id}', '${leagueId}')">
+                        <button class="fb-feed-action-btn" onclick="viewMatch('${item.match_id}', '${item.leagueId}')">
                             &#128202; View Details
                         </button>
-                        <button class="fb-feed-action-btn" onclick="shareMatch('${match.id}')">
-                            &#128228; Share
-                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Render notable throw card
+        function renderNotableThrowCard(item) {
+            const data = item.data;
+            const matchDate = getDateFromTimestamp(item.created_at);
+            const dateStr = matchDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+
+            let icon = '🎯';
+            let title = '';
+            let description = '';
+
+            if (item.type === 'maximum') {
+                icon = '💯';
+                title = '180 Maximum!';
+                description = `${item.player_name} throws a maximum 180`;
+            } else if (item.type === 'high_score') {
+                icon = '🔥';
+                title = `${data.score} Points!`;
+                description = `${item.player_name} with a big ${data.score}`;
+            } else if (item.type === 'ton_checkout') {
+                icon = '🎯';
+                title = `${data.checkout} Checkout`;
+                description = `${item.player_name} checks out ${data.checkout}`;
+            } else if (item.type === 'big_checkout') {
+                icon = '⭐';
+                title = `BIG ${data.checkout} Checkout!`;
+                description = `${item.player_name} with a huge ${data.checkout} checkout`;
+            } else if (item.type === 'nine_mark') {
+                icon = '🔥';
+                title = '9-Mark Maximum!';
+                description = `${item.player_name} throws 9 marks`;
+            } else if (item.type === 'high_marks') {
+                icon = '🎯';
+                title = `${data.marks} Marks!`;
+                description = `${item.player_name} with ${data.marks} marks`;
+            } else if (item.type === 'bull_run') {
+                icon = '🐂';
+                title = 'Bull Run!';
+                description = `${item.player_name} lights up the bulls (${data.notable})`;
+            }
+
+            return `
+                <div class="fb-feed-card">
+                    <div class="fb-feed-card-header">
+                        <div class="fb-feed-avatar" style="background: var(--yellow); font-size: 20px;">
+                            ${icon}
+                        </div>
+                        <div class="fb-feed-meta">
+                            <div class="fb-feed-author">${title}</div>
+                            <div class="fb-feed-time">${dateStr} • Week ${item.week}</div>
+                        </div>
+                    </div>
+                    <div class="fb-feed-card-body">
+                        <div class="fb-feed-text">${description}</div>
+                        <span class="fb-feed-event-tag">${item.team_name} vs ${data.opponent_team}</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Render weekly leader card
+        function renderWeeklyLeaderCard(item) {
+            const data = item.data;
+            const matchDate = getDateFromTimestamp(item.created_at);
+            const dateStr = matchDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+
+            return `
+                <div class="fb-feed-card">
+                    <div class="fb-feed-card-header">
+                        <div class="fb-feed-avatar" style="background: var(--pink)">
+                            👑
+                        </div>
+                        <div class="fb-feed-meta">
+                            <div class="fb-feed-author">Week ${item.week} Leader</div>
+                            <div class="fb-feed-time">${dateStr}</div>
+                        </div>
+                    </div>
+                    <div class="fb-feed-card-body">
+                        <div class="fb-feed-text">
+                            <strong>${item.player_name}</strong> leads the week with ${data.value} ${data.stat_type}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Render milestone card
+        function renderMilestoneCard(item) {
+            const data = item.data;
+            const matchDate = getDateFromTimestamp(item.created_at);
+            const dateStr = matchDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+
+            let title = '';
+            let description = '';
+
+            if (data.milestone_type === 'legs_played') {
+                title = `${data.value} Legs Played!`;
+                description = `${item.player_name} reaches ${data.value} legs played`;
+            } else if (data.milestone_type === 'first_180') {
+                title = 'First 180!';
+                description = `${item.player_name} throws their first maximum 180`;
+            }
+
+            return `
+                <div class="fb-feed-card">
+                    <div class="fb-feed-card-header">
+                        <div class="fb-feed-avatar" style="background: var(--success)">
+                            🏆
+                        </div>
+                        <div class="fb-feed-meta">
+                            <div class="fb-feed-author">${title}</div>
+                            <div class="fb-feed-time">${dateStr}</div>
+                        </div>
+                    </div>
+                    <div class="fb-feed-card-body">
+                        <div class="fb-feed-text">${description}</div>
                     </div>
                 </div>
             `;

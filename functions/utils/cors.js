@@ -7,6 +7,8 @@
 const ALLOWED_ORIGINS = [
     'https://brdc-v2.web.app',
     'https://brdc-v2.firebaseapp.com',
+    'https://burningriverdarts.com',
+    'https://www.burningriverdarts.com',
     'http://localhost:5000',
     'http://localhost:3000',
     'http://127.0.0.1:5000'

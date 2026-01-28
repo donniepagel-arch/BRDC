@@ -35,9 +35,8 @@
         ],
         discover: [
             { icon: '👥', label: 'Friends', href: '/pages/friends.html' },
-            { icon: '📅', label: 'Find Events', href: '/pages/community-events.html' },
-            { icon: '👥', label: 'Members', href: '/pages/members.html' },
-            { icon: '📆', label: 'Full Schedule', href: '/pages/schedule.html' }
+            { icon: '📅', label: 'Events Hub', href: '/pages/events-hub.html' },
+            { icon: '👥', label: 'Members', href: '/pages/members.html' }
         ],
         manage: [
             { icon: '👔', label: 'Captain Dashboard', href: '/pages/captain-dashboard.html' },
@@ -58,10 +57,9 @@
     // Footer tabs configuration
     const FOOTER_TABS = [
         { id: 'home', icon: '🏠', label: 'Home', href: '/pages/dashboard.html' },
-        { id: 'events', icon: '📅', label: 'Events', href: '/pages/community-events.html' },
+        { id: 'events', icon: '📅', label: 'Events', href: '/pages/events-hub.html' },
         { id: 'trader', icon: '💰', label: 'Trader', href: '/pages/dart-trader.html' },
         { id: 'notifications', icon: '🔔', label: 'Alerts', action: 'notifications' },
-        { id: 'chat', icon: '💬', label: 'Chat', href: '/pages/messages.html' },
         { id: 'profile', icon: '👤', label: 'Profile', href: '/pages/player-profile.html' }
     ];
 
@@ -1708,7 +1706,7 @@
 
             const quickLinks = [
                 { icon: '🎯', title: 'Scorer Hub', href: '/pages/scorer-hub.html' },
-                { icon: '📅', title: 'Events', href: '/pages/community-events.html' },
+                { icon: '📅', title: 'Events', href: '/pages/events-hub.html' },
                 { icon: '👥', title: 'Members', href: '/pages/members.html' }
             ];
 
@@ -1943,7 +1941,7 @@
         const path = window.location.pathname;
 
         if (path.includes('dashboard')) return 'home';
-        if (path.includes('community-events') || path.includes('event-view')) return 'events';
+        if (path.includes('events-hub') || path.includes('community-events') || path.includes('event-view')) return 'events';
         if (path.includes('dart-trader')) return 'trader';
         if (path.includes('messages')) return 'chat';
         if (path.includes('player-profile') || path.includes('settings')) return 'profile';

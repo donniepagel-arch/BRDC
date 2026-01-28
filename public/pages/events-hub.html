@@ -1,0 +1,2091 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Events Hub - BRDC</title>
+
+    <!-- Preconnect to external domains for faster loading -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://firestore.googleapis.com">
+    <link rel="preconnect" href="https://us-central1-brdc-35f92.cloudfunctions.net">
+    <link rel="dns-prefetch" href="https://www.gstatic.com">
+
+    <link rel="icon" type="image/png" href="/images/favicon.png">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="BRDC">
+    <link rel="apple-touch-icon" href="/images/gold_logo.png">
+    <meta name="theme-color" content="#FF469A">
+
+    <!-- Fonts -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap">
+
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="/css/brdc-styles.css">
+    <link rel="stylesheet" href="/css/fb-mobile.css">
+
+    <!-- Leaflet CSS - lazy loaded -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" id="leafletCSS" media="print" onload="this.media='all'">
+
+    <style>
+        :root {
+            --pink: #FF469A;
+            --teal: #91D7EB;
+            --yellow: #FDD835;
+            --orange: #FF9800;
+            --purple: #9C27B0;
+            --green: #4CAF50;
+            --bg-dark: #1a1a2e;
+            --bg-panel: #16213e;
+            --bg-card: #1e2a47;
+            --text-light: #f0f0f0;
+            --text-dim: #8a8aa3;
+            --border-color: rgba(255,255,255,0.15);
+            --success: #22c55e;
+            --danger: #ef4444;
+            --eh-safe-bottom: env(safe-area-inset-bottom, 0px);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+        html, body { min-height: 100%; overflow-x: hidden; width: 100%; }
+        body {
+            background: linear-gradient(135deg, var(--bg-dark) 0%, #0f0f23 100%);
+            color: var(--text-light);
+            padding-top: 56px;
+            padding-bottom: 70px;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse at 20% 20%, rgba(255, 70, 154, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(145, 215, 235, 0.06) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        /* Header */
+        .page-header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 56px;
+            background: var(--bg-panel);
+            border-bottom: 2px solid var(--pink);
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            z-index: 100;
+            gap: 12px;
+        }
+
+        .header-btn {
+            width: 40px;
+            height: 40px;
+            background: transparent;
+            border: none;
+            color: var(--text-light);
+            font-size: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: background 0.2s;
+        }
+
+        .header-btn:hover { background: rgba(255,255,255,0.1); }
+
+        .header-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 24px;
+            letter-spacing: 2px;
+            color: var(--pink);
+            flex: 1;
+        }
+
+        /* Primary Filters - horizontal scroll */
+        .eh-primary-filters {
+            display: flex;
+            gap: 8px;
+            padding: 12px 16px;
+            overflow-x: auto;
+            scrollbar-width: none;
+            scroll-snap-type: x mandatory;
+            -webkit-overflow-scrolling: touch;
+            background: var(--bg-dark);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .eh-primary-filters::-webkit-scrollbar { display: none; }
+
+        .eh-filter-pill {
+            flex-shrink: 0;
+            padding: 10px 18px;
+            min-height: 44px;
+            border-radius: 22px;
+            background: var(--bg-card);
+            border: 2px solid var(--border-color);
+            color: var(--text-light);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            scroll-snap-align: start;
+            transition: all 0.15s;
+        }
+
+        .eh-filter-pill:hover { border-color: var(--pink); }
+        .eh-filter-pill.active {
+            background: var(--pink);
+            border-color: var(--pink);
+            color: white;
+        }
+
+        /* Secondary Bar */
+        .eh-secondary-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 16px;
+            background: var(--bg-panel);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .eh-dart-filters {
+            display: flex;
+            gap: 4px;
+        }
+
+        .eh-dart-pill {
+            padding: 6px 12px;
+            min-height: 32px;
+            border-radius: 16px;
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-dim);
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .eh-dart-pill:hover { border-color: var(--teal); }
+        .eh-dart-pill.active {
+            background: var(--teal);
+            border-color: var(--teal);
+            color: var(--bg-dark);
+        }
+
+        /* View Toggle */
+        .eh-view-toggle {
+            display: flex;
+            gap: 4px;
+            background: var(--bg-card);
+            border-radius: 8px;
+            padding: 4px;
+        }
+
+        .eh-view-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 6px;
+            background: transparent;
+            border: none;
+            color: var(--text-dim);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            transition: all 0.15s;
+        }
+
+        .eh-view-btn:hover { color: var(--text-light); }
+        .eh-view-btn.active {
+            background: var(--pink);
+            color: white;
+        }
+
+        /* View Containers */
+        .eh-view {
+            display: none;
+            padding: 16px;
+            padding-bottom: calc(90px + var(--eh-safe-bottom));
+        }
+
+        .eh-view.active { display: block; }
+
+        /* Events List */
+        .eh-events-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        /* Event Cards */
+        .eh-event-card {
+            background: var(--bg-card);
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px;
+            cursor: pointer;
+            transition: transform 0.15s, border-color 0.15s;
+        }
+
+        .eh-event-card:active { transform: scale(0.98); }
+        .eh-event-card:hover { border-color: rgba(255,255,255,0.3); }
+
+        /* Card type borders */
+        .eh-event-card.league { border-left: 4px solid var(--teal); }
+        .eh-event-card.tournament { border-left: 4px solid var(--yellow); }
+        .eh-event-card.social, .eh-event-card.community { border-left: 4px solid var(--pink); }
+        .eh-event-card.pickup { border-left: 4px solid var(--green); }
+
+        .eh-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 8px;
+            gap: 8px;
+        }
+
+        .eh-card-badges {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .eh-badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .eh-badge.league { background: var(--teal); color: var(--bg-dark); }
+        .eh-badge.tournament { background: var(--yellow); color: var(--bg-dark); }
+        .eh-badge.social, .eh-badge.community { background: var(--pink); color: white; }
+        .eh-badge.pickup { background: var(--green); color: white; }
+        .eh-badge.week { background: rgba(255,255,255,0.15); color: var(--text-light); }
+        .eh-badge.recurring { background: rgba(156, 39, 176, 0.3); color: #ce93d8; }
+        .eh-badge.steel { background: rgba(255,255,255,0.15); border: 1px solid #aaa; color: var(--text-light); }
+        .eh-badge.soft { background: rgba(145, 215, 235, 0.2); color: var(--teal); }
+        .eh-badge.registered { background: var(--success); color: white; }
+
+        .eh-card-date {
+            font-size: 11px;
+            color: var(--text-dim);
+            text-align: right;
+            white-space: nowrap;
+        }
+
+        .eh-card-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 20px;
+            color: var(--text-light);
+            margin-bottom: 4px;
+            letter-spacing: 1px;
+        }
+
+        .eh-card-content {
+            font-size: 13px;
+            color: var(--text-dim);
+        }
+
+        /* League Match Card */
+        .eh-match-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 8px;
+            padding: 8px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+        }
+
+        .eh-team-stats {
+            flex: 1;
+            text-align: center;
+        }
+
+        .eh-stat-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 16px;
+            font-weight: 700;
+        }
+
+        .eh-stat-value.home { color: var(--pink); }
+        .eh-stat-value.away { color: var(--teal); }
+
+        .eh-stat-label {
+            font-size: 9px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+        }
+
+        .eh-vs {
+            font-family: 'Bebas Neue', cursive;
+            color: var(--text-dim);
+            font-size: 14px;
+        }
+
+        /* Tournament Card Meta */
+        .eh-meta-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .eh-meta-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            border-radius: 6px;
+            background: rgba(255,255,255,0.1);
+            font-size: 12px;
+        }
+
+        .eh-meta-badge.format { background: rgba(145, 215, 235, 0.2); color: var(--teal); }
+        .eh-meta-badge.fee { background: rgba(253, 216, 53, 0.2); color: var(--yellow); }
+        .eh-meta-badge.spots { background: rgba(34, 197, 94, 0.2); color: #22c55e; }
+        .eh-meta-badge.spots.limited { background: rgba(255, 152, 0, 0.2); color: #FF9800; }
+        .eh-meta-badge.spots.full { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+
+        /* Social Card */
+        .eh-venue-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--teal);
+            font-size: 13px;
+            margin-top: 8px;
+        }
+
+        .eh-time-row {
+            font-size: 12px;
+            color: var(--text-dim);
+            margin-top: 4px;
+        }
+
+        /* Week Strip Calendar */
+        .eh-calendar-view { padding-top: 8px; }
+
+        .eh-week-strip {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 0 8px;
+            margin-bottom: 12px;
+        }
+
+        .eh-nav-btn {
+            width: 36px;
+            height: 36px;
+            min-width: 36px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            color: var(--text-light);
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .eh-nav-btn:hover { background: rgba(255,255,255,0.2); }
+
+        .eh-week-days {
+            display: flex;
+            gap: 4px;
+            flex: 1;
+            overflow-x: auto;
+            scrollbar-width: none;
+            scroll-snap-type: x mandatory;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .eh-week-days::-webkit-scrollbar { display: none; }
+
+        .eh-day-cell {
+            flex: 1;
+            min-width: 44px;
+            max-width: 60px;
+            padding: 8px 4px;
+            text-align: center;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.03);
+            cursor: pointer;
+            scroll-snap-align: start;
+            position: relative;
+            transition: all 0.15s;
+        }
+
+        .eh-day-cell:hover { background: rgba(255,255,255,0.08); }
+
+        .eh-day-cell.today {
+            background: rgba(255, 70, 154, 0.2);
+            border: 2px solid var(--pink);
+        }
+
+        .eh-day-cell.selected {
+            background: rgba(145, 215, 235, 0.3);
+            border: 2px solid var(--teal);
+        }
+
+        .eh-day-cell.has-event::after {
+            content: '';
+            position: absolute;
+            bottom: 4px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--yellow);
+        }
+
+        .eh-day-name {
+            font-size: 10px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+        }
+
+        .eh-day-num {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-light);
+        }
+
+        .eh-expand-btn {
+            display: block;
+            width: 100%;
+            padding: 8px;
+            background: transparent;
+            border: 1px dashed var(--border-color);
+            border-radius: 8px;
+            color: var(--text-dim);
+            font-size: 12px;
+            cursor: pointer;
+            margin-bottom: 16px;
+        }
+
+        .eh-expand-btn:hover { border-color: var(--teal); color: var(--teal); }
+
+        /* Month Grid */
+        .eh-month-calendar {
+            background: var(--bg-panel);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+
+        .hidden { display: none !important; }
+        .eh-month-calendar.hidden { display: none; }
+
+        .eh-month-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .eh-month-label {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 20px;
+            color: var(--yellow);
+        }
+
+        .eh-month-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 4px;
+        }
+
+        .eh-month-day-header {
+            text-align: center;
+            font-size: 10px;
+            color: var(--text-dim);
+            padding: 4px;
+        }
+
+        .eh-month-day {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .eh-month-day:hover { background: rgba(255,255,255,0.1); }
+        .eh-month-day.other-month { color: var(--text-dim); opacity: 0.5; }
+        .eh-month-day.today { background: rgba(255, 70, 154, 0.3); }
+        .eh-month-day.selected { background: var(--teal); color: var(--bg-dark); }
+        .eh-month-day.has-event::after {
+            content: '';
+            position: absolute;
+            bottom: 2px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background: var(--yellow);
+        }
+
+        /* Day Events */
+        .eh-day-events {
+            background: var(--bg-panel);
+            border-radius: 12px;
+            padding: 16px;
+        }
+
+        .eh-day-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 18px;
+            color: var(--teal);
+            margin-bottom: 12px;
+        }
+
+        /* Map View */
+        .eh-map-view {
+            padding: 0;
+            height: calc(100vh - 170px);
+            position: relative;
+        }
+
+        #eventsMap {
+            width: 100%;
+            height: 100%;
+        }
+
+        .eh-map-legend {
+            position: absolute;
+            bottom: 90px;
+            left: 16px;
+            background: var(--bg-panel);
+            border-radius: 8px;
+            padding: 12px;
+            z-index: 500;
+            font-size: 11px;
+        }
+
+        .eh-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+
+        .eh-legend-item:last-child { margin-bottom: 0; }
+
+        .eh-legend-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .eh-legend-dot.tournament { background: var(--yellow); }
+        .eh-legend-dot.league { background: var(--teal); }
+        .eh-legend-dot.social { background: var(--pink); }
+        .eh-legend-dot.pickup { background: var(--green); }
+
+        /* FAB */
+        .eh-fab {
+            position: fixed;
+            bottom: calc(80px + var(--eh-safe-bottom));
+            right: 16px;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--pink), #d63384);
+            border: none;
+            color: white;
+            font-size: 28px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(255, 70, 154, 0.4);
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.15s;
+        }
+
+        .eh-fab:hover { transform: scale(1.05); }
+        .eh-fab:active { transform: scale(0.95); }
+
+        /* Empty/Loading States */
+        .eh-empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-dim);
+        }
+
+        .eh-empty-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .eh-empty-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 24px;
+            color: var(--text-light);
+            margin-bottom: 8px;
+        }
+
+        .eh-loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 60px;
+        }
+
+        .eh-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--border-color);
+            border-top-color: var(--pink);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Login Notice */
+        .eh-login-notice {
+            background: var(--bg-panel);
+            border: 2px solid var(--yellow);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            margin: 16px;
+        }
+
+        .eh-login-notice h3 {
+            font-family: 'Bebas Neue', cursive;
+            color: var(--yellow);
+            margin-bottom: 8px;
+        }
+
+        .eh-login-notice p {
+            color: var(--text-dim);
+            font-size: 14px;
+            margin-bottom: 16px;
+        }
+
+        .eh-login-btn {
+            display: inline-block;
+            padding: 12px 24px;
+            background: var(--pink);
+            border-radius: 8px;
+            color: white;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        /* Modal Overlay */
+        .eh-modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.8);
+            z-index: 1000;
+            display: none;
+            align-items: flex-end;
+            justify-content: center;
+        }
+
+        .eh-modal-overlay.active { display: flex; }
+
+        .eh-modal {
+            background: var(--bg-panel);
+            border-radius: 20px 20px 0 0;
+            width: 100%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .eh-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            border-bottom: 1px solid var(--border-color);
+            position: sticky;
+            top: 0;
+            background: var(--bg-panel);
+            z-index: 10;
+        }
+
+        .eh-modal-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 24px;
+            color: var(--yellow);
+        }
+
+        .eh-modal-close {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            color: var(--text-light);
+            font-size: 20px;
+            cursor: pointer;
+        }
+
+        .eh-modal-body { padding: 20px; }
+
+        /* Add Event Form */
+        .eh-form-group { margin-bottom: 16px; }
+
+        .eh-form-label {
+            display: block;
+            font-weight: 600;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-dim);
+            margin-bottom: 6px;
+        }
+
+        .eh-form-input,
+        .eh-form-select,
+        .eh-form-textarea {
+            width: 100%;
+            padding: 14px;
+            background: rgba(0,0,0,0.3);
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 16px;
+            color: var(--text-light);
+            transition: border-color 0.2s;
+        }
+
+        .eh-form-input:focus,
+        .eh-form-select:focus,
+        .eh-form-textarea:focus {
+            outline: none;
+            border-color: var(--pink);
+        }
+
+        .eh-form-textarea { min-height: 100px; resize: vertical; }
+
+        .eh-form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .eh-submit-btn {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, var(--pink), #d63384);
+            border: none;
+            border-radius: 10px;
+            color: white;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+
+        .eh-submit-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Tablet */
+        @media (min-width: 768px) {
+            .eh-events-list {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 16px;
+            }
+
+            .eh-event-card { margin-bottom: 0; }
+
+            .eh-map-view {
+                display: grid;
+                grid-template-columns: 1fr 350px;
+                height: calc(100vh - 170px);
+            }
+
+            .eh-map-sidebar {
+                display: block;
+                overflow-y: auto;
+                background: var(--bg-panel);
+                border-left: 1px solid var(--border-color);
+                padding: 16px;
+            }
+        }
+
+        /* Desktop */
+        @media (min-width: 1024px) {
+            .eh-events-list {
+                grid-template-columns: repeat(3, 1fr);
+                max-width: 1200px;
+            }
+
+            .eh-primary-filters {
+                justify-content: center;
+            }
+
+            .eh-modal {
+                border-radius: 20px;
+                margin: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="page-header">
+        <button class="header-btn" id="backBtn" aria-label="Go back" onclick="history.back()">&#8592;</button>
+        <div class="header-title">EVENTS HUB</div>
+        <button class="header-btn" id="chatBtn" aria-label="Messages">&#128172;</button>
+    </header>
+
+    <!-- Main Content -->
+    <main id="mainContent">
+        <!-- Primary Filters -->
+        <section class="eh-primary-filters">
+            <button class="eh-filter-pill active" data-filter="my">My Events</button>
+            <button class="eh-filter-pill" data-filter="tournaments">Tournaments</button>
+            <button class="eh-filter-pill" data-filter="leagues">Leagues</button>
+            <button class="eh-filter-pill" data-filter="social">Social</button>
+            <button class="eh-filter-pill" data-filter="all">All</button>
+        </section>
+
+        <!-- Secondary Bar -->
+        <section class="eh-secondary-bar">
+            <div class="eh-dart-filters">
+                <button class="eh-dart-pill active" data-dart="all">All</button>
+                <button class="eh-dart-pill" data-dart="steel">Steel</button>
+                <button class="eh-dart-pill" data-dart="soft">Soft</button>
+            </div>
+            <div class="eh-view-toggle">
+                <button class="eh-view-btn active" data-view="list" title="List View">&#128203;</button>
+                <button class="eh-view-btn" data-view="calendar" title="Calendar View">&#128197;</button>
+                <button class="eh-view-btn" data-view="map" title="Map View">&#127757;</button>
+            </div>
+        </section>
+
+        <!-- Login Notice (for non-logged-in users on My Events) -->
+        <div class="eh-login-notice hidden" id="loginNotice">
+            <h3>Sign In to See Your Events</h3>
+            <p>Log in to see your league matches, registered tournaments, and personal schedule.</p>
+            <a href="/pages/index.html" class="eh-login-btn">Sign In</a>
+        </div>
+
+        <!-- List View -->
+        <section class="eh-view eh-list-view active" id="listView">
+            <div class="eh-events-list" id="eventsList">
+                <div class="eh-loading">
+                    <div class="eh-spinner"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Calendar View -->
+        <section class="eh-view eh-calendar-view" id="calendarView">
+            <div class="eh-week-strip">
+                <button class="eh-nav-btn" id="prevWeek">&larr;</button>
+                <div class="eh-week-days" id="weekDays"></div>
+                <button class="eh-nav-btn" id="nextWeek">&rarr;</button>
+            </div>
+            <button class="eh-expand-btn" id="expandCalendar">View Full Month &#9660;</button>
+
+            <div class="eh-month-calendar hidden" id="monthCalendar">
+                <div class="eh-month-header">
+                    <button class="eh-nav-btn" id="prevMonth">&larr;</button>
+                    <span class="eh-month-label" id="monthLabel">January 2026</span>
+                    <button class="eh-nav-btn" id="nextMonth">&rarr;</button>
+                </div>
+                <div class="eh-month-grid" id="monthGrid"></div>
+            </div>
+
+            <div class="eh-day-events">
+                <div class="eh-day-title" id="selectedDayTitle">Select a date to see events</div>
+                <div class="eh-events-list" id="dayEventsList"></div>
+            </div>
+        </section>
+
+        <!-- Map View -->
+        <section class="eh-view eh-map-view" id="mapView">
+            <div id="eventsMap"></div>
+            <div class="eh-map-legend">
+                <div class="eh-legend-item"><span class="eh-legend-dot tournament"></span> Tournament</div>
+                <div class="eh-legend-item"><span class="eh-legend-dot league"></span> League</div>
+                <div class="eh-legend-item"><span class="eh-legend-dot social"></span> Social</div>
+                <div class="eh-legend-item"><span class="eh-legend-dot pickup"></span> Pickup</div>
+            </div>
+            <div class="eh-map-sidebar" id="mapSidebar" style="display: none;"></div>
+        </section>
+    </main>
+
+    <!-- FAB - Add Event -->
+    <button class="eh-fab" id="addEventFab" title="Add Community Event">+</button>
+
+    <!-- Add Event Modal -->
+    <div class="eh-modal-overlay" id="addEventModal">
+        <div class="eh-modal">
+            <div class="eh-modal-header">
+                <span class="eh-modal-title">ADD COMMUNITY EVENT</span>
+                <button class="eh-modal-close" onclick="closeAddEventModal()">&times;</button>
+            </div>
+            <div class="eh-modal-body">
+                <form id="addEventForm" onsubmit="submitEvent(event)">
+                    <div class="eh-form-group">
+                        <label class="eh-form-label">Event Name *</label>
+                        <input type="text" class="eh-form-input" name="name" required placeholder="e.g., Tuesday Night Blind Draw">
+                    </div>
+
+                    <div class="eh-form-row">
+                        <div class="eh-form-group">
+                            <label class="eh-form-label">Event Type *</label>
+                            <select class="eh-form-select" name="event_type" required>
+                                <option value="">Select type...</option>
+                                <option value="tournament">Tournament</option>
+                                <option value="league">League Night</option>
+                                <option value="blind-draw">Blind Draw</option>
+                                <option value="social">Social / Casual</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        <div class="eh-form-group">
+                            <label class="eh-form-label">Dart Type *</label>
+                            <select class="eh-form-select" name="dart_type" required>
+                                <option value="steel">Steel Tip</option>
+                                <option value="soft">Soft Tip</option>
+                                <option value="both">Both</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="eh-form-row">
+                        <div class="eh-form-group">
+                            <label class="eh-form-label">Frequency *</label>
+                            <select class="eh-form-select" name="frequency" required>
+                                <option value="once">One-time Event</option>
+                                <option value="weekly">Weekly</option>
+                                <option value="biweekly">Bi-weekly</option>
+                                <option value="monthly">Monthly</option>
+                            </select>
+                        </div>
+                        <div class="eh-form-group">
+                            <label class="eh-form-label">Date *</label>
+                            <input type="date" class="eh-form-input" name="event_date" required id="eventDateInput">
+                        </div>
+                    </div>
+
+                    <div class="eh-form-group">
+                        <label class="eh-form-label">Start Time *</label>
+                        <input type="time" class="eh-form-input" name="event_time" required>
+                    </div>
+
+                    <div class="eh-form-group">
+                        <label class="eh-form-label">Venue Name *</label>
+                        <input type="text" class="eh-form-input" name="venue" required placeholder="e.g., Lakewood VFW">
+                    </div>
+
+                    <div class="eh-form-group">
+                        <label class="eh-form-label">Address *</label>
+                        <input type="text" class="eh-form-input" name="address" required placeholder="e.g., 14821 Detroit Ave, Lakewood, OH">
+                    </div>
+
+                    <div class="eh-form-group">
+                        <label class="eh-form-label">Event Info Link</label>
+                        <input type="url" class="eh-form-input" name="event_link" placeholder="https://...">
+                    </div>
+
+                    <div class="eh-form-group">
+                        <label class="eh-form-label">Description</label>
+                        <textarea class="eh-form-textarea" name="description" placeholder="Tell people about the event..."></textarea>
+                    </div>
+
+                    <button type="submit" class="eh-submit-btn" id="submitBtn">Submit Event</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Event Detail Modal -->
+    <div class="eh-modal-overlay" id="eventDetailModal">
+        <div class="eh-modal">
+            <div class="eh-modal-header">
+                <span class="eh-modal-title" id="detailModalTitle">Event Details</span>
+                <button class="eh-modal-close" onclick="closeEventDetailModal()">&times;</button>
+            </div>
+            <div class="eh-modal-body" id="detailModalBody"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { db, callFunction, getDoc, getDocs, doc, collection, query, where, orderBy, addDoc, Timestamp } from '/js/firebase-config.js';
+
+        // ============================================
+        // STATE
+        // ============================================
+        const state = {
+            currentPlayer: null,
+            playerTeams: [],
+            isLoggedIn: false,
+            events: {
+                leagueMatches: [],
+                tournaments: [],
+                pickupGames: [],
+                communityEvents: []
+            },
+            filters: {
+                primary: 'my',
+                dartType: 'all'
+            },
+            view: {
+                mode: 'list',
+                calendar: {
+                    currentWeekStart: getWeekStart(new Date()),
+                    currentMonth: new Date(),
+                    selectedDate: null,
+                    expanded: false
+                }
+            },
+            map: {
+                instance: null,
+                markers: [],
+                loaded: false
+            },
+            loading: true
+        };
+
+        // ============================================
+        // INITIALIZATION
+        // ============================================
+        document.addEventListener('DOMContentLoaded', init);
+
+        async function init() {
+            // Check session
+            const savedSession = localStorage.getItem('brdc_session');
+            if (savedSession) {
+                try {
+                    const session = JSON.parse(savedSession);
+                    if (session.player_id) {
+                        state.isLoggedIn = true;
+                        // Use session data for basic player info
+                        state.currentPlayer = {
+                            id: session.player_id,
+                            name: session.name || 'Player'
+                        };
+                        // Load teams via cloud function
+                        await loadPlayerTeams(session.player_id);
+                    }
+                } catch (e) {
+                    console.error('Session parse error:', e);
+                }
+            }
+
+            // Set up URL params
+            const params = new URLSearchParams(window.location.search);
+            const viewParam = params.get('view');
+            const filterParam = params.get('filter');
+            if (viewParam && ['list', 'calendar', 'map'].includes(viewParam)) {
+                state.view.mode = viewParam;
+            }
+            if (filterParam && ['my', 'tournaments', 'leagues', 'social', 'all'].includes(filterParam)) {
+                state.filters.primary = filterParam;
+            }
+
+            // If not logged in and filter is 'my', switch to 'all'
+            if (!state.isLoggedIn && state.filters.primary === 'my') {
+                state.filters.primary = 'all';
+            }
+
+            // Initialize UI
+            initUIBindings();
+            updateFilterUI();
+            updateViewUI();
+
+            // Initialize nav
+            if (window.FBNav && window.FBNav.init) {
+                window.FBNav.init(state.currentPlayer);
+            }
+
+            // Set min date for event form
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('eventDateInput').min = today;
+
+            // Load data
+            await loadAllData();
+            render();
+        }
+
+        async function loadPlayerTeams(playerId) {
+            try {
+                // Use getDashboardData cloud function to get player teams
+                const result = await callFunction('getDashboardData', {
+                    player_id: playerId
+                });
+                if (result.success && result.dashboard) {
+                    state.currentPlayer = result.dashboard.player || state.currentPlayer;
+                    // Teams are in roles.playing for league involvements
+                    const playing = result.dashboard.roles?.playing || [];
+                    state.playerTeams = playing.filter(r => r.type === 'league').map(r => ({
+                        id: r.id,            // league_id
+                        league_id: r.id,
+                        league_name: r.name,
+                        team_id: r.team_id,
+                        team_name: r.team_name,
+                        dart_type: r.dart_type || 'steel',
+                        status: r.status
+                    }));
+                }
+            } catch (error) {
+                console.error('Error loading player teams:', error);
+                // Still allow page to function without teams
+                state.playerTeams = [];
+            }
+        }
+
+        // ============================================
+        // DATA LOADING
+        // ============================================
+        async function loadAllData() {
+            state.loading = true;
+            try {
+                await Promise.all([
+                    loadLeagueMatches(),
+                    loadTournaments(),
+                    loadPickupGames(),
+                    loadCommunityEvents()
+                ]);
+            } catch (error) {
+                console.error('Error loading data:', error);
+            }
+            state.loading = false;
+        }
+
+        async function loadLeagueMatches() {
+            state.events.leagueMatches = [];
+            if (!state.isLoggedIn || state.playerTeams.length === 0) return;
+
+            const loadedLeagues = new Set();
+            for (const team of state.playerTeams) {
+                const leagueId = team.id || team.league_id;
+                if (loadedLeagues.has(leagueId)) continue;
+                loadedLeagues.add(leagueId);
+
+                try {
+                    const matchesSnap = await getDocs(collection(db, 'leagues', leagueId, 'matches'));
+                    matchesSnap.forEach(docSnap => {
+                        const match = docSnap.data();
+                        const isMyMatch = match.home_team_id === team.team_id || match.away_team_id === team.team_id;
+                        state.events.leagueMatches.push({
+                            id: docSnap.id,
+                            type: 'league',
+                            leagueId,
+                            leagueName: team.league_name || 'League',
+                            teamId: team.team_id,
+                            teamName: team.team_name,
+                            isMyMatch,
+                            dartType: team.dart_type || 'steel',
+                            ...match
+                        });
+                    });
+                } catch (e) {
+                    console.error('Error loading matches for league:', leagueId, e);
+                }
+            }
+        }
+
+        async function loadTournaments() {
+            try {
+                const snapshot = await getDocs(
+                    query(collection(db, 'tournaments'),
+                        where('status', 'in', ['created', 'registration', 'active']),
+                        orderBy('tournament_date', 'asc'))
+                );
+
+                state.events.tournaments = [];
+                for (const docSnap of snapshot.docs) {
+                    const tournament = docSnap.data();
+                    let isRegistered = false;
+
+                    if (state.isLoggedIn && state.currentPlayer) {
+                        try {
+                            const regSnap = await getDocs(
+                                query(collection(db, 'tournaments', docSnap.id, 'registrations'),
+                                    where('player_id', '==', state.currentPlayer.id))
+                            );
+                            isRegistered = !regSnap.empty;
+                        } catch (e) {}
+                    }
+
+                    state.events.tournaments.push({
+                        id: docSnap.id,
+                        type: 'tournament',
+                        isRegistered,
+                        dartType: tournament.dart_type || 'steel',
+                        ...tournament
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading tournaments:', error);
+            }
+        }
+
+        async function loadPickupGames() {
+            try {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+
+                const snapshot = await getDocs(collection(db, 'pickup_games'));
+                state.events.pickupGames = snapshot.docs
+                    .map(docSnap => ({
+                        id: docSnap.id,
+                        type: 'pickup',
+                        dartType: docSnap.data().dart_type || 'steel',
+                        ...docSnap.data()
+                    }))
+                    .filter(g => {
+                        const date = getEventDate(g);
+                        return date >= today;
+                    });
+            } catch (error) {
+                console.error('Error loading pickup games:', error);
+            }
+        }
+
+        async function loadCommunityEvents() {
+            try {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+
+                const snapshot = await getDocs(
+                    query(collection(db, 'community_events'),
+                        where('status', '==', 'approved'),
+                        orderBy('event_date', 'asc'))
+                );
+
+                state.events.communityEvents = snapshot.docs
+                    .map(docSnap => ({
+                        id: docSnap.id,
+                        type: 'community',
+                        dartType: docSnap.data().dart_type || 'steel',
+                        ...docSnap.data()
+                    }))
+                    .filter(e => {
+                        const date = getEventDate(e);
+                        return date >= today;
+                    });
+            } catch (error) {
+                console.error('Error loading community events:', error);
+            }
+        }
+
+        // ============================================
+        // FILTERING
+        // ============================================
+        function getFilteredEvents() {
+            let events = [
+                ...state.events.leagueMatches,
+                ...state.events.tournaments,
+                ...state.events.pickupGames,
+                ...state.events.communityEvents
+            ];
+
+            // Primary filter
+            switch (state.filters.primary) {
+                case 'my':
+                    events = events.filter(e => e.isMyMatch || e.isRegistered);
+                    break;
+                case 'tournaments':
+                    events = events.filter(e => e.type === 'tournament');
+                    break;
+                case 'leagues':
+                    events = events.filter(e => e.type === 'league');
+                    break;
+                case 'social':
+                    events = events.filter(e =>
+                        e.type === 'pickup' ||
+                        e.type === 'community' ||
+                        e.event_type === 'social' ||
+                        e.event_type === 'blind-draw'
+                    );
+                    break;
+            }
+
+            // Dart type filter
+            if (state.filters.dartType !== 'all') {
+                events = events.filter(e => {
+                    const dt = e.dartType || e.dart_type || 'steel';
+                    return dt === state.filters.dartType || dt === 'both';
+                });
+            }
+
+            // Sort: future events first (ascending), past events last (descending)
+            const now = new Date();
+            now.setHours(0, 0, 0, 0);
+            events.sort((a, b) => {
+                const dateA = getEventDate(a);
+                const dateB = getEventDate(b);
+                const isPastA = dateA < now;
+                const isPastB = dateB < now;
+
+                // Future events come before past events
+                if (isPastA !== isPastB) {
+                    return isPastA ? 1 : -1;
+                }
+
+                // Both future: ascending (soonest first)
+                // Both past: descending (most recent first)
+                return isPastA ? (dateB - dateA) : (dateA - dateB);
+            });
+
+            return events;
+        }
+
+        // ============================================
+        // RENDERING
+        // ============================================
+        function render() {
+            // Show login notice if needed
+            const loginNotice = document.getElementById('loginNotice');
+            if (!state.isLoggedIn && state.filters.primary === 'my') {
+                loginNotice.classList.remove('hidden');
+            } else {
+                loginNotice.classList.add('hidden');
+            }
+
+            const events = getFilteredEvents();
+
+            switch (state.view.mode) {
+                case 'list':
+                    renderListView(events);
+                    break;
+                case 'calendar':
+                    renderCalendarView(events);
+                    break;
+                case 'map':
+                    renderMapView(events);
+                    break;
+            }
+        }
+
+        function renderListView(events) {
+            const container = document.getElementById('eventsList');
+
+            if (state.loading) {
+                container.innerHTML = '<div class="eh-loading"><div class="eh-spinner"></div></div>';
+                return;
+            }
+
+            if (events.length === 0) {
+                container.innerHTML = `
+                    <div class="eh-empty-state">
+                        <div class="eh-empty-icon">&#128197;</div>
+                        <div class="eh-empty-title">No Events Found</div>
+                        <p>Try changing your filters or check back later.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = events.map(event => renderEventCard(event)).join('');
+        }
+
+        function renderEventCard(event) {
+            switch (event.type) {
+                case 'league':
+                    return renderLeagueCard(event);
+                case 'tournament':
+                    return renderTournamentCard(event);
+                case 'pickup':
+                case 'community':
+                    return renderSocialCard(event);
+                default:
+                    return renderGenericCard(event);
+            }
+        }
+
+        function renderLeagueCard(match) {
+            const date = getEventDate(match);
+            const dateStr = formatDate(date);
+            const isHome = match.home_team_id === match.teamId;
+            const opponent = isHome ? match.away_team_name : match.home_team_name;
+            const prefix = isHome ? 'vs' : '@';
+
+            return `
+                <div class="eh-event-card league" onclick="viewEvent('league', '${match.leagueId}', '${match.id}')">
+                    <div class="eh-card-header">
+                        <div class="eh-card-badges">
+                            <span class="eh-badge league">${match.leagueName || 'League'}</span>
+                            ${match.week ? `<span class="eh-badge week">Week ${match.week}</span>` : ''}
+                        </div>
+                        <div class="eh-card-date">${dateStr}</div>
+                    </div>
+                    <div class="eh-card-title">${prefix} ${opponent || 'TBD'}</div>
+                    <div class="eh-card-content">
+                        ${match.venue || match.home_venue || ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderTournamentCard(tournament) {
+            const date = getEventDate(tournament);
+            const dateStr = formatDate(date);
+            const spotsInfo = getSpotsInfo(tournament);
+            const format = getFormat(tournament);
+            const fee = getFee(tournament);
+
+            return `
+                <div class="eh-event-card tournament" onclick="viewEvent('tournament', '${tournament.id}')">
+                    <div class="eh-card-header">
+                        <div class="eh-card-badges">
+                            <span class="eh-badge tournament">Tournament</span>
+                            ${tournament.dart_type ? `<span class="eh-badge ${tournament.dart_type}">${tournament.dart_type}</span>` : ''}
+                            ${tournament.isRegistered ? `<span class="eh-badge registered">Registered</span>` : ''}
+                        </div>
+                        <div class="eh-card-date">${dateStr}</div>
+                    </div>
+                    <div class="eh-card-title">${tournament.tournament_name || tournament.name || 'Tournament'}</div>
+                    <div class="eh-meta-badges">
+                        ${format ? `<span class="eh-meta-badge format">${format}</span>` : ''}
+                        ${fee ? `<span class="eh-meta-badge fee">$${fee}</span>` : ''}
+                        ${spotsInfo.html}
+                    </div>
+                    <div class="eh-venue-row">&#128205; ${tournament.venue_name || 'TBD'}</div>
+                </div>
+            `;
+        }
+
+        function renderSocialCard(event) {
+            const date = getEventDate(event);
+            const dateStr = formatDate(date);
+            const timeStr = formatTime(event.event_time || event.time);
+            const isRecurring = event.frequency && event.frequency !== 'once';
+            const eventType = event.event_type || 'social';
+
+            return `
+                <div class="eh-event-card ${event.type}" onclick="viewSocialEvent('${event.id}', '${event.type}')">
+                    <div class="eh-card-header">
+                        <div class="eh-card-badges">
+                            <span class="eh-badge social">${formatEventType(eventType)}</span>
+                            ${event.dart_type ? `<span class="eh-badge ${event.dart_type}">${event.dart_type}</span>` : ''}
+                            ${isRecurring ? `<span class="eh-badge recurring">${formatFrequency(event.frequency)}</span>` : ''}
+                        </div>
+                        <div class="eh-card-date">${dateStr}</div>
+                    </div>
+                    <div class="eh-card-title">${event.name || event.title || 'Event'}</div>
+                    <div class="eh-venue-row">&#128205; ${event.venue || event.venue_name || 'TBD'}</div>
+                    ${timeStr ? `<div class="eh-time-row">&#128336; ${timeStr}</div>` : ''}
+                </div>
+            `;
+        }
+
+        function renderGenericCard(event) {
+            const date = getEventDate(event);
+            const dateStr = formatDate(date);
+
+            return `
+                <div class="eh-event-card" onclick="viewEvent('${event.type}', '${event.id}')">
+                    <div class="eh-card-header">
+                        <div class="eh-card-badges">
+                            <span class="eh-badge">${event.type}</span>
+                        </div>
+                        <div class="eh-card-date">${dateStr}</div>
+                    </div>
+                    <div class="eh-card-title">${event.name || event.title || 'Event'}</div>
+                </div>
+            `;
+        }
+
+        // ============================================
+        // CALENDAR VIEW
+        // ============================================
+        function renderCalendarView(events) {
+            renderWeekStrip(events);
+            if (state.view.calendar.expanded) {
+                renderMonthGrid(events);
+            }
+            renderDayEvents(events);
+        }
+
+        function renderWeekStrip(events) {
+            const weekStart = state.view.calendar.currentWeekStart;
+            const container = document.getElementById('weekDays');
+            const dayNames = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            let html = '';
+            for (let i = 0; i < 7; i++) {
+                const date = new Date(weekStart);
+                date.setDate(date.getDate() + i);
+                const dateStr = toDateString(date);
+
+                const isToday = date.getTime() === today.getTime();
+                const isSelected = state.view.calendar.selectedDate === dateStr;
+                const hasEvent = events.some(e => toDateString(getEventDate(e)) === dateStr);
+
+                let classes = 'eh-day-cell';
+                if (isToday) classes += ' today';
+                if (isSelected) classes += ' selected';
+                if (hasEvent) classes += ' has-event';
+
+                html += `
+                    <div class="${classes}" onclick="selectDate('${dateStr}')">
+                        <div class="eh-day-name">${dayNames[date.getDay()]}</div>
+                        <div class="eh-day-num">${date.getDate()}</div>
+                    </div>
+                `;
+            }
+            container.innerHTML = html;
+        }
+
+        function renderMonthGrid(events) {
+            const month = state.view.calendar.currentMonth;
+            const monthLabel = document.getElementById('monthLabel');
+            const grid = document.getElementById('monthGrid');
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            monthLabel.textContent = month.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+            const firstDay = new Date(month.getFullYear(), month.getMonth(), 1);
+            const lastDay = new Date(month.getFullYear(), month.getMonth() + 1, 0);
+            const startDay = firstDay.getDay();
+            const daysInMonth = lastDay.getDate();
+
+            let html = '';
+            // Day headers
+            ['S', 'M', 'T', 'W', 'T', 'F', 'S'].forEach(d => {
+                html += `<div class="eh-month-day-header">${d}</div>`;
+            });
+
+            // Previous month padding
+            const prevMonth = new Date(month.getFullYear(), month.getMonth(), 0);
+            for (let i = startDay - 1; i >= 0; i--) {
+                const day = prevMonth.getDate() - i;
+                html += `<div class="eh-month-day other-month">${day}</div>`;
+            }
+
+            // Current month days
+            for (let day = 1; day <= daysInMonth; day++) {
+                const date = new Date(month.getFullYear(), month.getMonth(), day);
+                const dateStr = toDateString(date);
+                const isToday = date.getTime() === today.getTime();
+                const isSelected = state.view.calendar.selectedDate === dateStr;
+                const hasEvent = events.some(e => toDateString(getEventDate(e)) === dateStr);
+
+                let classes = 'eh-month-day';
+                if (isToday) classes += ' today';
+                if (isSelected) classes += ' selected';
+                if (hasEvent) classes += ' has-event';
+
+                html += `<div class="${classes}" onclick="selectDate('${dateStr}')">${day}</div>`;
+            }
+
+            // Next month padding
+            const remainingCells = 42 - (startDay + daysInMonth);
+            for (let i = 1; i <= remainingCells && i <= 7; i++) {
+                html += `<div class="eh-month-day other-month">${i}</div>`;
+            }
+
+            grid.innerHTML = html;
+        }
+
+        function renderDayEvents(events) {
+            const title = document.getElementById('selectedDayTitle');
+            const container = document.getElementById('dayEventsList');
+
+            if (!state.view.calendar.selectedDate) {
+                title.textContent = 'Select a date to see events';
+                container.innerHTML = '';
+                return;
+            }
+
+            const selectedDate = new Date(state.view.calendar.selectedDate + 'T00:00:00');
+            title.textContent = selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+
+            const dayEvents = events.filter(e => toDateString(getEventDate(e)) === state.view.calendar.selectedDate);
+
+            if (dayEvents.length === 0) {
+                container.innerHTML = '<p style="color: var(--text-dim); text-align: center; padding: 20px;">No events on this day</p>';
+                return;
+            }
+
+            container.innerHTML = dayEvents.map(e => renderEventCard(e)).join('');
+        }
+
+        // ============================================
+        // MAP VIEW
+        // ============================================
+        function renderMapView(events) {
+            if (!state.map.loaded) {
+                loadLeaflet().then(() => initMap(events));
+            } else {
+                updateMapMarkers(events);
+            }
+        }
+
+        async function loadLeaflet() {
+            if (window.L) {
+                state.map.loaded = true;
+                return;
+            }
+
+            await new Promise((resolve) => {
+                const script = document.createElement('script');
+                script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+                script.onload = () => {
+                    state.map.loaded = true;
+                    resolve();
+                };
+                document.body.appendChild(script);
+            });
+        }
+
+        function initMap(events) {
+            const container = document.getElementById('eventsMap');
+            state.map.instance = L.map(container).setView([41.4993, -81.6944], 11);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap'
+            }).addTo(state.map.instance);
+
+            updateMapMarkers(events);
+        }
+
+        function updateMapMarkers(events) {
+            if (!state.map.instance) return;
+
+            // Clear existing markers
+            state.map.markers.forEach(m => state.map.instance.removeLayer(m));
+            state.map.markers = [];
+
+            // Add markers for events with location
+            const eventsWithLocation = events.filter(e => e.lat && e.lng);
+
+            eventsWithLocation.forEach(event => {
+                const color = getEventColor(event.type);
+                const icon = L.divIcon({
+                    className: 'eh-marker',
+                    html: `<div style="background: ${color}; width: 24px; height: 24px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.3);"></div>`,
+                    iconSize: [24, 24],
+                    iconAnchor: [12, 12]
+                });
+
+                const title = event.name || event.title || event.tournament_name || 'Event';
+                const marker = L.marker([event.lat, event.lng], { icon })
+                    .addTo(state.map.instance)
+                    .bindPopup(`<b>${escapeHtml(title)}</b><br>${escapeHtml(event.venue || event.venue_name || '')}`)
+                    .on('click', () => {
+                        if (event.type === 'community' || event.type === 'pickup') {
+                            viewSocialEvent(event.id, event.type);
+                        } else {
+                            viewEvent(event.type, event.id);
+                        }
+                    });
+
+                state.map.markers.push(marker);
+            });
+
+            // Fit bounds
+            if (state.map.markers.length > 0) {
+                const group = L.featureGroup(state.map.markers);
+                state.map.instance.fitBounds(group.getBounds().pad(0.1));
+            }
+        }
+
+        // ============================================
+        // UI BINDINGS
+        // ============================================
+        function initUIBindings() {
+            // Primary filters
+            document.querySelectorAll('.eh-filter-pill').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    if (!state.isLoggedIn && btn.dataset.filter === 'my') {
+                        document.getElementById('loginNotice').classList.remove('hidden');
+                        return;
+                    }
+                    state.filters.primary = btn.dataset.filter;
+                    updateFilterUI();
+                    render();
+                    updateURL();
+                });
+            });
+
+            // Dart type filters
+            document.querySelectorAll('.eh-dart-pill').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    state.filters.dartType = btn.dataset.dart;
+                    updateFilterUI();
+                    render();
+                });
+            });
+
+            // View toggle
+            document.querySelectorAll('.eh-view-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    state.view.mode = btn.dataset.view;
+                    updateViewUI();
+                    render();
+                    updateURL();
+
+                    if (btn.dataset.view === 'map' && state.map.instance) {
+                        setTimeout(() => state.map.instance.invalidateSize(), 100);
+                    }
+                });
+            });
+
+            // Calendar navigation
+            document.getElementById('prevWeek').addEventListener('click', () => {
+                state.view.calendar.currentWeekStart.setDate(state.view.calendar.currentWeekStart.getDate() - 7);
+                render();
+            });
+
+            document.getElementById('nextWeek').addEventListener('click', () => {
+                state.view.calendar.currentWeekStart.setDate(state.view.calendar.currentWeekStart.getDate() + 7);
+                render();
+            });
+
+            document.getElementById('expandCalendar').addEventListener('click', () => {
+                state.view.calendar.expanded = !state.view.calendar.expanded;
+                document.getElementById('monthCalendar').classList.toggle('hidden', !state.view.calendar.expanded);
+                document.getElementById('expandCalendar').textContent = state.view.calendar.expanded ? 'Hide Calendar \u25B2' : 'View Full Month \u25BC';
+                if (state.view.calendar.expanded) {
+                    renderMonthGrid(getFilteredEvents());
+                }
+            });
+
+            document.getElementById('prevMonth').addEventListener('click', () => {
+                state.view.calendar.currentMonth.setMonth(state.view.calendar.currentMonth.getMonth() - 1);
+                renderMonthGrid(getFilteredEvents());
+            });
+
+            document.getElementById('nextMonth').addEventListener('click', () => {
+                state.view.calendar.currentMonth.setMonth(state.view.calendar.currentMonth.getMonth() + 1);
+                renderMonthGrid(getFilteredEvents());
+            });
+
+            // FAB
+            document.getElementById('addEventFab').addEventListener('click', () => {
+                document.getElementById('addEventModal').classList.add('active');
+            });
+
+            // Chat button
+            document.getElementById('chatBtn').addEventListener('click', () => {
+                if (window.FBNav && window.FBNav.chatSidebar) {
+                    window.FBNav.chatSidebar.toggle();
+                } else {
+                    window.location.href = '/pages/messages.html';
+                }
+            });
+        }
+
+        function updateFilterUI() {
+            document.querySelectorAll('.eh-filter-pill').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.filter === state.filters.primary);
+            });
+            document.querySelectorAll('.eh-dart-pill').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.dart === state.filters.dartType);
+            });
+        }
+
+        function updateViewUI() {
+            document.querySelectorAll('.eh-view-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.view === state.view.mode);
+            });
+            document.querySelectorAll('.eh-view').forEach(view => {
+                view.classList.toggle('active', view.id === `${state.view.mode}View`);
+            });
+        }
+
+        function updateURL() {
+            const params = new URLSearchParams();
+            params.set('view', state.view.mode);
+            params.set('filter', state.filters.primary);
+            const newURL = `${window.location.pathname}?${params.toString()}`;
+            window.history.replaceState({}, '', newURL);
+        }
+
+        // ============================================
+        // EVENT HANDLERS (exposed to window)
+        // ============================================
+        window.selectDate = function(dateStr) {
+            state.view.calendar.selectedDate = dateStr;
+            render();
+        };
+
+        window.viewEvent = function(type, id, matchId) {
+            switch (type) {
+                case 'league':
+                    window.location.href = `/pages/match-hub.html?league_id=${id}&match_id=${matchId}`;
+                    break;
+                case 'tournament':
+                    window.location.href = `/pages/tournament-view.html?tournament_id=${id}`;
+                    break;
+                default:
+                    window.location.href = `/pages/event-view.html?event_id=${id}`;
+            }
+        };
+
+        window.viewSocialEvent = function(id, type) {
+            const event = type === 'community'
+                ? state.events.communityEvents.find(e => e.id === id)
+                : state.events.pickupGames.find(e => e.id === id);
+
+            if (!event) return;
+
+            const modal = document.getElementById('eventDetailModal');
+            const title = document.getElementById('detailModalTitle');
+            const body = document.getElementById('detailModalBody');
+
+            title.textContent = event.name || event.title || 'Event Details';
+
+            const date = getEventDate(event);
+            const dateStr = date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+            const timeStr = formatTime(event.event_time || event.time);
+            const isRecurring = event.frequency && event.frequency !== 'once';
+
+            body.innerHTML = `
+                <div style="margin-bottom: 16px;">
+                    <span class="eh-badge ${event.event_type || 'social'}">${formatEventType(event.event_type)}</span>
+                    ${event.dart_type ? `<span class="eh-badge ${event.dart_type}">${event.dart_type}</span>` : ''}
+                    ${isRecurring ? `<span class="eh-badge recurring">${formatFrequency(event.frequency)}</span>` : ''}
+                </div>
+                <div style="margin-bottom: 16px;">
+                    <div style="color: var(--text-dim); font-size: 12px; margin-bottom: 4px;">DATE & TIME</div>
+                    <div style="font-size: 16px;">${isRecurring ? `Every ${getRecurringDay(event)} at ${timeStr}` : `${dateStr} at ${timeStr}`}</div>
+                </div>
+                <div style="margin-bottom: 16px;">
+                    <div style="color: var(--text-dim); font-size: 12px; margin-bottom: 4px;">LOCATION</div>
+                    <div style="font-size: 16px; color: var(--teal);">${event.venue || event.venue_name || 'TBD'}</div>
+                    ${event.address ? `<div style="font-size: 14px; color: var(--text-dim);">${event.address}</div>` : ''}
+                </div>
+                ${event.description ? `
+                <div style="margin-bottom: 16px;">
+                    <div style="color: var(--text-dim); font-size: 12px; margin-bottom: 4px;">ABOUT</div>
+                    <div style="font-size: 14px; white-space: pre-wrap;">${escapeHtml(event.description)}</div>
+                </div>
+                ` : ''}
+                ${event.event_link ? `
+                <a href="${event.event_link}" target="_blank" style="display: inline-block; padding: 12px 24px; background: var(--pink); border-radius: 8px; color: white; text-decoration: none; font-weight: 600;">View Event Info</a>
+                ` : ''}
+            `;
+
+            modal.classList.add('active');
+        };
+
+        window.closeAddEventModal = function() {
+            document.getElementById('addEventModal').classList.remove('active');
+        };
+
+        window.closeEventDetailModal = function() {
+            document.getElementById('eventDetailModal').classList.remove('active');
+        };
+
+        window.submitEvent = async function(e) {
+            e.preventDefault();
+
+            const form = e.target;
+            const btn = document.getElementById('submitBtn');
+            btn.disabled = true;
+            btn.textContent = 'Submitting...';
+
+            try {
+                const formData = new FormData(form);
+                const address = formData.get('address');
+
+                // Geocode address
+                let lat = null, lng = null;
+                try {
+                    const geoResponse = await fetch(
+                        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`,
+                        { headers: { 'User-Agent': 'BRDC-Events-Hub' } }
+                    );
+                    const geoData = await geoResponse.json();
+                    if (geoData && geoData.length > 0) {
+                        lat = parseFloat(geoData[0].lat);
+                        lng = parseFloat(geoData[0].lon);
+                    }
+                } catch (geoError) {
+                    console.error('Geocoding error:', geoError);
+                }
+
+                const eventData = {
+                    name: formData.get('name'),
+                    event_type: formData.get('event_type'),
+                    dart_type: formData.get('dart_type'),
+                    frequency: formData.get('frequency'),
+                    event_date: Timestamp.fromDate(new Date(formData.get('event_date'))),
+                    event_time: formData.get('event_time'),
+                    venue: formData.get('venue'),
+                    address: address,
+                    event_link: formData.get('event_link') || null,
+                    description: formData.get('description') || null,
+                    lat,
+                    lng,
+                    status: 'approved', // Auto-approve for now
+                    created_at: Timestamp.now(),
+                    submitted_by: state.currentPlayer?.name || 'Anonymous'
+                };
+
+                await addDoc(collection(db, 'community_events'), eventData);
+
+                alert('Event submitted successfully!');
+                form.reset();
+                closeAddEventModal();
+
+                // Reload community events
+                await loadCommunityEvents();
+                render();
+
+            } catch (error) {
+                console.error('Error submitting event:', error);
+                alert('Error submitting event. Please try again.');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Submit Event';
+            }
+        };
+
+        // ============================================
+        // UTILITY FUNCTIONS
+        // ============================================
+        function getEventDate(event) {
+            const fields = ['match_date', 'tournament_date', 'event_date', 'date'];
+            for (const field of fields) {
+                if (event[field]) {
+                    const val = event[field];
+                    if (val._seconds) return new Date(val._seconds * 1000);
+                    if (val.toDate) return val.toDate();
+                    if (val instanceof Date) return val;
+                    return new Date(val);
+                }
+            }
+            return new Date();
+        }
+
+        function getWeekStart(date) {
+            const d = new Date(date);
+            d.setDate(d.getDate() - d.getDay());
+            d.setHours(0, 0, 0, 0);
+            return d;
+        }
+
+        function toDateString(date) {
+            return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+        }
+
+        function formatDate(date) {
+            return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+        }
+
+        function formatTime(time) {
+            if (!time) return '';
+            const [hours, minutes] = time.split(':');
+            const h = parseInt(hours);
+            const ampm = h >= 12 ? 'PM' : 'AM';
+            const h12 = h % 12 || 12;
+            return `${h12}:${minutes} ${ampm}`;
+        }
+
+        function formatEventType(type) {
+            const types = {
+                'tournament': 'Tournament',
+                'league': 'League',
+                'blind-draw': 'Blind Draw',
+                'social': 'Social',
+                'other': 'Other'
+            };
+            return types[type] || type || 'Event';
+        }
+
+        function formatFrequency(freq) {
+            const freqs = {
+                'weekly': 'Weekly',
+                'biweekly': 'Bi-weekly',
+                'monthly': 'Monthly'
+            };
+            return freqs[freq] || freq;
+        }
+
+        function getRecurringDay(event) {
+            const date = getEventDate(event);
+            return date.toLocaleDateString('en-US', { weekday: 'long' });
+        }
+
+        function getFormat(tournament) {
+            if (tournament.events && tournament.events.length > 0) {
+                const formats = tournament.events.map(e => e.game_type || e.format).filter(Boolean);
+                if (formats.length > 0) return formats.join(', ').toUpperCase();
+            }
+            return tournament.format || null;
+        }
+
+        function getFee(tournament) {
+            if (tournament.events && tournament.events.length > 0) {
+                const fees = tournament.events.map(e => e.entry_fee).filter(f => f > 0);
+                if (fees.length > 0) return Math.min(...fees);
+            }
+            return tournament.entry_fee || null;
+        }
+
+        function getSpotsInfo(tournament) {
+            const max = tournament.max_players;
+            const current = tournament.registered_count || 0;
+
+            if (!max) return { html: '' };
+
+            const remaining = max - current;
+            let spotClass = 'spots';
+            if (remaining <= 0) spotClass += ' full';
+            else if (remaining <= 5) spotClass += ' limited';
+
+            return {
+                html: `<span class="eh-meta-badge ${spotClass}">${current}/${max} spots</span>`
+            };
+        }
+
+        function getEventColor(type) {
+            const colors = {
+                league: '#91D7EB',
+                tournament: '#FDD835',
+                pickup: '#4CAF50',
+                community: '#FF469A',
+                social: '#FF469A'
+            };
+            return colors[type] || '#FF469A';
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+    <script src="/js/fb-nav.js"></script>
+</body>
+</html>
