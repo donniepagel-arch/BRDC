@@ -57,7 +57,11 @@ exports.generateLeagueFeed = onCall(async (request) => {
             // Get top performers by level from this match
             const topPerformers = getTopPerformersByLevel(match, playersById);
 
-            // 1. MATCH RESULT with top performers
+            // Get rosters for this match
+            const homeRoster = Object.values(playersById).filter(p => p.team_id === match.home_team_id);
+            const awayRoster = Object.values(playersById).filter(p => p.team_id === match.away_team_id);
+
+            // 1. MATCH RESULT with top performers and rosters
             feedItems.push({
                 type: 'match_result',
                 created_at: matchDate,
@@ -68,9 +72,11 @@ exports.generateLeagueFeed = onCall(async (request) => {
                     home_team_id: homeTeam.id || '',
                     home_team_name: homeTeam?.name || 'Home Team',
                     home_score: match.home_score || 0,
+                    home_roster: homeRoster.map(p => ({ name: p.name, level: p.level })),
                     away_team_id: awayTeam.id || '',
                     away_team_name: awayTeam?.name || 'Away Team',
                     away_score: match.away_score || 0,
+                    away_roster: awayRoster.map(p => ({ name: p.name, level: p.level })),
                     top_performers: topPerformers
                 }
             });
