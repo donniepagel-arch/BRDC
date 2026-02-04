@@ -728,6 +728,7 @@ exports.importMatchData = functions.https.onRequest(async (req, res) => {
             if (needsSwap) {
                 return {
                     game: game.game_number,
+                    set: game.set,
                     type: game.type,
                     format: game.format,
                     home_players: game.away_players,
@@ -741,6 +742,7 @@ exports.importMatchData = functions.https.onRequest(async (req, res) => {
             } else {
                 return {
                     game: game.game_number,
+                    set: game.set,
                     type: game.type,
                     format: game.format,
                     home_players: game.home_players,
@@ -1158,6 +1160,7 @@ exports.updateImportedMatchStats = functions.https.onRequest(async (req, res) =>
             'Jennifer Malek': '7Hj4KWNpm0GviTYbwfbM',
             'Jenn M': '7Hj4KWNpm0GviTYbwfbM',
             'Matthew Wentz': 'TJ3uwMdslbtpjtq17xW4',
+            'Matt Wentz': 'TJ3uwMdslbtpjtq17xW4',  // RTF short variant
             'Christian Ketchem': '89RkfFLOhvUwV83ZS5J4',
             'Christian Ketchum': '89RkfFLOhvUwV83ZS5J4',
             // N. Kull team
@@ -1168,15 +1171,20 @@ exports.updateImportedMatchStats = functions.https.onRequest(async (req, res) =>
             'Steph Kull': '4sly23nOXhC475q95R4L',
             // K. Yasenchak team
             'Kevin Yasenchak': 'dr4ML1i9ZeMI7SNisX6E',
+            'Kevin Y': 'dr4ML1i9ZeMI7SNisX6E',  // RTF abbreviation
             'Brian Smith': 'bIv2rga3jBSvzsQ2khne',
+            'Brian S': 'bIv2rga3jBSvzsQ2khne',  // RTF abbreviation
             'Cesar Andino': 'Dag2lYDtqoo4kc3cRHHa',
+            'Cesar A': 'Dag2lYDtqoo4kc3cRHHa',  // RTF abbreviation
             // D. Partlo team
             'Dan Partlo': 'xtgPtBokzUj3nli61AKq',
             'Joe Donley': 'JxFXNWdd2dFMja3rI0jf',
             'Kevin Mckelvey': 'Gmxl5I2CtVXYns4b4AeU',
+            'Kevin McKelvey': 'Gmxl5I2CtVXYns4b4AeU',  // RTF capital K variant
             // E. Olschansky team
             'Eddie Olschansky': 'wLMJoz1GylfVCMM32nWm',
             'Eddie Olschanskey': 'wLMJoz1GylfVCMM32nWm',  // RTF typo variant
+            'Eddie O': 'wLMJoz1GylfVCMM32nWm',  // RTF abbreviation
             'Jeff Boss': 'Tj1LsOtRiJwHW4r4sgWa',
             'Michael Gonzalez': 'FfODZtkFiGUEzptzD8tH',
             'Mike Gonzalez': 'FfODZtkFiGUEzptzD8tH',
@@ -1186,23 +1194,34 @@ exports.updateImportedMatchStats = functions.https.onRequest(async (req, res) =>
             'Marc Tate': 'ZwdiN0qfmIY5MMCOLJps',
             'David Brunner': 'ctnV5Je72HAIyVpE5zjS',
             'Dave Brunner': 'ctnV5Je72HAIyVpE5zjS',
+            'Derek Fess': 'vVR4AOITXYzhR2H4GqzI',
+            'Derek': 'vVR4AOITXYzhR2H4GqzI',  // RTF first name only
+            'DF': 'vVR4AOITXYzhR2H4GqzI',  // RTF initials
+            'Josh Kelly': '34GDgRRFk0uFmOvyykHE',
+            'Joshua kelly': '34GDgRRFk0uFmOvyykHE',  // RTF lowercase variant
+            'JK': '34GDgRRFk0uFmOvyykHE',  // RTF initials
             // Neon Nightmares (T. Massimiani) team
             'Tony Massimiani': 'gqhzEQLifL402lQwDMpH',
+            'TM': 'gqhzEQLifL402lQwDMpH',  // RTF initials
             'Dominick Russano': 'pL9CGc688ZpxbPKJ11cZ',
             'Dom Russano': 'pL9CGc688ZpxbPKJ11cZ',
+            'DR': 'pL9CGc688ZpxbPKJ11cZ',  // RTF initials
             'Chris Benco': 'rZ57ofUYFXPSrrhyBVkz',
+            'Chris B': 'rZ57ofUYFXPSrrhyBVkz',  // RTF abbreviation
             // N. Mezlak team
             'Nick Mezlak': 'yGcBLDcTwgHtWmZEg3TG',
             'Cory Jacobs': '8f52A1dwRB4eIU5UyQZo',
             'Dillon Ulisses': 'dFmalrT5BMdaTOUUVTOZ',
+            'Dillon U': 'dFmalrT5BMdaTOUUVTOZ',  // RTF abbreviation
+            'Dillon Ullises': 'dFmalrT5BMdaTOUUVTOZ',  // RTF misspelling
             // D. Russano team
             'Danny Russano': 'gmZ8d6De0ZlqPVV0V9Q6',
             'Chris Russano': 'NJgDQ0d4RzpDVuCnqYZO',
             'Eric Duale': 'NCeaIaMXsXVN135pX91L',
             'Eric D': 'NCeaIaMXsXVN135pX91L',
-            // Fill-ins
-            'Josh Kelly': '34GDgRRFk0uFmOvyykHE',
-            'Derek Fess': 'vVR4AOITXYzhR2H4GqzI'
+            'Eric': 'NCeaIaMXsXVN135pX91L',  // RTF first name only
+            // Fill-ins / Alternates
+            'Luke Kollias': 'mFyX9sv1l95V0czECUKu'
         };
 
         const statsUpdates = {};
