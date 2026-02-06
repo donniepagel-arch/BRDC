@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Player Profile - BRDC</title>
     <link rel="icon" type="image/png" href="/images/favicon.png">
     <link rel="manifest" href="/manifest.json">
@@ -897,6 +897,13 @@
             z-index: 1001;
         }
     </style>
+
+    <!-- Toast Notifications -->
+    <script src="/js/brdc-toast.js"></script>
+
+    <!-- BRDC Navigation System -->
+    <link rel="stylesheet" href="/css/brdc-navigation.css">
+    <link rel="stylesheet" href="/css/brdc-search.css">
 </head>
 <body>
     <div class="header-bar">
@@ -1231,6 +1238,7 @@
         let currentPlayer = null;
         let currentLeagueId = null;
         let captainingTeams = []; // Teams where player is captain
+        let isFilInPlayer = false; // Track if this is a fill-in player (no permanent team)
 
         // Check URL params for player_id or name
         const urlParams = new URLSearchParams(window.location.search);
@@ -1337,11 +1345,39 @@
                 // Not found
                 document.getElementById('loadingOverlay').style.display = 'none';
                 document.getElementById('loginOverlay').style.display = 'flex';
-                alert('Player not found: ' + name);
+                toastError('Player not found: ' + name);
             } catch (error) {
                 console.error('Error looking up player by name:', error);
                 document.getElementById('loadingOverlay').style.display = 'none';
                 document.getElementById('loginOverlay').style.display = 'flex';
+            }
+        }
+
+        // Detect if player is a fill-in (temporary substitute with no permanent team)
+        async function detectIfFillIn(playerId, leagueId) {
+            if (!leagueId) return false;
+
+            try {
+                // Check if player exists in league players collection
+                const leaguePlayerDoc = await getDoc(doc(db, 'leagues', leagueId, 'players', playerId));
+
+                if (!leaguePlayerDoc.exists()) {
+                    console.log('Player not in league roster - likely fill-in');
+                    return true; // Not in league roster = fill-in
+                }
+
+                const playerData = leaguePlayerDoc.data();
+
+                // Check if they have a permanent team
+                if (!playerData.team_id || playerData.team_id === null) {
+                    console.log('Player has no team_id - likely fill-in');
+                    return true; // No team = fill-in
+                }
+
+                return false;
+            } catch (error) {
+                console.error('Error detecting fill-in status:', error);
+                return false;
             }
         }
 
@@ -1400,7 +1436,7 @@
             const pin = document.getElementById('loginPin').value;
 
             if (!pin || pin.length !== 8) {
-                alert('Please enter your 8-digit PIN');
+                toastWarning('Please enter your 8-digit PIN');
                 return;
             }
 
@@ -1450,11 +1486,11 @@
 
                     showProfile();
                 } else {
-                    alert(result.error || 'Invalid PIN');
+                    toastError(result.error || 'Invalid PIN');
                 }
             } catch (error) {
                 console.error('Login error:', error);
-                alert('Login failed: ' + error.message);
+                toastError('Login failed: ' + error.message);
             }
         };
 
@@ -1472,7 +1508,7 @@
             const email = document.getElementById('recoveryEmail').value.trim().toLowerCase();
 
             if (!email) {
-                alert('Please enter your email address');
+                toastWarning('Please enter your email address');
                 return;
             }
 
@@ -1480,14 +1516,14 @@
                 const result = await callFunction('resetPlayerPin', { email });
 
                 if (result.success) {
-                    alert('Your PIN has been sent to your email!');
+                    toastSuccess('Your PIN has been sent to your email!');
                     showLoginCard();
                 } else {
-                    alert(result.error || 'Email not found');
+                    toastError(result.error || 'Email not found');
                 }
             } catch (error) {
                 console.error('Recovery error:', error);
-                alert('Failed to send PIN: ' + error.message);
+                toastError('Failed to send PIN: ' + error.message);
             }
         };
 
@@ -1509,6 +1545,12 @@
         async function loadSocialData() {
             const playerId = currentPlayer.player_id || currentPlayer.id;
             if (!playerId) return;
+
+            // Skip social data for fill-in players (they don't have global player accounts)
+            if (isFilInPlayer) {
+                console.log('Skipping social data for fill-in player');
+                return;
+            }
 
             // Social features require authentication
             const playerPin = localStorage.getItem('brdc_player_pin');
@@ -1585,7 +1627,7 @@
         window.saveProfile = async function() {
             const playerPin = localStorage.getItem('brdc_player_pin');
             if (!playerPin) {
-                alert('Please log in again');
+                toastError('Please log in again');
                 return;
             }
 
@@ -1601,15 +1643,15 @@
                 });
 
                 if (result.success) {
-                    alert('Profile saved!');
+                    toastSuccess('Profile saved!');
                     // Reload social data to show updated info
                     await loadSocialData();
                 } else {
-                    alert(result.error || 'Failed to save profile');
+                    toastError(result.error || 'Failed to save profile');
                 }
             } catch (error) {
                 console.error('Error saving profile:', error);
-                alert('Error saving profile: ' + error.message);
+                toastError('Error saving profile: ' + error.message);
             }
         };
 
@@ -1617,6 +1659,11 @@
             document.getElementById('loadingOverlay').style.display = 'none';
             document.getElementById('loginOverlay').style.display = 'none';
             document.getElementById('profileContent').style.display = 'block';
+
+            // Detect if this is a fill-in player
+            const playerId = currentPlayer.player_id || currentPlayer.id;
+            isFilInPlayer = await detectIfFillIn(playerId, currentLeagueId);
+            console.log('Fill-in player detected:', isFilInPlayer);
 
             // Basic info
             document.getElementById('playerName').textContent = currentPlayer.name;
@@ -1644,14 +1691,20 @@
             // Badges
             const badgesContainer = document.getElementById('playerBadges');
             badgesContainer.innerHTML = '';
+
+            // Fill-in badge (highest priority)
+            if (isFilInPlayer) {
+                badgesContainer.innerHTML += '<span class="badge fill-in" style="background: var(--yellow); color: var(--bg-dark);">FILL-IN PLAYER</span>';
+            }
+
             // Check if player is captain (either from is_captain flag or captainingTeams array)
             const isCaptain = currentPlayer.is_captain || captainingTeams.length > 0;
-            if (isCaptain) {
+            if (isCaptain && !isFilInPlayer) {
                 badgesContainer.innerHTML += '<span class="badge captain">CAPTAIN</span>';
                 // Show captain tab
                 document.getElementById('captainTabBtn').style.display = 'block';
             }
-            if (currentPlayer.is_sub) {
+            if (currentPlayer.is_sub && !isFilInPlayer) {
                 badgesContainer.innerHTML += '<span class="badge sub">SUBSTITUTE</span>';
             }
             // Level badge (A, B, C)
@@ -1661,8 +1714,8 @@
                 badgesContainer.innerHTML += `<span class="badge">${currentPlayer.skill_level.toUpperCase()}</span>`;
             }
 
-            // Start presence heartbeat
-            if (window.brdcPresence) {
+            // Start presence heartbeat (skip for fill-ins - they don't have global player accounts)
+            if (window.brdcPresence && !isFilInPlayer) {
                 window.brdcPresence.startPresenceHeartbeat('profile');
             }
 
@@ -1670,17 +1723,28 @@
             await loadLeagues();
 
             // Now load stats and other data in parallel
-            await Promise.all([
-                loadTeamInfo(),
+            const dataPromises = [
                 loadStats(),
                 loadTournaments(),
-                loadTeamHistory(),
                 loadMatchHistory(),
-                loadDirectorLinks(),
-                loadSocialData(),
+                loadDirectorLinks()
+            ];
+
+            // Skip team/social/captain features for fill-ins
+            if (!isFilInPlayer) {
+                dataPromises.push(loadTeamInfo());
+                dataPromises.push(loadTeamHistory());
+                dataPromises.push(loadSocialData());
                 // Load captain content if they are captaining any teams
-                (currentPlayer.is_captain || captainingTeams.length > 0) ? loadCaptainContent() : Promise.resolve()
-            ]);
+                if (currentPlayer.is_captain || captainingTeams.length > 0) {
+                    dataPromises.push(loadCaptainContent());
+                }
+            } else {
+                // For fill-ins, load their fill-in history
+                dataPromises.push(loadFillInHistory());
+            }
+
+            await Promise.all(dataPromises);
         }
 
         async function loadDirectorLinks() {
@@ -2559,12 +2623,93 @@
             }
         }
 
+        // Load fill-in history for substitute players
+        async function loadFillInHistory() {
+            const playerId = currentPlayer.player_id || currentPlayer.id;
+            const playerName = currentPlayer.name;
+
+            // Display fill-in message in team section
+            const teamInfoContent = document.getElementById('teamInfoContent');
+            if (teamInfoContent) {
+                teamInfoContent.innerHTML = `
+                    <div style="padding: 20px; text-align: center; color: var(--text-dim);">
+                        <div style="font-size: 16px; color: var(--yellow); margin-bottom: 10px;">Fill-In Player</div>
+                        <div>This player has no permanent team assignment.</div>
+                        <div>They have filled in as a substitute for other teams.</div>
+                    </div>
+                `;
+            }
+
+            // Find matches where this player filled in
+            try {
+                if (!currentLeagueId) {
+                    console.log('No league ID for fill-in history');
+                    return;
+                }
+
+                const matchesQuery = query(
+                    collection(db, 'leagues', currentLeagueId, 'matches'),
+                    where('status', '==', 'completed')
+                );
+
+                const matchesSnap = await getDocs(matchesQuery);
+                const fillInMatches = [];
+
+                for (const matchDoc of matchesSnap.docs) {
+                    const match = matchDoc.data();
+
+                    // Check home_lineup and away_lineup for this player as fill-in
+                    const homeLineup = match.home_lineup || [];
+                    const awayLineup = match.away_lineup || [];
+
+                    const inHomeLineup = homeLineup.find(p =>
+                        (p.player_id === playerId || p.name === playerName) && p.is_sub === true
+                    );
+                    const inAwayLineup = awayLineup.find(p =>
+                        (p.player_id === playerId || p.name === playerName) && p.is_sub === true
+                    );
+
+                    if (inHomeLineup || inAwayLineup) {
+                        fillInMatches.push({
+                            match_id: matchDoc.id,
+                            match_date: match.match_date?.toDate ? match.match_date.toDate() : new Date(match.match_date),
+                            home_team: match.home_team_name || 'Unknown',
+                            away_team: match.away_team_name || 'Unknown',
+                            filled_for: inHomeLineup ? match.home_team_name : match.away_team_name,
+                            score: `${match.home_score || 0}-${match.away_score || 0}`,
+                            week: match.week || '?'
+                        });
+                    }
+                }
+
+                // Display fill-in matches
+                const tbody = document.getElementById('matchHistoryBody');
+                if (fillInMatches.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #aaa;">No fill-in matches found</td></tr>';
+                } else {
+                    tbody.innerHTML = fillInMatches
+                        .sort((a, b) => b.match_date - a.match_date)
+                        .map(m => `
+                            <tr>
+                                <td>${m.match_date.toLocaleDateString()}</td>
+                                <td style="color: var(--yellow);">${m.filled_for}</td>
+                                <td>${m.home_team} vs ${m.away_team}</td>
+                                <td>${m.score}</td>
+                            </tr>
+                        `).join('');
+                }
+
+            } catch (error) {
+                console.error('Error loading fill-in history:', error);
+            }
+        }
+
         window.uploadPhoto = async function(input) {
             const file = input.files[0];
             if (!file) return;
 
             if (file.size > 5 * 1024 * 1024) {
-                alert('Photo must be less than 5MB');
+                toastError('Photo must be less than 5MB');
                 return;
             }
 
@@ -2592,10 +2737,10 @@
                     leagueId: currentLeagueId
                 }));
 
-                alert('Photo updated!');
+                toastSuccess('Photo updated!');
             } catch (error) {
                 console.error('Error uploading photo:', error);
-                alert('Failed to upload photo: ' + error.message);
+                toastError('Failed to upload photo: ' + error.message);
             }
         };
 
@@ -2799,7 +2944,7 @@
         window.requestFillins = async function(matchId) {
             const fillinIds = selectedFillins[matchId];
             if (!fillinIds || fillinIds.length === 0) {
-                alert('Please select at least one fill-in');
+                toastWarning('Please select at least one fill-in');
                 return;
             }
 
@@ -2817,7 +2962,7 @@
                 });
 
                 if (result.success) {
-                    alert('Fill-in requests sent! You will be notified when someone accepts.');
+                    toastSuccess('Fill-in requests sent! You will be notified when someone accepts.');
                     selectedFillins[matchId] = [];
                     renderCaptainContent();
                 } else {
@@ -2825,7 +2970,7 @@
                 }
             } catch (error) {
                 console.error('Error requesting fillins:', error);
-                alert('Error: ' + error.message);
+                toastError('Error: ' + error.message);
                 btn.disabled = false;
                 btn.textContent = 'SEND FILL-IN REQUESTS';
             }
@@ -2836,6 +2981,24 @@
             if (e.key === 'Enter') login();
         });
     </script>
+
+    <!-- BRDC Navigation System -->
+    <script src="/components/brdc-navigation-init.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            initBRDCNavigation({
+                page: 'player-profile',
+                showMobileNav: true,
+                showBackButton: true,
+                showSearch: true,
+                breadcrumbs: [
+                    { label: 'Dashboard', url: '/pages/dashboard.html' },
+                    { label: 'Player Profile', url: '#' }
+                ]
+            });
+        });
+    </script>
+
 <script src="/js/display-helpers.js"></script>
 <script src="/js/stats-helpers.js"></script>
 <script src="/js/nav-menu.js"></script>

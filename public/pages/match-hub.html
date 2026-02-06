@@ -13,6 +13,7 @@
     <link rel="dns-prefetch" href="https://www.gstatic.com">
 
     <link rel="icon" type="image/png" href="/images/favicon.png">
+    <script src="/js/brdc-toast.js"></script>
     <link rel="manifest" href="/manifest.json">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -46,6 +47,7 @@
         body {
             background: linear-gradient(135deg, var(--bg-dark) 0%, #0f0f23 100%);
             min-height: 100vh;
+            min-height: 100dvh;
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
             color: var(--text-light);
             line-height: 1.6;
@@ -931,10 +933,8 @@
             border: 3px solid var(--bg-card);
             border-top-color: var(--pink);
             border-radius: 50%;
-            animation: spin 1s linear infinite;
             margin: 0 auto 20px;
         }
-        @keyframes spin { to { transform: rotate(360deg); } }
 
         /* ============================================
            PRE-MATCH VIEW STYLES
@@ -1721,12 +1721,7 @@
         .skeleton {
             background: linear-gradient(90deg, #1e2a47 25%, #2a3a57 50%, #1e2a47 75%);
             background-size: 200% 100%;
-            animation: shimmer 1.5s infinite;
             border-radius: 8px;
-        }
-        @keyframes shimmer {
-            0% { background-position: 200% 0; }
-            100% { background-position: -200% 0; }
         }
         .skeleton-set-card {
             background: var(--bg-card);
@@ -1812,21 +1807,10 @@
             padding: 40px 30px;
             max-width: 420px;
             width: 90%;
-            animation: celebrationPop 0.5s ease-out;
-        }
-        @keyframes celebrationPop {
-            0% { transform: scale(0.8); opacity: 0; }
-            50% { transform: scale(1.05); }
-            100% { transform: scale(1); opacity: 1; }
         }
         .celebration-trophy {
             font-size: 72px;
             margin-bottom: 10px;
-            animation: trophyBounce 1s ease-in-out infinite;
-        }
-        @keyframes trophyBounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-10px); }
         }
         .celebration-title {
             font-family: 'Bebas Neue', cursive;
@@ -1867,11 +1851,6 @@
             display: block;
             font-size: 28px;
             margin-bottom: 6px;
-            animation: starPulse 1.5s ease-in-out infinite;
-        }
-        @keyframes starPulse {
-            0%, 100% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.2); opacity: 0.8; }
         }
         .celebration-score {
             font-family: 'Bebas Neue', cursive;
@@ -1949,19 +1928,6 @@
         .celebration-close:hover {
             color: var(--text-light);
         }
-        .confetti {
-            position: absolute;
-            width: 10px;
-            height: 10px;
-            opacity: 0;
-        }
-        .celebration-overlay.active .confetti {
-            animation: confettiFall 3s ease-out forwards;
-        }
-        @keyframes confettiFall {
-            0% { transform: translateY(-100vh) rotate(0deg); opacity: 1; }
-            100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
-        }
 
         /* Tooltip hints for stats jargon */
         [data-tooltip] {
@@ -1997,6 +1963,11 @@
             z-index: 1001;
         }
     </style>
+
+    <!-- BRDC Navigation System -->
+    <link rel="stylesheet" href="/css/brdc-navigation.css">
+    <link rel="stylesheet" href="/css/brdc-search.css">
+
 </head>
 <body>
     <div class="header-bar">
@@ -2283,16 +2254,6 @@
                 <a href="/pages/dashboard.html" class="celebration-btn secondary">BACK TO DASHBOARD</a>
             </div>
         </div>
-        <!-- Confetti elements -->
-        <div class="confetti" style="left: 10%; background: var(--pink); animation-delay: 0s;"></div>
-        <div class="confetti" style="left: 20%; background: var(--yellow); animation-delay: 0.2s;"></div>
-        <div class="confetti" style="left: 30%; background: var(--teal); animation-delay: 0.4s;"></div>
-        <div class="confetti" style="left: 40%; background: var(--pink); animation-delay: 0.1s;"></div>
-        <div class="confetti" style="left: 50%; background: var(--yellow); animation-delay: 0.3s;"></div>
-        <div class="confetti" style="left: 60%; background: var(--teal); animation-delay: 0.5s;"></div>
-        <div class="confetti" style="left: 70%; background: var(--pink); animation-delay: 0.15s;"></div>
-        <div class="confetti" style="left: 80%; background: var(--yellow); animation-delay: 0.35s;"></div>
-        <div class="confetti" style="left: 90%; background: var(--teal); animation-delay: 0.25s;"></div>
     </div>
 
     <script type="module">
@@ -2750,10 +2711,15 @@
 
             let html = `<div class="legs-detail" id="legs-detail-${setIdx}">`;
 
-            setGames.forEach((game, legIdx) => {
-                const homeWon = game.winner === 'home';
-                const awayWon = game.winner === 'away';
-                const legFormat = game.format || '501';
+            // Get the game (set) - should only be one game per set
+            const game = setGames[0];
+            if (!game || !game.legs) return html + '</div>';
+
+            // Iterate through ALL legs in this game/set
+            (game.legs || []).forEach((leg, legIdx) => {
+                const homeWon = leg.winner === 'home';
+                const awayWon = leg.winner === 'away';
+                const legFormat = leg.format || '501';
                 const legIsCricket = legFormat === 'cricket';
 
                 // Format label
@@ -2764,8 +2730,7 @@
                     formatLabel = `${legFormat} ${inLabel}/${outLabel}`;
                 }
 
-                // Get player stats for this leg from the game's legs array (first leg)
-                const leg = (game.legs || [])[0] || {};
+                // Get player stats for this specific leg
                 const playerStats = leg.player_stats || {};
                 const homePlayers = (game.home_players || []).map(p => typeof p === 'string' ? p : (p?.name || 'TBD'));
                 const awayPlayers = (game.away_players || []).map(p => typeof p === 'string' ? p : (p?.name || 'TBD'));
@@ -2818,7 +2783,7 @@
                                 }).join('')}
                             </div>
                             <div class="leg-center">
-                                <div class="leg-number">LEG ${game.game_in_set || legIdx + 1}</div>
+                                <div class="leg-number">LEG ${leg.leg_number || legIdx + 1}</div>
                                 <div class="leg-format">${formatLabel}</div>
                                 <div class="leg-expand-hint">▼ details</div>
                             </div>
@@ -4778,7 +4743,7 @@
 
         window.setAttendance = async function(status) {
             if (!currentPlayerId) {
-                alert('Please log in to set attendance');
+                toastWarning('Please log in to set attendance');
                 return;
             }
 
@@ -4795,7 +4760,7 @@
 
             } catch (error) {
                 console.error('Error setting attendance:', error);
-                alert('Failed to update attendance');
+                toastError('Failed to update attendance');
             }
         };
 
@@ -4826,6 +4791,24 @@
         // Initialize
         loadMatch();
     </script>
+
+    <!-- BRDC Navigation System -->
+    <script src="/components/brdc-navigation-init.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            initBRDCNavigation({
+                page: 'match-hub',
+                showMobileNav: true,
+                showBackButton: true,
+                showSearch: true,
+                breadcrumbs: [
+                    { label: 'Dashboard', url: '/pages/dashboard.html' },
+                    { label: 'Match', url: '#' }
+                ]
+            });
+        });
+    </script>
+
 <script src="/js/nav-menu.js"></script>
 </body>
 </html>

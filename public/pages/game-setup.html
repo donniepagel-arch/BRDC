@@ -1105,6 +1105,7 @@
             padding: 15px;
             margin-bottom: 15px;
             box-shadow: 0 0 20px rgba(255,70,154,0.2);
+            animation: pulse-glow 2s ease-in-out infinite;
         }
 
         .knockout-toggle-row {
@@ -1253,10 +1254,17 @@
             }
         }
     </style>
+
+    <!-- Toast Notifications -->
+    <script src="/js/brdc-toast.js"></script>
+
+    <!-- BRDC Navigation System -->
+    <link rel="stylesheet" href="/css/brdc-navigation.css">
+    <link rel="stylesheet" href="/css/brdc-search.css">
 </head>
 <body>
     <div class="header-bar">
-        <button class="back-btn" onclick="window.location.href='/'">← BACK</button>
+        <button class="back-btn" onclick="window.location.href='/pages/dashboard.html'">← BACK</button>
         <img src="/images/gold_logo.png" alt="BRDC" class="header-logo">
         <span class="header-title">GAME SETUP</span>
     </div>
@@ -1585,14 +1593,14 @@ window.addPlayerToPool = function() {
     const name = nameInput.value.trim();
 
     if (!name) {
-        alert('Please enter a player name');
+        toastWarning('Please enter a player name');
         nameInput.focus();
         return;
     }
 
     // Check for duplicate
     if (playerPool.some(p => p.name.toLowerCase() === name.toLowerCase())) {
-        alert('Player already added');
+        toastWarning('Player already added');
         return;
     }
 
@@ -1660,7 +1668,7 @@ window.addBotFromDropdown = function(botId) {
 
     // Check if already added
     if (playerPool.some(p => p.registeredBotId === botId)) {
-        alert('This bot is already in the game!');
+        toastWarning('This bot is already in the game!');
         return;
     }
 
@@ -1916,7 +1924,7 @@ window.closePinModal = function() {
 window.lookupPinPlayer = async function() {
     const pin = document.getElementById('pinModalInput').value.trim();
     if (!pin || pin.length !== 8) {
-        alert('Please enter an 8-digit PIN');
+        toastWarning('Please enter an 8-digit PIN');
         return;
     }
 
@@ -1935,7 +1943,7 @@ window.lookupPinPlayer = async function() {
 
             // Check if already added
             if (playerPool.some(p => p.playerId === result.player.id)) {
-                alert('This player is already in the game!');
+                toastWarning('This player is already in the game!');
                 closePinModal();
                 return;
             }
@@ -1950,11 +1958,11 @@ window.lookupPinPlayer = async function() {
             updateStartButton();
             closePinModal();
         } else {
-            alert('PIN not found. Please check and try again.');
+            toastError('PIN not found. Please check and try again.');
         }
     } catch (error) {
         console.error('PIN lookup failed:', error);
-        alert('Error looking up PIN. Please try again.');
+        toastError('Error looking up PIN. Please try again.');
     }
 };
 
@@ -2075,7 +2083,7 @@ window.registerNewPlayer = async function() {
             document.getElementById('regEmail').value = '';
             document.getElementById('regPhone').value = '';
 
-            alert(`Welcome ${result.player.name}! Your PIN has been sent via text to ${phone}`);
+            toastSuccess(`Welcome ${result.player.name}! Your PIN has been sent via text to ${phone}`);
         } else {
             errorDiv.textContent = result.error || 'Registration failed. Please try again.';
         }
@@ -2187,6 +2195,14 @@ function renderMixedConfig() {
                     <option value="x01" ${leg.type === 'x01' ? 'selected' : ''}>X01</option>
                     <option value="corks_choice" ${leg.type === 'corks_choice' ? 'selected' : ''}>Corks Choice</option>
                 </select>
+                ${leg.type === 'corks_choice' ? `
+                    <select class="config-select" style="width:auto;min-width:140px;margin-left:8px;font-size:11px;"
+                            onchange="updateMixedLegCorkWinner(${i}, this.value)">
+                        <option value="choose-and-start" ${(leg.cork_winner || 'choose-and-start') === 'choose-and-start' ? 'selected' : ''}>Choose & Start</option>
+                        <option value="choose-only" ${leg.cork_winner === 'choose-only' ? 'selected' : ''}>Choose Only</option>
+                        <option value="choose-or-start" ${leg.cork_winner === 'choose-or-start' ? 'selected' : ''}>Choose OR Start</option>
+                    </select>
+                ` : ''}
                 ${isX01 ? `
                     <div class="x01-inline">
                         ${leg.type === 'x01' ? `
@@ -2223,9 +2239,18 @@ window.updateMixedLeg = function(legIndex, property, value) {
         if (value === '301') mixedLegs[legIndex].score = 301;
         if (value === '501') mixedLegs[legIndex].score = 501;
         if (value === '701') mixedLegs[legIndex].score = 701;
+        if (value === 'corks_choice') {
+            mixedLegs[legIndex].cork_winner = mixedLegs[legIndex].cork_winner || 'choose-and-start';
+        }
         renderMixedConfig();
     }
 };
+
+function updateMixedLegCorkWinner(legIndex, value) {
+    if (mixedLegs && mixedLegs[legIndex]) {
+        mixedLegs[legIndex].cork_winner = value;
+    }
+}
 
 // Update start button state
 function updateStartButton() {
@@ -2242,7 +2267,7 @@ window.startGame = function() {
     const team2Players = playerPool.filter(p => p.teamId === 2);
 
     if (team1Players.length === 0 || team2Players.length === 0) {
-        alert('Please assign at least one player to each team');
+        toastWarning('Please assign at least one player to each team');
         return;
     }
 
@@ -2594,7 +2619,7 @@ window.toggleStatTracking = function() {
 window.verifyStatPin = async function() {
     const pin = document.getElementById('statPinInput').value.trim();
     if (!pin || pin.length !== 8) {
-        alert('Please enter an 8-digit PIN');
+        toastWarning('Please enter an 8-digit PIN');
         return;
     }
 
@@ -2616,11 +2641,11 @@ window.verifyStatPin = async function() {
             document.getElementById('statPlayerVerified').style.display = 'block';
             document.getElementById('statPlayerName').textContent = result.player.name;
         } else {
-            alert('PIN not found. Check your PIN and try again.');
+            toastError('PIN not found. Check your PIN and try again.');
         }
     } catch (error) {
         console.error('PIN verification failed:', error);
-        alert('Error verifying PIN. Please try again.');
+        toastError('Error verifying PIN. Please try again.');
     }
 
     btn.disabled = false;
@@ -2720,7 +2745,7 @@ window.goToBracket = async function() {
 
     // Check we have at least 2 teams
     if (teams.length < 2) {
-        alert('Need at least 2 teams for knockout');
+        toastWarning('Need at least 2 teams for knockout');
         return;
     }
 
@@ -2748,13 +2773,13 @@ window.goToBracket = async function() {
             localStorage.setItem('currentKnockoutId', result.knockout_id);
             window.location.href = `/pages/knockout.html?id=${result.knockout_id}`;
         } else {
-            alert('Error: ' + result.error);
+            toastError('Error: ' + result.error);
             startBtn.disabled = false;
             startBtn.textContent = 'GO TO BRACKET';
         }
     } catch (error) {
         console.error('Error creating knockout:', error);
-        alert('Failed to create knockout');
+        toastError('Failed to create knockout');
         startBtn.disabled = false;
         startBtn.textContent = 'GO TO BRACKET';
     }
@@ -2773,6 +2798,24 @@ window.goToBracket = async function() {
     }
 })();
 </script>
+
+    <!-- BRDC Navigation System -->
+    <script src="/components/brdc-navigation-init.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            initBRDCNavigation({
+                page: 'game-setup',
+                showMobileNav: true,
+                showBackButton: true,
+                showSearch: true,
+                breadcrumbs: [
+                    { label: 'Dashboard', url: '/pages/dashboard.html' },
+                    { label: 'Game Setup', url: '#' }
+                ]
+            });
+        });
+    </script>
+
 <!-- Nav menu disabled while under construction -->
 <!-- <script src="/js/nav-menu.js"></script> -->
 <script src="/js/feedback.js"></script>

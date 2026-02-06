@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Events Hub - BRDC</title>
 
     <!-- Preconnect to external domains for faster loading -->
@@ -13,6 +13,7 @@
     <link rel="dns-prefetch" href="https://www.gstatic.com">
 
     <link rel="icon" type="image/png" href="/images/favicon.png">
+    <script src="/js/brdc-toast.js"></script>
     <link rel="manifest" href="/manifest.json">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -566,6 +567,7 @@
         .eh-map-view {
             padding: 0;
             height: calc(100vh - 170px);
+            height: calc(100dvh - 170px);
             position: relative;
         }
 
@@ -828,6 +830,7 @@
                 display: grid;
                 grid-template-columns: 1fr 350px;
                 height: calc(100vh - 170px);
+                height: calc(100dvh - 170px);
             }
 
             .eh-map-sidebar {
@@ -856,11 +859,15 @@
             }
         }
     </style>
+
+    <!-- BRDC Navigation System -->
+    <link rel="stylesheet" href="/css/brdc-navigation.css">
+    <link rel="stylesheet" href="/css/brdc-search.css">
 </head>
 <body>
     <!-- Header -->
     <header class="page-header">
-        <button class="header-btn" id="backBtn" aria-label="Go back" onclick="history.back()">&#8592;</button>
+        <button class="header-btn" id="backBtn" aria-label="Go back" onclick="goBack()">&#8592;</button>
         <div class="header-title">EVENTS HUB</div>
         <button class="header-btn" id="chatBtn" aria-label="Messages">&#128172;</button>
     </header>
@@ -1042,6 +1049,15 @@
 
     <script type="module">
         import { db, callFunction, getDoc, getDocs, doc, collection, query, where, orderBy, addDoc, Timestamp } from '/js/firebase-config.js';
+
+        function goBack() {
+            if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                window.location.href = '/pages/dashboard.html';
+            }
+        }
+        window.goBack = goBack;
 
         // ============================================
         // STATE
@@ -1953,7 +1969,7 @@
 
                 await addDoc(collection(db, 'community_events'), eventData);
 
-                alert('Event submitted successfully!');
+                toastSuccess('Event submitted successfully!');
                 form.reset();
                 closeAddEventModal();
 
@@ -1963,7 +1979,7 @@
 
             } catch (error) {
                 console.error('Error submitting event:', error);
-                alert('Error submitting event. Please try again.');
+                toastError('Error submitting event. Please try again.');
             } finally {
                 btn.disabled = false;
                 btn.textContent = 'Submit Event';
@@ -2091,6 +2107,23 @@
             return div.innerHTML;
         }
     </script>
+
+    <!-- BRDC Navigation System -->
+    <script src="/components/brdc-navigation-init.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            initBRDCNavigation({
+                page: 'events-hub',
+                showMobileNav: true,
+                showBackButton: false,
+                showSearch: true,
+                breadcrumbs: [
+                    { label: 'Events', url: '/pages/events-hub.html' }
+                ]
+            });
+        });
+    </script>
+
     <script src="/js/display-helpers.js"></script>
     <script src="/js/fb-nav.js"></script>
 </body>
