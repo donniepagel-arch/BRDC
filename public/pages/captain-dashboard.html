@@ -5,8 +5,33 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Captain Dashboard - BRDC</title>
     <link rel="icon" type="image/png" href="/images/favicon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700&display=swap">
     <link rel="stylesheet" href="/css/brdc-styles.css">
     <style>
+        :root {
+            --pink: #FF469A;
+            --teal: #91D7EB;
+            --yellow: #FDD835;
+            --bg-dark: #1a1a2e;
+            --bg-panel: #16213e;
+            --bg-card: #1e2a47;
+            --text-light: #f0f0f0;
+            --text-dim: #8a8aa3;
+            --border-color: rgba(255,255,255,0.15);
+            --success: #22c55e;
+            --danger: #ef4444;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { min-height: 100%; overflow-x: hidden; width: 100%; }
+        body {
+            background: linear-gradient(135deg, var(--bg-dark) 0%, #0f0f23 100%);
+            color: var(--text-light);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
         body::before {
             content: '';
             position: fixed;
@@ -17,49 +42,71 @@
             pointer-events: none;
             z-index: -1;
         }
+
         .header-bar {
             background: var(--bg-panel);
-            border-bottom: 3px solid var(--pink);
-            padding: 16px 20px;
+            border-bottom: 2px solid var(--pink);
+            padding: 14px 20px;
             display: flex;
             align-items: center;
             gap: 15px;
             position: sticky;
             top: 0;
             z-index: 100;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4), 0 0 30px rgba(255, 70, 154, 0.15);
+        }
+        .back-btn {
+            background: rgba(255,255,255,0.1);
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            padding: 8px 14px;
+            color: var(--text-light);
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .back-btn:hover {
+            background: rgba(255,255,255,0.15);
+            border-color: var(--teal);
         }
         .header-logo {
-            width: 40px;
-            height: 40px;
-            
+            width: 36px;
+            height: 36px;
         }
         .header-title {
             font-family: 'Bebas Neue', cursive;
-            font-size: 28px;
+            font-size: 24px;
             letter-spacing: 3px;
             color: var(--pink);
         }
+
         .dashboard-container {
             max-width: 1200px;
             margin: 0 auto;
             padding: 20px;
         }
         .dashboard-header {
+            background: var(--bg-card);
+            border: 2px solid var(--border-color);
+            border-radius: 16px;
+            padding: 20px 24px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 30px;
+            margin-bottom: 24px;
             flex-wrap: wrap;
             gap: 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
         }
         .team-name {
             font-family: 'Bebas Neue', cursive;
-            font-size: 48px;
+            font-size: 42px;
             color: var(--yellow);
             display: flex;
             align-items: center;
             gap: 12px;
+            line-height: 1;
         }
         .team-name-text {
             cursor: pointer;
@@ -69,7 +116,7 @@
             color: var(--teal);
         }
         .edit-icon {
-            font-size: 24px;
+            font-size: 20px;
             opacity: 0.5;
             cursor: pointer;
             transition: opacity 0.2s;
@@ -79,120 +126,173 @@
         }
         .team-name-input {
             font-family: 'Bebas Neue', cursive;
-            font-size: 40px;
+            font-size: 36px;
             background: rgba(0,0,0,0.3);
-            border: 3px solid var(--yellow);
+            border: 2px solid var(--yellow);
+            border-radius: 8px;
             color: var(--yellow);
             padding: 5px 15px;
             width: 300px;
         }
         .league-name {
-            font-size: 18px;
+            font-size: 14px;
             color: var(--teal);
+            font-weight: 600;
+            margin-top: 4px;
         }
         .record {
             font-family: 'Bebas Neue', cursive;
-            font-size: 36px;
+            font-size: 32px;
             color: white;
         }
 
+        /* Modern Tab Pills */
         .tabs {
             display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 24px;
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            padding-bottom: 8px;
+            scrollbar-width: none;
         }
+        .tabs::-webkit-scrollbar { display: none; }
         .tab {
-            background: rgba(0,0,0,0.3);
-            border: 3px solid var(--black);
-            padding: 12px 24px;
+            background: var(--bg-card);
+            border: 2px solid var(--border-color);
+            border-radius: 24px;
+            padding: 10px 20px;
             font-family: 'Bebas Neue', cursive;
-            font-size: 18px;
-            color: white;
+            font-size: 15px;
+            letter-spacing: 1px;
+            color: var(--text-dim);
             cursor: pointer;
             transition: all 0.2s;
+            white-space: nowrap;
+            flex-shrink: 0;
         }
-        .tab:hover { background: rgba(255,255,255,0.1); }
+        .tab:hover {
+            background: rgba(255,255,255,0.08);
+            border-color: var(--teal);
+            color: var(--text-light);
+        }
         .tab.active {
-            background: var(--yellow);
-            color: black;
+            background: linear-gradient(135deg, var(--pink) 0%, #d63384 100%);
+            border-color: var(--pink);
+            color: white;
+            box-shadow: 0 0 15px rgba(255, 70, 154, 0.4);
         }
 
         .tab-content { display: none; }
         .tab-content.active { display: block; }
 
+        /* Modern Roster Cards */
         .roster-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 16px;
             margin-bottom: 30px;
         }
         .roster-card {
-            background: rgba(0,0,0,0.3);
-            border: 3px solid var(--black);
-            padding: 20px;
-            box-shadow: 4px 4px 0 rgba(0,0,0,0.5);
+            background: var(--bg-card);
+            border: 2px solid var(--border-color);
+            border-radius: 14px;
+            padding: 18px;
+            transition: all 0.2s;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        .roster-card:hover {
+            border-color: var(--teal);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(0,0,0,0.3);
         }
         .roster-card.unavailable {
-            border-color: #ef4444;
-            opacity: 0.7;
+            border-color: var(--danger);
+            opacity: 0.75;
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), var(--bg-card));
         }
         .player-position {
             font-family: 'Bebas Neue', cursive;
-            font-size: 14px;
+            font-size: 12px;
             color: var(--teal);
-            margin-bottom: 5px;
+            letter-spacing: 1px;
+            margin-bottom: 4px;
         }
         .player-name-roster {
             font-family: 'Bebas Neue', cursive;
-            font-size: 28px;
+            font-size: 24px;
             color: white;
-            margin-bottom: 10px;
+            margin-bottom: 12px;
+            line-height: 1.1;
         }
         .player-stats-mini {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
             font-size: 14px;
         }
         .stat-mini {
-            background: rgba(0,0,0,0.3);
-            padding: 8px;
+            background: rgba(0,0,0,0.25);
+            padding: 10px 8px;
             text-align: center;
+            border-radius: 8px;
         }
-        .stat-mini-label { font-size: 11px; color: #aaa; }
+        .stat-mini-label {
+            font-size: 10px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
         .stat-mini-value {
             font-family: 'Bebas Neue', cursive;
             font-size: 20px;
             color: var(--yellow);
         }
         .player-actions {
-            margin-top: 15px;
+            margin-top: 14px;
             display: flex;
-            gap: 10px;
+            gap: 8px;
         }
         .action-btn {
             flex: 1;
-            padding: 8px;
+            padding: 10px;
             font-family: 'Bebas Neue', cursive;
-            font-size: 14px;
-            border: 2px solid var(--black);
+            font-size: 13px;
+            letter-spacing: 1px;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
             cursor: pointer;
+            transition: all 0.2s;
+            background: rgba(0,0,0,0.2);
+            color: var(--text-light);
         }
-        .action-btn.replace { background: #ef4444; color: white; }
+        .action-btn:hover {
+            border-color: var(--teal);
+        }
+        .action-btn.replace {
+            background: linear-gradient(135deg, var(--danger) 0%, #dc2626 100%);
+            border-color: var(--danger);
+            color: white;
+        }
+        .action-btn.replace:hover {
+            box-shadow: 0 0 15px rgba(239, 68, 68, 0.4);
+        }
 
+        /* Attendance Toggle */
         .attendance-toggle {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            margin-top: 10px;
-            padding: 8px 10px;
+            margin-top: 12px;
+            padding: 10px 12px;
             background: rgba(0,0,0,0.3);
-            border-radius: 4px;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
         }
         .attendance-toggle-label {
-            font-size: 12px;
-            color: #aaa;
+            font-size: 11px;
+            color: var(--text-dim);
+            font-weight: 600;
         }
         .attendance-switch {
             position: relative;
@@ -211,7 +311,7 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background-color: #ef4444;
+            background-color: var(--danger);
             border-radius: 26px;
             transition: 0.3s;
         }
@@ -225,9 +325,10 @@
             background: white;
             border-radius: 50%;
             transition: 0.3s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
         }
         .attendance-switch input:checked + .attendance-slider {
-            background-color: #22c55e;
+            background-color: var(--success);
         }
         .attendance-switch input:checked + .attendance-slider:before {
             transform: translateX(24px);
@@ -236,154 +337,237 @@
             font-size: 11px;
             font-weight: 700;
             margin-left: 8px;
+            letter-spacing: 0.5px;
         }
-        .attendance-status.available { color: #22c55e; }
-        .attendance-status.unavailable { color: #ef4444; }
+        .attendance-status.available { color: var(--success); }
+        .attendance-status.unavailable { color: var(--danger); }
 
+        /* Schedule Table */
         .schedule-table {
             width: 100%;
-            border-collapse: collapse;
+            border-collapse: separate;
+            border-spacing: 0;
+            background: var(--bg-card);
+            border-radius: 12px;
+            overflow: hidden;
+            border: 2px solid var(--border-color);
         }
         .schedule-table th, .schedule-table td {
-            padding: 15px;
+            padding: 14px 16px;
             text-align: left;
-            border-bottom: 2px solid rgba(255,255,255,0.1);
+            border-bottom: 1px solid var(--border-color);
         }
         .schedule-table th {
             font-family: 'Bebas Neue', cursive;
-            font-size: 16px;
+            font-size: 14px;
+            letter-spacing: 1px;
             color: var(--teal);
             background: rgba(0,0,0,0.3);
         }
-        .schedule-table tr:hover { background: rgba(255,255,255,0.05); }
-        .status-badge {
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: bold;
+        .schedule-table tr:last-child td {
+            border-bottom: none;
         }
-        .status-badge.scheduled { background: #3b82f6; color: white; }
-        .status-badge.in_progress { background: var(--yellow); color: black; }
-        .status-badge.completed { background: #22c55e; color: white; }
+        .schedule-table tr:hover td {
+            background: rgba(255,255,255,0.03);
+        }
+        .status-badge {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+        .status-badge.scheduled {
+            background: rgba(59, 130, 246, 0.2);
+            color: #60a5fa;
+        }
+        .status-badge.in_progress {
+            background: rgba(253, 216, 53, 0.2);
+            color: var(--yellow);
+        }
+        .status-badge.completed {
+            background: rgba(34, 197, 94, 0.2);
+            color: var(--success);
+        }
 
         .availability-indicator { display: flex; gap: 5px; }
         .avail-dot {
-            width: 24px;
-            height: 24px;
+            width: 26px;
+            height: 26px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 12px;
-            font-weight: bold;
+            font-size: 11px;
+            font-weight: 700;
         }
-        .avail-dot.available { background: #22c55e; color: white; }
-        .avail-dot.unavailable { background: #ef4444; color: white; }
-        .avail-dot.unknown { background: #666; color: white; }
+        .avail-dot.available { background: var(--success); color: white; }
+        .avail-dot.unavailable { background: var(--danger); color: white; }
+        .avail-dot.unknown { background: var(--text-dim); color: var(--bg-dark); }
 
+        /* Lineup Section */
         .lineup-section {
-            background: rgba(0,0,0,0.3);
-            border: 3px solid var(--black);
+            background: var(--bg-card);
+            border: 2px solid var(--border-color);
+            border-radius: 14px;
             padding: 20px;
             margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
         }
         .lineup-title {
             font-family: 'Bebas Neue', cursive;
-            font-size: 24px;
+            font-size: 22px;
             color: var(--yellow);
-            margin-bottom: 15px;
+            margin-bottom: 16px;
+            letter-spacing: 1px;
         }
         .lineup-row {
             display: flex;
             align-items: center;
             gap: 15px;
-            padding: 10px;
-            background: rgba(255,255,255,0.05);
+            padding: 12px 14px;
+            background: rgba(0,0,0,0.2);
             margin-bottom: 10px;
-            border-radius: 8px;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
         }
         .lineup-position {
             font-family: 'Bebas Neue', cursive;
-            font-size: 24px;
+            font-size: 22px;
             color: var(--teal);
             width: 30px;
         }
         .lineup-select {
             flex: 1;
-            padding: 10px;
-            font-size: 16px;
-            border: 2px solid var(--black);
+            padding: 12px;
+            font-size: 14px;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            background: rgba(0,0,0,0.3);
+            color: var(--text-light);
+        }
+        .lineup-select:focus {
+            outline: none;
+            border-color: var(--teal);
         }
 
-        .notifications-list { max-height: 300px; overflow-y: auto; }
+        /* Notifications */
+        .notifications-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
         .notification-item {
-            padding: 15px;
-            background: rgba(0,0,0,0.3);
+            padding: 16px;
+            background: var(--bg-card);
             border-left: 4px solid var(--yellow);
-            margin-bottom: 10px;
+            margin-bottom: 12px;
+            border-radius: 0 10px 10px 0;
+            transition: all 0.2s;
+        }
+        .notification-item:hover {
+            background: rgba(255,255,255,0.03);
         }
         .notification-item.unread {
             border-left-color: var(--pink);
-            background: rgba(255,70,154,0.1);
+            background: linear-gradient(90deg, rgba(255,70,154,0.1), var(--bg-card));
         }
-        .notification-time { font-size: 12px; color: #aaa; }
+        .notification-time {
+            font-size: 11px;
+            color: var(--text-dim);
+            margin-top: 6px;
+        }
 
+        /* Subs List */
         .subs-list {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 15px;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 14px;
         }
         .sub-card {
-            background: rgba(0,0,0,0.3);
-            border: 3px solid var(--black);
-            padding: 15px;
+            background: var(--bg-card);
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px;
+            transition: all 0.2s;
+        }
+        .sub-card:hover {
+            border-color: var(--teal);
+            transform: translateY(-2px);
         }
         .sub-name {
             font-family: 'Bebas Neue', cursive;
-            font-size: 20px;
+            font-size: 18px;
             color: white;
         }
-        .sub-skill { font-size: 12px; color: var(--teal); text-transform: uppercase; }
+        .sub-skill {
+            font-size: 11px;
+            color: var(--teal);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
 
         /* Level Badges */
         .level-badge {
             display: inline-block;
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-size: 12px;
-            font-weight: bold;
+            padding: 3px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 700;
             margin-left: 8px;
             vertical-align: middle;
+            letter-spacing: 0.5px;
         }
-        .level-badge.level-A { background: gold; color: #000; }
-        .level-badge.level-B { background: silver; color: #000; }
-        .level-badge.level-C { background: #cd7f32; color: #fff; }
-        .level-badge.level-unknown { background: #666; color: #fff; }
+        .level-badge.level-A {
+            background: linear-gradient(135deg, #ffd700, #ffa500);
+            color: #000;
+        }
+        .level-badge.level-B {
+            background: linear-gradient(135deg, #c0c0c0, #a8a8a8);
+            color: #000;
+        }
+        .level-badge.level-C {
+            background: linear-gradient(135deg, #cd7f32, #a0522d);
+            color: #fff;
+        }
+        .level-badge.level-unknown {
+            background: var(--text-dim);
+            color: var(--bg-dark);
+        }
 
         /* Sub Level Filters */
         .sub-filters {
             display: flex;
             gap: 8px;
-            margin-bottom: 16px;
             flex-wrap: wrap;
         }
         .filter-btn {
-            padding: 8px 16px;
+            padding: 8px 18px;
             font-family: 'Bebas Neue', cursive;
             font-size: 14px;
-            border: 2px solid var(--black);
-            background: rgba(0,0,0,0.3);
-            color: white;
+            letter-spacing: 1px;
+            border: 2px solid var(--border-color);
+            border-radius: 20px;
+            background: var(--bg-card);
+            color: var(--text-dim);
             cursor: pointer;
             transition: all 0.2s;
         }
-        .filter-btn:hover { background: rgba(255,255,255,0.1); }
-        .filter-btn.active { background: var(--teal); color: black; }
+        .filter-btn:hover {
+            background: rgba(255,255,255,0.08);
+            border-color: var(--teal);
+            color: var(--text-light);
+        }
+        .filter-btn.active {
+            background: var(--teal);
+            border-color: var(--teal);
+            color: var(--bg-dark);
+        }
 
         /* Fill-in Request UI */
         .fillin-request-section {
-            background: rgba(0,0,0,0.3);
-            border: 3px solid var(--black);
+            background: var(--bg-card);
+            border: 2px solid var(--border-color);
+            border-radius: 14px;
             padding: 20px;
             margin-bottom: 20px;
         }
@@ -391,135 +575,173 @@
             font-family: 'Bebas Neue', cursive;
             font-size: 20px;
             color: var(--yellow);
-            margin-bottom: 15px;
+            margin-bottom: 16px;
+            letter-spacing: 1px;
         }
         .pending-requests {
-            margin-top: 20px;
+            margin-top: 24px;
         }
         .request-card {
-            background: rgba(255,255,255,0.05);
-            border: 2px solid var(--black);
-            padding: 15px;
-            margin-bottom: 10px;
-            border-radius: 8px;
+            background: rgba(0,0,0,0.2);
+            border: 2px solid var(--border-color);
+            padding: 16px;
+            margin-bottom: 12px;
+            border-radius: 12px;
         }
         .request-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 10px;
+            margin-bottom: 12px;
         }
         .request-match {
             font-family: 'Bebas Neue', cursive;
             font-size: 18px;
             color: var(--teal);
+            letter-spacing: 1px;
         }
         .request-status {
-            padding: 4px 10px;
-            font-size: 11px;
-            font-weight: bold;
-            border-radius: 12px;
+            padding: 5px 12px;
+            font-size: 10px;
+            font-weight: 700;
+            border-radius: 16px;
+            letter-spacing: 0.5px;
         }
-        .request-status.pending { background: var(--yellow); color: black; }
-        .request-status.confirmed { background: #22c55e; color: white; }
+        .request-status.pending {
+            background: rgba(253, 216, 53, 0.2);
+            color: var(--yellow);
+        }
+        .request-status.confirmed {
+            background: rgba(34, 197, 94, 0.2);
+            color: var(--success);
+        }
         .response-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 10px;
-            margin-top: 10px;
+            margin-top: 12px;
             font-size: 12px;
         }
         .response-column {
-            background: rgba(0,0,0,0.2);
-            padding: 8px;
-            border-radius: 4px;
+            background: rgba(0,0,0,0.25);
+            padding: 10px;
+            border-radius: 8px;
         }
         .response-label {
             font-size: 10px;
-            color: #aaa;
-            margin-bottom: 5px;
+            color: var(--text-dim);
+            margin-bottom: 6px;
             text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
-        .response-list { color: white; }
-        .response-list.interested { color: #22c55e; }
-        .response-list.declined { color: #ef4444; }
+        .response-list { color: var(--text-light); }
+        .response-list.interested { color: var(--success); }
+        .response-list.declined { color: var(--danger); }
 
-        /* Message Team Button */
+        /* Header Actions */
         .header-actions {
             display: flex;
-            gap: 10px;
+            gap: 12px;
             align-items: center;
         }
         .header-action-btn {
-            padding: 8px 16px;
+            padding: 10px 18px;
             font-family: 'Bebas Neue', cursive;
             font-size: 14px;
-            border: 2px solid var(--black);
+            letter-spacing: 1px;
+            border: 2px solid var(--border-color);
+            border-radius: 10px;
             cursor: pointer;
             transition: all 0.2s;
         }
         .header-action-btn.message-btn {
-            background: var(--pink);
+            background: linear-gradient(135deg, var(--pink) 0%, #d63384 100%);
+            border-color: var(--pink);
             color: white;
+            box-shadow: 0 0 15px rgba(255, 70, 154, 0.3);
         }
-        .header-action-btn.message-btn:hover { background: #d63384; }
+        .header-action-btn.message-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 25px rgba(255, 70, 154, 0.5);
+        }
 
         /* Checkbox list for subs selection */
         .sub-select-list {
             max-height: 300px;
             overflow-y: auto;
             margin: 15px 0;
+            border-radius: 10px;
         }
         .sub-select-item {
             display: flex;
             align-items: center;
-            gap: 10px;
-            padding: 10px;
+            gap: 12px;
+            padding: 12px 14px;
             background: rgba(0,0,0,0.2);
-            margin-bottom: 5px;
-            border-radius: 4px;
+            margin-bottom: 6px;
+            border-radius: 8px;
             cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid transparent;
         }
-        .sub-select-item:hover { background: rgba(255,255,255,0.1); }
+        .sub-select-item:hover {
+            background: rgba(255,255,255,0.08);
+            border-color: var(--border-color);
+        }
         .sub-select-item input[type="checkbox"] {
             width: 18px;
             height: 18px;
             cursor: pointer;
+            accent-color: var(--pink);
         }
         .sub-select-name {
             flex: 1;
             font-family: 'Bebas Neue', cursive;
             font-size: 16px;
+            color: var(--text-light);
         }
         .sub-select-level {
-            font-size: 11px;
-            padding: 2px 6px;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 3px 8px;
             background: var(--teal);
-            color: black;
-            border-radius: 3px;
+            color: var(--bg-dark);
+            border-radius: 6px;
+            letter-spacing: 0.5px;
         }
 
         /* Channel checkboxes */
         .channel-options {
             display: flex;
-            gap: 20px;
+            gap: 24px;
             margin: 15px 0;
         }
         .channel-option {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
             cursor: pointer;
+            color: var(--text-light);
         }
-        .channel-option input { width: 18px; height: 18px; }
-        .channel-option label { cursor: pointer; }
+        .channel-option input {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--pink);
+        }
+        .channel-option span { font-size: 14px; }
 
         /* Free Agent Cards */
         .free-agent-card {
-            background: rgba(0,0,0,0.3);
-            border: 3px solid var(--black);
-            padding: 15px;
+            background: var(--bg-card);
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px;
             position: relative;
+            transition: all 0.2s;
+        }
+        .free-agent-card:hover {
+            border-color: var(--teal);
+            transform: translateY(-2px);
         }
         .free-agent-card.invited {
             border-color: var(--yellow);
@@ -532,86 +754,152 @@
         }
         .free-agent-level {
             display: inline-block;
-            padding: 2px 8px;
-            font-size: 11px;
+            padding: 3px 10px;
+            font-size: 10px;
             background: var(--teal);
-            color: black;
-            font-weight: bold;
-            margin-top: 5px;
+            color: var(--bg-dark);
+            font-weight: 700;
+            margin-top: 6px;
+            border-radius: 6px;
+            letter-spacing: 0.5px;
         }
         .free-agent-note {
             font-size: 12px;
-            color: #aaa;
-            margin-top: 8px;
+            color: var(--text-dim);
+            margin-top: 10px;
             font-style: italic;
         }
         .invite-btn {
-            margin-top: 10px;
-            padding: 8px 16px;
-            background: var(--pink);
-            border: 2px solid var(--black);
+            margin-top: 12px;
+            padding: 10px 16px;
+            background: linear-gradient(135deg, var(--pink) 0%, #d63384 100%);
+            border: 2px solid var(--pink);
+            border-radius: 8px;
             color: white;
             font-family: 'Bebas Neue', cursive;
             font-size: 14px;
+            letter-spacing: 1px;
             cursor: pointer;
             width: 100%;
+            transition: all 0.2s;
         }
-        .invite-btn:hover { background: #d63384; }
+        .invite-btn:hover {
+            box-shadow: 0 0 15px rgba(255, 70, 154, 0.4);
+        }
         .invite-btn:disabled {
-            background: #666;
+            background: var(--text-dim);
+            border-color: var(--text-dim);
             cursor: not-allowed;
+            box-shadow: none;
         }
         .invited-badge {
             position: absolute;
-            top: 10px;
-            right: 10px;
+            top: 12px;
+            right: 12px;
             background: var(--yellow);
-            color: black;
-            padding: 2px 8px;
+            color: var(--bg-dark);
+            padding: 3px 10px;
             font-size: 10px;
-            font-weight: bold;
+            font-weight: 700;
+            border-radius: 6px;
+            letter-spacing: 0.5px;
         }
 
+        /* Modern Modals */
         .modal-overlay {
             position: fixed;
             inset: 0;
-            background: rgba(0,0,0,0.9);
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(4px);
             display: none;
             align-items: center;
             justify-content: center;
             z-index: 1000;
+            padding: 20px;
         }
         .modal-overlay.active { display: flex; }
         .modal-content {
-            background: linear-gradient(180deg, #1F85AF 0%, #001F4D 100%);
-            border: 4px solid var(--black);
-            padding: 30px;
+            background: linear-gradient(180deg, var(--bg-panel) 0%, var(--bg-dark) 100%);
+            border: 2px solid var(--border-color);
+            border-radius: 16px;
+            padding: 28px;
             max-width: 500px;
-            width: 90%;
-            box-shadow: 8px 8px 0 rgba(0,0,0,0.5);
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 0 40px rgba(255, 70, 154, 0.1);
         }
         .modal-title {
             font-family: 'Bebas Neue', cursive;
-            font-size: 28px;
+            font-size: 26px;
             color: var(--yellow);
             margin-bottom: 20px;
+            letter-spacing: 2px;
         }
 
+        /* Modern Form Elements */
+        .brdc-input, .brdc-select, .brdc-textarea {
+            width: 100%;
+            padding: 14px 16px;
+            background: rgba(0,0,0,0.3);
+            border: 2px solid var(--border-color);
+            border-radius: 10px;
+            font-size: 14px;
+            color: var(--text-light);
+            transition: all 0.2s;
+        }
+        .brdc-input:focus, .brdc-select:focus, .brdc-textarea:focus {
+            outline: none;
+            border-color: var(--pink);
+            background: rgba(255, 70, 154, 0.1);
+            box-shadow: 0 0 15px rgba(255, 70, 154, 0.2);
+        }
+        .brdc-input::placeholder {
+            color: var(--text-dim);
+        }
+        .brdc-select {
+            cursor: pointer;
+        }
+        .brdc-select option {
+            background: var(--bg-dark);
+            color: var(--text-light);
+        }
+
+        /* Modern Buttons */
+        .brdc-btn {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, var(--pink) 0%, #d63384 100%);
+            border: 2px solid var(--pink);
+            border-radius: 10px;
+            color: white;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 16px;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .brdc-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 20px rgba(255, 70, 154, 0.4);
+        }
+        .brdc-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        .brdc-btn-secondary {
+            background: rgba(255,255,255,0.1);
+            border-color: var(--border-color);
+        }
+        .brdc-btn-secondary:hover {
+            background: rgba(255,255,255,0.15);
+            border-color: var(--teal);
+            box-shadow: none;
+        }
+
+        /* Responsive Styles */
         @media (max-width: 768px) {
-            .team-name { font-size: 32px; }
+            .team-name { font-size: 28px; }
             .record { font-size: 24px; }
-            .tabs {
-                gap: 6px;
-                overflow-x: auto;
-                flex-wrap: nowrap;
-                padding-bottom: 8px;
-            }
-            .tab {
-                padding: 10px 14px;
-                font-size: 14px;
-                white-space: nowrap;
-                flex-shrink: 0;
-            }
             .roster-grid {
                 grid-template-columns: 1fr;
             }
@@ -619,11 +907,11 @@
                 padding: 16px;
             }
             .player-name-roster {
-                font-size: 24px;
+                font-size: 22px;
             }
             .schedule-table th,
             .schedule-table td {
-                padding: 10px 8px;
+                padding: 12px 10px;
                 font-size: 13px;
             }
             .availability-indicator {
@@ -636,42 +924,61 @@
                 width: 100%;
             }
             .modal-content {
-                width: 95%;
-                padding: 20px;
+                width: 100%;
+                padding: 24px 20px;
             }
             .dashboard-header {
                 flex-direction: column;
                 text-align: center;
+                padding: 16px;
             }
             .dashboard-header > div:last-child {
                 text-align: center;
             }
+            .header-actions {
+                justify-content: center;
+                flex-wrap: wrap;
+            }
             .subs-list {
+                grid-template-columns: 1fr;
+            }
+            .response-grid {
                 grid-template-columns: 1fr;
             }
         }
 
         @media (max-width: 480px) {
-            .team-name { font-size: 26px; }
+            .dashboard-container {
+                padding: 12px;
+            }
+            .team-name { font-size: 24px; }
             .record { font-size: 20px; }
-            .header-title { font-size: 22px; }
-            .tab {
-                padding: 8px 12px;
+            .header-title { font-size: 18px; }
+            .header-bar {
+                padding: 12px 14px;
+                gap: 10px;
+            }
+            .back-btn {
+                padding: 6px 10px;
                 font-size: 12px;
             }
+            .tab {
+                padding: 8px 14px;
+                font-size: 13px;
+            }
             .player-stats-mini {
-                grid-template-columns: 1fr 1fr;
+                grid-template-columns: repeat(2, 1fr);
                 gap: 6px;
             }
             .stat-mini {
-                padding: 6px;
+                padding: 8px 6px;
             }
             .stat-mini-value {
                 font-size: 18px;
             }
             .schedule-table th,
             .schedule-table td {
-                padding: 8px 6px;
+                padding: 10px 8px;
                 font-size: 12px;
             }
             .schedule-table th:nth-child(5),
@@ -681,11 +988,17 @@
                 display: none;
             }
             .lineup-title {
-                font-size: 20px;
+                font-size: 18px;
             }
             .brdc-btn, .action-btn {
                 padding: 10px 16px;
                 font-size: 14px;
+            }
+            .modal-content {
+                padding: 20px 16px;
+            }
+            .modal-title {
+                font-size: 22px;
             }
         }
 
@@ -716,11 +1029,31 @@
             outline: 2px solid var(--yellow);
             outline-offset: 2px;
         }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.2);
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-dim);
+        }
     </style>
+
+    <!-- Toast Notifications -->
+    <script src="/js/brdc-toast.js"></script>
 </head>
 <body>
     <header class="header-bar" role="banner">
-        <button class="back-btn" onclick="history.back()" aria-label="Go back to previous page">← BACK</button>
+        <button class="back-btn" onclick="window.location.href='/pages/dashboard.html'" aria-label="Back to Dashboard">← BACK</button>
         <img src="/images/gold_logo.png" alt="Burning River Dart Club" class="header-logo">
         <h1 class="header-title">CAPTAIN DASHBOARD</h1>
     </header>
@@ -834,7 +1167,7 @@
                 <button class="header-action-btn message-btn" onclick="openMessageModal()">MESSAGE TEAM</button>
                 <div style="text-align: right;">
                     <div class="record" id="teamRecord">0-0</div>
-                    <div style="font-size: 14px; color: #aaa;">Games: <span id="gamesRecord">0-0</span></div>
+                    <div style="font-size: 12px; color: var(--text-dim);">Games: <span id="gamesRecord" style="color: var(--teal); font-weight: 600;">0-0</span></div>
                 </div>
             </div>
         </div>
@@ -944,20 +1277,102 @@
         const params = new URLSearchParams(window.location.search);
         currentLeagueId = params.get('league_id');
 
-        // Check for saved session FIRST before showing login
-        const savedSession = localStorage.getItem('captainSession');
-        if (savedSession) {
-            const session = JSON.parse(savedSession);
-            captainEmail = session.email;
-            currentTeamId = session.teamId;
-            currentLeagueId = session.leagueId || currentLeagueId;
+        // Initialize session - check main brdc_session first, then captain session
+        let currentPlayerId = null;
 
-            // Validate the session
-            (async () => {
+        (async () => {
+            // First try main BRDC session (from dashboard login)
+            const brdcSession = localStorage.getItem('brdc_session');
+            if (brdcSession) {
+                try {
+                    const session = JSON.parse(brdcSession);
+                    currentPlayerId = session.player_id;
+
+                    // Get dashboard data to find captain's team info
+                    const dashResult = await callFunction('getDashboardData', {
+                        player_id: session.player_id,
+                        source_type: session.source_type || 'global',
+                        league_id: session.league_id || currentLeagueId
+                    });
+
+                    if (dashResult.success && dashResult.dashboard) {
+                        const player = dashResult.dashboard.player;
+                        const roles = dashResult.dashboard.roles;
+
+                        console.log('Player:', player.name, 'is_captain:', player.is_captain);
+                        console.log('Roles playing:', roles?.playing);
+
+                        // Find captain role - check if player is captain of any team
+                        if (roles && roles.playing) {
+                            for (const team of roles.playing) {
+                                // Skip teams without team_id
+                                if (!team.team_id) {
+                                    console.log('Skipping team without team_id:', team);
+                                    continue;
+                                }
+
+                                // Use league_id from URL if provided, otherwise use first team
+                                const teamLeagueId = team.league_id || team.id;
+                                if (!currentLeagueId || teamLeagueId === currentLeagueId) {
+                                    currentLeagueId = teamLeagueId;
+                                    currentTeamId = team.team_id;
+                                    captainEmail = player.email || null;
+
+                                    console.log('Trying team:', currentTeamId, 'league:', currentLeagueId, 'playerId:', player.id);
+
+                                    // Try to load captain dashboard - use player ID for auth
+                                    try {
+                                        const params = {
+                                            league_id: currentLeagueId,
+                                            team_id: currentTeamId,
+                                            captain_id: player.id
+                                        };
+                                        // Only add email if it exists
+                                        if (captainEmail) params.captain_email = captainEmail;
+
+                                        const result = await callFunction('getCaptainDashboard', params);
+
+                                        console.log('getCaptainDashboard result:', result.success, result.error);
+
+                                        if (result.success) {
+                                            dashboardData = result;
+                                            // Also save to captainSession for future visits
+                                            localStorage.setItem('captainSession', JSON.stringify({
+                                                email: captainEmail,
+                                                teamId: currentTeamId,
+                                                leagueId: currentLeagueId,
+                                                playerId: player.id
+                                            }));
+                                            document.getElementById('dashboardContent').style.display = 'block';
+                                            renderDashboard();
+                                            return; // Success - don't show login
+                                        }
+                                    } catch (dashErr) {
+                                        console.error('getCaptainDashboard error:', dashErr);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.error('BRDC session check failed:', error);
+                }
+            }
+
+            // Fall back to captain session
+            const savedSession = localStorage.getItem('captainSession');
+            if (savedSession) {
+                const session = JSON.parse(savedSession);
+                captainEmail = session.email;
+                currentTeamId = session.teamId;
+                currentLeagueId = session.leagueId || currentLeagueId;
+                currentPlayerId = session.playerId;
+
                 try {
                     const result = await callFunction('getCaptainDashboard', {
                         league_id: currentLeagueId,
                         team_id: currentTeamId,
+                        captain_id: currentPlayerId,
                         captain_email: captainEmail
                     });
                     if (result.success) {
@@ -967,22 +1382,21 @@
                         return; // Session valid, don't show login
                     }
                 } catch (error) {
-                    console.error('Session check failed:', error);
+                    console.error('Captain session check failed:', error);
                 }
-                // Session invalid, clear it and show login
+                // Session invalid, clear it
                 localStorage.removeItem('captainSession');
                 captainEmail = null;
                 currentTeamId = null;
-                document.getElementById('loginModal').classList.add('active');
-            })();
-        } else {
-            // No saved session, show login modal
+            }
+
+            // No valid session found, show login modal
             document.getElementById('loginModal').classList.add('active');
-        }
+        })();
 
         window.captainLogin = async function() {
             const email = document.getElementById('loginEmail').value.trim().toLowerCase();
-            if (!email) { alert('Please enter your email'); return; }
+            if (!email) { toastWarning('Please enter your email'); return; }
 
             try {
                 const result = await callFunction('captainLogin', { league_id: currentLeagueId, email });
@@ -993,11 +1407,11 @@
                     localStorage.setItem('captainSession', JSON.stringify({ email: captainEmail, teamId: currentTeamId, leagueId: currentLeagueId }));
                     loadDashboard();
                 } else {
-                    alert(result.error || 'Login failed');
+                    toastError(result.error || 'Login failed');
                 }
             } catch (error) {
                 console.error('Login error:', error);
-                alert('Login failed: ' + error.message);
+                toastError('Login failed: ' + error.message);
             }
         };
 
@@ -1016,11 +1430,11 @@
                     dashboardData = result;
                     renderDashboard();
                 } else {
-                    alert(result.error || 'Failed to load dashboard');
+                    toastError(result.error || 'Failed to load dashboard');
                 }
             } catch (error) {
                 console.error('Load dashboard error:', error);
-                alert('Failed to load dashboard');
+                toastError('Failed to load dashboard');
             }
         }
 
@@ -1090,11 +1504,11 @@
                     dashboardData.team.team_name = newName;
                     nameSpan.textContent = newName;
                 } else {
-                    alert(result.error || 'Failed to update team name');
+                    toastError(result.error || 'Failed to update team name');
                 }
             } catch (error) {
                 console.error('Update team name error:', error);
-                alert('Failed to update team name');
+                toastError('Failed to update team name');
             }
         };
 
@@ -1137,7 +1551,7 @@
                 });
 
                 if (result.success) {
-                    alert(`Invite sent to ${freeAgentName}!`);
+                    toastSuccess(`Invite sent to ${freeAgentName}!`);
                     // Update UI
                     const fa = dashboardData.free_agents?.find(f => f.id === freeAgentId);
                     if (fa) {
@@ -1146,11 +1560,11 @@
                     }
                     renderFreeAgents(dashboardData.free_agents || [], dashboardData.team);
                 } else {
-                    alert(result.error || 'Failed to send invite');
+                    toastError(result.error || 'Failed to send invite');
                 }
             } catch (error) {
                 console.error('Invite error:', error);
-                alert('Failed to send invite');
+                toastError('Failed to send invite');
             }
         };
 
@@ -1185,7 +1599,7 @@
                         statusEl.className = `attendance-status ${isAvailable ? 'unavailable' : 'available'}`;
                     }
                     if (card) card.classList.toggle('unavailable', isAvailable);
-                    alert(result.error || 'Failed to update availability');
+                    toastError(result.error || 'Failed to update availability');
                 } else {
                     // Update local data
                     const match = dashboardData?.matches?.find(m => m.id === matchId);
@@ -1199,7 +1613,7 @@
                 // Revert on error
                 const checkbox = card?.querySelector('input[type="checkbox"]');
                 if (checkbox) checkbox.checked = !isAvailable;
-                alert('Failed to update attendance');
+                toastError('Failed to update attendance');
             }
         };
 
@@ -1328,8 +1742,8 @@
 
             try {
                 const result = await callFunction('setMatchLineup', { league_id: currentLeagueId, match_id: matchId, team_id: currentTeamId, captain_email: captainEmail, lineup });
-                if (result.success) { alert('Lineup saved successfully!'); } else { alert(result.error || 'Failed to save lineup'); }
-            } catch (error) { console.error('Save lineup error:', error); alert('Failed to save lineup'); }
+                if (result.success) { toastSuccess('Lineup saved successfully!'); } else { toastError(result.error || 'Failed to save lineup'); }
+            } catch (error) { console.error('Save lineup error:', error); toastError('Failed to save lineup'); }
         };
 
         let currentSubFilter = 'ALL';
@@ -1446,12 +1860,12 @@
             const subIds = Array.from(checkboxes).map(cb => cb.value);
 
             if (!matchId) {
-                alert('Please select a match');
+                toastWarning('Please select a match');
                 return;
             }
 
             if (subIds.length === 0) {
-                alert('Please select at least one substitute to contact');
+                toastWarning('Please select at least one substitute to contact');
                 return;
             }
 
@@ -1466,16 +1880,16 @@
                 });
 
                 if (result.success) {
-                    alert(`Fill-in requests sent to ${result.sent_to?.length || 0} subs!`);
+                    toastSuccess(`Fill-in requests sent to ${result.sent_to?.length || 0} subs!`);
                     closeFillinModal();
                     // Reload to show pending requests
                     loadPendingFillinRequests();
                 } else {
-                    alert(result.error || 'Failed to send fill-in requests');
+                    toastError(result.error || 'Failed to send fill-in requests');
                 }
             } catch (error) {
                 console.error('Send fill-in requests error:', error);
-                alert('Failed to send fill-in requests: ' + error.message);
+                toastError('Failed to send fill-in requests: ' + error.message);
             }
         };
 
@@ -1545,14 +1959,14 @@
                 });
 
                 if (result.success) {
-                    alert(`${result.sub?.name || 'Sub'} confirmed as fill-in!`);
+                    toastSuccess(`${result.sub?.name || 'Sub'} confirmed as fill-in!`);
                     loadPendingFillinRequests();
                 } else {
-                    alert(result.error || 'Failed to confirm fill-in');
+                    toastError(result.error || 'Failed to confirm fill-in');
                 }
             } catch (error) {
                 console.error('Confirm fill-in error:', error);
-                alert('Failed to confirm fill-in');
+                toastError('Failed to confirm fill-in');
             }
         };
 
@@ -1596,7 +2010,7 @@
             const message = document.getElementById('teamMessage').value.trim();
 
             if (!message) {
-                alert('Please enter a message');
+                toastWarning('Please enter a message');
                 return;
             }
 
@@ -1605,7 +2019,7 @@
             const recipients = Array.from(checkboxes).map(cb => cb.value);
 
             if (recipients.length === 0) {
-                alert('Please select at least one recipient');
+                toastWarning('Please select at least one recipient');
                 return;
             }
 
@@ -1615,7 +2029,7 @@
             if (document.getElementById('channelEmail').checked) channels.push('email');
 
             if (channels.length === 0) {
-                alert('Please select at least one channel (SMS or Email)');
+                toastWarning('Please select at least one channel (SMS or Email)');
                 return;
             }
 
@@ -1631,14 +2045,14 @@
 
                 if (result.success) {
                     const successCount = result.results?.filter(r => r.status === 'queued').length || 0;
-                    alert(`Message sent to ${successCount} team member(s)!`);
+                    toastSuccess(`Message sent to ${successCount} team member(s)!`);
                     closeMessageModal();
                 } else {
-                    alert(result.error || 'Failed to send message');
+                    toastError(result.error || 'Failed to send message');
                 }
             } catch (error) {
                 console.error('Send team message error:', error);
-                alert('Failed to send message: ' + error.message);
+                toastError('Failed to send message: ' + error.message);
             }
         };
 
@@ -1664,14 +2078,14 @@
         window.confirmReplacement = async function() {
             const newPlayerId = document.getElementById('replacementSelect').value;
             const reason = document.getElementById('replaceReason').value;
-            if (!newPlayerId) { alert('Please select a replacement'); return; }
+            if (!newPlayerId) { toastWarning('Please select a replacement'); return; }
             if (!confirm('This will permanently remove the player from your roster. Are you sure?')) return;
 
             try {
                 const result = await callFunction('permanentReplacement', { league_id: currentLeagueId, team_id: currentTeamId, drop_player_id: replacePlayerId, new_player_id: newPlayerId, captain_email: captainEmail, reason });
-                if (result.success) { alert('Player replaced successfully!'); closeReplaceModal(); loadDashboard(); }
-                else { alert(result.error || 'Failed to replace player'); }
-            } catch (error) { console.error('Replace error:', error); alert('Failed to replace player'); }
+                if (result.success) { toastSuccess('Player replaced successfully!'); closeReplaceModal(); loadDashboard(); }
+                else { toastError(result.error || 'Failed to replace player'); }
+            } catch (error) { console.error('Replace error:', error); toastError('Failed to replace player'); }
         };
 
         window.showTab = function(tabName, clickEvent) {
@@ -1692,6 +2106,7 @@
 
         document.getElementById('loginEmail').addEventListener('keypress', (e) => { if (e.key === 'Enter') captainLogin(); });
     </script>
+
 <script src="/js/display-helpers.js"></script>
 <script src="/js/stats-helpers.js"></script>
 <script src="/js/feedback.js"></script>

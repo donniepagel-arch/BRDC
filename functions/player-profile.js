@@ -618,18 +618,20 @@ exports.getCaptainDashboard = functions.https.onRequest(async (req, res) => {
             subs.push({ id: doc.id, ...sub });
         });
 
-        // Get notifications for captain
-        const notificationsSnapshot = await db.collection('leagues').doc(league_id)
-            .collection('notifications')
-            .where('recipient_id', '==', team.captain_id)
-            .orderBy('created_at', 'desc')
-            .limit(10)
-            .get();
-
+        // Get notifications for captain (only if captain_id is set)
         const notifications = [];
-        notificationsSnapshot.forEach(doc => {
-            notifications.push({ id: doc.id, ...doc.data() });
-        });
+        if (team.captain_id) {
+            const notificationsSnapshot = await db.collection('leagues').doc(league_id)
+                .collection('notifications')
+                .where('recipient_id', '==', team.captain_id)
+                .orderBy('created_at', 'desc')
+                .limit(10)
+                .get();
+
+            notificationsSnapshot.forEach(doc => {
+                notifications.push({ id: doc.id, ...doc.data() });
+            });
+        }
 
         // Get free agents (players without team_id who registered for this league)
         const freeAgents = [];
