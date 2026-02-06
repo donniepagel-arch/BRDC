@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - BRDC</title>
 
     <!-- Preconnect to external domains for faster loading -->
@@ -496,9 +496,18 @@
 
         .fb-feed-card {
             background: var(--bg-card);
-            border: 2px solid var(--border-color);
+            border: 3px solid var(--border-color);
             border-radius: 12px;
             overflow: hidden;
+            box-shadow: 4px 4px 0 rgba(0,0,0,0.3);
+        }
+
+        .fb-feed-card.match-result-card {
+            border-color: var(--teal);
+        }
+
+        .fb-feed-card.league-night-card {
+            border-color: var(--pink);
         }
 
         .fb-feed-card-header {
@@ -592,6 +601,508 @@
             border-right: 1px solid var(--border-color);
         }
 
+        /* Match roster styles for feed cards */
+        .match-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .match-row:last-child {
+            border-bottom: none;
+        }
+
+        .match-player-cell {
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            gap: 8px;
+            min-height: 32px;
+        }
+
+        /* Left cell: Name on outer (left) edge, stats toward center (right) */
+        .match-player-cell.left {
+            flex-direction: row;
+            justify-content: space-between;
+            border-right: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .match-player-cell.left .match-player-name {
+            text-align: left;
+        }
+
+        .match-player-cell.left .match-player-stats {
+            flex-shrink: 0;
+            min-width: 60px;
+            text-align: right;
+        }
+
+        /* Right cell: Stats toward center (left), name on outer (right) edge */
+        .match-player-cell.right {
+            flex-direction: row;
+            justify-content: space-between;
+        }
+
+        .match-player-cell.right .match-player-stats {
+            flex-shrink: 0;
+            min-width: 60px;
+            text-align: left;
+        }
+
+        .match-player-cell.right .match-player-name {
+            text-align: right;
+        }
+
+        .match-player-name {
+            font-size: 12px;
+            color: var(--text-light);
+            flex: 0 0 auto;
+        }
+
+        .match-player-stats {
+            color: var(--text-dim);
+            font-size: 10px;
+        }
+
+        .match-player-stats .better {
+            color: #4ade80;
+        }
+
+        .match-player-stats .worse {
+            color: #f87171;
+        }
+
+        /* Match card header styles */
+        .match-header {
+            text-align: center;
+            padding: 15px 10px;
+        }
+
+        .match-header-league {
+            font-size: 12px;
+            color: var(--text-dim);
+            margin-bottom: 8px;
+        }
+
+        .match-header-result {
+            font-family: 'Bebas Neue', cursive;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            color: var(--text-light);
+        }
+
+        .match-header-result .winner-name {
+            color: var(--yellow);
+            font-size: 22px;
+            letter-spacing: 1px;
+        }
+
+        .match-header-result .score-sep {
+            color: var(--text-dim);
+            font-size: 13px;
+            letter-spacing: 0.5px;
+        }
+
+        .match-header-result .loser-name {
+            font-size: 18px;
+            color: var(--text-light);
+            letter-spacing: 1px;
+        }
+
+        .match-header-result .final-score {
+            color: var(--yellow);
+            font-weight: 700;
+            font-size: 24px;
+            margin-top: 2px;
+        }
+
+        .match-header-date {
+            font-size: 11px;
+            color: var(--text-dim);
+        }
+
+        /* Team info boxes */
+        .team-boxes-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .team-info-box {
+            text-align: center;
+            padding: 10px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+        }
+
+        .team-name {
+            font-weight: 700;
+            font-size: 14px;
+            color: var(--teal);
+            margin-bottom: 4px;
+        }
+
+        .team-record {
+            font-size: 11px;
+            color: var(--text-dim);
+            margin-bottom: 6px;
+        }
+
+        .team-stats {
+            font-size: 13px;
+        }
+
+        .stat-label {
+            font-size: 10px;
+            color: var(--text-dim);
+            font-weight: 400;
+        }
+
+        /* Improve better/worse colors */
+        .better {
+            color: #22c55e;
+            font-weight: 600;
+        }
+
+        .worse {
+            color: #ef4444;
+            font-weight: 600;
+        }
+
+        /* Mobile responsive media queries */
+        @media (max-width: 480px) {
+            .match-header {
+                padding: 12px 8px;
+            }
+
+            .match-header-result .winner-name {
+                font-size: 20px;
+            }
+
+            .match-header-result .loser-name {
+                font-size: 16px;
+            }
+
+            .match-header-result .score-sep {
+                font-size: 12px;
+            }
+
+            .match-header-result .final-score {
+                font-size: 22px;
+            }
+
+            .team-name {
+                font-size: 13px;
+            }
+
+            .team-stats {
+                font-size: 12px;
+            }
+        }
+
+        @media (max-width: 400px) {
+            .team-boxes-grid {
+                grid-template-columns: 1fr;
+                gap: 8px;
+                margin-bottom: 16px;
+            }
+
+            .match-header-league {
+                font-size: 11px;
+            }
+
+            .match-header-date {
+                font-size: 10px;
+            }
+        }
+
+        @media (max-width: 375px) {
+            .match-player-cell {
+                padding: 6px 8px;
+                gap: 4px;
+            }
+
+            .match-player-stats {
+                font-size: 9px;
+                min-width: 55px;
+            }
+
+            .match-player-name {
+                font-size: 11px;
+            }
+
+            .fb-feed-card-body {
+                padding: 10px;
+            }
+        }
+
+        @media (max-width: 320px) {
+            .match-header {
+                padding: 10px 6px;
+            }
+
+            .match-header-result .winner-name {
+                font-size: 18px;
+            }
+
+            .match-header-result .loser-name {
+                font-size: 14px;
+            }
+
+            .match-header-result .final-score {
+                font-size: 20px;
+            }
+
+            .team-info-box {
+                padding: 8px;
+            }
+
+            .team-name {
+                font-size: 12px;
+            }
+
+            .team-record {
+                font-size: 10px;
+            }
+
+            .team-stats {
+                font-size: 11px;
+            }
+        }
+
+        /* ===== MATCH NIGHT BANNER ===== */
+        .match-night-banner {
+            background: var(--bg-card);
+            color: var(--text-light);
+            padding: 16px 20px;
+            border-radius: 12px;
+            border: 3px solid var(--yellow);
+            margin: 0 16px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            box-shadow: 0 0 20px rgba(253, 216, 53, 0.4), 0 0 40px rgba(253, 216, 53, 0.2);
+        }
+        .match-night-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 20px;
+            letter-spacing: 2px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--yellow);
+            border-bottom: 1px solid rgba(253, 216, 53, 0.3);
+            padding-bottom: 12px;
+        }
+        .match-night-header {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 16px;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .match-night-team {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .match-night-team.left {
+            text-align: right;
+            align-items: flex-end;
+        }
+        .match-night-team.right {
+            text-align: left;
+            align-items: flex-start;
+        }
+        .match-night-team-name {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 18px;
+            color: var(--text-light);
+        }
+        .match-night-team-info {
+            font-size: 11px;
+            color: var(--text-dim);
+        }
+        .match-night-team-avg {
+            font-size: 12px;
+            color: var(--teal);
+            font-weight: 600;
+        }
+        .match-night-vs {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 16px;
+            color: var(--text-dim);
+            letter-spacing: 2px;
+        }
+        .match-night-roster {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            padding-top: 12px;
+        }
+        .match-night-roster-player {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 8px;
+            font-size: 11px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .match-night-roster-player:last-child {
+            border-bottom: none;
+        }
+        .match-night-roster-left {
+            border-right: 1px solid rgba(255,255,255,0.08);
+        }
+        .match-night-roster-left .match-night-roster-player {
+            flex-direction: row;
+        }
+        .match-night-roster-left .match-night-roster-name {
+            text-align: left;
+        }
+        .match-night-roster-left .match-night-roster-stats {
+            text-align: right;
+        }
+        .match-night-roster-right .match-night-roster-name {
+            text-align: right;
+        }
+        .match-night-roster-right .match-night-roster-stats {
+            text-align: left;
+        }
+        .match-night-roster-name {
+            color: var(--text-light);
+        }
+        .match-night-roster-stats {
+            color: var(--text-dim);
+            font-size: 10px;
+        }
+        .match-night-roster-stats .better {
+            color: #4ade80;
+        }
+        .match-night-roster-stats .worse {
+            color: #f87171;
+        }
+        .fill-in-badge {
+            display: inline-block;
+            background: var(--teal);
+            color: var(--black);
+            font-size: 8px;
+            font-weight: 700;
+            padding: 1px 4px;
+            border-radius: 3px;
+            vertical-align: middle;
+            margin: 0 2px;
+        }
+        .match-night-buttons {
+            display: flex;
+            gap: 12px;
+        }
+        .match-night-btn {
+            flex: 1;
+            padding: 12px 16px;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.15s;
+            background: rgba(0,0,0,0.3);
+            color: var(--text-light);
+        }
+        .match-night-btn:hover {
+            transform: translateY(-2px);
+            border-color: var(--yellow);
+        }
+        .match-night-btn.confirm {
+            background: rgba(34, 197, 94, 0.2);
+            border-color: #22c55e;
+            color: #22c55e;
+        }
+        .match-night-btn.confirm:hover {
+            background: rgba(34, 197, 94, 0.3);
+        }
+        .match-night-btn.cant-make {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: #ef4444;
+            color: #ef4444;
+        }
+        .match-night-btn.cant-make:hover {
+            background: rgba(239, 68, 68, 0.3);
+        }
+        .match-night-btn.selected {
+            box-shadow: 0 0 0 3px rgba(253, 216, 53, 0.3);
+        }
+
+        /* Captain Section in Match Night Banner */
+        .match-night-captain {
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid rgba(255, 255, 255, 0.15);
+        }
+        .match-night-captain-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 14px;
+            color: var(--pink);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .match-night-status-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        .match-night-status-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+        .match-night-status-item.confirmed {
+            background: rgba(34, 197, 94, 0.2);
+            border: 1px solid rgba(34, 197, 94, 0.4);
+        }
+        .match-night-status-item.declined {
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid rgba(239, 68, 68, 0.4);
+        }
+        .match-night-status-item.pending {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .match-night-status-icon {
+            font-size: 14px;
+        }
+        .match-night-captain-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--pink), #ff1493);
+            color: white;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 14px;
+            letter-spacing: 0.5px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: transform 0.15s, box-shadow 0.15s;
+        }
+        .match-night-captain-btn:hover {
+            transform: scale(1.02);
+            box-shadow: 0 4px 12px rgba(255, 70, 154, 0.4);
+        }
+
         .fb-feed-loading {
             text-align: center;
             padding: 40px 20px;
@@ -607,37 +1118,6 @@
         .fb-feed-empty-icon {
             font-size: 48px;
             margin-bottom: 12px;
-        }
-
-        /* ===== FAB ===== */
-        .fb-fab {
-            position: fixed;
-            bottom: calc(70px + env(safe-area-inset-bottom, 0px));
-            right: 16px;
-            width: 56px;
-            height: 56px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, var(--pink), #d63384);
-            border: none;
-            color: white;
-            font-size: 28px;
-            font-weight: 300;
-            cursor: pointer;
-            box-shadow: 0 4px 12px rgba(255, 70, 154, 0.4);
-            z-index: 100;
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .fb-fab:hover {
-            transform: scale(1.1);
-            box-shadow: 0 6px 20px rgba(255, 70, 154, 0.5);
-        }
-
-        .fb-fab:active {
-            transform: scale(0.95);
         }
 
         /* ===== MODALS ===== */
@@ -888,7 +1368,47 @@
             outline: 2px solid var(--yellow);
             outline-offset: 2px;
         }
+
+        /* ===== SKELETON LOADERS ===== */
+        .skeleton {
+            background: linear-gradient(90deg, var(--bg-card) 25%, var(--bg-panel) 50%, var(--bg-card) 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: 8px;
+        }
+
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        .skeleton-story-card {
+            flex: 0 0 auto;
+            width: 130px;
+            height: 160px;
+            border-radius: 12px;
+        }
+
+        .skeleton-feed-item {
+            height: 120px;
+            margin-bottom: 12px;
+            border-radius: 12px;
+        }
+
+        .skeleton-text {
+            height: 16px;
+            margin-bottom: 8px;
+            width: 80%;
+            border-radius: 4px;
+        }
     </style>
+
+    <!-- BRDC Navigation System -->
+    <link rel="stylesheet" href="/css/brdc-navigation.css">
+    <link rel="stylesheet" href="/css/brdc-search.css">
+
+    <!-- Toast Notifications -->
+    <script src="/js/brdc-toast.js"></script>
 </head>
 <body class="fb-page">
     <!-- Initial Loading Screen -->
@@ -941,7 +1461,7 @@
             </button>
         </div>
         <div class="fb-header-center">
-            <a href="/">
+            <a href="/pages/dashboard.html">
                 <img src="/images/gold_logo.png" alt="BRDC" class="fb-header-logo">
             </a>
         </div>
@@ -963,15 +1483,25 @@
     <!-- Main Content (hidden until logged in) -->
     <main class="fb-main" id="mainContent" style="display: none;">
 
+        <!-- Match Night Banner -->
+        <div class="match-night-banner" id="matchNightBanner" style="display: none;">
+            <div class="match-night-title">🎯 MATCH NIGHT - <span id="matchWeek">WEEK 1</span></div>
+            <div id="matchNightContent"></div>
+            <div class="match-night-buttons">
+                <button class="match-night-btn confirm" id="confirmBtn" onclick="confirmAvailability('available')">✓ I'LL BE THERE</button>
+                <button class="match-night-btn cant-make" id="cantMakeBtn" onclick="confirmAvailability('unavailable')">✗ CAN'T MAKE IT</button>
+            </div>
+            <div class="match-night-captain" id="matchNightCaptain" style="display: none;"></div>
+        </div>
+
         <!-- My Events Row -->
         <section class="fb-stories-container">
             <h3 class="fb-section-title" style="margin: 0 16px 8px; font-family: 'Bebas Neue', cursive; font-size: 18px; color: var(--text-light);">My Events</h3>
             <div class="fb-stories-scroll" id="scheduleStories">
-                <!-- Story cards populated by JS -->
-                <div class="fb-story-card">
-                    <div class="fb-story-date">Loading</div>
-                    <div class="fb-story-day">...</div>
-                </div>
+                <!-- Skeleton placeholders -->
+                <div class="skeleton skeleton-story-card"></div>
+                <div class="skeleton skeleton-story-card"></div>
+                <div class="skeleton skeleton-story-card"></div>
             </div>
             <a href="/pages/events-hub.html" class="fb-see-all-link">See All Events</a>
         </section>
@@ -1002,13 +1532,13 @@
 
         <!-- News Feed -->
         <section class="fb-feed" id="newsFeed">
-            <div class="fb-feed-loading">Loading your feed...</div>
+            <!-- Skeleton placeholders -->
+            <div class="skeleton skeleton-feed-item"></div>
+            <div class="skeleton skeleton-feed-item"></div>
+            <div class="skeleton skeleton-feed-item"></div>
         </section>
 
     </main>
-
-    <!-- FAB (Floating Action Button) -->
-    <button class="fb-fab" id="fabButton" onclick="openPostModal()" aria-label="Create post">+</button>
 
     <!-- Post Modal -->
     <div class="fb-modal-overlay" id="postModal">
@@ -1058,9 +1588,6 @@
 
         // Mark module as loaded
         window.moduleLoaded = true;
-
-        // Initialize on load
-        initDashboard();
 
         function initDashboard() {
             hideInitialLoader();
@@ -1138,9 +1665,17 @@
             document.getElementById('loginOverlay').classList.add('hidden');
             document.getElementById('mainContent').style.display = 'block';
 
-            // Initialize FB navigation
+            // Initialize or update FB navigation
             if (window.FBNav && currentPlayer) {
-                window.FBNav.init(currentPlayer);
+                // Check if already initialized (sidebar property exists on FBNav)
+                if (window.FBNav.sidebar) {
+                    // Already initialized, just update player and regenerate content
+                    window.FBNav.sidebar.setPlayer(currentPlayer);
+                    window.FBNav.sidebar.generateContent();
+                } else {
+                    // First time init
+                    window.FBNav.init(currentPlayer);
+                }
             }
         }
 
@@ -1203,41 +1738,125 @@
             }
         };
 
+        // Cache helper with stale-while-revalidate pattern
+        const CacheHelper = {
+            FRESH_TIME: 5 * 60 * 1000,      // 5 minutes
+            STALE_TIME: 30 * 60 * 1000,     // 30 minutes
+
+            get(key) {
+                try {
+                    const cached = localStorage.getItem(key);
+                    if (!cached) return null;
+                    const { data, timestamp } = JSON.parse(cached);
+                    const age = Date.now() - timestamp;
+                    return {
+                        data,
+                        age,
+                        isFresh: age < this.FRESH_TIME,
+                        isStale: age >= this.FRESH_TIME && age < this.STALE_TIME,
+                        isExpired: age >= this.STALE_TIME
+                    };
+                } catch (e) {
+                    return null;
+                }
+            },
+
+            set(key, data) {
+                try {
+                    localStorage.setItem(key, JSON.stringify({
+                        data,
+                        timestamp: Date.now()
+                    }));
+                } catch (e) {
+                    console.warn('Cache set failed:', e);
+                }
+            },
+
+            clear(key) {
+                localStorage.removeItem(key);
+            }
+        };
+
         async function loadDashboard(playerId, sourceType, leagueId) {
+            const cacheKey = `dashboard_data_${playerId}_${sourceType}_${leagueId}`;
+            const cached = CacheHelper.get(cacheKey);
+
+            // If cache is fresh, use it immediately and skip API call
+            if (cached && cached.isFresh) {
+                console.log('[Cache] Using fresh cache');
+                dashboardData = cached.data.dashboard;
+                currentPlayer = dashboardData.player;
+                if (cached.data.playerStats) {
+                    dashboardData.playerStats = cached.data.playerStats;
+                }
+                renderDashboard();
+                showDashboard();
+                return;
+            }
+
+            // If cache is stale, show it immediately while fetching fresh data
+            if (cached && cached.isStale) {
+                console.log('[Cache] Using stale cache, fetching fresh data...');
+                dashboardData = cached.data.dashboard;
+                currentPlayer = dashboardData.player;
+                if (cached.data.playerStats) {
+                    dashboardData.playerStats = cached.data.playerStats;
+                }
+                renderDashboard();
+                showDashboard();
+                // Continue to fetch fresh data in background
+            }
+
+            // Fetch fresh data (either no cache, expired cache, or stale cache)
+            // Run both calls in PARALLEL for faster loading
             try {
-                const result = await callFunction('getDashboardData', {
-                    player_id: playerId,
-                    source_type: sourceType || 'global',
-                    league_id: leagueId || null
-                });
+                const [result, statsResult] = await Promise.all([
+                    callFunction('getDashboardData', {
+                        player_id: playerId,
+                        source_type: sourceType || 'global',
+                        league_id: leagueId || null
+                    }),
+                    callFunction('getPlayerStatsFiltered', {
+                        player_id: playerId,
+                        source: 'combined'
+                    }).catch(err => {
+                        console.log('Could not load filtered stats:', err);
+                        return null;
+                    })
+                ]);
 
                 if (result.success) {
                     dashboardData = result.dashboard;
                     currentPlayer = dashboardData.player;
 
-                    // Also try to load league stats for more accurate calculations
-                    try {
-                        const statsResult = await callFunction('getPlayerStatsFiltered', {
-                            player_id: playerId,
-                            source: 'combined'
-                        });
-                        if (statsResult.success && statsResult.stats) {
-                            dashboardData.playerStats = statsResult.stats;
-                        }
-                    } catch (statsError) {
-                        console.log('Could not load filtered stats, using player.stats:', statsError);
+                    // Apply stats if loaded successfully
+                    if (statsResult?.success && statsResult?.stats) {
+                        dashboardData.playerStats = statsResult.stats;
                     }
 
+                    // Update cache
+                    CacheHelper.set(cacheKey, {
+                        dashboard: dashboardData,
+                        playerStats: dashboardData.playerStats
+                    });
+
+                    // Re-render with fresh data (if we showed stale cache, this updates it)
                     renderDashboard();
                     showDashboard();
                 } else {
-                    localStorage.removeItem('brdc_session');
-                    showLoginPage();
+                    // Only clear session and show login if we don't have cached data
+                    if (!cached) {
+                        localStorage.removeItem('brdc_session');
+                        showLoginPage();
+                    }
                 }
             } catch (error) {
                 console.error('Load dashboard error:', error);
-                localStorage.removeItem('brdc_session');
-                showLoginPage();
+                // Only clear session and show login if we don't have cached data
+                if (!cached) {
+                    localStorage.removeItem('brdc_session');
+                    showLoginPage();
+                }
             }
         }
 
@@ -1310,75 +1929,83 @@
             const container = document.getElementById('scheduleStories');
             const events = [];
 
-            // Get upcoming and recent matches from roles
+            // Get upcoming and recent matches from roles - fetch ALL in parallel
             if (roles && roles.playing) {
-                for (const team of roles.playing) {
-                    try {
-                        const result = await callFunction('getTeamScheduleEnhanced', {
-                            league_id: team.league_id || team.id,
-                            team_id: team.team_id,
-                            player_id: currentPlayer.id
+                const schedulePromises = roles.playing.map(team =>
+                    callFunction('getTeamScheduleEnhanced', {
+                        league_id: team.league_id || team.id,
+                        team_id: team.team_id,
+                        player_id: currentPlayer.id
+                    }).then(result => ({ team, result, error: null }))
+                      .catch(error => ({ team, result: null, error }))
+                );
+
+                const scheduleResults = await Promise.all(schedulePromises);
+
+                for (const { team, result, error } of scheduleResults) {
+                    if (error) {
+                        console.error('Error loading team schedule:', error);
+                        continue;
+                    }
+
+                    if (result && result.success) {
+                        // Add all upcoming matches
+                        (result.upcoming || []).forEach(match => {
+                            const matchDate = getDateFromTimestamp(match.match_date);
+
+                            // Calculate team averages from rosters
+                            const myRoster = match.my_team?.roster || [];
+                            const oppRoster = match.opponent?.roster || [];
+
+                            const myAvg = calculateTeamAvg(myRoster);
+                            const oppAvg = calculateTeamAvg(oppRoster);
+
+                            events.push({
+                                type: 'league',
+                                date: matchDate,
+                                week: match.week,
+                                opponent: match.opponent?.name || 'TBD',
+                                myTeam: match.my_team?.name || 'My Team',
+                                myRecord: match.my_team?.record || '(0-0)',
+                                oppRecord: match.opponent?.record || '(0-0)',
+                                myStanding: match.my_team?.standing || '',
+                                oppStanding: match.opponent?.standing || '',
+                                myAvg: myAvg,
+                                oppAvg: oppAvg,
+                                myRoster: myRoster,
+                                oppRoster: oppRoster,
+                                id: match.id,
+                                leagueId: team.league_id || team.id,
+                                leagueName: formatLeagueName(team.league_name || team.name),
+                                completed: false,
+                                isHome: match.is_home
+                            });
                         });
 
-                        if (result.success) {
-                            // Add all upcoming matches
-                            (result.upcoming || []).forEach(match => {
-                                const matchDate = getDateFromTimestamp(match.match_date);
+                        // Add recent completed matches
+                        (result.past || []).forEach(match => {
+                            const matchDate = getDateFromTimestamp(match.match_date);
 
-                                // Calculate team averages from rosters
-                                const myRoster = match.my_team?.roster || [];
-                                const oppRoster = match.opponent?.roster || [];
-
-                                const myAvg = calculateTeamAvg(myRoster);
-                                const oppAvg = calculateTeamAvg(oppRoster);
-
-                                events.push({
-                                    type: 'league',
-                                    date: matchDate,
-                                    week: match.week,
-                                    opponent: match.opponent?.name || 'TBD',
-                                    myTeam: match.my_team?.name || 'My Team',
-                                    myRecord: match.my_team?.record || '(0-0)',
-                                    oppRecord: match.opponent?.record || '(0-0)',
-                                    myStanding: match.my_team?.standing || '',
-                                    oppStanding: match.opponent?.standing || '',
-                                    myAvg: myAvg,
-                                    oppAvg: oppAvg,
-                                    id: match.id,
-                                    leagueId: team.league_id || team.id,
-                                    leagueName: formatLeagueName(team.league_name || team.name),
-                                    completed: false,
-                                    isHome: match.is_home
-                                });
+                            events.push({
+                                type: 'league',
+                                date: matchDate,
+                                week: match.week,
+                                opponent: match.opponent?.name || 'TBD',
+                                myTeam: match.my_team?.name || 'My Team',
+                                myRecord: match.my_team?.record || '(0-0)',
+                                oppRecord: match.opponent?.record || '(0-0)',
+                                myStanding: match.my_team?.standing || '',
+                                oppStanding: match.opponent?.standing || '',
+                                id: match.id,
+                                leagueId: team.league_id || team.id,
+                                leagueName: formatLeagueName(team.league_name || team.name),
+                                completed: true,
+                                won: match.won,
+                                myScore: match.my_score ?? '-',
+                                theirScore: match.their_score ?? '-',
+                                isHome: match.is_home
                             });
-
-                            // Add recent completed matches
-                            (result.past || []).forEach(match => {
-                                const matchDate = getDateFromTimestamp(match.match_date);
-
-                                events.push({
-                                    type: 'league',
-                                    date: matchDate,
-                                    week: match.week,
-                                    opponent: match.opponent?.name || 'TBD',
-                                    myTeam: match.my_team?.name || 'My Team',
-                                    myRecord: match.my_team?.record || '(0-0)',
-                                    oppRecord: match.opponent?.record || '(0-0)',
-                                    myStanding: match.my_team?.standing || '',
-                                    oppStanding: match.opponent?.standing || '',
-                                    id: match.id,
-                                    leagueId: team.league_id || team.id,
-                                    leagueName: formatLeagueName(team.league_name || team.name),
-                                    completed: true,
-                                    won: match.won,
-                                    myScore: match.my_score ?? '-',
-                                    theirScore: match.their_score ?? '-',
-                                    isHome: match.is_home
-                                });
-                            });
-                        }
-                    } catch (e) {
-                        console.error('Error loading team schedule:', e);
+                        });
                     }
                 }
             }
@@ -1399,6 +2026,9 @@
                 if (a.isPast && b.isPast) return b.date - a.date; // Most recent past first
                 return a.date - b.date; // Earliest future first
             });
+
+            // Check if there's a match tonight
+            checkMatchNight(events);
 
             // Render story cards
             if (events.length > 0) {
@@ -1531,24 +2161,33 @@
                 const roles = dashboardData?.roles;
                 const feedItems = [];
 
-                // Get feed from all leagues player is in
+                // Get feed from all leagues player is in - fetch ALL in parallel
                 if (roles && roles.playing) {
-                    for (const team of roles.playing) {
+                    const feedPromises = roles.playing.map(team => {
                         const leagueId = team.league_id || team.id;
-
-                        // Get feed items from this league
-                        const feedSnap = await getDocs(
+                        return getDocs(
                             query(
                                 collection(db, 'leagues', leagueId, 'feed'),
                                 orderBy('created_at', 'desc'),
                                 limit(50)
                             )
-                        );
+                        ).then(feedSnap => ({ leagueId, feedSnap, error: null }))
+                         .catch(error => ({ leagueId, feedSnap: null, error }));
+                    });
 
-                        feedSnap.forEach(doc => {
-                            const item = { id: doc.id, ...doc.data(), leagueId };
-                            feedItems.push(item);
-                        });
+                    const feedResults = await Promise.all(feedPromises);
+
+                    for (const { leagueId, feedSnap, error } of feedResults) {
+                        if (error) {
+                            console.error('Error loading feed for league', leagueId, error);
+                            continue;
+                        }
+                        if (feedSnap) {
+                            feedSnap.forEach(doc => {
+                                const item = { id: doc.id, ...doc.data(), leagueId };
+                                feedItems.push(item);
+                            });
+                        }
                     }
                 }
 
@@ -1637,80 +2276,122 @@
         function renderMatchResultFeedCard(item) {
             const data = item.data;
             const matchDate = getDateFromTimestamp(item.created_at);
-            const dateStr = matchDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+            const dateStr = matchDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 
             const homeWon = data.home_score > data.away_score;
+            const winnerName = homeWon ? data.home_team_name : data.away_team_name;
+            const loserName = homeWon ? data.away_team_name : data.home_team_name;
 
-            // Render rosters
-            const homeRosterHtml = (data.home_roster || [])
-                .sort((a, b) => (a.level || 'Z').localeCompare(b.level || 'Z'))
-                .map(p => `<div style="font-size: 12px; color: var(--text-light);">${p.name}</div>`)
-                .join('');
+            // Compare stat values for highlighting
+            const compareValues = (leftVal, rightVal) => {
+                if (!leftVal || !rightVal) return { left: '', right: '' };
+                if (Math.abs(leftVal - rightVal) < 0.1) return { left: '', right: '' };
+                return leftVal > rightVal ? { left: 'better', right: 'worse' } : { left: 'worse', right: 'better' };
+            };
 
-            const awayRosterHtml = (data.away_roster || [])
-                .sort((a, b) => (a.level || 'Z').localeCompare(b.level || 'Z'))
-                .map(p => `<div style="font-size: 12px; color: var(--text-light);">${p.name}</div>`)
-                .join('');
+            // Sort rosters by level
+            const homeRoster = (data.home_roster || []).sort((a, b) => (a.level || 'Z').localeCompare(b.level || 'Z'));
+            const awayRoster = (data.away_roster || []).sort((a, b) => (a.level || 'Z').localeCompare(b.level || 'Z'));
 
-            // Render top performers by level
-            let performersHtml = '';
-            if (data.top_performers) {
-                const levels = ['A', 'B', 'C'];
-                const performersList = levels.map(level => {
-                    const perf = data.top_performers[level];
-                    if (!perf) return '';
-                    const stat = perf.avg_3da || perf.mpr;
-                    const statLabel = perf.avg_3da ? `${perf.avg_3da} 3DA` : `${perf.mpr} MPR`;
-                    return `<span style="color: var(--text-light); font-size: 12px;">${level}: ${perf.name} (${statLabel})</span>`;
-                }).filter(x => x).join(' • ');
+            // Team averages with comparison
+            const homeTeam3DA = data.home_team_avg?.x01_three_dart_avg ?? data.home_team_avg?.avg_3da;
+            const homeTeamMPR = data.home_team_avg?.cricket_mpr ?? data.home_team_avg?.mpr;
+            const awayTeam3DA = data.away_team_avg?.x01_three_dart_avg ?? data.away_team_avg?.avg_3da;
+            const awayTeamMPR = data.away_team_avg?.cricket_mpr ?? data.away_team_avg?.mpr;
 
-                if (performersList) {
-                    performersHtml = `<div style="text-align: center; margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.1);">${performersList}</div>`;
-                }
+            const teamDACompare = compareValues(homeTeam3DA, awayTeam3DA);
+            const teamMPRCompare = compareValues(homeTeamMPR, awayTeamMPR);
+
+            const home3DAStr = homeTeam3DA != null ? homeTeam3DA.toFixed(1) : '-';
+            const homeMPRStr = homeTeamMPR != null ? homeTeamMPR.toFixed(2) : '-';
+            const away3DAStr = awayTeam3DA != null ? awayTeam3DA.toFixed(1) : '-';
+            const awayMPRStr = awayTeamMPR != null ? awayTeamMPR.toFixed(2) : '-';
+
+            // Build roster rows with stats comparison
+            const maxRows = Math.max(homeRoster.length, awayRoster.length);
+            let rosterRows = '';
+
+            for (let i = 0; i < maxRows; i++) {
+                const homePlayer = homeRoster[i];
+                const awayPlayer = awayRoster[i];
+
+                const homeName = homePlayer ? homePlayer.name : '';
+                const awayName = awayPlayer ? awayPlayer.name : '';
+
+                const home3DA = homePlayer?.x01_three_dart_avg ?? homePlayer?.avg_3da;
+                const homeMPR = homePlayer?.cricket_mpr ?? homePlayer?.mpr;
+                const away3DA = awayPlayer?.x01_three_dart_avg ?? awayPlayer?.avg_3da;
+                const awayMPR = awayPlayer?.cricket_mpr ?? awayPlayer?.mpr;
+
+                const daCompare = (homePlayer && awayPlayer) ? compareValues(home3DA, away3DA) : { left: '', right: '' };
+                const mprCompare = (homePlayer && awayPlayer) ? compareValues(homeMPR, awayMPR) : { left: '', right: '' };
+
+                const home3DAPlayerStr = home3DA != null ? home3DA.toFixed(1) : '-';
+                const homeMPRPlayerStr = homeMPR != null ? homeMPR.toFixed(2) : '-';
+                const away3DAPlayerStr = away3DA != null ? away3DA.toFixed(1) : '-';
+                const awayMPRPlayerStr = awayMPR != null ? awayMPR.toFixed(2) : '-';
+
+                rosterRows += `
+                    <div class="match-row">
+                        <div class="match-player-cell left">
+                            <span class="match-player-name">${homeName}</span>
+                            <span class="match-player-stats"><span class="${daCompare.left}">${home3DAPlayerStr}</span> / <span class="${mprCompare.left}">${homeMPRPlayerStr}</span></span>
+                        </div>
+                        <div class="match-player-cell right">
+                            <span class="match-player-stats"><span class="${daCompare.right}">${away3DAPlayerStr}</span> / <span class="${mprCompare.right}">${awayMPRPlayerStr}</span></span>
+                            <span class="match-player-name">${awayName}</span>
+                        </div>
+                    </div>`;
             }
 
             return `
-                <div class="fb-feed-card">
-                    <div class="fb-feed-card-header">
-                        <div class="fb-feed-avatar" style="background: var(--teal)">
-                            &#127919;
+                <div class="fb-feed-card match-result-card">
+                    <div class="fb-feed-card-header match-header">
+                        <div class="match-header-league">${item.league_name || 'League'} - Week ${item.week}</div>
+                        <div class="match-header-result">
+                            <div class="winner-name">${winnerName}</div>
+                            <div class="score-sep">def.</div>
+                            <div class="loser-name">${loserName}</div>
+                            <div class="final-score">${data.home_score}-${data.away_score}</div>
                         </div>
-                        <div class="fb-feed-meta">
-                            <div class="fb-feed-author">${item.league_name || 'League'} - Week ${item.week}</div>
-                            <div class="fb-feed-time">${dateStr}</div>
-                        </div>
+                        <div class="match-header-date">${dateStr}</div>
                     </div>
                     <div class="fb-feed-card-body">
-                        <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 16px; align-items: center;">
-                            <div style="text-align: right;">
-                                <div style="font-weight: 600; font-size: 16px; color: ${homeWon ? 'var(--yellow)' : 'var(--text-light)'}; margin-bottom: 6px;">
-                                    ${data.home_team_name}
-                                </div>
-                                ${homeRosterHtml}
-                            </div>
-                            <div style="text-align: center;">
-                                <div style="font-size: 32px; font-weight: 700;">
-                                    <span style="color: ${homeWon ? 'var(--yellow)' : 'var(--text-light)'};">${data.home_score}</span>
-                                    <span style="color: var(--text-dim); margin: 0 8px;">-</span>
-                                    <span style="color: ${!homeWon ? 'var(--yellow)' : 'var(--text-light)'};">${data.away_score}</span>
+                        <div class="team-boxes-grid">
+                            <div class="team-info-box">
+                                <div class="team-name">${data.home_team_name}</div>
+                                <div class="team-record">(${data.home_record}, ${data.home_standing}${getOrdinalSuffix(data.home_standing)})</div>
+                                <div class="team-stats">
+                                    <span class="${teamDACompare.left}">${home3DAStr} <span class="stat-label">3DA</span></span>
+                                    <span> / </span>
+                                    <span class="${teamMPRCompare.left}">${homeMPRStr} <span class="stat-label">MPR</span></span>
                                 </div>
                             </div>
-                            <div style="text-align: left;">
-                                <div style="font-weight: 600; font-size: 16px; color: ${!homeWon ? 'var(--yellow)' : 'var(--text-light)'}; margin-bottom: 6px;">
-                                    ${data.away_team_name}
+                            <div class="team-info-box">
+                                <div class="team-name">${data.away_team_name}</div>
+                                <div class="team-record">(${data.away_record}, ${data.away_standing}${getOrdinalSuffix(data.away_standing)})</div>
+                                <div class="team-stats">
+                                    <span class="${teamDACompare.right}">${away3DAStr} <span class="stat-label">3DA</span></span>
+                                    <span> / </span>
+                                    <span class="${teamMPRCompare.right}">${awayMPRStr} <span class="stat-label">MPR</span></span>
                                 </div>
-                                ${awayRosterHtml}
                             </div>
                         </div>
-                        ${performersHtml}
+                        ${rosterRows}
                     </div>
-                    <div class="fb-feed-card-actions">
+                    <div class="fb-feed-card-actions" style="text-align: center;">
                         <button class="fb-feed-action-btn" onclick="window.location.href='/pages/match-hub.html?league_id=${item.league_id}&match_id=${item.match_id}'">
-                            &#128202; View Match
+                            View Match
                         </button>
                     </div>
                 </div>
             `;
+        }
+
+        function getOrdinalSuffix(n) {
+            const s = ['th', 'st', 'nd', 'rd'];
+            const v = n % 100;
+            return s[(v - 20) % 10] || s[v] || s[0];
         }
 
         // Render league night summary card
@@ -1766,11 +2447,8 @@
             }
 
             return `
-                <div class="fb-feed-card">
+                <div class="fb-feed-card league-night-card">
                     <div class="fb-feed-card-header">
-                        <div class="fb-feed-avatar" style="background: var(--pink); font-size: 20px;">
-                            📅
-                        </div>
                         <div class="fb-feed-meta">
                             <div class="fb-feed-author">${item.league_name || 'League'} - Week ${item.week}</div>
                             <div class="fb-feed-time">${dateStr} • ${data.matches_played} matches</div>
@@ -1782,7 +2460,7 @@
                     </div>
                     <div class="fb-feed-card-actions">
                         <button class="fb-feed-action-btn" onclick="window.location.href='/pages/league-view.html?league_id=${item.league_id}'">
-                            📊 View League
+                            View League
                         </button>
                     </div>
                 </div>
@@ -1795,36 +2473,28 @@
             const matchDate = getDateFromTimestamp(item.created_at);
             const dateStr = matchDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 
-            let icon = '🎯';
             let title = '';
             let description = '';
 
             if (item.type === 'maximum') {
-                icon = '💯';
                 title = '180 Maximum!';
                 description = `${item.player_name} throws a maximum 180`;
             } else if (item.type === 'high_score') {
-                icon = '🔥';
                 title = `${data.score} Points!`;
                 description = `${item.player_name} with a big ${data.score}`;
             } else if (item.type === 'ton_checkout') {
-                icon = '🎯';
                 title = `${data.checkout} Checkout`;
                 description = `${item.player_name} checks out ${data.checkout}`;
             } else if (item.type === 'big_checkout') {
-                icon = '⭐';
                 title = `BIG ${data.checkout} Checkout!`;
                 description = `${item.player_name} with a huge ${data.checkout} checkout`;
             } else if (item.type === 'nine_mark') {
-                icon = '🔥';
                 title = '9-Mark Maximum!';
                 description = `${item.player_name} throws 9 marks`;
             } else if (item.type === 'high_marks') {
-                icon = '🎯';
                 title = `${data.marks} Marks!`;
                 description = `${item.player_name} with ${data.marks} marks`;
             } else if (item.type === 'bull_run') {
-                icon = '🐂';
                 title = 'Bull Run!';
                 description = `${item.player_name} lights up the bulls (${data.notable})`;
             }
@@ -1832,9 +2502,6 @@
             return `
                 <div class="fb-feed-card">
                     <div class="fb-feed-card-header">
-                        <div class="fb-feed-avatar" style="background: var(--yellow); font-size: 20px;">
-                            ${icon}
-                        </div>
                         <div class="fb-feed-meta">
                             <div class="fb-feed-author">${title}</div>
                             <div class="fb-feed-time">${dateStr} • Week ${item.week}</div>
@@ -1857,9 +2524,6 @@
             return `
                 <div class="fb-feed-card">
                     <div class="fb-feed-card-header">
-                        <div class="fb-feed-avatar" style="background: var(--pink)">
-                            👑
-                        </div>
                         <div class="fb-feed-meta">
                             <div class="fb-feed-author">Week ${item.week} Leader</div>
                             <div class="fb-feed-time">${dateStr}</div>
@@ -1894,9 +2558,6 @@
             return `
                 <div class="fb-feed-card">
                     <div class="fb-feed-card-header">
-                        <div class="fb-feed-avatar" style="background: var(--success)">
-                            🏆
-                        </div>
                         <div class="fb-feed-meta">
                             <div class="fb-feed-author">${title}</div>
                             <div class="fb-feed-time">${dateStr}</div>
@@ -1918,9 +2579,6 @@
             return `
                 <div class="fb-feed-card">
                     <div class="fb-feed-card-header">
-                        <div class="fb-feed-avatar" style="background: var(--yellow); font-size: 20px;">
-                            🎩
-                        </div>
                         <div class="fb-feed-meta">
                             <div class="fb-feed-author">Hat Trick!</div>
                             <div class="fb-feed-time">${dateStr} • Week ${item.week}</div>
@@ -1945,9 +2603,6 @@
             return `
                 <div class="fb-feed-card">
                     <div class="fb-feed-card-header">
-                        <div class="fb-feed-avatar" style="background: var(--danger); font-size: 20px;">
-                            ⚡
-                        </div>
                         <div class="fb-feed-meta">
                             <div class="fb-feed-author">UPSET!</div>
                             <div class="fb-feed-time">${dateStr} • Week ${item.week}</div>
@@ -1966,7 +2621,6 @@
             return `
                 <div class="fb-feed-card">
                     <div class="fb-feed-card-header">
-                        <div class="fb-feed-avatar">&#128197;</div>
                         <div class="fb-feed-meta">
                             <div class="fb-feed-author">${event.name}</div>
                             <div class="fb-feed-time">${event.date_str}</div>
@@ -2029,10 +2683,10 @@
             } else {
                 // Fallback: copy to clipboard
                 navigator.clipboard.writeText(url).then(() => {
-                    alert('Link copied to clipboard!');
+                    toastSuccess('Link copied to clipboard!');
                 }).catch(err => {
                     console.error('Copy failed:', err);
-                    alert('Could not copy link');
+                    toastError('Could not copy link');
                 });
             }
         };
@@ -2061,7 +2715,7 @@
         window.submitPost = async function() {
             const content = document.getElementById('postContent').value.trim();
             if (!content) {
-                alert('Please enter some text');
+                toastWarning('Please enter some text');
                 return;
             }
 
@@ -2077,11 +2731,11 @@
                     document.getElementById('postContent').value = '';
                     loadFeed();
                 } else {
-                    alert('Failed to create post');
+                    toastError('Failed to create post');
                 }
             } catch (error) {
                 console.error('Error creating post:', error);
-                alert('Failed to create post. Please try again.');
+                toastError('Failed to create post. Please try again.');
             }
         };
 
@@ -2363,22 +3017,22 @@
 
                 if (result.success) {
                     const statusText = status === 'confirmed' ? 'confirmed' : 'marked as unavailable';
-                    alert(`Your attendance has been ${statusText}.`);
+                    toastSuccess(`Your attendance has been ${statusText}.`);
                     closeStoryModal();
                     // Refresh stories to show updated status
                     loadScheduleStories(dashboardData?.roles);
                 } else {
-                    alert('Failed to update availability. Please try again.');
+                    toastError('Failed to update availability. Please try again.');
                 }
             } catch (error) {
                 console.error('Error updating availability:', error);
-                alert('Failed to update availability. Please try again.');
+                toastError('Failed to update availability. Please try again.');
             }
         };
 
         // Forgot PIN
         window.showForgotPin = function() {
-            alert('Please contact your league director to reset your PIN.');
+            toastInfo('Please contact your league director to reset your PIN.');
         };
 
         // Logout
@@ -2425,6 +3079,321 @@
                     this.classList.remove('visible');
                     document.body.style.overflow = '';
                 }
+            });
+        });
+
+        // ===== MATCH NIGHT BANNER FUNCTIONS =====
+
+        function checkMatchNight(events) {
+            const banner = document.getElementById('matchNightBanner');
+            if (!banner || !events || events.length === 0) return;
+
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            // Find today's match (not completed)
+            const todayMatch = events.find(e => {
+                const eventDate = new Date(e.date);
+                eventDate.setHours(0, 0, 0, 0);
+                return eventDate.getTime() === today.getTime() && !e.completed;
+            });
+
+            if (todayMatch) {
+                showMatchNightBanner(todayMatch);
+            } else {
+                banner.style.display = 'none';
+            }
+        }
+
+        function showMatchNightBanner(match) {
+            const banner = document.getElementById('matchNightBanner');
+            const contentEl = document.getElementById('matchNightContent');
+            const weekEl = document.getElementById('matchWeek');
+            const confirmBtn = document.getElementById('confirmBtn');
+            const cantMakeBtn = document.getElementById('cantMakeBtn');
+
+            if (!banner) return;
+
+            // Set week
+            weekEl.textContent = `WEEK ${match.week || '?'}`;
+
+            // Get match time
+            const matchDate = new Date(match.date);
+            const timeStr = matchDate.toLocaleTimeString('en-US', {
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true
+            });
+            const matchTime = timeStr !== 'Invalid Date' && matchDate.getHours() !== 0 ? timeStr : '7:00 PM';
+
+            // Build team info
+            const myTeamName = match.myTeam || 'My Team';
+            const oppTeamName = match.opponent || 'Opponent';
+            const myRecord = match.myRecord || '(0-0)';
+            const oppRecord = match.oppRecord || '(0-0)';
+            const myStanding = match.myStanding ? `${match.myStanding} • ` : '';
+            const oppStanding = match.oppStanding ? `${match.oppStanding} • ` : '';
+            const myAvg = match.myAvg ? `${typeof match.myAvg === 'number' ? match.myAvg.toFixed(1) : match.myAvg} avg` : '';
+            const oppAvg = match.oppAvg ? `${typeof match.oppAvg === 'number' ? match.oppAvg.toFixed(1) : match.oppAvg} avg` : '';
+            const vsText = match.isHome ? 'VS' : '@';
+
+            // Helper to compare stats
+            const compareStats = (leftVal, rightVal) => {
+                if (!leftVal || !rightVal) return { left: '', right: '' };
+                if (Math.abs(leftVal - rightVal) < 0.1) return { left: '', right: '' };
+                return leftVal > rightVal ? { left: 'better', right: 'worse' } : { left: 'worse', right: 'better' };
+            };
+
+            // Build roster HTML
+            const myRoster = match.myRoster || [];
+            const oppRoster = match.oppRoster || [];
+            const maxRows = Math.max(myRoster.length, oppRoster.length);
+
+            let rosterHtml = '';
+            if (maxRows > 0) {
+                rosterHtml = '<div class="match-night-roster">';
+                rosterHtml += '<div class="match-night-roster-left">';
+                for (let i = 0; i < maxRows; i++) {
+                    const myPlayer = myRoster[i];
+                    const oppPlayer = oppRoster[i];
+
+                    if (myPlayer) {
+                        const my3DA = myPlayer.x01_three_dart_avg || myPlayer.avg_3da;
+                        const myMPR = myPlayer.cricket_mpr || myPlayer.mpr;
+                        const opp3DA = oppPlayer?.x01_three_dart_avg || oppPlayer?.avg_3da;
+                        const oppMPR = oppPlayer?.cricket_mpr || oppPlayer?.mpr;
+
+                        const daCompare = compareStats(my3DA, opp3DA);
+                        const mprCompare = compareStats(myMPR, oppMPR);
+
+                        const my3DAStr = my3DA ? (typeof my3DA === 'number' ? my3DA.toFixed(1) : my3DA) : '-';
+                        const myMPRStr = myMPR ? (typeof myMPR === 'number' ? myMPR.toFixed(2) : myMPR) : '-';
+
+                        const isSub = myPlayer.is_sub;
+                        const subBadge = isSub ? '<span class="fill-in-badge">SUB</span> ' : '';
+
+                        rosterHtml += `
+                            <div class="match-night-roster-player">
+                                <span class="match-night-roster-name">${subBadge}${myPlayer.name}</span>
+                                <span class="match-night-roster-stats">
+                                    <span class="${daCompare.left}">${my3DAStr}</span> / <span class="${mprCompare.left}">${myMPRStr}</span>
+                                </span>
+                            </div>`;
+                    } else {
+                        rosterHtml += '<div class="match-night-roster-player"></div>';
+                    }
+                }
+                rosterHtml += '</div><div>';
+                for (let i = 0; i < maxRows; i++) {
+                    const myPlayer = myRoster[i];
+                    const oppPlayer = oppRoster[i];
+
+                    if (oppPlayer) {
+                        const my3DA = myPlayer?.x01_three_dart_avg || myPlayer?.avg_3da;
+                        const myMPR = myPlayer?.cricket_mpr || myPlayer?.mpr;
+                        const opp3DA = oppPlayer.x01_three_dart_avg || oppPlayer.avg_3da;
+                        const oppMPR = oppPlayer.cricket_mpr || oppPlayer.mpr;
+
+                        const daCompare = compareStats(my3DA, opp3DA);
+                        const mprCompare = compareStats(myMPR, oppMPR);
+
+                        const opp3DAStr = opp3DA ? (typeof opp3DA === 'number' ? opp3DA.toFixed(1) : opp3DA) : '-';
+                        const oppMPRStr = oppMPR ? (typeof oppMPR === 'number' ? oppMPR.toFixed(2) : oppMPR) : '-';
+
+                        const isSub = oppPlayer.is_sub;
+                        const subBadge = isSub ? ' <span class="fill-in-badge">SUB</span>' : '';
+
+                        rosterHtml += `
+                            <div class="match-night-roster-player">
+                                <span class="match-night-roster-stats">
+                                    <span class="${daCompare.right}">${opp3DAStr}</span> / <span class="${mprCompare.right}">${oppMPRStr}</span>
+                                </span>
+                                <span class="match-night-roster-name">${oppPlayer.name}${subBadge}</span>
+                            </div>`;
+                    } else {
+                        rosterHtml += '<div class="match-night-roster-player"></div>';
+                    }
+                }
+                rosterHtml += '</div></div>';
+            }
+
+            // Render content
+            contentEl.innerHTML = `
+                <div class="match-night-header">
+                    <div class="match-night-team left">
+                        <div class="match-night-team-name">${myTeamName}</div>
+                        <div class="match-night-team-info">${myStanding}${myRecord}</div>
+                        ${myAvg ? `<div class="match-night-team-avg">${myAvg}</div>` : ''}
+                    </div>
+                    <div class="match-night-vs">${vsText}<br>${matchTime}</div>
+                    <div class="match-night-team right">
+                        <div class="match-night-team-name">${oppTeamName}</div>
+                        <div class="match-night-team-info">${oppStanding}${oppRecord}</div>
+                        ${oppAvg ? `<div class="match-night-team-avg">${oppAvg}</div>` : ''}
+                    </div>
+                </div>
+                ${rosterHtml}
+            `;
+
+            // Check if availability was already confirmed
+            const availabilityKey = `match_availability_${match.leagueId}_${match.id}`;
+            const savedAvailability = localStorage.getItem(availabilityKey);
+
+            if (savedAvailability === 'available') {
+                confirmBtn.classList.add('selected');
+                cantMakeBtn.classList.remove('selected');
+            } else if (savedAvailability === 'unavailable') {
+                confirmBtn.classList.remove('selected');
+                cantMakeBtn.classList.add('selected');
+            } else {
+                confirmBtn.classList.remove('selected');
+                cantMakeBtn.classList.remove('selected');
+            }
+
+            // Store match data for confirmAvailability function
+            window.currentMatchNight = match;
+
+            // Show captain section if player is captain
+            const captainSection = document.getElementById('matchNightCaptain');
+            if (captainSection && currentPlayer && currentPlayer.is_captain) {
+                // Load team availability status
+                loadCaptainAvailabilityStatus(match, captainSection);
+            }
+
+            // Show banner
+            banner.style.display = 'flex';
+        }
+
+        // Load and display team availability for captains
+        async function loadCaptainAvailabilityStatus(match, container) {
+            try {
+                // Get match availability data
+                const result = await callFunction('getMatchAvailability', {
+                    league_id: match.leagueId,
+                    match_id: match.id
+                });
+
+                const availability = result.success ? (result.availability || {}) : {};
+                const myRoster = match.myRoster || [];
+
+                // Build status list
+                let statusHtml = '<div class="match-night-captain-title">👔 TEAM STATUS</div>';
+                statusHtml += '<div class="match-night-status-list">';
+
+                for (const player of myRoster) {
+                    const playerId = player.id || player.player_id;
+                    const status = availability[playerId];
+                    let statusClass = 'pending';
+                    let statusIcon = '❓';
+
+                    if (status === 'available') {
+                        statusClass = 'confirmed';
+                        statusIcon = '✓';
+                    } else if (status === 'unavailable') {
+                        statusClass = 'declined';
+                        statusIcon = '✗';
+                    }
+
+                    const firstName = (player.name || '').split(' ')[0];
+                    statusHtml += `
+                        <div class="match-night-status-item ${statusClass}">
+                            <span class="match-night-status-icon">${statusIcon}</span>
+                            <span>${firstName}</span>
+                        </div>`;
+                }
+
+                statusHtml += '</div>';
+                statusHtml += `<a href="/pages/captain-dashboard.html?league_id=${match.leagueId}" class="match-night-captain-btn">👔 CAPTAIN DASHBOARD</a>`;
+
+                container.innerHTML = statusHtml;
+                container.style.display = 'block';
+            } catch (error) {
+                console.error('Error loading availability status:', error);
+                // Still show captain dashboard button even if availability fails
+                container.innerHTML = `<a href="/pages/captain-dashboard.html?league_id=${match.leagueId}" class="match-night-captain-btn">👔 CAPTAIN DASHBOARD</a>`;
+                container.style.display = 'block';
+            }
+        }
+
+        async function confirmAvailability(status) {
+            const match = window.currentMatchNight;
+            if (!match) return;
+
+            const confirmBtn = document.getElementById('confirmBtn');
+            const cantMakeBtn = document.getElementById('cantMakeBtn');
+
+            // Save previous state for rollback on error
+            const previousState = {
+                confirmSelected: confirmBtn.classList.contains('selected'),
+                cantMakeSelected: cantMakeBtn.classList.contains('selected')
+            };
+            const availabilityKey = `match_availability_${match.leagueId}_${match.id}`;
+            const previousStorageValue = localStorage.getItem(availabilityKey);
+
+            // Update button states
+            if (status === 'available') {
+                confirmBtn.classList.add('selected');
+                cantMakeBtn.classList.remove('selected');
+            } else {
+                confirmBtn.classList.remove('selected');
+                cantMakeBtn.classList.add('selected');
+            }
+
+            // Save to localStorage
+            localStorage.setItem(availabilityKey, status);
+
+            // Call cloud function to update availability
+            try {
+                await callFunction('updatePlayerAvailability', {
+                    player_id: currentPlayer.id,
+                    league_id: match.leagueId,
+                    match_id: match.id,
+                    status: status
+                });
+            } catch (error) {
+                console.error('Error updating availability:', error);
+
+                // Revert UI to previous state
+                if (previousState.confirmSelected) {
+                    confirmBtn.classList.add('selected');
+                } else {
+                    confirmBtn.classList.remove('selected');
+                }
+                if (previousState.cantMakeSelected) {
+                    cantMakeBtn.classList.add('selected');
+                } else {
+                    cantMakeBtn.classList.remove('selected');
+                }
+
+                // Revert localStorage
+                if (previousStorageValue !== null) {
+                    localStorage.setItem(availabilityKey, previousStorageValue);
+                } else {
+                    localStorage.removeItem(availabilityKey);
+                }
+
+                // Show error to user
+                toastError('Failed to update availability. Please try again.');
+            }
+        }
+
+        // Initialize dashboard after all functions are defined
+        initDashboard();
+    </script>
+
+    <!-- BRDC Navigation System -->
+    <script src="/components/brdc-navigation-init.js"></script>
+    <script>
+        // Initialize navigation when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            initBRDCNavigation({
+                page: 'dashboard',
+                showMobileNav: true,
+                showBackButton: false,
+                showSearch: true,
+                breadcrumbs: [
+                    { label: 'Dashboard', url: '/pages/dashboard.html' }
+                ]
             });
         });
     </script>
