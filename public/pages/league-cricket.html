@@ -19,6 +19,7 @@
     <meta name="apple-mobile-web-app-title" content="BRDC">
     <link rel="apple-touch-icon" href="/images/gold_logo.png">
     <meta name="theme-color" content="#FF469A">
+    <script src="/js/brdc-toast.js"></script>
 
     <!-- Fonts - non-blocking with display=swap -->
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@500;600;700&family=JetBrains+Mono:wght@600;700&display=swap">
@@ -1300,9 +1301,9 @@
 
             <!-- Cork Ready Phase -->
             <div id="corkReadyPhase">
-                <div class="modal-title" style="font-size: 32px;">READY TO CORK?</div>
+                <div style="font-size: 14px; opacity: 0.7; margin-bottom: 12px;">HOME TEAM OPTION</div>
                 <div style="margin: 24px 0;">
-                    <button class="modal-btn primary" onclick="startCorkShuffle()" style="width: 100%; font-size: 22px; padding: 18px;">YES</button>
+                    <button class="modal-btn primary" onclick="startCorkShuffle()" style="width: 100%; font-size: 22px; padding: 18px;">SELECT STARTER</button>
                 </div>
             </div>
 
@@ -1320,7 +1321,8 @@
 
             <!-- Who Got It Phase -->
             <div id="whoGotItPhase" style="display: none;">
-                <div class="modal-title" style="font-size: 28px; margin-bottom: 20px;">WHO GOT IT?</div>
+                <div style="font-size: 14px; opacity: 0.7; margin-bottom: 4px;">HOME TEAM OPTION</div>
+                <div style="font-size: 18px; font-weight: 700; margin-bottom: 20px;">SELECT STARTER</div>
                 <div style="display: flex; gap: 12px;">
                     <button class="modal-btn" onclick="corkWinner(0)" id="corkHomeBtn" style="flex: 1; background: linear-gradient(180deg, var(--pink) 0%, var(--pink-dark) 100%); font-size: 18px; padding: 20px 12px;"></button>
                     <button class="modal-btn" onclick="corkWinner(1)" id="corkAwayBtn" style="flex: 1; background: linear-gradient(180deg, var(--teal) 0%, var(--teal-dark) 100%); color: #000; font-size: 18px; padding: 20px 12px;"></button>
@@ -1378,7 +1380,7 @@
                 <div style="display: flex; gap: 10px; margin-bottom: 10px;">
                     <div style="flex: 1;">
                         <label style="font-size: 11px; color: var(--text-muted); letter-spacing: 1px;">SCORE</label>
-                        <input type="number" id="x01ScoreInput" value="501" min="101" max="1001" step="100"
+                        <input type="number" id="x01ScoreInput" value="501" min="101" max="1001" step="100" inputmode="numeric"
                             style="width: 100%; background: rgba(255,255,255,0.1); border: 2px solid var(--yellow); border-radius: 8px; padding: 10px; color: white; font-family: 'Bebas Neue', cursive; font-size: 20px; text-align: center;">
                     </div>
                 </div>
@@ -1629,6 +1631,7 @@ let turnHistory = [];
 let leg = 1;
 let gameStartTime = Date.now();
 let pendingWin = null; // Store pending win state for darts selection
+let gameSaving = false; // Flag to suppress beforeunload during save/navigation
 
 // DartConnect-compatible turn tracking per leg
 let legTurnsHistory = []; // Array of all turns for each completed leg
@@ -1697,7 +1700,7 @@ const players = [
         totalDarts: 0,
         // DartConnect stats
         missedDarts: 0, tripleBullDarts: 0,
-        fiveMarkRounds: 0, sevenMarkRounds: 0, nineMarkRounds: 0, eightMarkRounds: 0,
+        fiveMarkRounds: 0, sixMarkRounds: 0, sevenMarkRounds: 0, nineMarkRounds: 0, eightMarkRounds: 0,
         threeBulls: 0, fourBulls: 0, fiveBulls: 0, sixBulls: 0, hatTricks: 0
     },
     {
@@ -1710,13 +1713,14 @@ const players = [
         totalDarts: 0,
         // DartConnect stats
         missedDarts: 0, tripleBullDarts: 0,
-        fiveMarkRounds: 0, sevenMarkRounds: 0, nineMarkRounds: 0, eightMarkRounds: 0,
+        fiveMarkRounds: 0, sixMarkRounds: 0, sevenMarkRounds: 0, nineMarkRounds: 0, eightMarkRounds: 0,
         threeBulls: 0, fourBulls: 0, fiveBulls: 0, sixBulls: 0, hatTricks: 0
     }
 ];
 
 // Warn user before leaving with game in progress
 window.onbeforeunload = function(e) {
+    if (gameSaving) return;
     const gameStarted = (players[0].totalDarts > 0 || players[1].totalDarts > 0);
     const matchComplete = (players[0].legs >= LEGS_TO_WIN || players[1].legs >= LEGS_TO_WIN);
     if (gameStarted && !matchComplete && !pendingWin) {
@@ -1730,6 +1734,47 @@ if (isMixedGame) {
     const awayLegsParam = parseInt(params.get('away_legs') || '0');
     players[0].legs = homeLegsParam;
     players[1].legs = awayLegsParam;
+
+    // Restore cumulative cricket stats from previous cricket legs in mixed format
+    const mixedConfig = JSON.parse(sessionStorage.getItem('mixedGameConfig') || '{}');
+    if (mixedConfig.cricket_stats) {
+        const homeStats = mixedConfig.cricket_stats.home || {};
+        const awayStats = mixedConfig.cricket_stats.away || {};
+
+        // Restore home player cumulative stats
+        players[0].totalMarks = homeStats.totalMarks || 0;
+        players[0].totalRounds = homeStats.totalRounds || 0;
+        players[0].totalDarts = homeStats.totalDarts || 0;
+        players[0].missedDarts = homeStats.missedDarts || 0;
+        players[0].tripleBullDarts = homeStats.tripleBullDarts || 0;
+        players[0].fiveMarkRounds = homeStats.fiveMarkRounds || 0;
+        players[0].sixMarkRounds = homeStats.sixMarkRounds || 0;
+        players[0].sevenMarkRounds = homeStats.sevenMarkRounds || 0;
+        players[0].eightMarkRounds = homeStats.eightMarkRounds || 0;
+        players[0].nineMarkRounds = homeStats.nineMarkRounds || 0;
+        players[0].threeBulls = homeStats.threeBulls || 0;
+        players[0].fourBulls = homeStats.fourBulls || 0;
+        players[0].fiveBulls = homeStats.fiveBulls || 0;
+        players[0].sixBulls = homeStats.sixBulls || 0;
+        players[0].hatTricks = homeStats.hatTricks || 0;
+
+        // Restore away player cumulative stats
+        players[1].totalMarks = awayStats.totalMarks || 0;
+        players[1].totalRounds = awayStats.totalRounds || 0;
+        players[1].totalDarts = awayStats.totalDarts || 0;
+        players[1].missedDarts = awayStats.missedDarts || 0;
+        players[1].tripleBullDarts = awayStats.tripleBullDarts || 0;
+        players[1].fiveMarkRounds = awayStats.fiveMarkRounds || 0;
+        players[1].sixMarkRounds = awayStats.sixMarkRounds || 0;
+        players[1].sevenMarkRounds = awayStats.sevenMarkRounds || 0;
+        players[1].eightMarkRounds = awayStats.eightMarkRounds || 0;
+        players[1].nineMarkRounds = awayStats.nineMarkRounds || 0;
+        players[1].threeBulls = awayStats.threeBulls || 0;
+        players[1].fourBulls = awayStats.fourBulls || 0;
+        players[1].fiveBulls = awayStats.fiveBulls || 0;
+        players[1].sixBulls = awayStats.sixBulls || 0;
+        players[1].hatTricks = awayStats.hatTricks || 0;
+    }
 }
 
 function init() {
@@ -1953,7 +1998,7 @@ window.confirmWinDarts = function(dartsUsed) {
         playerName: player.name,
         darts: currentDarts.slice(0, dartsUsed).map(d => ({
             target: d.target,
-            multiplier: d.multiplier,
+            mult: d.mult,
             marksAdded: d.marksAdded,
             pointsAdded: d.pointsAdded
         })),
@@ -1963,16 +2008,99 @@ window.confirmWinDarts = function(dartsUsed) {
         isWinningTurn: true
     });
 
-    // Update stats with actual darts used
+    // Update stats with actual darts used (only count darts up to the winning dart)
+    const winDarts = currentDarts.slice(0, dartsUsed);
+
     player.totalMarks += turnMarks;
     player.totalRounds++;
+    player.totalDarts += dartsUsed;
 
     currentLegStats[pendingWin.player].marks += turnMarks;
     currentLegStats[pendingWin.player].rounds++;
     currentLegStats[pendingWin.player].score = player.score;
+    currentLegStats[pendingWin.player].darts_thrown += dartsUsed;
 
     // Store extra darts info for stats
     currentLegStats[pendingWin.player].finalDarts = dartsUsed;
+
+    // Track threw_first if this is the first turn of the leg
+    if (currentLegStats[pendingWin.player].threw_first === null) {
+        currentLegStats[pendingWin.player].threw_first = (currentLegFirstThrow === pendingWin.player);
+        currentLegStats[1 - pendingWin.player].threw_first = (currentLegFirstThrow !== pendingWin.player);
+    }
+
+    // DartConnect stats for winning turn (mirrors endRound logic)
+    const missedDarts = winDarts.filter(d => !d.marksAdded && !d.pointsAdded).length;
+    player.missedDarts += missedDarts;
+    currentLegStats[pendingWin.player].missed_darts += missedDarts;
+
+    const tripleBullDarts = winDarts.filter(d =>
+        d.mult === 3 || (d.target === 'BULL' && d.mult >= 2)
+    ).length;
+    player.tripleBullDarts += tripleBullDarts;
+    currentLegStats[pendingWin.player].triple_bull_darts += tripleBullDarts;
+
+    // High mark rounds (5M-9M)
+    if (turnMarks >= 9) {
+        player.nineMarkRounds++;
+        currentLegStats[pendingWin.player].nine_mark_rounds++;
+    } else if (turnMarks >= 8) {
+        player.eightMarkRounds++;
+        currentLegStats[pendingWin.player].eight_mark_rounds++;
+    } else if (turnMarks >= 7) {
+        player.sevenMarkRounds++;
+        currentLegStats[pendingWin.player].seven_mark_rounds++;
+    } else if (turnMarks >= 6) {
+        player.sixMarkRounds = (player.sixMarkRounds || 0) + 1;
+        currentLegStats[pendingWin.player].six_mark_rounds++;
+    } else if (turnMarks >= 5) {
+        player.fiveMarkRounds++;
+        currentLegStats[pendingWin.player].five_mark_rounds++;
+    }
+
+    // High mark round tracking
+    if (turnMarks > currentLegStats[pendingWin.player].high_mark_round) {
+        currentLegStats[pendingWin.player].high_mark_round = turnMarks;
+    }
+
+    // Bull counts this round
+    const bullMarks = winDarts.filter(d => d.target === 'BULL').reduce((sum, d) => sum + d.marksAdded, 0);
+    if (bullMarks >= 6) {
+        player.sixBulls++;
+        currentLegStats[pendingWin.player].six_bulls++;
+    } else if (bullMarks >= 5) {
+        player.fiveBulls++;
+        currentLegStats[pendingWin.player].five_bulls++;
+    } else if (bullMarks >= 4) {
+        player.fourBulls++;
+        currentLegStats[pendingWin.player].four_bulls++;
+    } else if (bullMarks >= 3) {
+        player.threeBulls++;
+        currentLegStats[pendingWin.player].three_bulls++;
+    }
+
+    // White horse (3 different triples in one turn)
+    const triplesThisTurn = winDarts.filter(d => d.mult === 3 && d.target !== 'BULL').map(d => d.target);
+    const uniqueTriples = new Set(triplesThisTurn);
+    if (uniqueTriples.size >= 3) {
+        currentLegStats[pendingWin.player].whiteHorse++;
+        allTimeStats[pendingWin.player].whiteHorses++;
+    }
+
+    // Three in a bed / Hat trick (3 of same number as triples)
+    const targetCounts = {};
+    winDarts.forEach(d => {
+        if (d.target && d.mult === 3) {
+            targetCounts[d.target] = (targetCounts[d.target] || 0) + 1;
+        }
+    });
+    const hasThreeInBed = Object.values(targetCounts).some(count => count >= 3);
+    if (hasThreeInBed) {
+        currentLegStats[pendingWin.player].threeInBed++;
+        currentLegStats[pendingWin.player].hat_tricks++;
+        player.hatTricks++;
+        allTimeStats[pendingWin.player].threeInBeds++;
+    }
 
     // Save leg stats for comprehensive tracking
     legStats[0].push({...currentLegStats[0]});
@@ -2117,7 +2245,7 @@ window.nextPlayer = function() {
         playerName: players[activePlayer].name,
         darts: currentDarts.map(d => ({
             target: d.target,
-            multiplier: d.multiplier,
+            mult: d.mult,
             marksAdded: d.marksAdded,
             pointsAdded: d.pointsAdded
         })),
@@ -2383,6 +2511,46 @@ window.nextLeg = function() {
             mixedConfig.current_leg = nextLegIndex;
             mixedConfig.home_legs = players[0].legs;
             mixedConfig.away_legs = players[1].legs;
+
+            // Save cumulative Cricket stats for mixed format (so MPR includes all cricket legs)
+            if (!mixedConfig.cricket_stats) {
+                mixedConfig.cricket_stats = { home: {}, away: {} };
+            }
+            mixedConfig.cricket_stats.home = {
+                totalMarks: players[0].totalMarks || 0,
+                totalRounds: players[0].totalRounds || 0,
+                totalDarts: players[0].totalDarts || 0,
+                missedDarts: players[0].missedDarts || 0,
+                tripleBullDarts: players[0].tripleBullDarts || 0,
+                fiveMarkRounds: players[0].fiveMarkRounds || 0,
+                sixMarkRounds: players[0].sixMarkRounds || 0,
+                sevenMarkRounds: players[0].sevenMarkRounds || 0,
+                eightMarkRounds: players[0].eightMarkRounds || 0,
+                nineMarkRounds: players[0].nineMarkRounds || 0,
+                threeBulls: players[0].threeBulls || 0,
+                fourBulls: players[0].fourBulls || 0,
+                fiveBulls: players[0].fiveBulls || 0,
+                sixBulls: players[0].sixBulls || 0,
+                hatTricks: players[0].hatTricks || 0
+            };
+            mixedConfig.cricket_stats.away = {
+                totalMarks: players[1].totalMarks || 0,
+                totalRounds: players[1].totalRounds || 0,
+                totalDarts: players[1].totalDarts || 0,
+                missedDarts: players[1].missedDarts || 0,
+                tripleBullDarts: players[1].tripleBullDarts || 0,
+                fiveMarkRounds: players[1].fiveMarkRounds || 0,
+                sixMarkRounds: players[1].sixMarkRounds || 0,
+                sevenMarkRounds: players[1].sevenMarkRounds || 0,
+                eightMarkRounds: players[1].eightMarkRounds || 0,
+                nineMarkRounds: players[1].nineMarkRounds || 0,
+                threeBulls: players[1].threeBulls || 0,
+                fourBulls: players[1].fourBulls || 0,
+                fiveBulls: players[1].fiveBulls || 0,
+                sixBulls: players[1].sixBulls || 0,
+                hatTricks: players[1].hatTricks || 0
+            };
+
             sessionStorage.setItem('mixedGameConfig', JSON.stringify(mixedConfig));
 
             if (nextLegIndex < mixedConfig.legs.length) {
@@ -2588,6 +2756,19 @@ window.newGame = function() {
         p.legs = 0;
         p.totalMarks = 0;
         p.totalRounds = 0;
+        p.totalDarts = 0;
+        p.missedDarts = 0;
+        p.tripleBullDarts = 0;
+        p.fiveMarkRounds = 0;
+        p.sixMarkRounds = 0;
+        p.sevenMarkRounds = 0;
+        p.eightMarkRounds = 0;
+        p.nineMarkRounds = 0;
+        p.threeBulls = 0;
+        p.fourBulls = 0;
+        p.fiveBulls = 0;
+        p.sixBulls = 0;
+        p.hatTricks = 0;
     });
     targetPoints[0] = { 20: 0, 19: 0, 18: 0, 17: 0, 16: 0, 15: 0, BULL: 0 };
     targetPoints[1] = { 20: 0, 19: 0, 18: 0, 17: 0, 16: 0, 15: 0, BULL: 0 };
@@ -2602,6 +2783,7 @@ window.newGame = function() {
 };
 
 window.saveAndExit = async function() {
+    gameSaving = true;
     const winner = players[0].legs >= LEGS_TO_WIN ? 'home' : 'away';
     const duration = Math.floor((Date.now() - gameStartTime) / 1000);
 
@@ -2690,11 +2872,16 @@ window.saveAndExit = async function() {
                 nine_mark_rounds: awayLeg.nine_mark_rounds || 0
             };
 
+            // Determine closeout_darts from the winner's legStats
+            const winnerLeg = legWinner === 'home' ? homeLeg : awayLeg;
+            const closeoutDarts = winnerLeg.finalDarts || 3;
+
             legs.push({
                 leg_number: i + 1,
                 format: 'cricket',
                 winner: legWinner,
                 first_throw: firstThrow,
+                closeout_darts: closeoutDarts,
                 home_stats: {
                     rounds: homeLeg.rounds || 0,
                     marks: homeLeg.marks || 0,
@@ -2713,7 +2900,8 @@ window.saveAndExit = async function() {
                     hat_tricks: homeLeg.hat_tricks || 0,
                     // NEW: High mark round, With/Against Darts
                     high_mark_round: homeLeg.high_mark_round || 0,
-                    threw_first: homeLeg.threw_first
+                    threw_first: homeLeg.threw_first,
+                    closeout_darts: legWinner === 'home' ? closeoutDarts : undefined
                 },
                 away_stats: {
                     rounds: awayLeg.rounds || 0,
@@ -2733,7 +2921,8 @@ window.saveAndExit = async function() {
                     hat_tricks: awayLeg.hat_tricks || 0,
                     // NEW: High mark round, With/Against Darts
                     high_mark_round: awayLeg.high_mark_round || 0,
-                    threw_first: awayLeg.threw_first
+                    threw_first: awayLeg.threw_first,
+                    closeout_darts: legWinner === 'away' ? closeoutDarts : undefined
                 },
                 player_stats: player_stats,
                 throws: throws
@@ -2760,6 +2949,7 @@ window.saveAndExit = async function() {
             missed_darts: players[0].missedDarts,
             triple_bull_darts: players[0].tripleBullDarts,
             five_mark_rounds: players[0].fiveMarkRounds,
+            six_mark_rounds: players[0].sixMarkRounds,
             seven_mark_rounds: players[0].sevenMarkRounds,
             eight_mark_rounds: players[0].eightMarkRounds,
             nine_mark_rounds: players[0].nineMarkRounds,
@@ -2780,6 +2970,7 @@ window.saveAndExit = async function() {
             missed_darts: players[1].missedDarts,
             triple_bull_darts: players[1].tripleBullDarts,
             five_mark_rounds: players[1].fiveMarkRounds,
+            six_mark_rounds: players[1].sixMarkRounds,
             seven_mark_rounds: players[1].sevenMarkRounds,
             eight_mark_rounds: players[1].eightMarkRounds,
             nine_mark_rounds: players[1].nineMarkRounds,
@@ -2800,7 +2991,7 @@ window.saveAndExit = async function() {
 
         if (chicagoMatch.home_wins >= 2 || chicagoMatch.away_wins >= 2) {
             const matchWinner = chicagoMatch.home_wins >= 2 ? 'Home' : 'Away';
-            alert(`Chicago Match Over! ${matchWinner} wins ${chicagoMatch.home_wins}-${chicagoMatch.away_wins}`);
+            toastSuccess(`Chicago Match Over! ${matchWinner} wins ${chicagoMatch.home_wins}-${chicagoMatch.away_wins}`);
             sessionStorage.removeItem('chicagoMatch');
             window.location.href = '/pages/game-setup.html';
             return;
@@ -2887,7 +3078,7 @@ window.saveAndExit = async function() {
                 game_stats: comprehensiveGameStats
             });
             hideLoading();
-            alert('Game saved!');
+            toastSuccess('Game saved!');
         } else if (tournamentId && tournamentMatchId) {
             // Tournament game submission with offline queue fallback
             await callWithQueue(callFunction, 'submitMatchResult', {
@@ -2898,7 +3089,7 @@ window.saveAndExit = async function() {
                 game_stats: comprehensiveGameStats
             });
             hideLoading();
-            alert('Tournament match saved!');
+            toastSuccess('Tournament match saved!');
         } else if (isVerificationMode) {
             // Stats verification mode - save results and submit
             hideLoading();
@@ -2915,10 +3106,10 @@ window.saveAndExit = async function() {
     } catch (e) {
         hideLoading();
         if (e.message === 'QUEUED_OFFLINE') {
-            alert('You appear to be offline. Game has been queued and will sync when connection is restored.');
+            toastInfo('You appear to be offline. Game has been queued and will sync when connection is restored.');
         } else {
             console.error('Save error:', e);
-            alert('Error: ' + e.message);
+            toastError('Error: ' + e.message);
         }
     }
 
@@ -2930,7 +3121,7 @@ async function handleCricketVerificationComplete(gameStats) {
     // Get verification session from sessionStorage
     const sessionData = sessionStorage.getItem('verificationSession');
     if (!sessionData) {
-        alert('Verification session not found. Results cannot be saved.');
+        toastError('Verification session not found. Results cannot be saved.');
         navigateAway();
         return;
     }
@@ -3046,14 +3237,14 @@ async function handleCricketVerificationComplete(gameStats) {
                     // Clear session
                     sessionStorage.removeItem('verificationSession');
 
-                    alert(`Cricket Stats Verified!\n\nVerified MPR: ${(result.verified_mpr || verifiedMPR).toFixed(2)}`);
+                    toastSuccess(`Cricket Stats Verified!\n\nVerified MPR: ${(result.verified_mpr || verifiedMPR).toFixed(2)}`);
                     navigateAway();
                 } else {
                     throw new Error(result.error || 'Failed to save verification');
                 }
             } catch (err) {
                 console.error('Verification save error:', err);
-                alert('Error saving verification: ' + err.message);
+                toastError('Error saving verification: ' + err.message);
                 saveBtn.textContent = 'SAVE VERIFIED STATS';
                 saveBtn.disabled = false;
             }
@@ -3421,6 +3612,7 @@ window.exitGame = function() {
     if (players[0].totalRounds > 0 || players[1].totalRounds > 0) {
         if (!confirm('Exit? Progress will be lost.')) return;
     }
+    gameSaving = true;
     navigateAway();
 };
 
@@ -3439,7 +3631,7 @@ function showStarterModal(needsCork) {
     document.getElementById('starterReadyPhase').style.display = 'none';
 
     if (needsCork) {
-        document.getElementById('corkReadyPhase').style.display = 'block';
+        document.getElementById('whoGotItPhase').style.display = 'block';
     } else {
         // Only determine starter if not already set (e.g., from doubles choice redirect)
         if (pendingStarter === null) {
@@ -3468,31 +3660,7 @@ let corkFirstThrow = null; // Who throws first at the bull
 
 window.startCorkShuffle = function() {
     document.getElementById('corkReadyPhase').style.display = 'none';
-    document.getElementById('corkShufflePhase').style.display = 'block';
-
-    const spinner = document.getElementById('shuffleName');
-    let count = 0;
-    const names = [players[0].name, players[1].name];
-
-    const interval = setInterval(() => {
-        spinner.textContent = names[count % 2];
-        spinner.style.color = count % 2 === 0 ? 'var(--pink)' : 'var(--teal)';
-        count++;
-    }, 100);
-
-    const duration = 1500 + Math.random() * 1000;
-    setTimeout(() => {
-        clearInterval(interval);
-        // Randomly pick who throws first at the bull
-        const throwsFirst = Math.random() < 0.5 ? 0 : 1;
-        corkFirstThrow = throwsFirst;
-
-        // Show "Throws First" phase
-        document.getElementById('corkShufflePhase').style.display = 'none';
-        document.getElementById('throwsFirstPhase').style.display = 'block';
-        document.getElementById('throwsFirstName').textContent = players[throwsFirst].name;
-        document.getElementById('throwsFirstName').style.color = throwsFirst === 0 ? 'var(--pink)' : 'var(--teal)';
-    }, duration);
+    document.getElementById('whoGotItPhase').style.display = 'block';
 };
 
 window.showWhoGotIt = function() {
@@ -3503,8 +3671,18 @@ window.showWhoGotIt = function() {
 let corkOptionHolder = null; // Who has the option this leg
 
 window.corkWinner = function(winner) {
-    corkOptionHolder = winner;
-    showChooseOrderPhase(winner);
+    // Selected player is the starter - start the leg immediately
+    pendingStarter = winner;
+
+    // Close modal and start the leg
+    activePlayer = pendingStarter;
+    lastLegStarter = pendingStarter;
+    document.getElementById('starterModal').classList.remove('active');
+    updateDisplay();
+
+    if (isCurrentPlayerBot()) {
+        setTimeout(() => botPlay(), 500);
+    }
 };
 
 function showChooseOrderPhase(winner) {
