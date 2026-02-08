@@ -1088,19 +1088,19 @@
         </div>
 
         <!-- Main Tabs -->
-        <div class="main-tabs">
-            <div class="main-tab active" data-tab="lobby" onclick="switchTab('lobby')">
+        <div class="main-tabs" role="tablist" aria-label="Message sections">
+            <button type="button" class="main-tab active" role="tab" aria-selected="true" data-tab="lobby" onclick="switchTab('lobby')">
                 LOBBY
                 <span id="lobbyBadge" class="tab-badge" style="display: none;">0</span>
-            </div>
-            <div class="main-tab" data-tab="channels" onclick="switchTab('channels')">
+            </button>
+            <button type="button" class="main-tab" role="tab" aria-selected="false" data-tab="channels" onclick="switchTab('channels')">
                 CHANNELS
                 <span id="channelsBadge" class="tab-badge" style="display: none;">0</span>
-            </div>
-            <div class="main-tab" data-tab="direct" onclick="switchTab('direct')">
+            </button>
+            <button type="button" class="main-tab" role="tab" aria-selected="false" data-tab="direct" onclick="switchTab('direct')">
                 DIRECT
                 <span id="directBadge" class="tab-badge" style="display: none;">0</span>
-            </div>
+            </button>
         </div>
 
         <!-- LOBBY TAB -->
@@ -1245,6 +1245,13 @@
             <button class="cancel-challenge-btn" onclick="closeChallengeModal()">CANCEL</button>
         </div>
     </div>
+
+    <script src="/js/a11y-helpers.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (window.A11y) A11y.initTabs('.main-tabs', { tabSelector: '.main-tab', label: 'Message sections' });
+        });
+    </script>
 
     <!-- Fallback for when module fails to load -->
     <script>
@@ -1806,11 +1813,14 @@
 
         // Tab switching
         window.switchTab = function(tab) {
-            document.querySelectorAll('.main-tab').forEach(t => t.classList.remove('active'));
+            const allTabs = document.querySelectorAll('.main-tab');
+            allTabs.forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
 
-            document.querySelector(`.main-tab[data-tab="${tab}"]`).classList.add('active');
+            const activeTab = document.querySelector(`.main-tab[data-tab="${tab}"]`);
+            activeTab.classList.add('active');
             document.getElementById(`${tab}Tab`).classList.add('active');
+            if (window.A11y) A11y.activateTab(activeTab, allTabs);
         };
 
         // Player modal
