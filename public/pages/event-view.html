@@ -23,6 +23,7 @@
             font-family: 'Inter', sans-serif;
             background: linear-gradient(180deg, var(--blue-light) 0%, var(--blue-dark) 100%);
             min-height: 100vh;
+            min-height: 100dvh;
             color: var(--text-light);
         }
         body::before {
@@ -137,6 +138,11 @@
         .tab.active {
             background: var(--pink);
             color: white;
+        }
+        button.tab {
+            text-align: inherit;
+            letter-spacing: inherit;
+            text-transform: inherit;
         }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
@@ -369,11 +375,109 @@
             color: var(--text-dim);
         }
         .empty-state-icon { font-size: 60px; margin-bottom: 15px; }
+
+        /* Score Match Button */
+        .score-match-btn {
+            display: block;
+            width: 100%;
+            margin-top: 10px;
+            padding: 10px;
+            background: linear-gradient(135deg, var(--pink), #cc3879);
+            color: white;
+            border: 2px solid rgba(255,255,255,0.2);
+            border-radius: 6px;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 16px;
+            letter-spacing: 2px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+        }
+        .score-match-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(255, 70, 154, 0.4);
+        }
+
+        /* PIN Modal */
+        .pin-modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.8);
+            z-index: 999;
+            justify-content: center;
+            align-items: center;
+        }
+        .pin-modal-overlay.active { display: flex; }
+        .pin-modal {
+            background: var(--blue-light, #1a1a2e);
+            border: 3px solid var(--pink);
+            border-radius: 12px;
+            padding: 30px;
+            width: 90%;
+            max-width: 380px;
+            text-align: center;
+        }
+        .pin-modal-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 24px;
+            color: var(--pink);
+            letter-spacing: 2px;
+            margin-bottom: 8px;
+        }
+        .pin-modal-subtitle {
+            color: var(--text-dim);
+            font-size: 13px;
+            margin-bottom: 20px;
+        }
+        .pin-modal-input {
+            width: 100%;
+            padding: 14px;
+            font-family: 'Inter', monospace;
+            font-size: 24px;
+            text-align: center;
+            letter-spacing: 6px;
+            background: rgba(0,0,0,0.4);
+            border: 2px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            color: var(--yellow, #FDD835);
+            outline: none;
+        }
+        .pin-modal-input:focus { border-color: var(--pink); }
+        .pin-modal-error {
+            color: #ef4444;
+            font-size: 12px;
+            margin-top: 8px;
+            min-height: 18px;
+        }
+        .pin-modal-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .pin-modal-buttons button {
+            flex: 1;
+            padding: 12px;
+            border-radius: 8px;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 16px;
+            letter-spacing: 1px;
+            cursor: pointer;
+            border: none;
+        }
+        .pin-btn-cancel {
+            background: rgba(255,255,255,0.1);
+            color: var(--text-dim);
+        }
+        .pin-btn-launch {
+            background: linear-gradient(135deg, var(--pink), #cc3879);
+            color: white;
+        }
     </style>
 </head>
 <body>
     <div class="header-bar">
-        <button class="back-btn" onclick="history.back()">BACK</button>
+        <button class="back-btn" onclick="goBack()">BACK</button>
         <img src="/images/gold_logo.png" alt="BRDC" class="header-logo">
         <span class="header-title">EVENT</span>
     </div>
@@ -382,8 +486,18 @@
         <div class="loading">Loading event...</div>
     </div>
 
+    <script src="/js/a11y-helpers.js"></script>
     <script type="module">
-        import { db, doc, getDoc, collection, getDocs, query, orderBy } from '/js/firebase-config.js';
+        import { db, doc, getDoc, collection, getDocs, query, orderBy, callFunction } from '/js/firebase-config.js';
+
+        function goBack() {
+            if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                window.location.href = '/pages/events-hub.html';
+            }
+        }
+        window.goBack = goBack;
 
         const urlParams = new URLSearchParams(window.location.search);
         const tournamentId = urlParams.get('tournament_id');
@@ -482,11 +596,11 @@
                     </div>
                 </div>
 
-                <div class="tabs">
-                    <div class="tab active" onclick="switchTab('bracket')">BRACKET</div>
-                    <div class="tab" onclick="switchTab('matches')">MATCHES</div>
-                    <div class="tab" onclick="switchTab('stats')">STATS</div>
-                    <div class="tab" onclick="switchTab('players')">PLAYERS</div>
+                <div class="tabs" role="tablist" aria-label="Event sections">
+                    <button type="button" class="tab active" role="tab" aria-selected="true" onclick="switchTab('bracket')">BRACKET</button>
+                    <button type="button" class="tab" role="tab" aria-selected="false" onclick="switchTab('matches')">MATCHES</button>
+                    <button type="button" class="tab" role="tab" aria-selected="false" onclick="switchTab('stats')">STATS</button>
+                    <button type="button" class="tab" role="tab" aria-selected="false" onclick="switchTab('players')">PLAYERS</button>
                 </div>
 
                 <div id="bracketTab" class="tab-content active">
@@ -507,6 +621,7 @@
             `;
 
             document.getElementById('mainContent').innerHTML = html;
+            if (window.A11y) A11y.initTabs('.tabs', { tabSelector: '.tab', label: 'Event sections' });
         }
 
         function getEventType(name) {
@@ -612,6 +727,8 @@
                             ${match.started_at ? `<span>Started: ${new Date(match.started_at).toLocaleTimeString()}</span>` : ''}
                             ${match.completed_at ? `<span>Completed: ${new Date(match.completed_at).toLocaleTimeString()}</span>` : ''}
                         </div>
+                        ${status !== 'completed' && match.player1_id && match.player2_id ?
+                            `<button class="score-match-btn" onclick="event.stopPropagation(); launchScorer('${match.id}', '${match.player1_id}', '${(match.player1_name || '').replace(/'/g, "\\'")}', '${match.player2_id}', '${(match.player2_name || '').replace(/'/g, "\\'")}')">SCORE MATCH</button>` : ''}
                     </div>`;
             });
 
@@ -837,10 +954,12 @@
         }
 
         window.switchTab = function(tabName) {
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            const allTabs = document.querySelectorAll('.tab');
+            allTabs.forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
             event.target.classList.add('active');
             document.getElementById(tabName + 'Tab').classList.add('active');
+            if (window.A11y) A11y.activateTab(event.target, allTabs);
         };
 
         function showError(message) {
@@ -851,8 +970,119 @@
                 </div>
             `;
         }
+
+        // --- Score Match Integration ---
+        let pendingScorerMatch = null;
+
+        window.launchScorer = function(matchId, p1Id, p1Name, p2Id, p2Name) {
+            pendingScorerMatch = { matchId, p1Id, p1Name, p2Id, p2Name };
+            document.getElementById('scorerPinInfo').textContent =
+                `${p1Name} vs ${p2Name}`;
+            document.getElementById('scorerPinInput').value = '';
+            document.getElementById('scorerPinError').textContent = '';
+            document.getElementById('scorerPinModal').classList.add('active');
+            setTimeout(() => document.getElementById('scorerPinInput').focus(), 100);
+        };
+
+        window.closeScorerPin = function() {
+            document.getElementById('scorerPinModal').classList.remove('active');
+            pendingScorerMatch = null;
+        };
+
+        window.verifyScorerPin = async function() {
+            const pin = document.getElementById('scorerPinInput').value.trim();
+            if (pin.length !== 8) {
+                document.getElementById('scorerPinError').textContent = 'Enter your 8-digit PIN';
+                return;
+            }
+
+            const launchBtn = document.querySelector('.pin-btn-launch');
+            launchBtn.textContent = 'VERIFYING...';
+            launchBtn.disabled = true;
+
+            try {
+                const result = await callFunction('globalLogin', { pin });
+                if (!result.success) throw new Error(result.error || 'Invalid PIN');
+
+                const playerId = result.player?.id || result.playerId;
+                const match = pendingScorerMatch;
+
+                // Verify this player is in the match
+                if (playerId !== match.p1Id && playerId !== match.p2Id) {
+                    document.getElementById('scorerPinError').textContent =
+                        'Your PIN does not match either player in this match';
+                    launchBtn.textContent = 'LAUNCH SCORER';
+                    launchBtn.disabled = false;
+                    return;
+                }
+
+                // Build scorer URL and navigate
+                const scorerUrl = buildTournamentScorerUrl(match);
+                window.location.href = scorerUrl;
+            } catch (e) {
+                document.getElementById('scorerPinError').textContent = e.message || 'Login failed';
+                launchBtn.textContent = 'LAUNCH SCORER';
+                launchBtn.disabled = false;
+            }
+        };
+
+        function buildTournamentScorerUrl(match) {
+            // Determine game type from event data
+            const gameType = eventData?.game || eventData?.game_type || '501';
+            const isCricket = gameType.toLowerCase() === 'cricket';
+            const scorerPage = isCricket ? 'league-cricket.html' : 'x01-scorer.html';
+            const bestOf = eventData?.best_of || 3;
+
+            const urlParams = new URLSearchParams({
+                tournament_id: tournamentId,
+                tournament_match_id: match.matchId,
+                tournament_type: 'single',
+                event_id: eventId,
+                return_url: window.location.href,
+                home_team_name: encodeURIComponent(match.p1Name),
+                away_team_name: encodeURIComponent(match.p2Name),
+                home_players: JSON.stringify([{ id: match.p1Id, name: match.p1Name }]),
+                away_players: JSON.stringify([{ id: match.p2Id, name: match.p2Name }]),
+                legs_to_win: Math.ceil(bestOf / 2),
+                cork: 'true'
+            });
+
+            if (!isCricket) {
+                // X01 configuration
+                let startingScore = 501;
+                if (['501', '301', '701'].includes(gameType)) {
+                    startingScore = parseInt(gameType);
+                }
+                urlParams.set('starting_score', startingScore);
+                urlParams.set('format', startingScore);
+                urlParams.set('in_rule', eventData?.in_option || 'straight');
+                urlParams.set('checkout', eventData?.out_option || 'double');
+            }
+
+            if (eventData?.cork_rules) {
+                urlParams.set('cork_rule', eventData.cork_rules);
+            }
+
+            return `/pages/${scorerPage}?${urlParams.toString()}`;
+        }
     </script>
-<script src="/js/feedback.js"></script>
+<!-- PIN Modal for Score Match -->
+<div class="pin-modal-overlay" id="scorerPinModal">
+    <div class="pin-modal">
+        <div class="pin-modal-title">ENTER YOUR PIN</div>
+        <div class="pin-modal-subtitle" id="scorerPinInfo">Enter the PIN of either player</div>
+        <input type="text" class="pin-modal-input" id="scorerPinInput"
+               placeholder="••••••••" maxlength="8" inputmode="numeric" pattern="[0-9]*" autocomplete="off"
+               style="-webkit-text-security: disc;"
+               onkeydown="if(event.key==='Enter')verifyScorerPin()">
+        <div class="pin-modal-error" id="scorerPinError"></div>
+        <div class="pin-modal-buttons">
+            <button class="pin-btn-cancel" onclick="closeScorerPin()">CANCEL</button>
+            <button class="pin-btn-launch" onclick="verifyScorerPin()">LAUNCH SCORER</button>
+        </div>
+    </div>
+</div>
+
 <script src="/js/nav-menu.js"></script>
 </body>
 </html>
