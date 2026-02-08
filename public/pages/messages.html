@@ -2,13 +2,14 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Darts Hub - BRDC</title>
     <link rel="icon" type="image/png" href="/images/favicon.png">
     <link rel="manifest" href="/manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#FF469A">
     <link rel="stylesheet" href="/css/brdc-styles.css">
+    <script src="/js/brdc-toast.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap');
 
@@ -75,6 +76,7 @@
 
         .login-page {
             min-height: 100vh;
+            min-height: 100dvh;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -1059,7 +1061,7 @@
             <div id="loginForm">
                 <div class="login-title">DARTS HUB</div>
                 <p style="color: var(--text-dim, #8a8aa3); margin-bottom: 20px; font-size: 14px;">Enter your PIN to join the lobby</p>
-                <input type="password" id="pinInput" class="form-input" placeholder="........" maxlength="8" inputmode="numeric">
+                <input type="text" id="pinInput" class="form-input" placeholder="........" maxlength="8" inputmode="numeric" pattern="[0-9]*" autocomplete="off" style="-webkit-text-security: disc;">
                 <button id="loginBtn" class="login-btn" onclick="login()">LOGIN</button>
             </div>
 
@@ -1080,7 +1082,7 @@
     <!-- Main Content -->
     <div id="mainContent" class="main-content">
         <div class="header-bar">
-            <button class="back-btn" onclick="history.back()">← BACK</button>
+            <button class="back-btn" onclick="goBack()">← BACK</button>
             <img src="/images/gold_logo.png" alt="BRDC" class="header-logo">
             <span class="header-title">DARTS HUB</span>
         </div>
@@ -1168,7 +1170,7 @@
                 <!-- Horizontal Bubbles -->
                 <div class="dm-bubbles-section">
                     <div class="dm-bubbles-scroll" id="dmBubblesScroll">
-                        <div class="add-dm-bubble" onclick="openSearchModal()">+</div>
+                        <button type="button" class="add-dm-bubble" onclick="openSearchModal()" aria-label="Start new message">+</button>
                         <!-- Bubbles will be inserted here -->
                     </div>
                 </div>
@@ -1185,7 +1187,7 @@
     </div>
 
     <!-- Player Action Modal -->
-    <div id="playerModal" class="player-modal">
+    <div id="playerModal" class="player-modal" role="dialog" aria-modal="true" aria-labelledby="modalPlayerName">
         <div class="player-modal-content">
             <div id="modalPlayerAvatar" class="modal-player-avatar">JD</div>
             <div id="modalPlayerName" class="modal-player-name">John Doe</div>
@@ -1200,10 +1202,10 @@
     </div>
 
     <!-- Search Modal -->
-    <div id="searchModal" class="search-modal">
+    <div id="searchModal" class="search-modal" role="dialog" aria-modal="true" aria-label="Search players">
         <div class="search-modal-content">
             <div class="search-header">
-                <button class="close-btn" onclick="closeSearchModal()">x</button>
+                <button class="close-btn" onclick="closeSearchModal()" aria-label="Close search">x</button>
                 <div class="search-input-wrapper">
                     <input type="text" id="searchInput" class="search-input" placeholder="Search players..." oninput="searchPlayers()">
                 </div>
@@ -1218,9 +1220,9 @@
     </div>
 
     <!-- Challenge Modal -->
-    <div id="challengeModal" class="challenge-modal">
+    <div id="challengeModal" class="challenge-modal" role="dialog" aria-modal="true" aria-labelledby="challengeModalTitle">
         <div class="challenge-modal-content">
-            <div class="challenge-modal-title">CHALLENGE <span id="challengeTargetName">PLAYER</span></div>
+            <div class="challenge-modal-title" id="challengeModalTitle">CHALLENGE <span id="challengeTargetName">PLAYER</span></div>
             <div class="game-type-options">
                 <div class="game-type-option selected" data-type="501" onclick="selectGameType('501')">
                     <div class="game-type-icon">501</div>
@@ -1246,12 +1248,12 @@
 
     <!-- Fallback for when module fails to load -->
     <script>
-        window.login = function() { alert('Still loading... please wait a moment and try again.'); };
-        window.register = function() { alert('Still loading... please wait a moment and try again.'); };
+        window.login = function() { toastWarning('Still loading... please wait a moment and try again.'); };
+        window.register = function() { toastWarning('Still loading... please wait a moment and try again.'); };
         window.showLoginTab = function() {};
         setTimeout(function() {
             if (!window._moduleLoaded) {
-                alert('Page failed to fully load. Try refreshing or use a non-private browser window.');
+                toastError('Page failed to fully load. Try refreshing or use a non-private browser window.');
             }
         }, 5000);
     </script>
@@ -1259,6 +1261,15 @@
     <script type="module">
         import { db, collection, query, where, orderBy, onSnapshot, doc, setDoc, deleteDoc, callFunction, serverTimestamp } from '/js/firebase-config.js';
         window._moduleLoaded = true;
+
+        function goBack() {
+            if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                window.location.href = '/pages/dashboard.html';
+            }
+        }
+        window.goBack = goBack;
 
         // Push notification functions (loaded dynamically later)
         let initializePushNotifications = async () => false;
@@ -1298,7 +1309,24 @@
             } catch (e) {
                 console.warn('Push notifications not available:', e.message);
             }
-            const storedPin = safeStorage.getItem('brdc_player_pin');
+            let storedPin = safeStorage.getItem('brdc_player_pin');
+
+            // Fallback: check brdc_session (set by dashboard login)
+            if (!storedPin) {
+                try {
+                    const savedSession = safeStorage.getItem('brdc_session') || localStorage.getItem('brdc_session');
+                    if (savedSession) {
+                        const session = JSON.parse(savedSession);
+                        if (session && session.pin) {
+                            storedPin = session.pin.toUpperCase();
+                            safeStorage.setItem('brdc_player_pin', storedPin);
+                        }
+                    }
+                } catch (e) {
+                    console.warn('Session fallback failed:', e);
+                }
+            }
+
             if (storedPin) {
                 try {
                     const result = await callFunction('getConversations', { player_pin: storedPin });
@@ -1315,8 +1343,11 @@
                     }
                 } catch (error) {
                     console.error('Session check failed:', error);
+                    // Only remove PIN on definitive auth failures
+                    if (error?.code === 'not-found' || error?.message?.includes('Invalid') || error?.message?.includes('not found')) {
+                        safeStorage.removeItem('brdc_player_pin');
+                    }
                 }
-                safeStorage.removeItem('brdc_player_pin');
             }
 
             // Show login page (already visible by default, but ensure it's shown)
@@ -1352,11 +1383,11 @@
             const email = document.getElementById('regEmail').value.trim();
 
             if (!firstName || !lastName) {
-                alert('Please enter your first and last name');
+                toastWarning('Please enter your first and last name');
                 return;
             }
             if (!phone || phone.length < 10) {
-                alert('Please enter a valid phone number');
+                toastWarning('Please enter a valid phone number');
                 return;
             }
 
@@ -1369,16 +1400,16 @@
                 });
 
                 if (result.success) {
-                    alert(`Registration successful!\n\nYour PIN: ${result.pin}\n\nSave this PIN to log in!`);
+                    toastSuccess(`Registration successful!\n\nYour PIN: ${result.pin}\n\nSave this PIN to log in!`);
                     document.getElementById('pinInput').value = result.pin;
                     showLoginTab('login');
                     login();
                 } else {
-                    alert(result.error || 'Registration failed');
+                    toastError(result.error || 'Registration failed');
                 }
             } catch (error) {
                 console.error('Registration error:', error);
-                alert('Registration failed. Please try again.');
+                toastError('Registration failed. Please try again.');
             }
         };
 
@@ -1402,11 +1433,11 @@
 
                     initializeLobby();
                 } else {
-                    alert('Invalid PIN');
+                    toastError('Invalid PIN');
                 }
             } catch (error) {
                 console.error('Login error:', error);
-                alert('Login failed. Please try again.');
+                toastError('Login failed. Please try again.');
             }
         };
 
@@ -1787,10 +1818,15 @@
             selectedPlayer = { id: playerId, name: playerName };
             document.getElementById('modalPlayerName').textContent = playerName;
             document.getElementById('modalPlayerAvatar').textContent = getInitials(playerName);
-            document.getElementById('playerModal').classList.add('active');
+            var modalEl = document.getElementById('playerModal');
+            modalEl.classList.add('active');
+            if (window.A11y && A11y.initModal) {
+                window._playerModalCleanup = A11y.initModal(modalEl, { labelledBy: 'modalPlayerName', onClose: closePlayerModal });
+            }
         };
 
         window.closePlayerModal = function() {
+            if (window._playerModalCleanup) { window._playerModalCleanup(); window._playerModalCleanup = null; }
             document.getElementById('playerModal').classList.remove('active');
             selectedPlayer = null;
         };
@@ -1798,11 +1834,16 @@
         window.openChallengeModal = function() {
             if (!selectedPlayer) return;
             document.getElementById('challengeTargetName').textContent = selectedPlayer.name;
-            document.getElementById('challengeModal').classList.add('active');
+            var modalEl = document.getElementById('challengeModal');
+            modalEl.classList.add('active');
             closePlayerModal();
+            if (window.A11y && A11y.initModal) {
+                window._challengeModalCleanup = A11y.initModal(modalEl, { labelledBy: 'challengeModalTitle', onClose: closeChallengeModal });
+            }
         };
 
         window.closeChallengeModal = function() {
+            if (window._challengeModalCleanup) { window._challengeModalCleanup(); window._challengeModalCleanup = null; }
             document.getElementById('challengeModal').classList.remove('active');
         };
 
@@ -1827,10 +1868,10 @@
                 });
 
                 closeChallengeModal();
-                alert(`Challenge sent to ${selectedPlayer.name}!`);
+                toastSuccess(`Challenge sent to ${selectedPlayer.name}!`);
             } catch (error) {
                 console.error('Error sending challenge:', error);
-                alert('Failed to send challenge');
+                toastError('Failed to send challenge');
             }
         };
 
@@ -1843,7 +1884,7 @@
                 await setDoc(challengeRef, { status: 'accepted' }, { merge: true });
 
                 // Navigate to game setup
-                alert('Challenge accepted! Redirecting to game...');
+                toastSuccess('Challenge accepted! Redirecting to game...');
                 // Could redirect to game setup page here
             } catch (error) {
                 console.error('Error accepting challenge:', error);
@@ -1892,11 +1933,16 @@
 
         // Search
         window.openSearchModal = function() {
-            document.getElementById('searchModal').classList.add('active');
+            var modalEl = document.getElementById('searchModal');
+            modalEl.classList.add('active');
+            if (window.A11y && A11y.initModal) {
+                window._searchModalCleanup = A11y.initModal(modalEl, { label: 'Search players', onClose: closeSearchModal });
+            }
             document.getElementById('searchInput').focus();
         };
 
         window.closeSearchModal = function() {
+            if (window._searchModalCleanup) { window._searchModalCleanup(); window._searchModalCleanup = null; }
             document.getElementById('searchModal').classList.remove('active');
             document.getElementById('searchInput').value = '';
             document.getElementById('searchResults').innerHTML = `
@@ -1970,7 +2016,7 @@
                 }
             } catch (error) {
                 console.error('Error starting conversation:', error);
-                alert('Failed to start conversation');
+                toastError('Failed to start conversation');
             }
         };
 
@@ -2022,6 +2068,5 @@
         });
     </script>
 <script src="/js/nav-menu.js"></script>
-<script src="/js/feedback.js"></script>
 </body>
 </html>

@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stream Director - BRDC Live</title>
     <link rel="icon" type="image/png" href="/images/favicon.png">
+    <script src="/js/brdc-toast.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700;800&display=swap');
 
@@ -22,6 +23,7 @@
             background: var(--bg-dark);
             color: white;
             min-height: 100vh;
+            min-height: 100dvh;
         }
 
         .header {
@@ -64,6 +66,7 @@
             gap: 20px;
             padding: 20px;
             height: calc(100vh - 70px);
+            height: calc(100dvh - 70px);
         }
 
         .preview-section {
@@ -317,7 +320,9 @@
             width: 48px;
             height: 26px;
             background: rgba(255,255,255,0.2);
+            border: none;
             border-radius: 13px;
+            padding: 0;
             position: relative;
             cursor: pointer;
             transition: background 0.2s;
@@ -396,7 +401,7 @@
                 <div class="panel-title">OVERLAY</div>
                 <div class="overlay-toggle">
                     <span class="form-label" style="margin: 0;">Show Scorer Overlay</span>
-                    <div class="toggle-switch" id="overlayToggle" onclick="toggleOverlay()"></div>
+                    <button type="button" class="toggle-switch" id="overlayToggle" onclick="toggleOverlay()" role="switch" aria-checked="false" aria-label="Show scorer overlay"></button>
                 </div>
                 <div class="form-group">
                     <label class="form-label">Match Source</label>
@@ -464,7 +469,7 @@
                 <div style="font-size: 12px; color: rgba(255,255,255,0.7); margin-bottom: 12px;">
                     Share the session code with camera operators. They should open the Camera Source page on their device.
                 </div>
-                <a href="/pages/stream-camera.html" class="btn btn-secondary" style="display: block; text-align: center; text-decoration: none;">OPEN CAMERA SOURCE PAGE</a>
+                <a href="/pages/stream-camera.html" target="_blank" class="btn btn-secondary" style="display: block; text-align: center; text-decoration: none;">OPEN CAMERA SOURCE PAGE</a>
             </div>
         </div>
     </div>
@@ -548,7 +553,7 @@
 
             } catch (error) {
                 console.error('Error creating session:', error);
-                alert('Failed to create session: ' + error.message);
+                toastError('Failed to create session: ' + error.message);
             }
         };
 
@@ -694,7 +699,9 @@
 
         window.toggleOverlay = function() {
             showOverlay = !showOverlay;
-            document.getElementById('overlayToggle').classList.toggle('active', showOverlay);
+            const toggle = document.getElementById('overlayToggle');
+            toggle.classList.toggle('active', showOverlay);
+            toggle.setAttribute('aria-checked', showOverlay);
         };
 
         // ========== STREAMING RELAY FUNCTIONS ==========
@@ -702,7 +709,7 @@
         window.connectRelay = function() {
             const relayUrl = document.getElementById('relayUrl').value.trim();
             if (!relayUrl) {
-                alert('Please enter a relay server URL');
+                toastWarning('Please enter a relay server URL');
                 return;
             }
 
@@ -769,7 +776,7 @@
 
                 case 'error':
                     console.error('Relay error:', message.message);
-                    alert('Stream error: ' + message.message);
+                    toastError('Stream error: ' + message.message);
                     if (isLive) {
                         stopStreaming();
                     }
@@ -807,12 +814,12 @@
             const streamKey = document.getElementById('streamKey').value.trim();
 
             if (!streamKey) {
-                alert('Please enter your stream key');
+                toastWarning('Please enter your stream key');
                 return;
             }
 
             if (!relaySocket || relaySocket.readyState !== WebSocket.OPEN) {
-                alert('Not connected to relay server');
+                toastError('Not connected to relay server');
                 return;
             }
 
@@ -923,7 +930,7 @@
 
             } catch (error) {
                 console.error('Error starting MediaRecorder:', error);
-                alert('Failed to start video capture: ' + error.message);
+                toastError('Failed to start video capture: ' + error.message);
                 stopStreaming();
             }
         }
