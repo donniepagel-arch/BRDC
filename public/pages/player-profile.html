@@ -906,18 +906,6 @@
     <link rel="stylesheet" href="/css/brdc-search.css">
 </head>
 <body>
-    <div class="header-bar">
-        <button class="back-btn" onclick="goBack()">← BACK</button>
-        <img src="/images/gold_logo.png" alt="BRDC" class="header-logo">
-        <span class="header-title">PLAYER PROFILE</span>
-    </div>
-
-    <nav class="breadcrumbs" aria-label="Breadcrumb">
-        <ol>
-            <li><a href="/pages/dashboard.html">Dashboard</a></li>
-            <li aria-current="page">Player Profile</li>
-        </ol>
-    </nav>
 
     <!-- Loading Overlay (shown when checking session) -->
     <div class="login-overlay" id="loadingOverlay" style="display: none;">
@@ -934,7 +922,7 @@
     <div class="login-overlay" id="loginOverlay" style="display: none;">
         <div class="login-card" id="loginCard">
             <h2>Player Login</h2>
-            <input type="password" id="loginPin" placeholder="Enter 8-Digit PIN" maxlength="8" pattern="[0-9]{8}" inputmode="numeric" style="font-size: 24px; letter-spacing: 8px; text-align: center;">
+            <input type="text" id="loginPin" placeholder="Enter 8-Digit PIN" maxlength="8" pattern="[0-9]*" inputmode="numeric" autocomplete="off" style="font-size: 24px; letter-spacing: 8px; text-align: center; -webkit-text-security: disc;">
             <p class="pin-setup-note">Your PIN was sent when you registered</p>
             <button class="brdc-btn" onclick="login()" style="width: 100%;">LOGIN</button>
             <p style="margin-top: 20px; font-size: 14px; color: #aaa;">
@@ -1005,12 +993,12 @@
             <div style="padding: 25px;">
 
                 <!-- Dashboard Tabs -->
-                <div class="dashboard-tabs" id="dashboardTabs">
-                    <div class="dash-tab active" onclick="switchDashTab('profile')">PROFILE</div>
-                    <div class="dash-tab" onclick="switchDashTab('social')">SOCIAL</div>
-                    <div class="dash-tab" onclick="switchDashTab('leagues')">LEAGUES</div>
-                    <div class="dash-tab" onclick="switchDashTab('tournaments')">TOURNAMENTS</div>
-                    <div class="dash-tab" id="captainTabBtn" style="display: none;" onclick="switchDashTab('captain')">CAPTAIN</div>
+                <div class="dashboard-tabs" id="dashboardTabs" role="tablist" aria-label="Profile sections">
+                    <button type="button" class="dash-tab active" role="tab" aria-selected="true" onclick="switchDashTab('profile')">PROFILE</button>
+                    <button type="button" class="dash-tab" role="tab" aria-selected="false" onclick="switchDashTab('social')">SOCIAL</button>
+                    <button type="button" class="dash-tab" role="tab" aria-selected="false" onclick="switchDashTab('leagues')">LEAGUES</button>
+                    <button type="button" class="dash-tab" role="tab" aria-selected="false" onclick="switchDashTab('tournaments')">TOURNAMENTS</button>
+                    <button type="button" class="dash-tab" role="tab" aria-selected="false" id="captainTabBtn" style="display: none;" onclick="switchDashTab('captain')">CAPTAIN</button>
                 </div>
 
                 <!-- PROFILE TAB -->
@@ -1820,10 +1808,12 @@
 
         // Tab switching
         window.switchDashTab = function(tabName) {
-            document.querySelectorAll('.dash-tab').forEach(t => t.classList.remove('active'));
+            const allTabs = document.querySelectorAll('.dash-tab');
+            allTabs.forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.dash-tab-content').forEach(c => c.classList.remove('active'));
             event.target.classList.add('active');
             document.getElementById(tabName + 'Tab').classList.add('active');
+            if (window.A11y) A11y.activateTab(event.target, allTabs);
         };
 
         // Stats source toggle - League | Tournament | Social | Combined
@@ -2996,12 +2986,12 @@
                     { label: 'Player Profile', url: '#' }
                 ]
             });
+            if (window.A11y) A11y.initTabs('.dashboard-tabs', { tabSelector: '.dash-tab', label: 'Profile sections' });
         });
     </script>
 
 <script src="/js/display-helpers.js"></script>
 <script src="/js/stats-helpers.js"></script>
 <script src="/js/nav-menu.js"></script>
-<script src="/js/feedback.js"></script>
 </body>
 </html>
