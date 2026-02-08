@@ -2,12 +2,13 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Create Tournament - BRDC</title>
     <link rel="icon" type="image/png" href="/images/favicon.png">
     <link rel="manifest" href="/manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#FF469A">
+    <script src="/js/brdc-toast.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
@@ -138,6 +139,7 @@
             letter-spacing: 3px;
             text-align: center;
             box-shadow: 2px 2px 0 rgba(0,0,0,0.3);
+            -webkit-text-security: disc;
         }
         .pin-signin-input:focus {
             outline: none;
@@ -906,6 +908,7 @@
         /* Success Page */
         .success-page {
             min-height: 100vh;
+            min-height: 100dvh;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -1014,7 +1017,7 @@
 </head>
 <body>
     <div class="header-bar">
-        <button class="back-btn" onclick="window.location.href='/'">BACK</button>
+        <button class="back-btn" onclick="window.location.href='/pages/dashboard.html'">BACK</button>
         <img src="/images/gold_logo.png" alt="BRDC" class="header-logo">
         <h1 class="header-title">CREATE TOURNAMENT</h1>
     </div>
@@ -1026,7 +1029,7 @@
                 <div class="section-header">
                     <div class="section-icon">&#128100;</div>
                     <div>
-                        <div class="section-title">TOURNAMENT DIRECTOR</div>
+                        <h2 class="section-title">TOURNAMENT DIRECTOR</h2>
                         <div class="section-subtitle">Your info for managing the tournament</div>
                     </div>
                 </div>
@@ -1037,7 +1040,7 @@
                             <div class="pin-signin-row" id="pinSigninRow">
                                 <div class="pin-signin-label">Already a member?</div>
                                 <div class="pin-signin-input-group">
-                                    <input type="password" id="signInPin" class="pin-signin-input" placeholder="••••••••" maxlength="8" inputmode="numeric" pattern="[0-9]*" autocomplete="off">
+                                    <input type="text" id="signInPin" class="pin-signin-input" placeholder="••••••••" maxlength="8" inputmode="numeric" pattern="[0-9]*" autocomplete="off">
                                     <button type="button" class="pin-signin-btn" onclick="lookupDirector()">GO</button>
                                 </div>
                             </div>
@@ -1071,7 +1074,7 @@
                 <div class="section-header">
                     <div class="section-icon teal">&#127919;</div>
                     <div>
-                        <div class="section-title">TOURNAMENT INFORMATION</div>
+                        <h2 class="section-title">TOURNAMENT INFORMATION</h2>
                         <div class="section-subtitle">Basic details about your tournament</div>
                     </div>
                 </div>
@@ -1135,7 +1138,7 @@
                     <div style="display: flex; align-items: center; gap: 12px;">
                         <div class="section-icon yellow">&#127942;</div>
                         <div>
-                            <div class="section-title">EVENTS</div>
+                            <h2 class="section-title">EVENTS</h2>
                             <div class="section-subtitle">Configure tournament events</div>
                         </div>
                     </div>
@@ -1162,7 +1165,7 @@
                 💾 SAVE AS DRAFT
             </button>
         </div>
-        <button type="button" class="btn-cancel" onclick="window.location.href='/'">CANCEL</button>
+        <button type="button" class="btn-cancel" onclick="window.location.href='/pages/dashboard.html'">CANCEL</button>
         <button type="button" class="btn-submit" id="submitBtn" onclick="submitTournament()">CREATE TOURNAMENT</button>
     </div>
 
@@ -1329,7 +1332,7 @@ tournamentImageInput.addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (file) {
         if (file.size > 5 * 1024 * 1024) {
-            alert('Image must be less than 5MB');
+            toastError('Image must be less than 5MB');
             return;
         }
         tournamentImageFile = file;
@@ -1358,7 +1361,7 @@ window.handleEventImageChange = function(eventId, input) {
     const file = input.files[0];
     if (file) {
         if (file.size > 5 * 1024 * 1024) {
-            alert('Image must be less than 5MB');
+            toastError('Image must be less than 5MB');
             return;
         }
         eventImageFiles[eventId] = file;
@@ -1639,7 +1642,7 @@ window.addEvent = function() {
     const currentCount = getCurrentEventCount();
 
     if (currentCount >= maxEvents) {
-        alert(`You can only create up to ${maxEvents} events. Contact admin for higher limits.`);
+        toastWarning(`You can only create up to ${maxEvents} events. Contact admin for higher limits.`);
         return;
     }
 
@@ -2542,7 +2545,7 @@ window.submitTournament = async function() {
     } catch (error) {
         hideLoading();
         console.error('Error creating tournament:', error);
-        alert('Something went wrong. Please try again.');
+        toastError('Something went wrong. Please try again.');
         btn.disabled = false;
         btn.textContent = 'CREATE TOURNAMENT';
     }
@@ -2696,7 +2699,7 @@ function applyTemplateData(template) {
 // Save current form as template
 window.saveAsTemplate = async function() {
     if (!window.directorPin) {
-        alert('Please sign in first to save templates');
+        toastInfo('Please sign in first to save templates');
         return;
     }
 
@@ -2713,20 +2716,20 @@ window.saveAsTemplate = async function() {
         });
 
         if (result.success) {
-            alert('Template saved successfully!');
+            toastSuccess('Template saved successfully!');
         } else {
             throw new Error(result.error || 'Failed to save template');
         }
     } catch (error) {
         console.error('Error saving template:', error);
-        alert('Something went wrong. Please try again.');
+        toastError('Something went wrong. Please try again.');
     }
 };
 
 // Open template modal
 window.openTemplateModal = async function() {
     if (!window.directorPin) {
-        alert('Please sign in first to load templates');
+        toastInfo('Please sign in first to load templates');
         return;
     }
 
@@ -2779,13 +2782,13 @@ window.loadTemplate = async function(templateId) {
         if (result.success && result.template) {
             applyTemplateData(result.template.data);
             closeTemplateModal();
-            alert('Template loaded!');
+            toastSuccess('Template loaded!');
         } else {
             throw new Error(result.error || 'Failed to load template');
         }
     } catch (error) {
         console.error('Error loading template:', error);
-        alert('Unable to load template. Check your connection and try again.');
+        toastError('Unable to load template. Check your connection and try again.');
     }
 };
 
@@ -2806,14 +2809,14 @@ window.deleteTemplate = async function(templateId) {
         }
     } catch (error) {
         console.error('Error deleting template:', error);
-        alert('Something went wrong. Please try again.');
+        toastError('Something went wrong. Please try again.');
     }
 };
 
 // Save as draft
 window.saveAsDraft = async function() {
     if (!window.directorPin) {
-        alert('Please sign in first to save drafts');
+        toastInfo('Please sign in first to save drafts');
         return;
     }
 
@@ -2826,13 +2829,13 @@ window.saveAsDraft = async function() {
         });
 
         if (result.success) {
-            alert('Draft saved! You can continue editing later by signing in with your PIN.');
+            toastSuccess('Draft saved! You can continue editing later by signing in with your PIN.');
         } else {
             throw new Error(result.error || 'Failed to save draft');
         }
     } catch (error) {
         console.error('Error saving draft:', error);
-        alert('Something went wrong. Please try again.');
+        toastError('Something went wrong. Please try again.');
     }
 };
 
@@ -2868,6 +2871,5 @@ async function checkForDraft() {
 }
 </script>
 <script src="/js/nav-menu.js"></script>
-<script src="/js/feedback.js"></script>
 </body>
 </html>

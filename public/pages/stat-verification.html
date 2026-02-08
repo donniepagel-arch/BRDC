@@ -2,9 +2,10 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Verify Your Stats - BRDC</title>
     <link rel="icon" type="image/png" href="/images/favicon.png">
+    <script src="/js/brdc-toast.js"></script>
 
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -39,6 +40,7 @@
         body {
             background: linear-gradient(135deg, var(--bg-dark) 0%, #0f0f23 100%);
             min-height: 100vh;
+            min-height: 100dvh;
             color: white;
         }
 
@@ -407,6 +409,7 @@
         /* Login Page - matches dashboard.html */
         .login-page {
             min-height: 100vh;
+            min-height: 100dvh;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -544,7 +547,7 @@
             <img src="/images/gold_logo.png" alt="BRDC" class="header-logo">
         </a>
         <span class="header-title">VERIFY YOUR STATS</span>
-        <a href="/pages/dashboard.html" class="back-btn">BACK</a>
+        <button class="back-btn" onclick="goBack()">← BACK</button>
     </div>
 
     <!-- Login Screen -->
@@ -560,7 +563,7 @@
 
                 <div class="form-group">
                     <label class="form-label">Your 8-Digit PIN</label>
-                    <input type="password" class="form-input" id="pinInput" placeholder="••••••••" maxlength="8" inputmode="numeric" pattern="[0-9]*" autocomplete="off">
+                    <input type="text" class="form-input" id="pinInput" placeholder="••••••••" maxlength="8" inputmode="numeric" pattern="[0-9]*" autocomplete="off" style="-webkit-text-security: disc;">
                 </div>
 
                 <button class="login-btn" onclick="loginWithPin()">LOGIN</button>
@@ -608,7 +611,7 @@
             </div>
 
             <!-- Bot Selection -->
-            <div class="section-title">SELECT YOUR OPPONENT</div>
+            <h2 class="section-title">SELECT YOUR OPPONENT</h2>
             <div class="bot-grid" id="botGrid">
                 <!-- Bots populated by JS -->
             </div>
@@ -643,6 +646,15 @@
     <script type="module">
         import { callFunction } from '/js/firebase-config.js';
 
+        function goBack() {
+            if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                window.location.href = '/pages/dashboard.html';
+            }
+        }
+        window.goBack = goBack;
+
         // State
         let currentPlayer = null;
         let selectedBot = null;
@@ -672,8 +684,8 @@
             const pin = document.getElementById('pinInput').value.trim();
             const errorEl = document.getElementById('loginError');
 
-            if (!pin || pin.length < 5) {
-                errorEl.textContent = 'Please enter a valid PIN';
+            if (!pin || pin.length !== 8) {
+                errorEl.textContent = 'Please enter your 8-digit PIN';
                 errorEl.classList.remove('hidden');
                 return;
             }
@@ -852,7 +864,7 @@
         // Launch verification
         window.launchVerification = function(gameType) {
             if (!selectedBot || !currentPlayer) {
-                alert('Please select a bot opponent first');
+                toastWarning('Please select a bot opponent first');
                 return;
             }
 
@@ -937,7 +949,7 @@
                 sessionStorage.removeItem('verificationSession');
 
                 // Show success message
-                alert(`Verification complete!\n\nYour ${data.game_type} stats have been saved.`);
+                toastSuccess(`Verification complete!\n\nYour ${data.game_type} stats have been saved.`);
             }
         })();
 

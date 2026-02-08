@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Register - Matchmaker Tournament</title>
     <link rel="icon" type="image/png" href="/images/favicon.png">
     <style>
@@ -27,6 +27,7 @@
             font-family: 'Inter', sans-serif;
             background: linear-gradient(135deg, var(--bg-dark) 0%, var(--blue-dark) 100%);
             min-height: 100vh;
+            min-height: 100dvh;
             color: var(--text-light);
         }
 
@@ -254,6 +255,14 @@
             color: rgba(255,255,255,0.4);
         }
 
+        .form-input.pin-field {
+            -webkit-text-security: disc;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 24px;
+            letter-spacing: 4px;
+            color: var(--yellow);
+        }
+
         /* Gender Toggle */
         .gender-toggle {
             display: flex;
@@ -426,6 +435,29 @@
             margin-top: 15px;
         }
 
+        .cancel-reg-btn {
+            width: 100%;
+            padding: 14px;
+            background: transparent;
+            border: 2px solid #ef4444;
+            color: #ef4444;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 18px;
+            letter-spacing: 2px;
+            cursor: pointer;
+            margin-top: 15px;
+            transition: all 0.2s;
+        }
+
+        .cancel-reg-btn:hover {
+            background: rgba(239, 68, 68, 0.2);
+        }
+
+        .cancel-reg-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
         .or-register {
             margin-top: 20px;
             padding-top: 20px;
@@ -448,7 +480,7 @@
 </head>
 <body>
     <div class="header-bar">
-        <button class="back-btn" onclick="history.back()">BACK</button>
+        <button class="back-btn" onclick="goBack()">BACK</button>
         <span class="header-title">REGISTER</span>
     </div>
 
@@ -489,6 +521,9 @@
             <button class="checkin-btn" id="checkinBtn" onclick="checkInPlayer()">
                 CHECK IN AT VENUE
             </button>
+            <button class="cancel-reg-btn" id="cancelRegBtn" onclick="cancelRegistration()">
+                CANCEL REGISTRATION
+            </button>
             <div class="checkin-time hidden" id="checkinTime"></div>
             <div class="or-register">
                 Not you? <a onclick="showRegistrationForm()">Register a different person</a>
@@ -497,13 +532,13 @@
 
         <!-- PIN Entry for Check-in -->
         <div id="pinCheckSection" class="form-section hidden">
-            <div class="section-title">ALREADY REGISTERED?</div>
+            <h2 class="section-title">ALREADY REGISTERED?</h2>
             <p style="color: var(--text-dim); margin-bottom: 15px; font-size: 14px;">
                 Enter your Player ID to check in at the venue.
             </p>
             <div class="form-group">
                 <label class="form-label">Your 8-Digit PIN</label>
-                <input type="password" class="form-input" id="checkinPinInput" placeholder="Enter your PIN" maxlength="8" inputmode="numeric">
+                <input type="text" class="form-input pin-field" id="checkinPinInput" placeholder="••••••••" maxlength="8" inputmode="numeric" pattern="[0-9]*" autocomplete="off">
             </div>
             <button class="submit-btn" onclick="lookupRegistration()" style="background: linear-gradient(135deg, var(--teal), #5ab8d4); color: #000; margin-top: 15px;">
                 FIND MY REGISTRATION
@@ -530,7 +565,7 @@
         <!-- Single Registration Form -->
         <div id="singleForm">
             <div class="form-section">
-                <div class="section-title">YOUR INFO</div>
+                <h2 class="section-title">YOUR INFO</h2>
 
                 <div class="form-row">
                     <div class="form-group">
@@ -569,8 +604,8 @@
                 </div>
 
                 <div class="form-group">
-                    <label class="form-label">Player ID (if you have one)</label>
-                    <input type="text" class="form-input" id="singlePlayerId" placeholder="Your 8-digit PIN">
+                    <label class="form-label">Already a member? Enter your PIN</label>
+                    <input type="text" class="form-input pin-field" id="singlePlayerId" placeholder="••••••••" maxlength="8" inputmode="numeric" pattern="[0-9]*" autocomplete="off">
                 </div>
             </div>
 
@@ -582,14 +617,14 @@
         <!-- Team Registration Form -->
         <div id="teamForm" class="hidden">
             <div class="form-section">
-                <div class="section-title">TEAM NAME (OPTIONAL)</div>
+                <h2 class="section-title">TEAM NAME (OPTIONAL)</h2>
                 <div class="form-group">
                     <input type="text" class="form-input" id="teamName" placeholder="e.g., Love Birds">
                 </div>
             </div>
 
             <div class="form-section">
-                <div class="section-title">PLAYER 1</div>
+                <h2 class="section-title">PLAYER 1</h2>
 
                 <div class="form-row">
                     <div class="form-group">
@@ -617,13 +652,13 @@
                 </div>
 
                 <div class="form-group" style="margin-top: 15px;">
-                    <label class="form-label">Player ID (if they have one)</label>
-                    <input type="text" class="form-input" id="p1PlayerId" placeholder="8-digit PIN">
+                    <label class="form-label">Already a member? Enter their PIN</label>
+                    <input type="text" class="form-input pin-field" id="p1PlayerId" placeholder="••••••••" maxlength="8" inputmode="numeric" pattern="[0-9]*" autocomplete="off">
                 </div>
             </div>
 
             <div class="form-section">
-                <div class="section-title">PLAYER 2</div>
+                <h2 class="section-title">PLAYER 2</h2>
 
                 <div class="form-row">
                     <div class="form-group">
@@ -651,8 +686,8 @@
                 </div>
 
                 <div class="form-group" style="margin-top: 15px;">
-                    <label class="form-label">Player ID (if they have one)</label>
-                    <input type="text" class="form-input" id="p2PlayerId" placeholder="8-digit PIN">
+                    <label class="form-label">Already a member? Enter their PIN</label>
+                    <input type="text" class="form-input pin-field" id="p2PlayerId" placeholder="••••••••" maxlength="8" inputmode="numeric" pattern="[0-9]*" autocomplete="off">
                 </div>
             </div>
 
@@ -665,8 +700,17 @@
     <script type="module">
         import { db, doc, getDoc, callFunction } from '/js/firebase-config.js';
 
+        function goBack() {
+            if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                window.location.href = '/pages/dashboard.html';
+            }
+        }
+        window.goBack = goBack;
+
         const urlParams = new URLSearchParams(window.location.search);
-        const tournamentId = urlParams.get('id');
+        const tournamentId = urlParams.get('id') || urlParams.get('tournament_id');
 
         let tournamentData = null;
         let selectedType = 'single';
@@ -870,8 +914,8 @@
         window.lookupRegistration = async function() {
             const pin = document.getElementById('checkinPinInput').value.trim();
 
-            if (!pin || pin.length < 4) {
-                showMessage('Please enter your PIN', 'error');
+            if (!pin || pin.length !== 8) {
+                showMessage('Please enter your 8-digit PIN', 'error');
                 return;
             }
 
@@ -960,6 +1004,14 @@
                 checkinBtn.disabled = true;
                 checkinBtn.textContent = 'MARKED AS NO-SHOW';
             }
+
+            // Show/hide cancel button based on check-in status
+            const cancelBtn = document.getElementById('cancelRegBtn');
+            if (regData.checked_in || regData.no_show) {
+                cancelBtn.classList.add('hidden');
+            } else {
+                cancelBtn.classList.remove('hidden');
+            }
         }
 
         window.checkInPlayer = async function() {
@@ -1006,6 +1058,51 @@
                 showMessage('Check-in failed: ' + error.message, 'error');
                 checkinBtn.disabled = false;
                 checkinBtn.textContent = 'CHECK IN AT VENUE';
+            }
+        };
+
+        window.cancelRegistration = async function() {
+            if (!currentRegistration) {
+                showMessage('No registration found', 'error');
+                return;
+            }
+
+            // Confirm before deleting
+            if (!confirm('Are you sure you want to cancel your registration? This cannot be undone.')) {
+                return;
+            }
+
+            const cancelBtn = document.getElementById('cancelRegBtn');
+            cancelBtn.disabled = true;
+            cancelBtn.textContent = 'CANCELLING...';
+
+            try {
+                const result = await callFunction('deleteMatchmakerRegistration', {
+                    tournament_id: tournamentId,
+                    registration_id: currentRegistration.registration_id,
+                    player_id: document.getElementById('checkinPinInput').value.trim()
+                });
+
+                if (result.success) {
+                    showMessage('Registration cancelled successfully.', 'success');
+                    currentRegistration = null;
+
+                    // Hide check-in section, show registration form
+                    document.getElementById('checkinSection').classList.add('hidden');
+                    showRegistrationForm();
+
+                    // Refresh status counts
+                    await loadStatus();
+                } else {
+                    showMessage(result.error || 'Failed to cancel registration', 'error');
+                    cancelBtn.disabled = false;
+                    cancelBtn.textContent = 'CANCEL REGISTRATION';
+                }
+            } catch (error) {
+                console.error('Cancel error:', error);
+                showMessage('Failed to cancel: ' + error.message, 'error');
+                cancelBtn.disabled = false;
+                cancelBtn.textContent = 'CANCEL REGISTRATION';
             }
         };
 
