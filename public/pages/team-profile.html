@@ -802,7 +802,7 @@
 </head>
 <body>
     <div class="header-bar">
-        <button class="back-btn" onclick="goBack()">< BACK</button>
+        <button class="back-btn" onclick="goBack()" aria-label="Go back">< BACK</button>
         <img src="/images/gold_logo.png" alt="BRDC" class="header-logo">
         <span class="header-title">TEAM PROFILE</span>
     </div>
@@ -822,6 +822,7 @@
         </div>
     </div>
 
+    <script src="/js/a11y-helpers.js"></script>
     <script type="module">
         import { callFunction, db, doc, getDoc, collection, getDocs, query, where, orderBy } from '/js/firebase-config.js';
 
@@ -1037,11 +1038,11 @@
                     </a>
                 </div>
 
-                <div class="tabs">
-                    <div class="tab active" onclick="switchTab('players')">ROSTER</div>
-                    <div class="tab" onclick="switchTab('stats')">STATS</div>
-                    <div class="tab" onclick="switchTab('matches')">MATCHES</div>
-                    <div class="tab" onclick="switchTab('standings')">STANDINGS</div>
+                <div class="tabs" role="tablist" aria-label="Team sections">
+                    <button type="button" class="tab active" role="tab" aria-selected="true" onclick="switchTab('players')">ROSTER</button>
+                    <button type="button" class="tab" role="tab" aria-selected="false" onclick="switchTab('stats')">STATS</button>
+                    <button type="button" class="tab" role="tab" aria-selected="false" onclick="switchTab('matches')">MATCHES</button>
+                    <button type="button" class="tab" role="tab" aria-selected="false" onclick="switchTab('standings')">STANDINGS</button>
                 </div>
 
                 <div id="playersTab" class="tab-content active">
@@ -1062,6 +1063,7 @@
             `;
 
             document.getElementById('mainContent').innerHTML = html;
+            if (window.A11y) A11y.initTabs('.tabs', { tabSelector: '.tab', label: 'Team sections' });
         }
 
         function calculateTeamStats(levelFilter = 'all') {
@@ -1497,10 +1499,12 @@
         }
 
         window.switchTab = function(tabName) {
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            const allTabs = document.querySelectorAll('.tab');
+            allTabs.forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
             event.target.classList.add('active');
             document.getElementById(tabName + 'Tab').classList.add('active');
+            if (window.A11y) A11y.activateTab(event.target, allTabs);
         };
 
         window.toggleMatch = function(matchId) {
