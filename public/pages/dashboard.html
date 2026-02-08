@@ -510,6 +510,100 @@
             border-color: var(--pink);
         }
 
+        .fb-feed-card.highlights-card {
+            border-color: var(--yellow);
+        }
+
+        .highlight-section {
+            margin-top: 12px;
+        }
+
+        .highlight-section:first-child {
+            margin-top: 0;
+        }
+
+        .highlight-label {
+            font-weight: 700;
+            font-size: 12px;
+            color: var(--yellow);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .highlight-label::before {
+            content: '';
+            width: 3px;
+            height: 12px;
+            background: var(--yellow);
+            border-radius: 2px;
+        }
+
+        .highlight-stat {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px 0;
+            color: var(--text-light);
+            font-size: 13px;
+        }
+
+        .highlight-stat-value {
+            color: var(--yellow);
+            font-weight: 600;
+        }
+
+        .highlight-count-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-top: 6px;
+        }
+
+        .highlight-count-item {
+            background: rgba(255, 215, 0, 0.1);
+            border: 1px solid rgba(255, 215, 0, 0.3);
+            border-radius: 6px;
+            padding: 6px;
+            text-align: center;
+        }
+
+        .highlight-count-label {
+            font-size: 10px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+        }
+
+        .highlight-count-value {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--yellow);
+        }
+
+        .highlight-match-result {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 10px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 6px;
+            margin-top: 4px;
+        }
+
+        .highlight-match-result .team-name {
+            font-weight: 600;
+            color: var(--text-light);
+        }
+
+        .highlight-match-result .score {
+            color: var(--yellow);
+            font-weight: 700;
+            padding: 0 8px;
+        }
+
         .fb-feed-card-header {
             display: flex;
             align-items: center;
@@ -590,6 +684,7 @@
             align-items: center;
             justify-content: center;
             gap: 6px;
+            text-decoration: none;
         }
 
         .fb-feed-action-btn:hover {
@@ -1436,7 +1531,7 @@
 
             <div class="form-group">
                 <label class="form-label" for="pinInput">Your 8-Digit PIN</label>
-                <input type="password" class="form-input" id="pinInput" placeholder="--------" maxlength="8" inputmode="numeric" pattern="[0-9]*" autocomplete="off">
+                <input type="text" class="form-input" id="pinInput" placeholder="--------" maxlength="8" inputmode="numeric" pattern="[0-9]*" autocomplete="off" style="-webkit-text-security: disc;">
             </div>
 
             <button class="login-btn" id="loginBtn" onclick="login()">LOGIN</button>
@@ -1508,15 +1603,15 @@
 
         <!-- Stats Summary Cards -->
         <section class="fb-stats-summary">
-            <div class="fb-stat-card" onclick="goToProfile()">
+            <div class="fb-stat-card" tabindex="0" role="link" onclick="goToProfile()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();goToProfile()}">
                 <span class="fb-stat-value" id="stat3DA">-</span>
                 <span class="fb-stat-label">3DA</span>
             </div>
-            <div class="fb-stat-card" onclick="goToProfile()">
+            <div class="fb-stat-card" tabindex="0" role="link" onclick="goToProfile()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();goToProfile()}">
                 <span class="fb-stat-value" id="statMPR">-</span>
                 <span class="fb-stat-label">MPR</span>
             </div>
-            <div class="fb-stat-card" onclick="goToProfile()">
+            <div class="fb-stat-card" tabindex="0" role="link" onclick="goToProfile()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();goToProfile()}">
                 <span class="fb-stat-value" id="statWinPct">-</span>
                 <span class="fb-stat-label">WIN%</span>
             </div>
@@ -1541,11 +1636,11 @@
     </main>
 
     <!-- Post Modal -->
-    <div class="fb-modal-overlay" id="postModal">
+    <div class="fb-modal-overlay" id="postModal" role="dialog" aria-modal="true" aria-labelledby="postModalTitle">
         <div class="fb-modal">
             <div class="fb-modal-header">
-                <h3>Create Post</h3>
-                <button class="fb-modal-close" onclick="closePostModal()">X</button>
+                <h3 id="postModalTitle">Create Post</h3>
+                <button class="fb-modal-close" onclick="closePostModal()" aria-label="Close modal">X</button>
             </div>
             <div class="fb-modal-body">
                 <textarea id="postContent" placeholder="What's on your mind?" rows="4"></textarea>
@@ -1568,9 +1663,9 @@
     </div>
 
     <!-- Story Detail Modal -->
-    <div class="fb-modal-overlay" id="storyModal">
+    <div class="fb-modal-overlay" id="storyModal" role="dialog" aria-modal="true" aria-label="Match details">
         <div class="fb-modal fb-modal-large">
-            <button class="fb-modal-close" onclick="closeStoryModal()" style="position: absolute; top: 16px; right: 16px; z-index: 10;">X</button>
+            <button class="fb-modal-close" onclick="closeStoryModal()" style="position: absolute; top: 16px; right: 16px; z-index: 10;" aria-label="Close modal">X</button>
             <div class="fb-modal-body" id="storyModalContent">
                 <!-- Match card or tournament details populated by JS -->
             </div>
@@ -1710,6 +1805,9 @@
                         pin: pin,
                         source_type: currentPlayer.source_type || 'global',
                         league_id: currentPlayer.league_id || null,
+                        is_admin: currentPlayer.is_admin || false,
+                        is_master_admin: currentPlayer.is_master_admin || false,
+                        is_director: currentPlayer.is_director || false,
                         logged_in_at: Date.now()
                     }));
                     // Also store PIN separately for chat/social features
@@ -2239,6 +2337,8 @@
                     return renderMatchResultFeedCard(item);
                 case 'league_night':
                     return renderLeagueNightCard(item);
+                case 'week_highlights':
+                    return renderWeekHighlightsCard(item);
                 default:
                     return '';
             }
@@ -2380,9 +2480,9 @@
                         ${rosterRows}
                     </div>
                     <div class="fb-feed-card-actions" style="text-align: center;">
-                        <button class="fb-feed-action-btn" onclick="window.location.href='/pages/match-hub.html?league_id=${item.league_id}&match_id=${item.match_id}'">
+                        <a class="fb-feed-action-btn" href="/pages/match-hub.html?league_id=${item.league_id}&match_id=${item.match_id}">
                             View Match
-                        </button>
+                        </a>
                     </div>
                 </div>
             `;
@@ -2459,9 +2559,194 @@
                         ${standingsHtml}
                     </div>
                     <div class="fb-feed-card-actions">
-                        <button class="fb-feed-action-btn" onclick="window.location.href='/pages/league-view.html?league_id=${item.league_id}'">
+                        <a class="fb-feed-action-btn" href="/pages/league-view.html?league_id=${item.league_id}">
                             View League
-                        </button>
+                        </a>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Render week highlights card
+        function renderWeekHighlightsCard(item) {
+            const data = item.data;
+            const matchDate = getDateFromTimestamp(item.created_at);
+            const dateStr = matchDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+
+            let sectionsHtml = '';
+
+            // Top Performers Section
+            if (data.best_3da || data.best_mpr) {
+                let performersContent = '';
+                if (data.best_3da) {
+                    const match = data.best_3da.match ? ` - ${data.best_3da.match}` : '';
+                    performersContent += `
+                        <div class="highlight-stat">
+                            <span>Best 3DA: ${data.best_3da.player_name}</span>
+                            <span class="highlight-stat-value">${data.best_3da.value.toFixed(1)}</span>
+                        </div>
+                        <div style="font-size: 11px; color: var(--text-dim); padding-left: 0;">${match}</div>
+                    `;
+                }
+                if (data.best_mpr) {
+                    const match = data.best_mpr.match ? ` - ${data.best_mpr.match}` : '';
+                    performersContent += `
+                        <div class="highlight-stat">
+                            <span>Best MPR: ${data.best_mpr.player_name}</span>
+                            <span class="highlight-stat-value">${data.best_mpr.value.toFixed(2)}</span>
+                        </div>
+                        <div style="font-size: 11px; color: var(--text-dim); padding-left: 0;">${match}</div>
+                    `;
+                }
+                sectionsHtml += `
+                    <div class="highlight-section">
+                        <div class="highlight-label">Top Performers</div>
+                        ${performersContent}
+                    </div>
+                `;
+            }
+
+            // Notable Throws Section
+            const has180s = data.maximums && data.maximums.length > 0;
+            const hasTons140 = data.tons_140 > 0;
+            const hasTons100 = data.tons_100 > 0;
+
+            if (has180s || hasTons140 || hasTons100) {
+                sectionsHtml += `
+                    <div class="highlight-section">
+                        <div class="highlight-label">Notable Throws</div>
+                        <div class="highlight-count-grid">
+                            <div class="highlight-count-item">
+                                <div class="highlight-count-label">180s</div>
+                                <div class="highlight-count-value">${has180s ? data.maximums.length : 0}</div>
+                            </div>
+                            <div class="highlight-count-item">
+                                <div class="highlight-count-label">140+</div>
+                                <div class="highlight-count-value">${data.tons_140 || 0}</div>
+                            </div>
+                            <div class="highlight-count-item">
+                                <div class="highlight-count-label">100+</div>
+                                <div class="highlight-count-value">${data.tons_100 || 0}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // 180s List (if any)
+            if (has180s) {
+                const maxList = data.maximums.map(m => {
+                    const match = m.match ? ` (${m.match})` : '';
+                    return `
+                        <div class="highlight-stat">
+                            <span>${m.player_name}${match}</span>
+                        </div>
+                    `;
+                }).join('');
+
+                sectionsHtml += `
+                    <div class="highlight-section">
+                        <div class="highlight-label">Maximums (180s)</div>
+                        ${maxList}
+                    </div>
+                `;
+            }
+
+            // Big Checkouts Section
+            if (data.big_checkouts && data.big_checkouts.length > 0) {
+                const checkoutList = data.big_checkouts.map(c => {
+                    const match = c.match ? ` (${c.match})` : '';
+                    return `
+                        <div class="highlight-stat">
+                            <span>${c.player_name}${match}</span>
+                            <span class="highlight-stat-value">${c.value}</span>
+                        </div>
+                    `;
+                }).join('');
+
+                sectionsHtml += `
+                    <div class="highlight-section">
+                        <div class="highlight-label">Big Checkouts</div>
+                        ${checkoutList}
+                    </div>
+                `;
+            }
+
+            // High Marks Section
+            if (data.high_marks && data.high_marks.length > 0) {
+                const marksList = data.high_marks.map(m => {
+                    const match = m.match ? ` (${m.match})` : '';
+                    return `
+                        <div class="highlight-stat">
+                            <span>${m.player_name}${match}</span>
+                            <span class="highlight-stat-value">${m.marks}M</span>
+                        </div>
+                    `;
+                }).join('');
+
+                sectionsHtml += `
+                    <div class="highlight-section">
+                        <div class="highlight-label">High Marks (5M+)</div>
+                        ${marksList}
+                    </div>
+                `;
+            }
+
+            // Match of the Week Section
+            if (data.closest_match || data.biggest_win) {
+                let matchesContent = '';
+
+                if (data.closest_match) {
+                    const cm = data.closest_match;
+                    matchesContent += `
+                        <div>
+                            <div style="font-size: 11px; color: var(--text-dim); margin-bottom: 2px;">Closest Match</div>
+                            <div class="highlight-match-result">
+                                <span class="team-name">${cm.home_team}</span>
+                                <span class="score">${cm.home_score}-${cm.away_score}</span>
+                                <span class="team-name">${cm.away_team}</span>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                if (data.biggest_win) {
+                    const bw = data.biggest_win;
+                    matchesContent += `
+                        <div style="margin-top: ${data.closest_match ? '8px' : '0'};">
+                            <div style="font-size: 11px; color: var(--text-dim); margin-bottom: 2px;">Biggest Win</div>
+                            <div class="highlight-match-result">
+                                <span class="team-name">${bw.winner_team}</span>
+                                <span class="score">${bw.winner_score}-${bw.loser_score}</span>
+                                <span class="team-name">${bw.loser_team}</span>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                sectionsHtml += `
+                    <div class="highlight-section">
+                        <div class="highlight-label">Match of the Week</div>
+                        ${matchesContent}
+                    </div>
+                `;
+            }
+
+            return `
+                <div class="fb-feed-card highlights-card">
+                    <div class="fb-feed-card-header">
+                        <div class="fb-feed-meta">
+                            <div class="fb-feed-author">WEEK ${item.week} HIGHLIGHTS</div>
+                            <div class="fb-feed-time">${item.league_name || 'League'} • ${dateStr}</div>
+                        </div>
+                    </div>
+                    <div class="fb-feed-card-body">
+                        ${sectionsHtml}
+                    </div>
+                    <div class="fb-feed-card-actions">
+                        <a class="fb-feed-action-btn" href="/pages/league-view.html?league_id=${item.league_id}">
+                            View League
+                        </a>
                     </div>
                 </div>
             `;
@@ -2693,11 +2978,16 @@
 
         // Post Modal
         window.openPostModal = function() {
-            document.getElementById('postModal').classList.add('visible');
+            var modalEl = document.getElementById('postModal');
+            modalEl.classList.add('visible');
             document.body.style.overflow = 'hidden';
+            if (window.A11y && A11y.initModal) {
+                window._postModalCleanup = A11y.initModal(modalEl, { labelledBy: 'postModalTitle', onClose: closePostModal });
+            }
         };
 
         window.closePostModal = function() {
+            if (window._postModalCleanup) { window._postModalCleanup(); window._postModalCleanup = null; }
             document.getElementById('postModal').classList.remove('visible');
             document.body.style.overflow = '';
         };
@@ -2754,6 +3044,9 @@
             modal.classList.add('visible');
             modal.querySelector('.fb-modal').classList.add('open');
             document.body.style.overflow = 'hidden';
+            if (window.A11y && A11y.initModal) {
+                window._storyModalCleanup = A11y.initModal(modal, { label: 'Match details', onClose: closeStoryModal });
+            }
             content.innerHTML = '<div class="fb-feed-loading">Loading match details...</div>';
             console.log('Modal should be visible now');
 
@@ -2999,6 +3292,7 @@
         }
 
         window.closeStoryModal = function() {
+            if (window._storyModalCleanup) { window._storyModalCleanup(); window._storyModalCleanup = null; }
             const modal = document.getElementById('storyModal');
             modal.classList.remove('visible');
             modal.querySelector('.fb-modal').classList.remove('open');
@@ -3402,7 +3696,6 @@
     <script src="/js/fb-nav.js"></script>
     <script src="/js/stats-helpers.js"></script>
     <script src="/js/display-helpers.js"></script>
-    <script src="/js/feedback.js"></script>
 
     <!-- Service Worker Registration -->
     <script>

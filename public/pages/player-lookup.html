@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Player Stats - BRDC Dart League</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Bebas+Neue&display=swap" rel="stylesheet">
+    <script src="/js/brdc-toast.js"></script>
     <style>
         :root {
             --pink: #FF469A;
@@ -29,6 +30,7 @@
             background: linear-gradient(135deg, var(--darker-bg) 0%, var(--dark-bg) 50%, #0d1f35 100%);
             color: var(--text);
             min-height: 100vh;
+            min-height: 100dvh;
         }
 
         body::before {
@@ -225,6 +227,11 @@
             border: 1px solid rgba(255, 255, 255, 0.1);
             cursor: pointer;
             transition: all 0.3s;
+        }
+
+        a.player-card {
+            text-decoration: none;
+            color: inherit;
         }
 
         .player-card:hover {
@@ -436,7 +443,7 @@
 </head>
 <body>
     <div class="header-bar">
-        <button class="back-btn" onclick="history.back()">← BACK</button>
+        <button class="back-btn" onclick="goBack()">← BACK</button>
         <img src="/images/gold_logo.png" alt="BRDC" class="header-logo">
         <span class="header-title">PLAYER LOOKUP</span>
     </div>
@@ -522,6 +529,14 @@
     <script>
         const API_BASE = 'https://us-central1-brdc-v2.cloudfunctions.net';
 
+        function goBack() {
+            if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                window.location.href = '/pages/dashboard.html';
+            }
+        }
+
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
             loadLeagues();
@@ -563,7 +578,7 @@
             const leagueId = document.getElementById('leagueFilter').value;
 
             if (!query) {
-                alert('Please enter a player name to search');
+                toastWarning('Please enter a player name to search');
                 return;
             }
 
@@ -615,7 +630,7 @@
                     : initials;
 
                 return `
-                    <div class="player-card" onclick="viewPlayer('${player.id}', '${player.league_id}')">
+                    <a class="player-card" href="player-profile.html?player_id=${player.id}&league_id=${player.league_id}">
                         <div class="player-avatar">${avatar}</div>
                         <div class="player-info">
                             <h3>${player.name}</h3>
@@ -639,7 +654,7 @@
                                 <div class="stat-label">Wins</div>
                             </div>
                         </div>
-                    </div>
+                    </a>
                 `;
             }).join('');
         }
@@ -734,19 +749,18 @@
             };
 
             container.innerHTML = players.map((player, index) => `
-                <div class="leaderboard-item" onclick="viewPlayer('${player.id}', '${player.league_id}')">
+                <a class="leaderboard-item" href="player-profile.html?player_id=${player.id}&league_id=${player.league_id}" style="text-decoration: none; color: inherit;">
                     <div class="rank">#${index + 1}</div>
                     <div>
                         <div class="lb-player-name">${player.name}</div>
                         <div class="lb-player-team">${player.team_name || ''} ${player.league_name ? '&bull; ' + player.league_name : ''}</div>
                     </div>
                     <div class="lb-stat">${formatValue(player)}</div>
-                </div>
+                </a>
             `).join('');
         }
     </script>
 <script src="/js/display-helpers.js"></script>
-<script src="/js/feedback.js"></script>
 <script src="/js/nav-menu.js"></script>
 </body>
 </html>

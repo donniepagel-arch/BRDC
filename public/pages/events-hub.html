@@ -241,6 +241,12 @@
             transition: transform 0.15s, border-color 0.15s;
         }
 
+        a.eh-event-card {
+            text-decoration: none;
+            color: inherit;
+            display: block;
+        }
+
         .eh-event-card:active { transform: scale(0.98); }
         .eh-event-card:hover { border-color: rgba(255,255,255,0.3); }
 
@@ -954,11 +960,11 @@
     <button class="eh-fab" id="addEventFab" title="Add Community Event">+</button>
 
     <!-- Add Event Modal -->
-    <div class="eh-modal-overlay" id="addEventModal">
+    <div class="eh-modal-overlay" id="addEventModal" role="dialog" aria-modal="true" aria-labelledby="addEventModalTitle">
         <div class="eh-modal">
             <div class="eh-modal-header">
-                <span class="eh-modal-title">ADD COMMUNITY EVENT</span>
-                <button class="eh-modal-close" onclick="closeAddEventModal()">&times;</button>
+                <span class="eh-modal-title" id="addEventModalTitle">ADD COMMUNITY EVENT</span>
+                <button class="eh-modal-close" onclick="closeAddEventModal()" aria-label="Close modal">&times;</button>
             </div>
             <div class="eh-modal-body">
                 <form id="addEventForm" onsubmit="submitEvent(event)">
@@ -1037,11 +1043,11 @@
     </div>
 
     <!-- Event Detail Modal -->
-    <div class="eh-modal-overlay" id="eventDetailModal">
+    <div class="eh-modal-overlay" id="eventDetailModal" role="dialog" aria-modal="true" aria-labelledby="detailModalTitle">
         <div class="eh-modal">
             <div class="eh-modal-header">
                 <span class="eh-modal-title" id="detailModalTitle">Event Details</span>
-                <button class="eh-modal-close" onclick="closeEventDetailModal()">&times;</button>
+                <button class="eh-modal-close" onclick="closeEventDetailModal()" aria-label="Close modal">&times;</button>
             </div>
             <div class="eh-modal-body" id="detailModalBody"></div>
         </div>
@@ -1450,7 +1456,7 @@
             const prefix = isHome ? 'vs' : '@';
 
             return `
-                <div class="eh-event-card league" onclick="viewEvent('league', '${match.leagueId}', '${match.id}')">
+                <a class="eh-event-card league" href="/pages/match-hub.html?league_id=${match.leagueId}&match_id=${match.id}">
                     <div class="eh-card-header">
                         <div class="eh-card-badges">
                             <span class="eh-badge league">${formatLeagueName(match.leagueName)}</span>
@@ -1462,7 +1468,7 @@
                     <div class="eh-card-content">
                         ${match.venue || match.home_venue || ''}
                     </div>
-                </div>
+                </a>
             `;
         }
 
@@ -1474,7 +1480,7 @@
             const fee = getFee(tournament);
 
             return `
-                <div class="eh-event-card tournament" onclick="viewEvent('tournament', '${tournament.id}')">
+                <a class="eh-event-card tournament" href="/pages/tournament-view.html?tournament_id=${tournament.id}">
                     <div class="eh-card-header">
                         <div class="eh-card-badges">
                             <span class="eh-badge tournament">Tournament</span>
@@ -1490,7 +1496,7 @@
                         ${spotsInfo.html}
                     </div>
                     <div class="eh-venue-row">&#128205; ${tournament.venue_name || 'TBD'}</div>
-                </div>
+                </a>
             `;
         }
 
@@ -1502,7 +1508,7 @@
             const eventType = event.event_type || 'social';
 
             return `
-                <div class="eh-event-card ${event.type}" onclick="viewSocialEvent('${event.id}', '${event.type}')">
+                <div class="eh-event-card ${event.type}" tabindex="0" role="button" onclick="viewSocialEvent('${event.id}', '${event.type}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();viewSocialEvent('${event.id}', '${event.type}')}">
                     <div class="eh-card-header">
                         <div class="eh-card-badges">
                             <span class="eh-badge social">${formatEventType(eventType)}</span>
@@ -1523,7 +1529,7 @@
             const dateStr = formatDate(date);
 
             return `
-                <div class="eh-event-card" onclick="viewEvent('${event.type}', '${event.id}')">
+                <a class="eh-event-card event-card" href="/pages/event-view.html?event_id=${event.id}">
                     <div class="eh-card-header">
                         <div class="eh-card-badges">
                             <span class="eh-badge">${event.type}</span>
@@ -1531,7 +1537,7 @@
                         <div class="eh-card-date">${dateStr}</div>
                     </div>
                     <div class="eh-card-title">${event.name || event.title || 'Event'}</div>
-                </div>
+                </a>
             `;
         }
 
