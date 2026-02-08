@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tournament - BRDC</title>
     <link rel="icon" type="image/png" href="/images/favicon.png">
+    <script src="/js/brdc-toast.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
@@ -23,6 +24,7 @@
             font-family: 'Inter', sans-serif;
             background: linear-gradient(180deg, var(--blue-light) 0%, var(--blue-dark) 100%);
             min-height: 100vh;
+            min-height: 100dvh;
             color: var(--text-light);
         }
         body::before {
@@ -146,6 +148,11 @@
             overflow: hidden;
             transition: transform 0.2s;
         }
+        a.event-card {
+            text-decoration: none;
+            color: inherit;
+            display: block;
+        }
         .event-card:hover { transform: translate(-3px, -3px); }
         .event-header {
             padding: 20px;
@@ -254,6 +261,7 @@
             border: 3px solid var(--black);
             font-size: 18px;
             font-family: monospace;
+            -webkit-text-security: disc;
             letter-spacing: 3px;
             text-align: center;
         }
@@ -472,7 +480,7 @@
 </head>
 <body>
     <div class="header-bar">
-        <button class="back-btn" onclick="history.back()">BACK</button>
+        <button class="back-btn" onclick="goBack()" aria-label="Go back">BACK</button>
         <img src="/images/gold_logo.png" alt="BRDC" class="header-logo">
         <span class="header-title">TOURNAMENT</span>
         <div class="connection-status" id="connectionStatus">
@@ -485,11 +493,11 @@
     </div>
 
     <!-- Registration Modal -->
-    <div class="modal-overlay" id="registerModal">
+    <div class="modal-overlay" id="registerModal" role="dialog" aria-modal="true" aria-labelledby="tvRegisterModalTitle">
         <div class="modal-content">
             <div class="modal-header">
-                <span class="modal-title">REGISTER</span>
-                <button class="modal-close" onclick="closeModal()">&times;</button>
+                <span class="modal-title" id="tvRegisterModalTitle">REGISTER</span>
+                <button class="modal-close" onclick="closeModal()" aria-label="Close modal">&times;</button>
             </div>
             <div class="modal-body" id="modalBody">
                 <!-- Form will be rendered here -->
@@ -499,6 +507,15 @@
 
     <script type="module">
         import { db, doc, getDoc, collection, getDocs, callFunction, onSnapshot } from '/js/firebase-config.js';
+
+        function goBack() {
+            if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                window.location.href = '/pages/dashboard.html';
+            }
+        }
+        window.goBack = goBack;
 
         const urlParams = new URLSearchParams(window.location.search);
         const tournamentId = urlParams.get('tournament_id') || urlParams.get('id');
@@ -609,7 +626,7 @@
                         </div>
                         ${tournamentData.description ? `<p style="color: var(--text-dim); margin-bottom: 20px;">${tournamentData.description}</p>` : ''}
 
-                        <button class="register-btn" onclick="openModal()">
+                        <button class="register-btn" onclick="${tournamentData.matchmaker_enabled ? `window.location.href='/pages/matchmaker-register.html?tournament_id=${tournamentId}'` : 'openModal()'}">
                             REGISTER NOW
                         </button>
                     </div>
@@ -637,8 +654,11 @@
             const clickable = isEventClickable();
             const eventUrl = `/pages/event-view.html?tournament_id=${tournamentId}&event_id=${event.id}`;
 
+            const tag = clickable ? 'a' : 'div';
+            const linkAttr = clickable ? `href="${eventUrl}"` : '';
+
             return `
-                <div class="event-card" ${clickable ? `onclick="window.location.href='${eventUrl}'" style="cursor: pointer;"` : ''}>
+                <${tag} class="event-card" ${linkAttr} ${clickable ? 'style="cursor: pointer;"' : ''}>
                     <div class="event-header ${eventType}">
                         <div class="event-name">${event.name || event.event_name}</div>
                         <div class="event-fee">${event.entry_fee ? '$' + parseFloat(event.entry_fee).toFixed(2) : 'FREE'}</div>
@@ -661,7 +681,7 @@
                         <div class="event-signups-count">${count}</div>
                         <div class="event-signups-label">${clickable ? 'VIEW EVENT' : 'REGISTERED'}</div>
                     </div>
-                </div>
+                </${tag}>
             `;
         }
 
@@ -699,7 +719,7 @@
                 <div class="pin-section">
                     <div class="pin-section-title">ALREADY A MEMBER? ENTER YOUR PIN</div>
                     <div class="pin-row">
-                        <input type="password" id="memberPin" class="pin-input" maxlength="5" placeholder="•••••" inputmode="numeric" pattern="[0-9]*" autocomplete="off">
+                        <input type="text" id="memberPin" class="pin-input" maxlength="8" placeholder="••••••••" inputmode="numeric" pattern="[0-9]*" autocomplete="off">
                         <button class="pin-btn" onclick="lookupPin()">GO</button>
                     </div>
                 </div>
@@ -825,8 +845,8 @@
 
         window.lookupPin = async function() {
             const pin = document.getElementById('memberPin').value.trim();
-            if (pin.length !== 5) {
-                alert('Please enter a 5-digit PIN');
+            if (pin.length !== 8) {
+                toastWarning('Please enter your 8-digit PIN');
                 return;
             }
 
@@ -837,12 +857,12 @@
                     document.getElementById('regName').value = memberData.name || '';
                     document.getElementById('regEmail').value = memberData.email || '';
                     document.getElementById('regPhone').value = memberData.phone || '';
-                    alert('Welcome back, ' + memberData.name + '!');
+                    toastSuccess('Welcome back, ' + memberData.name + '!');
                 } else {
-                    alert('PIN not found. Please register as a new player.');
+                    toastWarning('PIN not found. Please register as a new player.');
                 }
             } catch (e) {
-                alert('Error looking up PIN: ' + e.message);
+                toastError('Error looking up PIN: ' + e.message);
             }
         };
 
@@ -850,7 +870,7 @@
             e.preventDefault();
 
             if (selectedEvents.size === 0) {
-                alert('Please select at least one event');
+                toastWarning('Please select at least one event');
                 return;
             }
 
@@ -894,7 +914,7 @@
                 showSuccess(result);
 
             } catch (error) {
-                alert('Error: ' + error.message);
+                toastError('Error: ' + error.message);
                 btn.disabled = false;
                 updateTotal();
             }
@@ -931,6 +951,5 @@
         }
     </script>
     <script src="/js/nav-menu.js"></script>
-<script src="/js/feedback.js"></script>
 </body>
 </html>
