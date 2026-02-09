@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BRDC Tournament Director Dashboard</title>
     <link rel="icon" type="image/png" href="/images/favicon.png">
+    <script src="/js/brdc-toast.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
@@ -34,6 +35,7 @@
         body {
             background: linear-gradient(135deg, var(--bg-dark) 0%, var(--bg-dark-end) 100%);
             min-height: 100vh;
+            min-height: 100dvh;
             color: var(--text-light);
             line-height: 1.6;
         }
@@ -528,6 +530,7 @@
             height: 56px;
             border: 3px solid rgba(255,255,255,0.2);
             border-radius: 8px;
+            -webkit-text-security: disc;
             font-size: 24px;
             text-align: center;
             font-family: 'JetBrains Mono', monospace;
@@ -605,7 +608,7 @@
             <div class="login-title">🎯 TOURNAMENT DIRECTOR</div>
             <p class="login-subtitle">Enter your 8-digit PIN to access the dashboard</p>
             <div class="pin-input">
-                <input type="password" id="pinInput" maxlength="8" class="pin-field" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="••••••••">
+                <input type="text" id="pinInput" maxlength="8" class="pin-field" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="••••••••">
             </div>
             <button id="loginBtn" class="btn btn-primary" style="width: 100%; justify-content: center;">ENTER DASHBOARD</button>
             <p id="loginError" style="color: var(--pink); margin-top: 20px; display: none; font-weight: 600;"></p>
@@ -617,7 +620,7 @@
     <div id="mainDashboard" style="display: none;">
     <!-- STICKY HEADER BAR -->
     <div class="header-bar">
-        <button class="back-btn" onclick="history.back()">← BACK</button>
+        <button class="back-btn" onclick="goBack()" aria-label="Go back">← BACK</button>
         <img src="/images/gold_logo.png" alt="BRDC" class="header-logo">
         <span class="header-title">TOURNAMENT DIRECTOR</span>
     </div>
@@ -708,7 +711,7 @@
                 </div>
                 <div class="card-body">
                     <div style="display: flex; justify-content: flex-end; margin-bottom: 20px;">
-                        <button class="btn btn-primary" onclick="alert('Event creation coming soon!')">
+                        <button class="btn btn-primary" onclick="toastInfo('Event creation coming soon!')">
                             <span>➕</span> Create Event
                         </button>
                     </div>
@@ -1005,7 +1008,16 @@
         
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
-        
+
+        function goBack() {
+            if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                window.location.href = '/pages/dashboard.html';
+            }
+        }
+        window.goBack = goBack;
+
         let dashboardData = {
             tournament: null,
             events: [],
@@ -1141,9 +1153,9 @@
                     where('director_pin', '==', tournamentId)
                 );
                 const tournamentSnapshot = await getDocs(tournamentsQuery);
-                
+
                 if (tournamentSnapshot.empty) {
-                    alert('Tournament not found with PIN: ' + tournamentId);
+                    toastError('Tournament not found with PIN: ' + tournamentId);
                     return;
                 }
                 
@@ -1198,7 +1210,7 @@
                 
             } catch (error) {
                 console.error('Error loading dashboard:', error);
-                alert('Error loading dashboard: ' + error.message);
+                toastError('Error loading dashboard: ' + error.message);
             }
         }
         
@@ -1289,14 +1301,14 @@
             try {
                 const result = await callFunction('deleteLeagueDraft', { pin: tournamentId });
                 if (result.success) {
-                    alert('Draft deleted');
+                    toastSuccess('Draft deleted');
                     renderDrafts();
                 } else {
-                    alert('Error deleting draft: ' + (result.error || 'Unknown error'));
+                    toastError('Error deleting draft: ' + (result.error || 'Unknown error'));
                 }
             } catch (error) {
                 console.error('Error deleting draft:', error);
-                alert('Error deleting draft');
+                toastError('Error deleting draft');
             }
         };
 
@@ -1307,14 +1319,14 @@
             try {
                 const result = await callFunction('deleteTournamentDraft', { pin: tournamentId });
                 if (result.success) {
-                    alert('Draft deleted');
+                    toastSuccess('Draft deleted');
                     renderDrafts();
                 } else {
-                    alert('Error deleting draft: ' + (result.error || 'Unknown error'));
+                    toastError('Error deleting draft: ' + (result.error || 'Unknown error'));
                 }
             } catch (error) {
                 console.error('Error deleting draft:', error);
-                alert('Error deleting draft');
+                toastError('Error deleting draft');
             }
         };
         
@@ -1424,36 +1436,39 @@
         }
         
         function copyRegistrationLink(eventId) {
-            const link = `https://brdc-v2.web.app/pages/player-registration.html?tournament_id=${dashboardData.tournament.id}&event_id=${eventId}`;
-            navigator.clipboard.writeText(link).then(() => {
-                alert("✅ Registration link copied to clipboard!");
-            }).catch(err => {
-                console.error("Failed to copy:", err);
-                alert("❌ Failed to copy link");
-            });
+            // TODO: Re-enable when player-registration.html is implemented
+            toastWarning("⚠️ Registration page is not yet implemented");
+            return;
+            // const link = `https://brdc-v2.web.app/pages/player-registration.html?tournament_id=${dashboardData.tournament.id}&event_id=${eventId}`;
+            // navigator.clipboard.writeText(link).then(() => {
+            //     toastSuccess("✅ Registration link copied to clipboard!");
+            // }).catch(err => {
+            //     console.error("Failed to copy:", err);
+            //     toastError("❌ Failed to copy link");
+            // });
         }
-        
+
         function generateEventBracket(eventId) {
             if (!confirm("Generate bracket for this event?")) return;
-            
+
             callFunction("generateBracket", {
                 tournament_id: dashboardData.tournament.id,
                 event_id: eventId
             }).then(result => {
                 if (result.success) {
-                    alert("✅ Bracket generated!");
+                    toastSuccess("✅ Bracket generated!");
                     refreshData();
                 } else {
-                    alert("❌ Error: " + (result.error || "Failed to generate bracket"));
+                    toastError("❌ Error: " + (result.error || "Failed to generate bracket"));
                 }
             }).catch(err => {
                 console.error("Error:", err);
-                alert("❌ Error generating bracket: " + err.message);
+                toastError("❌ Error generating bracket: " + err.message);
             });
         }
         
         function viewEventBracket(eventId) {
-            window.open(`https://brdc-v2.web.app/pages/bracket.html?tournament_id=${dashboardData.tournament.id}&event_id=${eventId}`, "_blank");
+            window.open(`https://brdc-v2.web.app/pages/tournament-bracket.html?tournament_id=${dashboardData.tournament.id}&event_id=${eventId}`, "_blank");
         }
         function renderRegistrations() {
             if (dashboardData.registrations.length === 0) {
@@ -1514,7 +1529,7 @@
         window.addBotToTournament = async function() {
             const botId = document.getElementById('botSelect').value;
             if (!botId) {
-                alert('Please select a bot');
+                toastWarning('Please select a bot');
                 return;
             }
 
@@ -1526,14 +1541,14 @@
                 });
 
                 if (result.success) {
-                    alert(`Bot "${result.bot_name}" added to tournament!`);
+                    toastSuccess(`Bot "${result.bot_name}" added to tournament!`);
                     await loadDashboardData(); // Refresh all data
                     updateBotSelect();
                 } else {
-                    alert('Error: ' + result.error);
+                    toastError('Error: ' + result.error);
                 }
             } catch (e) {
-                alert('Error: ' + e.message);
+                toastError('Error: ' + e.message);
             }
         };
 
@@ -1574,7 +1589,7 @@
             };
 
             if (!updates.tournament_name) {
-                alert('Tournament name is required');
+                toastWarning('Tournament name is required');
                 return;
             }
 
@@ -1588,13 +1603,13 @@
                 if (result.success) {
                     // Update local data
                     Object.assign(dashboardData.tournament, updates);
-                    alert('Settings saved successfully!');
+                    toastSuccess('Settings saved successfully!');
                     renderOverview(); // Refresh overview to show updated name
                 } else {
-                    alert('Error: ' + result.error);
+                    toastError('Error: ' + result.error);
                 }
             } catch (e) {
-                alert('Error saving settings: ' + e.message);
+                toastError('Error saving settings: ' + e.message);
             }
         };
 
@@ -1602,7 +1617,7 @@
             const tournamentName = dashboardData.tournament.tournament_name;
             const confirmName = prompt(`This will permanently delete "${tournamentName}" and all its data.\n\nType the tournament name to confirm:`);
             if (confirmName !== tournamentName) {
-                if (confirmName !== null) alert('Tournament name did not match. Deletion cancelled.');
+                if (confirmName !== null) toastWarning('Tournament name did not match. Deletion cancelled.');
                 return;
             }
 
@@ -1613,13 +1628,13 @@
                 });
 
                 if (result.success) {
-                    alert('Tournament deleted successfully.');
+                    toastSuccess('Tournament deleted successfully.');
                     window.location.href = '/pages/dashboard.html';
                 } else {
-                    alert('Error: ' + result.error);
+                    toastError('Error: ' + result.error);
                 }
             } catch (e) {
-                alert('Error deleting tournament: ' + e.message);
+                toastError('Error deleting tournament: ' + e.message);
             }
         };
 
@@ -1673,17 +1688,18 @@
                         submitBtn.textContent = 'Creating...';
                         
                         const result = await callFunction('addEventToTournament', eventData);
-                        
+
+
                         if (result.success) {
-                            alert('Event created successfully!');
+                            toastSuccess('Event created successfully!');
                             closeAddEventModal();
                             refreshData();
                         } else {
-                            alert('Error: ' + (result.error || 'Failed to create event'));
+                            toastError('Error: ' + (result.error || 'Failed to create event'));
                         }
                     } catch (error) {
                         console.error('Error creating event:', error);
-                        alert('Error creating event: ' + error.message);
+                        toastError('Error creating event: ' + error.message);
                     } finally {
                         const submitBtn = e.target.querySelector('button[type="submit"]');
                         if (submitBtn) {
@@ -1844,10 +1860,10 @@
             const p2Score = parseInt(document.getElementById('player2Score').value);
             
             if (isNaN(p1Score) || isNaN(p2Score)) {
-                alert('Please enter scores for both players');
+                toastWarning('Please enter scores for both players');
                 return;
             }
-            
+
             try {
                 const result = await callFunction('submitMatchResult', {
                     tournament_id: dashboardData.tournament.id,
@@ -1855,17 +1871,17 @@
                     player1_score: p1Score,
                     player2_score: p2Score
                 });
-                
+
                 if (result.success) {
-                    alert('✅ Score submitted!');
+                    toastSuccess('✅ Score submitted!');
                     closeScoreModal();
                     refreshData();
                 } else {
-                    alert('❌ Error: ' + (result.error || 'Failed to submit score'));
+                    toastError('❌ Error: ' + (result.error || 'Failed to submit score'));
                 }
             } catch (error) {
                 console.error('Error:', error);
-                alert('❌ Error submitting score: ' + error.message);
+                toastError('❌ Error submitting score: ' + error.message);
             }
         };
     </script>
@@ -1915,5 +1931,4 @@
 
 <script src="/js/display-helpers.js"></script>
 <script src="/js/nav-menu.js"></script>
-<script src="/js/feedback.js"></script>
 </body></html>

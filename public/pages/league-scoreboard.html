@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>League Scoreboard - BRDC</title>
     <link rel="icon" type="image/png" href="/images/favicon.png">
+    <script src="/js/brdc-toast.js"></script>
     <link rel="stylesheet" href="/css/brdc-styles.css">
     <style>
         .scoreboard {
@@ -129,7 +130,7 @@
 </head>
 <body>
     <div class="header-bar">
-        <button class="back-btn" onclick="history.back()">← BACK</button>
+        <button class="back-btn" onclick="goBack()" aria-label="Go back">← BACK</button>
         <img src="/images/gold_logo.png" alt="BRDC" class="header-logo">
         <span class="header-title">SCOREBOARD</span>
     </div>
@@ -221,7 +222,20 @@
 
     <script type="module">
         import { db, doc, getDoc, onSnapshot, callFunction } from '/js/firebase-config.js';
-        
+
+        function goBack() {
+            if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                const urlParams = new URLSearchParams(window.location.search);
+                const leagueId = urlParams.get('league_id');
+                window.location.href = leagueId
+                    ? `/pages/league-view.html?league_id=${leagueId}`
+                    : '/pages/dashboard.html';
+            }
+        }
+        window.goBack = goBack;
+
         const urlParams = new URLSearchParams(window.location.search);
         const matchId = urlParams.get('match_id');
         
@@ -233,7 +247,7 @@
         
         window.onload = async function() {
             if (!matchId) {
-                alert('Missing match_id in URL');
+                toastError('Missing match_id in URL');
                 return;
             }
             await loadMatchData();
@@ -262,7 +276,7 @@
                 
             } catch (error) {
                 console.error('Error loading match:', error);
-                alert('Failed to load match: ' + error.message);
+                toastError('Failed to load match: ' + error.message);
             }
         }
         
@@ -415,10 +429,10 @@
                     closeModal();
                     // Firestore listener will update UI automatically
                 } else {
-                    alert('Error: ' + (result.error || 'Failed to submit score'));
+                    toastError('Error: ' + (result.error || 'Failed to submit score'));
                 }
             } catch (error) {
-                alert('Error: ' + error.message);
+                toastError('Error: ' + error.message);
             }
         });
         
@@ -433,16 +447,15 @@
                 });
                 
                 if (result.success) {
-                    alert('Match finalized! Standings have been updated.');
+                    toastSuccess('Match finalized! Standings have been updated.');
                     window.location.href = `/pages/league-view.html?league_id=${matchData.league_id}`;
                 } else {
-                    alert('Error: ' + (result.error || 'Failed to finalize match'));
+                    toastError('Error: ' + (result.error || 'Failed to finalize match'));
                 }
             } catch (error) {
-                alert('Error: ' + error.message);
+                toastError('Error: ' + error.message);
             }
         };
     </script>
-<script src="/js/feedback.js"></script>
 </body>
 </html>

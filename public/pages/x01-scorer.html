@@ -20,6 +20,7 @@
     <link rel="apple-touch-icon" href="/images/gold_logo.png">
     <meta name="theme-color" content="#FF469A">
     <script src="/js/brdc-toast.js"></script>
+    <script src="/js/live-match-helper.js"></script>
 
     <!-- Fonts - non-blocking with display=swap -->
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rowdies:wght@700&family=Inter:wght@400;600;700;800;900&display=swap">
@@ -1131,7 +1132,7 @@
         </div>
         <div class="header">
             <div class="header-left">
-                <button class="back-btn" onclick="exitGame()">EXIT</button>
+                <button class="back-btn" onclick="exitGame()" aria-label="Exit game">EXIT</button>
                 <span class="game-title" id="gameTitle">GAME 1</span>
                 <span class="game-format" id="gameFormat">501 DO</span>
                 <button class="wrong-game-btn" id="wrongGameBtn" onclick="showGameSelector('current')">WRONG GAME?</button>
@@ -1742,6 +1743,11 @@ let leagueId = params.get('league_id');
 let matchId = params.get('match_id');
 let tournamentId = params.get('tournament_id'); // Tournament support
 let tournamentMatchId = params.get('tournament_match_id'); // Tournament match ID
+let tournamentType = params.get('tournament_type') || 'single'; // 'single' or 'double'
+let bracketType = params.get('bracket_type') || ''; // 'winners', 'losers', 'grand_finals_1', 'grand_finals_2'
+let returnUrl = params.get('return_url') || ''; // Where to navigate back after scoring
+let eventId = params.get('event_id') || ''; // For regular tournament events
+let tDirectorPin = params.get('director_pin') || ''; // For double-elim auth
 let gameIndex = parseInt(params.get('game_index') || '0');
 let gameNumber = parseInt(params.get('game_number') || '1');
 let checkout = params.get('checkout') || 'double';
@@ -1765,6 +1771,7 @@ try { awayPlayers = JSON.parse(params.get('away_players') || '[]'); } catch(e) {
 const formatParam = params.get('format');
 let STARTING_SCORE = formatParam === 'choice' ? 501 : parseInt(params.get('starting_score') || formatParam || '501');
 let LEGS_TO_WIN = parseInt(params.get('legs_to_win') || '2');
+let legsToWin = LEGS_TO_WIN;
 let useCork = params.get('cork') !== 'false'; // Default to cork unless explicitly disabled
 let corkRule = params.get('cork_rule') || 'alternate_cork_first_deciding';
 let corkOption = params.get('cork_option') || 'alternate_random_first_last'; // Who has option to choose first/second
@@ -2362,33 +2369,35 @@ async function init() {
 
     updateUI();
 
-    // Start live match tracking for league/tournament games
-    if ((leagueId && matchId) || tournamentId) {
+    // Auto-start double-elim tournament matches
+    if (tournamentId && tournamentMatchId && tournamentType === 'double') {
         try {
-            const scorerPin = localStorage.getItem('brdc_player_pin') || adminPin || matchPin;
-            if (scorerPin) {
-                await callFunction('startLiveMatch', {
-                    scorer_pin: scorerPin,
-                    match_id: matchId || tournamentMatchId,
-                    event_id: leagueId || tournamentId,
-                    event_type: tournamentId ? 'tournament' : 'league',
-                    match_data: {
-                        event_name: homeTeamName + ' vs ' + awayTeamName,
-                        game_type: '501',
-                        starting_score: STARTING_SCORE,
-                        race_to: LEGS_TO_WIN,
-                        team1_name: homeTeamName,
-                        team1_player_ids: homePlayers.map(p => p?.id).filter(Boolean),
-                        team1_player_names: homePlayers.map(p => p?.name).filter(Boolean),
-                        team2_name: awayTeamName,
-                        team2_player_ids: awayPlayers.map(p => p?.id).filter(Boolean),
-                        team2_player_names: awayPlayers.map(p => p?.name).filter(Boolean)
-                    }
-                });
-            }
+            await callFunction('startDoubleElimMatch', {
+                tournament_id: tournamentId,
+                match_id: tournamentMatchId
+            });
         } catch (e) {
-            console.warn('Failed to start live match tracking:', e);
+            console.warn('Could not auto-start match (may already be in progress):', e.message);
         }
+    }
+
+    // Start live match tracking for league/tournament games
+    if (((leagueId && matchId) || tournamentId) && typeof LiveMatch !== 'undefined') {
+        await LiveMatch.start({
+            match_id: matchId || tournamentMatchId,
+            event_id: leagueId || tournamentId,
+            event_name: homeTeamName + ' vs ' + awayTeamName,
+            event_type: tournamentId ? 'tournament' : 'league',
+            game_type: '501',
+            starting_score: STARTING_SCORE,
+            race_to: LEGS_TO_WIN,
+            team1_name: homeTeamName,
+            team1_player_ids: homePlayers.map(p => p?.id).filter(Boolean),
+            team1_player_names: homePlayers.map(p => p?.name).filter(Boolean),
+            team2_name: awayTeamName,
+            team2_player_ids: awayPlayers.map(p => p?.id).filter(Boolean),
+            team2_player_names: awayPlayers.map(p => p?.name).filter(Boolean)
+        });
     }
 
     // Check for saved game state (offline recovery)
@@ -3147,6 +3156,22 @@ window.submitScore = function(score, dartsUsed = 3) {
         // Set threw_first for with/against darts tracking
         currentLegStats[activeTeam].threw_first = true;
         currentLegStats[1 - activeTeam].threw_first = false;
+
+        // Start live match tracking on first throw
+        if (typeof LiveMatch !== 'undefined') {
+            LiveMatch.start({
+                match_id: matchId || `casual_${Date.now()}`,
+                event_id: leagueId || null,
+                event_type: leagueId ? 'league' : 'casual',
+                game_type: STARTING_SCORE.toString(),
+                starting_score: STARTING_SCORE,
+                race_to: LEGS_TO_WIN,
+                team1_name: teams[0].name,
+                team2_name: teams[1].name,
+                team1_player_names: homePlayers.map(p => p?.name || 'Player').filter(Boolean),
+                team2_player_names: awayPlayers.map(p => p?.name || 'Player').filter(Boolean)
+            });
+        }
     }
 
     // Bust check: below 0, or remaining=1 with double/master out (can't finish from 1)
@@ -3313,6 +3338,23 @@ window.submitScore = function(score, dartsUsed = 3) {
     inputValue = '0';
     updateInputDisplay();
     updateThrowHistory();
+
+    // Update live match state
+    if (typeof LiveMatch !== 'undefined') {
+        LiveMatch.update({
+            team1_games_won: teams[0].legs,
+            team2_games_won: teams[1].legs,
+            current_leg: {
+                leg_number: leg,
+                team1_score: teams[0].score,
+                team2_score: teams[1].score,
+                team1_darts: teams[0].darts,
+                team2_darts: teams[1].darts,
+                throwing: activeTeam === 0 ? 'team1' : 'team2'
+            }
+        });
+    }
+
     switchTeam();
 
     // Reset double-tap prevention after delay
@@ -3383,6 +3425,12 @@ function completeCheckout(score, dartsUsed) {
         alert(`Invalid: ${STARTING_SCORE} cannot be completed in ${totalDarts} darts.\nMinimum possible is ${minDarts} darts.`);
         document.getElementById('dartsModal').classList.remove('active');
         return;
+    }
+
+    // Store checkout_darts on the throw history entry (was pushed with remaining: 0 before modal)
+    const lastThrowIdx = throwHistory[activeTeam].length - 1;
+    if (lastThrowIdx >= 0 && throwHistory[activeTeam][lastThrowIdx].remaining === 0) {
+        throwHistory[activeTeam][lastThrowIdx].checkout_darts = dartsUsed;
     }
 
     // Get current player for per-player tracking (doubles)
@@ -3638,6 +3686,22 @@ function switchTeam() {
 
     activeTeam = activeTeam === 0 ? 1 : 0;
     updateUI();
+
+    // Update live match state after score change
+    if (typeof LiveMatch !== 'undefined') {
+        LiveMatch.update({
+            team1_games_won: teams[0].legs || 0,
+            team2_games_won: teams[1].legs || 0,
+            current_leg: {
+                leg_number: leg,
+                team1_score: teams[0].score,
+                team2_score: teams[1].score,
+                team1_darts: teams[0].darts || 0,
+                team2_darts: teams[1].darts || 0,
+                throwing: activeTeam === 0 ? 'team1' : 'team2'
+            }
+        });
+    }
 
     // Reset bot flag when switching
     botPlaying = false;
@@ -4005,6 +4069,22 @@ function showLegWinner(teamIndex) {
 
     document.getElementById('legModal').classList.add('active');
 
+    // Update live match state after leg completion
+    if (typeof LiveMatch !== 'undefined') {
+        LiveMatch.update({
+            team1_games_won: teams[0].legs || 0,
+            team2_games_won: teams[1].legs || 0,
+            current_leg: {
+                leg_number: leg,
+                team1_score: teams[0].score,
+                team2_score: teams[1].score,
+                team1_darts: teams[0].darts || 0,
+                team2_darts: teams[1].darts || 0,
+                throwing: activeTeam === 0 ? 'team1' : 'team2'
+            }
+        });
+    }
+
     // Backup game state after each leg for recovery
     backupGameState();
 }
@@ -4299,6 +4379,14 @@ function showGameWinner(teamIndex) {
         </div>
     `;
     document.getElementById('gameModal').classList.add('active');
+
+    // End live match tracking
+    if (typeof LiveMatch !== 'undefined') {
+        LiveMatch.end({
+            winner: { name: winner.name, score: winner.legs },
+            loser: { name: loser.name, score: loser.legs }
+        });
+    }
 }
 
 window.saveGame = async function() {
@@ -4350,6 +4438,7 @@ window.saveGame = async function() {
                     if (homeT.value === 180) roundData.home.notable = '180';
                     if (homeLeg.checkout && r === homeThrows.length - 1 && legWinner === 'home') {
                         roundData.home.checkout = true;
+                        roundData.home.checkout_darts = homeT.checkout_darts || 3;
                     }
                 }
 
@@ -4365,6 +4454,7 @@ window.saveGame = async function() {
                     if (awayT.value === 180) roundData.away.notable = '180';
                     if (awayLeg.checkout && r === awayThrows.length - 1 && legWinner === 'away') {
                         roundData.away.checkout = true;
+                        roundData.away.checkout_darts = awayT.checkout_darts || 3;
                     }
                 }
 
@@ -4678,14 +4768,26 @@ window.saveGame = async function() {
             hideLoading();
             toastSuccess('Game saved!');
         } else if (tournamentId && tournamentMatchId) {
-            // Tournament game submission with offline queue fallback
-            await callWithQueue(callFunction, 'submitMatchResult', {
-                tournament_id: tournamentId,
-                match_id: tournamentMatchId,
-                player1_score: teams[0].legs,
-                player2_score: teams[1].legs,
-                game_stats: comprehensiveGameStats
-            });
+            if (tournamentType === 'double') {
+                // Double elimination (Matchmaker/Heartbreaker) submission
+                await callWithQueue(callFunction, 'submitDoubleElimMatchResult', {
+                    tournament_id: tournamentId,
+                    match_id: tournamentMatchId,
+                    team1_score: teams[0].legs,
+                    team2_score: teams[1].legs,
+                    director_pin: tDirectorPin,
+                    game_stats: comprehensiveGameStats
+                });
+            } else {
+                // Single elimination tournament submission
+                await callWithQueue(callFunction, 'submitMatchResult', {
+                    tournament_id: tournamentId,
+                    match_id: tournamentMatchId,
+                    player1_score: teams[0].legs,
+                    player2_score: teams[1].legs,
+                    game_stats: comprehensiveGameStats
+                });
+            }
             hideLoading();
             toastSuccess('Tournament match saved!');
         } else if (isKnockout && knockoutId) {
@@ -5181,22 +5283,25 @@ function showMatchCompleteModal(matchState, gameStats) {
 
     // End live match tracking
     if ((leagueId && matchId) || tournamentId) {
-        try {
-            const scorerPin = localStorage.getItem('brdc_player_pin') || adminPin || matchPin;
-            if (scorerPin) {
-                callFunction('endLiveMatch', {
-                    scorer_pin: scorerPin,
-                    match_id: matchId || tournamentMatchId,
-                    result: {
-                        winner: homeScore > awayScore ? 'team1' : (awayScore > homeScore ? 'team2' : 'tie'),
-                        team1_score: homeScore,
-                        team2_score: awayScore,
-                        total_legs: totalHomeLegs + totalAwayLegs
-                    }
-                }).catch(e => console.warn('Failed to end live match tracking:', e));
-            }
-        } catch (e) {
-            console.warn('Failed to end live match tracking:', e);
+        const winner = homeScore > awayScore ?
+            { name: homeTeamName, score: homeScore } :
+            (awayScore > homeScore ? { name: awayTeamName, score: awayScore } : { name: 'Tie', score: homeScore });
+        const loser = homeScore > awayScore ?
+            { name: awayTeamName, score: awayScore } :
+            (awayScore > homeScore ? { name: homeTeamName, score: homeScore } : { name: 'Tie', score: awayScore });
+
+        if (typeof LiveMatch !== 'undefined') {
+            await LiveMatch.end({
+                winner: winner,
+                loser: loser,
+                stats: {
+                    // Add basic stats from the match
+                    topPPD: null, // TODO: calculate from player stats
+                    highestCheckout: Math.max(teams[0].highCheckout || 0, teams[1].highCheckout || 0) > 0 ?
+                        { player: teams[0].highCheckout > teams[1].highCheckout ? homeTeamName : awayTeamName,
+                          value: Math.max(teams[0].highCheckout || 0, teams[1].highCheckout || 0) } : null
+                }
+            });
         }
     }
 
@@ -5228,12 +5333,27 @@ window.exitWithoutSave = async function() {
 };
 
 async function navigateAway() {
+    // End live match tracking (safety call)
+    if (typeof LiveMatch !== 'undefined') {
+        LiveMatch.end({
+            winner: { name: 'Unknown', score: 0 },
+            loser: { name: 'Unknown', score: 0 }
+        });
+    }
+
     // Clear saved game state (game completed successfully)
     await clearSavedGame();
 
-    // Simple return logic: league games go to match-hub, everything else to scorer-hub
     if (leagueId && matchId) {
         window.location.href = `/pages/match-hub.html?league_id=${leagueId}&match_id=${matchId}`;
+    } else if (returnUrl) {
+        window.location.href = returnUrl;
+    } else if (tournamentId && eventId) {
+        window.location.href = `/pages/event-view.html?tournament_id=${tournamentId}&event_id=${eventId}`;
+    } else if (tournamentId && tournamentType === 'double') {
+        window.location.href = `/pages/matchmaker-bracket.html?tournament_id=${tournamentId}`;
+    } else if (tournamentId) {
+        window.location.href = `/pages/tournament-bracket.html?tournament_id=${tournamentId}`;
     } else {
         window.location.href = '/pages/game-setup.html';
     }
@@ -5534,6 +5654,5 @@ if ('serviceWorker' in navigator) {
 }
 </script>
 <script src="/js/nav-menu.js"></script>
-<script src="/js/feedback.js"></script>
 </body>
 </html>

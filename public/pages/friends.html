@@ -2,12 +2,13 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Friends | BRDC</title>
     <link rel="icon" type="image/png" href="/images/favicon.png">
     <link rel="manifest" href="/manifest.json">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#FF469A">
+    <script src="/js/brdc-toast.js"></script>
     <link rel="stylesheet" href="/css/brdc-styles.css">
     <link rel="stylesheet" href="/css/fb-mobile.css">
     <style>
@@ -547,7 +548,7 @@
 
     <!-- Header Bar -->
     <header class="header-bar">
-        <a href="/pages/dashboard.html" class="back-btn">BACK</a>
+        <a href="/pages/dashboard.html" class="back-btn" aria-label="Go back">BACK</a>
         <h1 class="header-title">FRIENDS</h1>
         <div class="header-actions">
             <button class="header-btn" onclick="toggleSearch()" title="Search Players">
@@ -655,7 +656,18 @@
     <!-- Scripts -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
-    <script src="/js/firebase-config.js"></script>
+    <script>
+        // Initialize Firebase (compat SDK)
+        const firebaseConfig = {
+            apiKey: "AIzaSyDN1aYhoVt3OX5EafsNTVB09i8VFx7QM1U",
+            authDomain: "brdc-v2.firebaseapp.com",
+            projectId: "brdc-v2",
+            storageBucket: "brdc-v2.firebasestorage.app",
+            messagingSenderId: "726670872282",
+            appId: "1:726670872282:web:913d19c8cb3b24bf919fe3"
+        };
+        firebase.initializeApp(firebaseConfig);
+    </script>
     <script>
         let currentPlayer = null;
         let currentTab = 'requests';
@@ -834,7 +846,7 @@
         async function searchPlayers() {
             const query = document.getElementById('searchInput').value.trim();
             if (!query || query.length < 2) {
-                alert('Please enter at least 2 characters to search');
+                toastWarning('Please enter at least 2 characters to search');
                 return;
             }
 
@@ -896,7 +908,7 @@
                 } else {
                     buttonEl.textContent = originalText;
                     buttonEl.disabled = false;
-                    alert(result.error || 'Could not send request');
+                    toastError(result.error || 'Could not send request');
                 }
             } catch (e) {
                 console.error('Error sending request:', e);
@@ -924,7 +936,7 @@
                         loadFriendRequests();
                     }, 500);
                 } else {
-                    alert(result.error || 'Could not accept request');
+                    toastError(result.error || 'Could not accept request');
                 }
             } catch (e) {
                 console.error('Error accepting request:', e);
@@ -949,7 +961,7 @@
                         loadFriendRequests();
                     }, 300);
                 } else {
-                    alert(result.error || 'Could not decline request');
+                    toastError(result.error || 'Could not decline request');
                 }
             } catch (e) {
                 console.error('Error declining request:', e);
@@ -995,7 +1007,7 @@
                 if (result.success) {
                     loadAllFriends();
                 } else {
-                    alert(result.error || 'Could not remove friend');
+                    toastError(result.error || 'Could not remove friend');
                 }
             } catch (e) {
                 console.error('Error removing friend:', e);

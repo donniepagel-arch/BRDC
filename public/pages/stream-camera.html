@@ -3,269 +3,538 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Camera Source - BRDC Stream</title>
+    <title>BRDC Camera Source</title>
     <link rel="icon" type="image/png" href="/images/favicon.png">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <script src="/js/brdc-toast.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700;800;900&display=swap');
 
         :root {
             --pink: #FF469A;
             --teal: #91D7EB;
             --yellow: #FDD835;
-            --bg-dark: #1a1a2e;
+            --bg-dark: #0a0a0a;
             --bg-panel: #16213e;
+            --bg-card: #1e2a47;
+            --text-primary: #f0f0f0;
+            --text-dim: #8a8aa3;
+            --success: #22c55e;
+            --danger: #ef4444;
         }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
 
         body {
             background: var(--bg-dark);
-            color: white;
+            color: var(--text-primary);
             min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .header {
-            background: var(--bg-panel);
-            padding: 15px 20px;
-            border-bottom: 3px solid var(--pink);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .header-title {
-            font-family: 'Bebas Neue', cursive;
-            font-size: 24px;
-            color: var(--pink);
-            letter-spacing: 2px;
-        }
-
-        .status-badge {
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 700;
-            text-transform: uppercase;
-        }
-
-        .status-disconnected { background: #dc2626; }
-        .status-connecting { background: #f59e0b; }
-        .status-connected { background: #10b981; }
-
-        .main-content {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 20px;
-        }
-
-        .video-container {
-            width: 100%;
-            max-width: 640px;
-            aspect-ratio: 16/9;
-            background: #000;
-            border: 3px solid var(--teal);
-            border-radius: 8px;
+            min-height: 100dvh;
             overflow: hidden;
-            position: relative;
-        }
-
-        #localVideo {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        .video-overlay {
-            position: absolute;
-            bottom: 10px;
-            left: 10px;
-            background: rgba(0,0,0,0.7);
-            padding: 6px 12px;
-            border-radius: 4px;
-            font-size: 12px;
-            color: var(--teal);
-        }
-
-        .controls {
-            margin-top: 20px;
             display: flex;
             flex-direction: column;
-            gap: 15px;
-            width: 100%;
+        }
+
+        .screen {
+            display: none;
+            flex-direction: column;
+            height: 100vh;
+            height: 100dvh;
+        }
+
+        .screen.active {
+            display: flex;
+        }
+
+        /* Session Join Screen */
+        .join-screen {
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background: linear-gradient(135deg, var(--bg-dark) 0%, #0f0f23 100%);
+        }
+
+        .join-container {
+            background: var(--bg-panel);
+            border: 3px solid #000;
+            border-radius: 16px;
+            padding: 30px;
             max-width: 400px;
+            width: 100%;
+            box-shadow: 8px 8px 0 rgba(0,0,0,0.4);
+        }
+
+        .logo-container {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .logo {
+            width: 120px;
+            height: 120px;
+            margin-bottom: 15px;
+        }
+
+        .join-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 32px;
+            color: var(--pink);
+            text-align: center;
+            letter-spacing: 3px;
+            margin-bottom: 30px;
         }
 
         .form-group {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
+            margin-bottom: 20px;
         }
 
         .form-label {
+            display: block;
             font-size: 12px;
             font-weight: 700;
             text-transform: uppercase;
-            color: var(--teal);
+            color: var(--text-dim);
+            margin-bottom: 8px;
             letter-spacing: 1px;
         }
 
-        .form-input, .form-select {
-            padding: 12px;
-            background: var(--bg-panel);
+        .form-input {
+            width: 100%;
+            padding: 16px;
+            background: rgba(255,255,255,0.05);
             border: 2px solid rgba(255,255,255,0.2);
-            border-radius: 6px;
-            color: white;
-            font-size: 16px;
+            border-radius: 8px;
+            color: var(--yellow);
+            font-size: 24px;
+            font-family: monospace;
+            font-weight: 700;
+            text-align: center;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            transition: all 0.2s;
         }
 
-        .form-input:focus, .form-select:focus {
+        .form-input:focus {
             outline: none;
-            border-color: var(--pink);
+            border-color: var(--yellow);
+            box-shadow: 0 0 20px rgba(253, 216, 53, 0.3);
         }
 
-        .btn-row {
-            display: flex;
-            gap: 10px;
+        .role-selector {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
         }
 
-        .btn {
-            flex: 1;
-            padding: 14px 20px;
-            border: none;
-            border-radius: 6px;
+        .role-btn {
+            padding: 18px;
+            background: rgba(255,255,255,0.05);
+            border: 2px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            color: var(--text-primary);
             font-size: 14px;
             font-weight: 700;
             text-transform: uppercase;
             cursor: pointer;
             transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
         }
 
-        .btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
+        .role-btn:hover {
+            background: rgba(255,255,255,0.1);
+        }
+
+        .role-btn.active {
+            border-color: var(--teal);
+            background: rgba(145, 215, 235, 0.15);
+            color: var(--teal);
+        }
+
+        .role-icon {
+            font-size: 32px;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 18px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 800;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.2s;
+            letter-spacing: 2px;
         }
 
         .btn-primary {
-            background: var(--pink);
+            background: linear-gradient(180deg, var(--pink) 0%, #d63384 100%);
             color: white;
+            box-shadow: 4px 4px 0 rgba(0,0,0,0.4);
         }
 
-        .btn-primary:hover:not(:disabled) {
-            background: #E03786;
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 6px 6px 0 rgba(0,0,0,0.4);
         }
 
-        .btn-secondary {
+        .btn-primary:active {
+            transform: translateY(0);
+            box-shadow: 2px 2px 0 rgba(0,0,0,0.4);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .error-message {
+            background: rgba(239, 68, 68, 0.2);
+            border: 2px solid var(--danger);
+            border-radius: 8px;
+            padding: 12px;
+            color: var(--danger);
+            font-size: 13px;
+            margin-top: 15px;
+            display: none;
+        }
+
+        .error-message.visible {
+            display: block;
+        }
+
+        /* Camera Preview Screen */
+        .preview-screen {
+            position: relative;
+        }
+
+        .video-container {
+            flex: 1;
+            position: relative;
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .video-preview {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .preview-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 20px;
+            background: linear-gradient(180deg, rgba(0,0,0,0.8) 0%, transparent 100%);
+            z-index: 10;
+        }
+
+        .preview-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .session-badge {
+            background: var(--bg-panel);
+            padding: 8px 16px;
+            border-radius: 8px;
+            border: 2px solid var(--yellow);
+            font-family: monospace;
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--yellow);
+            letter-spacing: 3px;
+        }
+
+        .role-badge {
             background: var(--teal);
-            color: black;
+            color: var(--bg-dark);
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 800;
+            text-transform: uppercase;
         }
 
-        .btn-danger {
-            background: #dc2626;
-            color: white;
+        .preview-controls {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 20px;
+            background: linear-gradient(0deg, rgba(0,0,0,0.9) 0%, transparent 100%);
+            z-index: 10;
+        }
+
+        .camera-selector {
+            margin-bottom: 15px;
         }
 
         .camera-select {
-            margin-top: 15px;
-        }
-
-        .info-box {
-            background: var(--bg-panel);
-            border: 2px solid rgba(255,255,255,0.1);
-            border-radius: 8px;
-            padding: 15px;
-            margin-top: 20px;
             width: 100%;
-            max-width: 400px;
-        }
-
-        .info-title {
-            font-size: 14px;
-            font-weight: 700;
-            color: var(--yellow);
-            margin-bottom: 10px;
-        }
-
-        .info-text {
-            font-size: 13px;
-            color: rgba(255,255,255,0.7);
-            line-height: 1.5;
-        }
-
-        .session-code {
-            font-family: monospace;
-            font-size: 24px;
-            font-weight: 700;
-            color: var(--yellow);
-            letter-spacing: 4px;
-            text-align: center;
-            padding: 15px;
-            background: rgba(253,216,53,0.1);
-            border: 2px dashed var(--yellow);
+            padding: 14px;
+            background: rgba(255,255,255,0.1);
+            border: 2px solid rgba(255,255,255,0.3);
             border-radius: 8px;
-            margin: 15px 0;
+            color: var(--text-primary);
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        /* Streaming Screen */
+        .streaming-screen {
+            position: relative;
+        }
+
+        .live-indicator {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--danger);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 30px;
+            font-weight: 900;
+            font-size: 18px;
+            letter-spacing: 3px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            animation: pulseLive 1.5s infinite;
+            box-shadow: 0 0 30px rgba(239, 68, 68, 0.6);
+            z-index: 20;
+        }
+
+        @keyframes pulseLive {
+            0%, 100% { opacity: 1; transform: translateX(-50%) scale(1); }
+            50% { opacity: 0.8; transform: translateX(-50%) scale(1.05); }
+        }
+
+        .live-dot {
+            width: 12px;
+            height: 12px;
+            background: white;
+            border-radius: 50%;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .connection-status {
+            position: absolute;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.8);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            z-index: 20;
+        }
+
+        .status-connecting { color: var(--yellow); }
+        .status-connected { color: var(--success); }
+        .status-failed { color: var(--danger); }
+
+        .streaming-controls {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            gap: 12px;
+            z-index: 10;
+        }
+
+        .btn-stop {
+            flex: 1;
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-switch-camera {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            padding: 18px;
+            border-radius: 8px;
+            border: 2px solid rgba(255,255,255,0.3);
+            font-size: 24px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-switch-camera:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        /* Loading spinner */
+        .spinner {
+            border: 4px solid rgba(255,255,255,0.1);
+            border-top: 4px solid var(--teal);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-container {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0,0,0,0.8);
+            z-index: 30;
+            gap: 20px;
+        }
+
+        .loading-text {
+            font-size: 16px;
+            color: var(--teal);
+            font-weight: 600;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 480px) {
+            .join-container {
+                padding: 25px;
+            }
+
+            .join-title {
+                font-size: 28px;
+            }
+
+            .form-input {
+                font-size: 20px;
+            }
+
+            .role-btn {
+                padding: 14px;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="header">
-        <div class="header-title">CAMERA SOURCE</div>
-        <div class="status-badge status-disconnected" id="statusBadge">Disconnected</div>
+    <!-- Session Join Screen -->
+    <div class="screen join-screen active" id="joinScreen">
+        <div class="join-container">
+            <div class="logo-container">
+                <img src="/images/gold_logo.png" alt="BRDC" class="logo">
+            </div>
+            <h1 class="join-title">CAMERA SOURCE</h1>
+
+            <form id="joinForm" onsubmit="joinSession(event)">
+                <div class="form-group">
+                    <label class="form-label">Session Code</label>
+                    <input
+                        type="text"
+                        id="sessionCode"
+                        class="form-input"
+                        placeholder="XXXXXX"
+                        maxlength="6"
+                        required
+                        autocomplete="off"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Camera Role</label>
+                    <div class="role-selector">
+                        <button type="button" class="role-btn active" data-role="board" onclick="selectRole('board')">
+                            <span class="role-icon">🎯</span>
+                            <span>Board Camera</span>
+                        </button>
+                        <button type="button" class="role-btn" data-role="thrower" onclick="selectRole('thrower')">
+                            <span class="role-icon">🎬</span>
+                            <span>Thrower Camera</span>
+                        </button>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary">JOIN SESSION</button>
+
+                <div class="error-message" id="joinError" role="alert"></div>
+            </form>
+        </div>
     </div>
 
-    <div class="main-content">
+    <!-- Camera Preview Screen -->
+    <div class="screen preview-screen" id="previewScreen">
         <div class="video-container">
-            <video id="localVideo" autoplay muted playsinline></video>
-            <div class="video-overlay" id="cameraLabel">No Camera</div>
-        </div>
+            <video id="previewVideo" class="video-preview" autoplay muted playsinline></video>
 
-        <div class="controls">
-            <div class="form-group">
-                <label class="form-label">Camera Role</label>
-                <select id="cameraRole" class="form-select">
-                    <option value="board">Board Camera (Wide Shot)</option>
-                    <option value="thrower">Thrower Camera (Close Up)</option>
-                </select>
+            <div class="preview-overlay">
+                <div class="preview-header">
+                    <div class="session-badge" id="sessionBadge">------</div>
+                    <div class="role-badge" id="roleBadge">-</div>
+                </div>
             </div>
 
-            <div class="form-group camera-select">
-                <label class="form-label">Select Camera</label>
-                <select id="cameraSelect" class="form-select">
-                    <option value="">Loading cameras...</option>
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label class="form-label">Session Code</label>
-                <input type="text" id="sessionCode" class="form-input" placeholder="Enter 6-digit code" maxlength="6" style="text-transform: uppercase;">
-            </div>
-
-            <div class="btn-row">
-                <button class="btn btn-primary" id="connectBtn" onclick="connectToSession()">Connect</button>
-                <button class="btn btn-danger" id="disconnectBtn" onclick="disconnectFromSession()" disabled>Disconnect</button>
+            <div class="preview-controls">
+                <div class="camera-selector">
+                    <select id="cameraSelect" class="camera-select" onchange="switchCamera()">
+                        <option value="">Select Camera...</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary" onclick="startStreaming()">START STREAMING</button>
             </div>
         </div>
+    </div>
 
-        <div class="info-box">
-            <div class="info-title">How to Use</div>
-            <div class="info-text">
-                1. Select your camera role (Board or Thrower)<br>
-                2. Choose which camera to use<br>
-                3. Get the session code from the Stream Director<br>
-                4. Enter the code and tap Connect<br>
-                5. Your video will stream to the director
+    <!-- Streaming Screen -->
+    <div class="screen streaming-screen" id="streamingScreen">
+        <div class="video-container">
+            <video id="streamingVideo" class="video-preview" autoplay muted playsinline></video>
+
+            <div class="live-indicator">
+                <div class="live-dot"></div>
+                LIVE
+            </div>
+
+            <div class="connection-status status-connecting" id="connectionStatus">
+                Connecting...
+            </div>
+
+            <div class="streaming-controls">
+                <button class="btn btn-switch-camera" onclick="toggleCamera()">🔄</button>
+                <button class="btn btn-primary btn-stop" onclick="stopStreaming()">STOP STREAMING</button>
             </div>
         </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-container" id="loadingOverlay" style="display: none;">
+        <div class="spinner"></div>
+        <div class="loading-text" id="loadingText">Loading...</div>
     </div>
 
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
-        import { getFirestore, doc, setDoc, getDoc, onSnapshot, collection, addDoc, deleteDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+        import { getFirestore, doc, setDoc, getDoc, onSnapshot, collection, serverTimestamp, deleteDoc } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
 
         const firebaseConfig = {
             apiKey: "AIzaSyDLpaN65tYFNPJQ1TjMWS_36qFeNxJ0AZ4",
@@ -279,7 +548,6 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // WebRTC configuration
         const rtcConfig = {
             iceServers: [
                 { urls: 'stun:stun.l.google.com:19302' },
@@ -287,123 +555,268 @@
             ]
         };
 
+        let sessionId = null;
+        let cameraRole = 'board';
         let localStream = null;
         let peerConnection = null;
-        let sessionId = null;
-        let role = 'board';
-        let unsubscribeSignals = null;
+        let availableCameras = [];
+        let currentCameraId = null;
+        let keepAliveInterval = null;
+        let answerUnsubscribe = null;
+        let iceCandidatesUnsubscribe = null;
 
-        // Initialize cameras
-        async function initCameras() {
-            try {
-                // Request permission first
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-                stream.getTracks().forEach(t => t.stop());
-
-                // Get device list
-                const devices = await navigator.mediaDevices.enumerateDevices();
-                const cameras = devices.filter(d => d.kind === 'videoinput');
-
-                const select = document.getElementById('cameraSelect');
-                select.innerHTML = cameras.map((cam, i) =>
-                    `<option value="${cam.deviceId}">${cam.label || `Camera ${i + 1}`}</option>`
-                ).join('');
-
-                if (cameras.length > 0) {
-                    startCamera(cameras[0].deviceId);
-                }
-            } catch (error) {
-                console.error('Error accessing cameras:', error);
-                document.getElementById('cameraSelect').innerHTML = '<option>Camera access denied</option>';
-            }
+        // Screen management
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(screenId).classList.add('active');
         }
 
-        async function startCamera(deviceId) {
-            try {
-                if (localStream) {
-                    localStream.getTracks().forEach(t => t.stop());
-                }
-
-                localStream = await navigator.mediaDevices.getUserMedia({
-                    video: {
-                        deviceId: deviceId ? { exact: deviceId } : undefined,
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 },
-                        frameRate: { ideal: 30 }
-                    },
-                    audio: false
-                });
-
-                document.getElementById('localVideo').srcObject = localStream;
-
-                const track = localStream.getVideoTracks()[0];
-                document.getElementById('cameraLabel').textContent = track.label || 'Camera Active';
-
-            } catch (error) {
-                console.error('Error starting camera:', error);
-            }
+        function showLoading(text = 'Loading...') {
+            document.getElementById('loadingText').textContent = text;
+            document.getElementById('loadingOverlay').style.display = 'flex';
         }
 
-        document.getElementById('cameraSelect').addEventListener('change', (e) => {
-            startCamera(e.target.value);
-        });
+        function hideLoading() {
+            document.getElementById('loadingOverlay').style.display = 'none';
+        }
 
-        document.getElementById('cameraRole').addEventListener('change', (e) => {
-            role = e.target.value;
-        });
+        function showError(message) {
+            const errorEl = document.getElementById('joinError');
+            errorEl.textContent = message;
+            errorEl.classList.add('visible');
+        }
 
-        window.connectToSession = async function() {
-            const code = document.getElementById('sessionCode').value.toUpperCase().trim();
-            if (!code || code.length !== 6) {
-                alert('Please enter a valid 6-digit session code');
+        // Role selection
+        window.selectRole = function(role) {
+            cameraRole = role;
+            document.querySelectorAll('.role-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.role === role);
+            });
+        };
+
+        // Join session
+        window.joinSession = async function(event) {
+            event.preventDefault();
+
+            const code = document.getElementById('sessionCode').value.trim().toUpperCase();
+            if (code.length !== 6) {
+                showError('Please enter a 6-character session code');
                 return;
             }
 
-            sessionId = code;
-            role = document.getElementById('cameraRole').value;
-
-            updateStatus('connecting');
+            showLoading('Verifying session...');
 
             try {
                 // Check if session exists
-                const sessionRef = doc(db, 'streaming_sessions', sessionId);
-                const sessionSnap = await getDoc(sessionRef);
-
-                if (!sessionSnap.exists()) {
-                    alert('Session not found. Check the code and try again.');
-                    updateStatus('disconnected');
+                const sessionDoc = await getDoc(doc(db, 'streaming_sessions', code));
+                if (!sessionDoc.exists()) {
+                    hideLoading();
+                    showError('Invalid session code. Please check and try again.');
                     return;
                 }
 
+                sessionId = code;
+
+                // Update UI
+                document.getElementById('sessionBadge').textContent = sessionId;
+                document.getElementById('roleBadge').textContent = cameraRole === 'board' ? 'Board Camera' : 'Thrower Camera';
+
+                // Request camera access
+                showLoading('Requesting camera access...');
+                await getCameraAccess();
+
+                hideLoading();
+                showScreen('previewScreen');
+
+            } catch (error) {
+                console.error('Join error:', error);
+                hideLoading();
+                showError('Error joining session: ' + error.message);
+            }
+        };
+
+        // Get camera access and enumerate devices
+        async function getCameraAccess() {
+            try {
+                // Request initial camera access
+                const constraints = {
+                    video: {
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 },
+                        facingMode: 'environment'
+                    },
+                    audio: true
+                };
+
+                localStream = await navigator.mediaDevices.getUserMedia(constraints);
+
+                // Show preview
+                document.getElementById('previewVideo').srcObject = localStream;
+
+                // Enumerate cameras
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                availableCameras = devices.filter(d => d.kind === 'videoinput');
+
+                // Populate camera selector
+                const select = document.getElementById('cameraSelect');
+                select.innerHTML = '';
+                availableCameras.forEach((camera, idx) => {
+                    const option = document.createElement('option');
+                    option.value = camera.deviceId;
+                    option.textContent = camera.label || `Camera ${idx + 1}`;
+                    select.appendChild(option);
+                });
+
+                // Set current camera
+                const videoTrack = localStream.getVideoTracks()[0];
+                const settings = videoTrack.getSettings();
+                currentCameraId = settings.deviceId;
+                select.value = currentCameraId;
+
+            } catch (error) {
+                console.error('Camera access error:', error);
+
+                if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+                    throw new Error('Camera permission denied. Please allow camera access and try again.');
+                } else if (error.name === 'NotFoundError') {
+                    throw new Error('No camera found on this device.');
+                } else {
+                    throw new Error('Failed to access camera: ' + error.message);
+                }
+            }
+        }
+
+        // Switch camera
+        window.switchCamera = async function() {
+            const select = document.getElementById('cameraSelect');
+            const deviceId = select.value;
+
+            if (!deviceId || deviceId === currentCameraId) return;
+
+            showLoading('Switching camera...');
+
+            try {
+                // Stop current stream
+                if (localStream) {
+                    localStream.getTracks().forEach(track => track.stop());
+                }
+
+                // Get new stream
+                const constraints = {
+                    video: {
+                        deviceId: { exact: deviceId },
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 }
+                    },
+                    audio: true
+                };
+
+                localStream = await navigator.mediaDevices.getUserMedia(constraints);
+                document.getElementById('previewVideo').srcObject = localStream;
+                currentCameraId = deviceId;
+
+                hideLoading();
+
+            } catch (error) {
+                console.error('Switch camera error:', error);
+                hideLoading();
+                toastError('Failed to switch camera');
+            }
+        };
+
+        // Toggle camera (for streaming screen)
+        window.toggleCamera = async function() {
+            if (availableCameras.length < 2) {
+                toastWarning('Only one camera available');
+                return;
+            }
+
+            // Find next camera
+            const currentIdx = availableCameras.findIndex(c => c.deviceId === currentCameraId);
+            const nextIdx = (currentIdx + 1) % availableCameras.length;
+            const nextCamera = availableCameras[nextIdx];
+
+            showLoading('Switching camera...');
+
+            try {
+                // Stop current stream
+                if (localStream) {
+                    localStream.getTracks().forEach(track => track.stop());
+                }
+
+                // Get new stream
+                const constraints = {
+                    video: {
+                        deviceId: { exact: nextCamera.deviceId },
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 }
+                    },
+                    audio: true
+                };
+
+                localStream = await navigator.mediaDevices.getUserMedia(constraints);
+                document.getElementById('streamingVideo').srcObject = localStream;
+                currentCameraId = nextCamera.deviceId;
+
+                // Replace track in peer connection
+                if (peerConnection) {
+                    const videoTrack = localStream.getVideoTracks()[0];
+                    const sender = peerConnection.getSenders().find(s => s.track.kind === 'video');
+                    if (sender) {
+                        await sender.replaceTrack(videoTrack);
+                    }
+                }
+
+                hideLoading();
+                toastInfo('Switched to ' + (nextCamera.label || 'next camera'));
+
+            } catch (error) {
+                console.error('Toggle camera error:', error);
+                hideLoading();
+                toastError('Failed to switch camera');
+            }
+        };
+
+        // Start streaming
+        window.startStreaming = async function() {
+            if (!localStream) {
+                toastError('No camera stream available');
+                return;
+            }
+
+            showLoading('Connecting to stream director...');
+
+            try {
                 // Create peer connection
                 peerConnection = new RTCPeerConnection(rtcConfig);
 
-                // Add local stream
-                if (localStream) {
-                    localStream.getTracks().forEach(track => {
-                        peerConnection.addTrack(track, localStream);
-                    });
-                }
+                // Add local stream tracks
+                localStream.getTracks().forEach(track => {
+                    peerConnection.addTrack(track, localStream);
+                });
 
                 // Handle ICE candidates
                 peerConnection.onicecandidate = async (event) => {
                     if (event.candidate) {
-                        await addDoc(collection(db, 'streaming_sessions', sessionId, 'ice_candidates'), {
+                        await setDoc(doc(collection(db, 'streaming_sessions', sessionId, 'ice_candidates')), {
                             candidate: event.candidate.toJSON(),
-                            role: role,
+                            role: cameraRole,
                             type: 'offer',
                             timestamp: serverTimestamp()
                         });
                     }
                 };
 
+                // Monitor connection state
                 peerConnection.onconnectionstatechange = () => {
                     console.log('Connection state:', peerConnection.connectionState);
-                    if (peerConnection.connectionState === 'connected') {
-                        updateStatus('connected');
-                    } else if (peerConnection.connectionState === 'disconnected' ||
-                               peerConnection.connectionState === 'failed') {
-                        updateStatus('disconnected');
+                    updateConnectionStatus(peerConnection.connectionState);
+
+                    if (peerConnection.connectionState === 'failed') {
+                        toastError('Connection failed. Retrying...');
+                        setTimeout(() => startStreaming(), 2000);
+                    } else if (peerConnection.connectionState === 'disconnected') {
+                        toastWarning('Connection lost. Attempting to reconnect...');
                     }
                 };
 
@@ -411,35 +824,30 @@
                 const offer = await peerConnection.createOffer();
                 await peerConnection.setLocalDescription(offer);
 
-                // Store offer in Firestore
-                const offerRef = doc(db, 'streaming_sessions', sessionId, 'offers', role);
-                await setDoc(offerRef, {
+                await setDoc(doc(db, 'streaming_sessions', sessionId, 'offers', cameraRole), {
                     sdp: offer.sdp,
                     type: offer.type,
-                    role: role,
                     timestamp: serverTimestamp()
                 });
 
                 // Listen for answer
-                const answerRef = doc(db, 'streaming_sessions', sessionId, 'answers', role);
-                unsubscribeSignals = onSnapshot(answerRef, async (snapshot) => {
-                    if (snapshot.exists() && peerConnection) {
-                        const answer = snapshot.data();
-                        if (!peerConnection.currentRemoteDescription) {
-                            await peerConnection.setRemoteDescription(new RTCSessionDescription({
-                                sdp: answer.sdp,
-                                type: answer.type
-                            }));
-                        }
+                answerUnsubscribe = onSnapshot(doc(db, 'streaming_sessions', sessionId, 'answers', cameraRole), async (snapshot) => {
+                    if (snapshot.exists() && peerConnection.signalingState === 'have-local-offer') {
+                        const answerData = snapshot.data();
+                        await peerConnection.setRemoteDescription(new RTCSessionDescription({
+                            sdp: answerData.sdp,
+                            type: answerData.type
+                        }));
+                        console.log('Answer received and set');
                     }
                 });
 
                 // Listen for ICE candidates from director
-                onSnapshot(collection(db, 'streaming_sessions', sessionId, 'ice_candidates'), (snapshot) => {
+                iceCandidatesUnsubscribe = onSnapshot(collection(db, 'streaming_sessions', sessionId, 'ice_candidates'), (snapshot) => {
                     snapshot.docChanges().forEach(async (change) => {
                         if (change.type === 'added') {
                             const data = change.doc.data();
-                            if (data.type === 'answer' && data.role === role && peerConnection) {
+                            if (data.type === 'answer' && data.role === cameraRole) {
                                 try {
                                     await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
                                 } catch (e) {
@@ -450,68 +858,130 @@
                     });
                 });
 
-                document.getElementById('connectBtn').disabled = true;
-                document.getElementById('disconnectBtn').disabled = false;
-                document.getElementById('sessionCode').disabled = true;
-                document.getElementById('cameraRole').disabled = true;
+                // Show streaming screen
+                document.getElementById('streamingVideo').srcObject = localStream;
+                showScreen('streamingScreen');
+                hideLoading();
+
+                // Start keep-alive
+                startKeepAlive();
 
             } catch (error) {
-                console.error('Error connecting:', error);
-                alert('Failed to connect: ' + error.message);
-                updateStatus('disconnected');
+                console.error('Streaming error:', error);
+                hideLoading();
+                toastError('Failed to start streaming: ' + error.message);
             }
         };
 
-        window.disconnectFromSession = async function() {
-            if (unsubscribeSignals) {
-                unsubscribeSignals();
-                unsubscribeSignals = null;
+        function updateConnectionStatus(state) {
+            const statusEl = document.getElementById('connectionStatus');
+            statusEl.className = 'connection-status';
+
+            switch (state) {
+                case 'connecting':
+                case 'new':
+                    statusEl.classList.add('status-connecting');
+                    statusEl.textContent = 'Connecting...';
+                    break;
+                case 'connected':
+                    statusEl.classList.add('status-connected');
+                    statusEl.textContent = 'Connected';
+                    setTimeout(() => {
+                        statusEl.style.opacity = '0';
+                    }, 3000);
+                    break;
+                case 'disconnected':
+                    statusEl.classList.add('status-connecting');
+                    statusEl.textContent = 'Reconnecting...';
+                    statusEl.style.opacity = '1';
+                    break;
+                case 'failed':
+                    statusEl.classList.add('status-failed');
+                    statusEl.textContent = 'Connection Failed';
+                    statusEl.style.opacity = '1';
+                    break;
+            }
+        }
+
+        // Keep-alive ping
+        function startKeepAlive() {
+            keepAliveInterval = setInterval(async () => {
+                try {
+                    await setDoc(doc(db, 'streaming_sessions', sessionId, 'camera_status', cameraRole), {
+                        last_seen: serverTimestamp(),
+                        state: peerConnection?.connectionState || 'unknown'
+                    }, { merge: true });
+                } catch (e) {
+                    console.error('Keep-alive error:', e);
+                }
+            }, 5000); // Every 5 seconds
+        }
+
+        // Stop streaming
+        window.stopStreaming = async function() {
+            // Stop keep-alive
+            if (keepAliveInterval) {
+                clearInterval(keepAliveInterval);
+                keepAliveInterval = null;
             }
 
+            // Unsubscribe from listeners
+            if (answerUnsubscribe) {
+                answerUnsubscribe();
+                answerUnsubscribe = null;
+            }
+            if (iceCandidatesUnsubscribe) {
+                iceCandidatesUnsubscribe();
+                iceCandidatesUnsubscribe = null;
+            }
+
+            // Close peer connection
             if (peerConnection) {
                 peerConnection.close();
                 peerConnection = null;
             }
 
-            // Clean up our offer
-            if (sessionId && role) {
-                try {
-                    await deleteDoc(doc(db, 'streaming_sessions', sessionId, 'offers', role));
-                } catch (e) {
-                    console.log('Cleanup error:', e);
-                }
+            // Clean up Firestore
+            try {
+                await deleteDoc(doc(db, 'streaming_sessions', sessionId, 'offers', cameraRole));
+                await deleteDoc(doc(db, 'streaming_sessions', sessionId, 'camera_status', cameraRole));
+            } catch (e) {
+                console.log('Cleanup error:', e);
             }
 
-            sessionId = null;
-            updateStatus('disconnected');
+            // Stop local stream
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+                localStream = null;
+            }
 
-            document.getElementById('connectBtn').disabled = false;
-            document.getElementById('disconnectBtn').disabled = true;
-            document.getElementById('sessionCode').disabled = false;
-            document.getElementById('cameraRole').disabled = false;
+            // Return to join screen
+            sessionId = null;
+            showScreen('joinScreen');
+            document.getElementById('sessionCode').value = '';
+            document.getElementById('joinError').classList.remove('visible');
         };
 
-        function updateStatus(status) {
-            const badge = document.getElementById('statusBadge');
-            badge.className = 'status-badge';
-
-            switch (status) {
-                case 'connected':
-                    badge.classList.add('status-connected');
-                    badge.textContent = 'Connected';
-                    break;
-                case 'connecting':
-                    badge.classList.add('status-connecting');
-                    badge.textContent = 'Connecting...';
-                    break;
-                default:
-                    badge.classList.add('status-disconnected');
-                    badge.textContent = 'Disconnected';
+        // Handle page unload
+        window.addEventListener('beforeunload', () => {
+            if (peerConnection) {
+                stopStreaming();
             }
-        }
+        });
 
-        // Initialize on load
-        initCameras();
+        // Handle visibility change (tab switch, screen lock)
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden && peerConnection) {
+                console.log('Page hidden, connection may be affected');
+            } else if (!document.hidden && peerConnection) {
+                console.log('Page visible again');
+                // Check connection state and reconnect if needed
+                if (peerConnection.connectionState === 'disconnected' || peerConnection.connectionState === 'failed') {
+                    toastWarning('Reconnecting...');
+                    startStreaming();
+                }
+            }
+        });
     </script>
 </body>
 </html>

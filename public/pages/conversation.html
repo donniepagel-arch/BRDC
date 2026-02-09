@@ -2,13 +2,14 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Conversation - BRDC</title>
     <link rel="icon" type="image/png" href="/images/favicon.png">
     <link rel="manifest" href="/manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#FF469A">
     <link rel="stylesheet" href="/css/brdc-styles.css">
+    <script src="/js/brdc-toast.js"></script>
     <link rel="stylesheet" href="/css/messaging.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700;800&display=swap');
@@ -37,6 +38,7 @@
             display: flex;
             flex-direction: column;
             height: 100vh;
+            height: 100dvh;
         }
 
         .message-header {
@@ -162,6 +164,7 @@
             align-items: center;
             justify-content: center;
             height: 100vh;
+            height: 100dvh;
         }
     </style>
 </head>
@@ -176,7 +179,7 @@
 
     <div id="messageThread" class="message-thread" style="display: none;">
         <div class="message-header">
-            <button class="back-btn" onclick="goBack()">←</button>
+            <button class="back-btn" onclick="goBack()" aria-label="Go back">←</button>
             <div class="header-avatar" id="headerAvatar">?</div>
             <div class="header-info">
                 <div class="header-name" id="headerName">Loading...</div>
@@ -193,7 +196,7 @@
     </div>
 
     <script type="module">
-        import { db, collection, query, orderBy, onSnapshot, doc, callFunction } from '/js/firebase-config.js';
+        import { db, collection, query, orderBy, onSnapshot, doc, getDocs, limit, startAfter, callFunction } from '/js/firebase-config.js';
 
         // Dynamic import for push notifications (fail-safe)
         let initializePushNotifications = async () => false;
@@ -211,18 +214,40 @@
         let unsubscribeMessages = null;
         let lastMessageDate = null;
 
+        // Pagination state
+        let allMessages = [];
+        let displayedMessages = [];
+        let oldestLoadedTimestamp = null;
+        let hasMoreMessages = true;
+        const MESSAGES_PER_PAGE = 20;
+
         // Get conversation ID from URL
         const urlParams = new URLSearchParams(window.location.search);
         conversationId = urlParams.get('id');
 
         if (!conversationId) {
-            alert('No conversation specified');
+            toastError('No conversation specified');
             window.location.href = '/pages/messages.html';
         }
 
         // Check for stored PIN
         window.addEventListener('DOMContentLoaded', async () => {
             playerPin = localStorage.getItem('brdc_player_pin');
+
+            if (!playerPin) {
+                try {
+                    const savedSession = localStorage.getItem('brdc_session');
+                    if (savedSession) {
+                        const session = JSON.parse(savedSession);
+                        if (session && session.pin) {
+                            playerPin = session.pin.toUpperCase();
+                            localStorage.setItem('brdc_player_pin', playerPin);
+                        }
+                    }
+                } catch (e) {
+                    console.warn('Session fallback failed:', e);
+                }
+            }
 
             if (!playerPin) {
                 window.location.href = '/pages/messages.html';
@@ -281,32 +306,86 @@
                     // Set up real-time listener
                     setupRealtimeListener();
                 } else {
-                    alert('Failed to load conversation');
+                    toastError('Failed to load conversation');
                     window.location.href = '/pages/messages.html';
                 }
             } catch (error) {
                 console.error('Error loading conversation:', error);
-                alert('Error loading conversation');
+                toastError('Error loading conversation');
                 window.location.href = '/pages/messages.html';
             }
         }
 
-        function setupRealtimeListener() {
+        async function setupRealtimeListener() {
             const messagesRef = collection(db, 'conversations', conversationId, 'messages');
-            const q = query(messagesRef, orderBy('timestamp', 'asc'));
 
-            unsubscribeMessages = onSnapshot(q, (snapshot) => {
+            // Load initial page of messages (most recent 20)
+            const initialQuery = query(
+                messagesRef,
+                orderBy('timestamp', 'desc'),
+                limit(MESSAGES_PER_PAGE)
+            );
+
+            const initialSnapshot = await getDocs(initialQuery);
+
+            if (initialSnapshot.empty) {
+                allMessages = [];
+                displayedMessages = [];
+                hasMoreMessages = false;
+                renderMessagesWithPagination();
+            } else {
                 const messages = [];
-                snapshot.forEach(doc => {
-                    const data = doc.data();
+                initialSnapshot.forEach(d => {
+                    const data = d.data();
                     messages.push({
-                        id: doc.id,
+                        id: d.id,
                         ...data,
                         timestamp: data.timestamp?.toDate?.()?.toISOString() || null,
                         is_own: data.sender_id !== otherParticipant?.id
                     });
                 });
-                renderMessages(messages);
+
+                // Messages are in descending order, reverse to show oldest first
+                allMessages = messages.reverse();
+                displayedMessages = [...allMessages];
+
+                // Track oldest loaded message for pagination
+                if (allMessages.length > 0) {
+                    oldestLoadedTimestamp = new Date(allMessages[0].timestamp);
+                }
+
+                // Check if there are more messages
+                hasMoreMessages = initialSnapshot.size === MESSAGES_PER_PAGE;
+
+                renderMessagesWithPagination();
+            }
+
+            // Set up real-time listener for NEW messages only (after the most recent loaded)
+            const newestTimestamp = allMessages.length > 0
+                ? new Date(allMessages[allMessages.length - 1].timestamp)
+                : new Date(0);
+
+            const realtimeQuery = query(
+                messagesRef,
+                orderBy('timestamp', 'asc'),
+                startAfter(newestTimestamp)
+            );
+
+            unsubscribeMessages = onSnapshot(realtimeQuery, (snapshot) => {
+                snapshot.docChanges().forEach(change => {
+                    if (change.type === 'added') {
+                        const data = change.doc.data();
+                        const newMessage = {
+                            id: change.doc.id,
+                            ...data,
+                            timestamp: data.timestamp?.toDate?.()?.toISOString() || null,
+                            is_own: data.sender_id !== otherParticipant?.id
+                        };
+                        allMessages.push(newMessage);
+                        displayedMessages.push(newMessage);
+                        renderMessagesWithPagination();
+                    }
+                });
 
                 // Mark as read
                 callFunction('markConversationRead', {
@@ -315,6 +394,91 @@
                 }).catch(console.error);
             });
         }
+
+        async function loadOlderMessages() {
+            if (!hasMoreMessages || !oldestLoadedTimestamp) return;
+
+            const loadMoreBtn = document.getElementById('loadMoreBtn');
+            if (loadMoreBtn) loadMoreBtn.textContent = 'Loading...';
+
+            try {
+                const messagesRef = collection(db, 'conversations', conversationId, 'messages');
+                const olderQuery = query(
+                    messagesRef,
+                    orderBy('timestamp', 'desc'),
+                    startAfter(oldestLoadedTimestamp),
+                    limit(MESSAGES_PER_PAGE)
+                );
+
+                const olderSnapshot = await getDocs(olderQuery);
+
+                if (olderSnapshot.empty) {
+                    hasMoreMessages = false;
+                } else {
+                    const olderMessages = [];
+                    olderSnapshot.forEach(d => {
+                        const data = d.data();
+                        olderMessages.push({
+                            id: d.id,
+                            ...data,
+                            timestamp: data.timestamp?.toDate?.()?.toISOString() || null,
+                            is_own: data.sender_id !== otherParticipant?.id
+                        });
+                    });
+
+                    // Prepend older messages (they're in desc order, so reverse)
+                    const reversedOlder = olderMessages.reverse();
+                    allMessages = [...reversedOlder, ...allMessages];
+                    displayedMessages = [...allMessages];
+
+                    // Update oldest timestamp
+                    if (reversedOlder.length > 0) {
+                        oldestLoadedTimestamp = new Date(reversedOlder[0].timestamp);
+                    }
+
+                    hasMoreMessages = olderSnapshot.size === MESSAGES_PER_PAGE;
+                }
+
+                renderMessagesWithPagination();
+            } catch (error) {
+                console.error('Error loading older messages:', error);
+                if (loadMoreBtn) loadMoreBtn.textContent = 'Load More Messages';
+            }
+        }
+
+        function renderMessagesWithPagination() {
+            const container = document.getElementById('messageList');
+
+            // Add "Load more" button if there are more messages
+            let loadMoreHTML = '';
+            if (hasMoreMessages) {
+                loadMoreHTML = `
+                    <button id="loadMoreBtn" onclick="loadOlderMessages()"
+                            style="width: 100%; padding: 12px; margin-bottom: 12px; background: var(--bg-card);
+                                   border: 1px solid var(--border-color); border-radius: 8px; color: var(--teal);
+                                   font-weight: 600; cursor: pointer; transition: all 0.2s;">
+                        Load More Messages
+                    </button>
+                `;
+            }
+
+            // Render messages using existing renderMessages function
+            renderMessages(displayedMessages);
+
+            // Prepend load more button
+            if (loadMoreHTML) {
+                container.insertAdjacentHTML('afterbegin', loadMoreHTML);
+            }
+
+            // Scroll to bottom only if this is the initial load or a new message was added
+            if (!window.hasScrolledToBottom) {
+                scrollToBottom();
+                window.hasScrolledToBottom = true;
+            }
+        }
+
+        // Make loadOlderMessages available globally
+        window.loadOlderMessages = loadOlderMessages;
 
         function renderMessages(messages) {
             const container = document.getElementById('messageList');
@@ -384,7 +548,7 @@
                 }
             } catch (error) {
                 console.error('Error sending message:', error);
-                alert('Failed to send message');
+                toastError('Failed to send message');
             } finally {
                 sendBtn.disabled = false;
             }
@@ -440,6 +604,5 @@
             if (unsubscribeMessages) unsubscribeMessages();
         });
     </script>
-<script src="/js/feedback.js"></script>
 </body>
 </html>

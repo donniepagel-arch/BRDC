@@ -166,7 +166,7 @@
 </head>
 <body>
     <div class="header-bar">
-        <button class="back-btn" onclick="history.back()">← BACK</button>
+        <button class="back-btn" onclick="goBack()" aria-label="Go back">← BACK</button>
         <img src="/images/gold_logo.png" alt="BRDC" class="header-logo">
         <span class="header-title">BRACKET</span>
     </div>
@@ -187,7 +187,16 @@
     
     <script type="module">
         import { db, collection, query, where, onSnapshot, doc, getDoc } from '/js/firebase-config.js';
-        
+
+        function goBack() {
+            if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                window.location.href = '/pages/dashboard.html';
+            }
+        }
+        window.goBack = goBack;
+
         // Get tournament ID from URL
         const urlParams = new URLSearchParams(window.location.search);
         const tournamentId = urlParams.get('tournament_id');
@@ -326,6 +335,5 @@
             return formats[format] || format;
         }
     </script>
-<script src="/js/feedback.js"></script>
 </body>
 </html>

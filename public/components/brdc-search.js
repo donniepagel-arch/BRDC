@@ -54,6 +54,9 @@ class BRDCSearch {
         const modal = document.createElement('div');
         modal.id = 'brdcSearchModal';
         modal.className = 'brdc-search-modal';
+        modal.setAttribute('role', 'dialog');
+        modal.setAttribute('aria-modal', 'true');
+        modal.setAttribute('aria-label', 'Search');
         modal.innerHTML = `
             <div class="search-modal-backdrop" onclick="window.brdcSearch.closeSearch()"></div>
             <div class="search-modal-content">
@@ -63,7 +66,7 @@ class BRDCSearch {
                            class="search-input"
                            placeholder="Search leagues, players, events..."
                            autocomplete="off">
-                    <button class="search-close-btn" onclick="window.brdcSearch.closeSearch()">✕</button>
+                    <button class="search-close-btn" onclick="window.brdcSearch.closeSearch()" aria-label="Close search">✕</button>
                 </div>
                 <div class="search-modal-body">
                     <div id="brdcSearchResults" class="search-results"></div>
@@ -238,8 +241,12 @@ class BRDCSearch {
         const input = document.getElementById('brdcSearchInput');
 
         if (modal && input) {
+            this._previouslyFocused = document.activeElement;
             modal.classList.add('active');
             this.isOpen = true;
+            if (window.A11y && A11y.trapFocus) {
+                this._focusTrapCleanup = A11y.trapFocus(modal);
+            }
             setTimeout(() => input.focus(), 100);
         }
     }
@@ -251,6 +258,11 @@ class BRDCSearch {
         const modal = document.getElementById('brdcSearchModal');
         const input = document.getElementById('brdcSearchInput');
 
+        if (this._focusTrapCleanup) {
+            this._focusTrapCleanup();
+            this._focusTrapCleanup = null;
+        }
+
         if (modal) {
             modal.classList.remove('active');
             this.isOpen = false;
@@ -259,6 +271,11 @@ class BRDCSearch {
                 input.value = '';
                 document.getElementById('brdcSearchResults').innerHTML = '';
             }
+        }
+
+        if (this._previouslyFocused && this._previouslyFocused.focus) {
+            this._previouslyFocused.focus();
+            this._previouslyFocused = null;
         }
     }
 }

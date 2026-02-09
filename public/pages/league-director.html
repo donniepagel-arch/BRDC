@@ -35,6 +35,7 @@
         body {
             background: linear-gradient(135deg, var(--bg-dark) 0%, var(--bg-dark-end) 100%);
             min-height: 100vh;
+            min-height: 100dvh;
             color: var(--text-light);
             line-height: 1.6;
         }
@@ -456,6 +457,7 @@
             height: 56px;
             border: 3px solid rgba(255,255,255,0.2);
             border-radius: 8px;
+            -webkit-text-security: disc;
             font-size: 24px;
             text-align: center;
             font-family: 'JetBrains Mono', monospace;
@@ -1189,6 +1191,8 @@
             outline-offset: 2px;
         }
     </style>
+
+    <script src="/js/brdc-toast.js"></script>
 </head>
 <body>
     <!-- Initial Loading Screen (shown while checking session) -->
@@ -1205,7 +1209,7 @@
             <p class="login-subtitle" id="loginDesc">Enter your 8-digit PIN to access the dashboard</p>
             <div class="pin-input">
                 <label for="pinInput" class="sr-only">Enter your 8-digit PIN</label>
-                <input type="password" id="pinInput" maxlength="8" class="pin-field" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="••••••••" aria-required="true" aria-describedby="loginDesc loginError">
+                <input type="text" id="pinInput" maxlength="8" class="pin-field" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="••••••••" aria-required="true" aria-describedby="loginDesc loginError">
             </div>
             <button id="loginBtn" class="brdc-btn" style="width: 100%;">ENTER DASHBOARD</button>
             <p id="loginError" role="alert" aria-live="assertive" style="color: var(--pink); margin-top: 20px; display: none; font-weight: 600;"></p>
@@ -1216,7 +1220,7 @@
     <!-- Main Dashboard -->
     <main id="dashboard" style="display: none;" role="main">
         <header class="header-bar" role="banner">
-            <button class="back-btn" onclick="history.back()" aria-label="Go back to previous page">← BACK</button>
+            <button class="back-btn" onclick="goBack()" aria-label="Go back to previous page">← BACK</button>
             <img src="/images/gold_logo.png" alt="Burning River Dart Club" class="header-logo">
             <h2 class="header-title">LEAGUE DIRECTOR</h2>
         </header>
@@ -2198,7 +2202,7 @@ Bob Wilson"></textarea>
         <div class="modal-content">
             <div class="modal-header">
                 <span class="modal-title">Correct Match Score</span>
-                <button class="modal-close" onclick="closeCorrectionModal()">&times;</button>
+                <button class="modal-close" onclick="closeCorrectionModal()" aria-label="Close modal">&times;</button>
             </div>
             <div class="modal-body">
                 <input type="hidden" id="correctionMatchId">
@@ -2230,7 +2234,7 @@ Bob Wilson"></textarea>
         <div class="modal-content">
             <div class="modal-header yellow">
                 <span class="modal-title" style="color: #000;">Reschedule Match</span>
-                <button class="modal-close" onclick="closeRescheduleModal()" style="color: #000;">&times;</button>
+                <button class="modal-close" onclick="closeRescheduleModal()" style="color: #000;" aria-label="Close modal">&times;</button>
             </div>
             <div class="modal-body">
                 <input type="hidden" id="rescheduleMatchId">
@@ -2271,7 +2275,7 @@ Bob Wilson"></textarea>
         <div class="modal-content">
             <div class="modal-header" style="background: linear-gradient(135deg, #ef4444, #dc2626);">
                 <span class="modal-title">Record Forfeit</span>
-                <button class="modal-close" onclick="closeForfeitModal()">&times;</button>
+                <button class="modal-close" onclick="closeForfeitModal()" aria-label="Close modal">&times;</button>
             </div>
             <div class="modal-body">
                 <input type="hidden" id="forfeitMatchId">
@@ -2397,6 +2401,15 @@ Bob Wilson"></textarea>
 
     <script type="module">
         import { db, doc, getDoc, collection, query, where, getDocs, updateDoc, callFunction, showLoading, hideLoading } from '/js/firebase-config.js';
+
+        function goBack() {
+            if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                window.location.href = '/pages/dashboard.html';
+            }
+        }
+        window.goBack = goBack;
 
         const urlParams = new URLSearchParams(window.location.search);
         let leagueId = urlParams.get('league_id');
@@ -2672,11 +2685,11 @@ Bob Wilson"></textarea>
             try {
                 const result = await callFunction('startMatch', { league_id: leagueId, match_id: matchId, admin_pin: adminPin });
                 if (result.success) {
-                    alert(`Match started!\n\nPIN: ${result.match_pin}`);
+                    toastSuccess(`Match started! PIN: ${result.match_pin}`, 6000);
                     await loadMatches();
                     renderMatches();
-                } else alert('Error: ' + result.error);
-            } catch (e) { alert('Error: ' + e.message); }
+                } else toastError(result.error);
+            } catch (e) { toastError(e.message); }
         };
 
         window.viewMatch = function(matchId) {
@@ -2688,16 +2701,16 @@ Bob Wilson"></textarea>
             try {
                 const result = await callFunction('finalizeMatch', { league_id: leagueId, match_id: matchId });
                 if (result.success) {
-                    alert(`Finalized! ${result.final_score.home} - ${result.final_score.away}`);
+                    toastSuccess(`Match finalized! Score: ${result.final_score.home} - ${result.final_score.away}`);
                     await loadMatches();
                     renderMatches();
-                } else alert('Error: ' + result.error);
-            } catch (e) { alert('Error: ' + e.message); }
+                } else toastError(result.error);
+            } catch (e) { toastError(e.message); }
         };
 
         window.startAllMatches = async function() {
             const scheduled = matchesData.filter(m => m.week === currentWeek && m.status === 'scheduled');
-            if (!scheduled.length) { alert('No scheduled matches.'); return; }
+            if (!scheduled.length) { toastInfo('No scheduled matches'); return; }
             if (!confirm(`Start all ${scheduled.length} matches?`)) return;
 
             const pins = [];
@@ -2709,7 +2722,7 @@ Bob Wilson"></textarea>
             }
             await loadMatches();
             renderMatches();
-            alert(`Started!\n\n${pins.join('\n')}`);
+            toastSuccess(`Started all scheduled matches!<br><br>${pins.join('<br>')}`, 8000);
         };
 
         window.advanceWeek = async function() {
@@ -2722,7 +2735,7 @@ Bob Wilson"></textarea>
                 document.getElementById('currentWeek').textContent = newWeek;
                 renderWeekSelector();
                 renderMatches();
-            } catch (e) { alert('Error: ' + e.message); }
+            } catch (e) { toastError(e.message); }
         };
 
         window.generateSchedule = async function() {
@@ -2730,10 +2743,10 @@ Bob Wilson"></textarea>
             try {
                 const result = await callFunction('generateSchedule', { league_id: leagueId, admin_pin: adminPin });
                 if (result.success) {
-                    alert(`Created ${result.matches_created} matches over ${result.total_weeks} weeks!`);
+                    toastSuccess(`Schedule created! ${result.matches_created} matches over ${result.total_weeks} weeks`, 5000);
                     location.reload();
-                } else alert('Error: ' + result.error);
-            } catch (e) { alert('Error: ' + e.message); }
+                } else toastError(result.error);
+            } catch (e) { toastError(e.message); }
         };
 
         window.updateStatus = async function() {
@@ -2743,26 +2756,26 @@ Bob Wilson"></textarea>
                 if (result.success) {
                     leagueData.status = status;
                     document.getElementById('leagueStatus').textContent = status.toUpperCase();
-                    alert('Updated!');
-                } else alert('Error: ' + result.error);
-            } catch (e) { alert('Error: ' + e.message); }
+                    toastSuccess('Settings updated successfully!');
+                } else toastError(result.error);
+            } catch (e) { toastError(e.message); }
         };
 
         window.deleteLeague = async function() {
             const leagueName = leagueData.league_name;
             const confirmName = prompt(`This will permanently delete "${leagueName}" and all its data.\n\nType the league name to confirm:`);
             if (confirmName !== leagueName) {
-                if (confirmName !== null) alert('League name did not match. Deletion cancelled.');
+                if (confirmName !== null) toastWarning('League name did not match. Deletion cancelled.');
                 return;
             }
 
             try {
                 const result = await callFunction('deleteLeague', { league_id: leagueId, admin_pin: adminPin });
                 if (result.success) {
-                    alert('League deleted successfully.');
+                    toastSuccess('League deleted successfully');
                     window.location.href = '/pages/dashboard.html';
-                } else alert('Error: ' + result.error);
-            } catch (e) { alert('Error: ' + e.message); }
+                } else toastError(result.error);
+            } catch (e) { toastError(e.message); }
         };
 
         window.switchTab = function(tabName) {
@@ -2982,7 +2995,7 @@ Bob Wilson"></textarea>
             const position = posSelect?.value;
 
             if (!teamId) {
-                alert('Please select a team');
+                toastWarning('Please select a team');
                 return;
             }
 
@@ -3002,10 +3015,10 @@ Bob Wilson"></textarea>
                     await loadPlayers();
                     renderPlayers();
                 } else {
-                    alert('Error: ' + result.error);
+                    toastError(result.error);
                 }
             } catch (e) {
-                alert('Error: ' + e.message);
+                toastError(e.message);
             }
             hideLoading();
         };
@@ -3030,10 +3043,10 @@ Bob Wilson"></textarea>
                     await loadPlayers();
                     renderPlayers();
                 } else {
-                    alert('Error: ' + result.error);
+                    toastError(result.error);
                 }
             } catch (e) {
-                alert('Error: ' + e.message);
+                toastError(e.message);
             }
             hideLoading();
         };
@@ -3046,7 +3059,7 @@ Bob Wilson"></textarea>
             const level = document.getElementById('addPlayerLevel').value;
 
             if (!name) {
-                alert('Please enter a player name');
+                toastWarning('Please enter a player name');
                 return;
             }
 
@@ -3063,7 +3076,7 @@ Bob Wilson"></textarea>
                 });
 
                 if (result.success) {
-                    alert(`Player added!\nPIN: ${result.player_pin}`);
+                    toastSuccess(`Player added! PIN: ${result.player_pin}`, 6000);
                     // Clear form
                     document.getElementById('addPlayerName').value = '';
                     document.getElementById('addPlayerEmail').value = '';
@@ -3074,10 +3087,10 @@ Bob Wilson"></textarea>
                     await loadPlayers();
                     renderPlayers();
                 } else {
-                    alert('Error: ' + result.error);
+                    toastError(result.error);
                 }
             } catch (e) {
-                alert('Error: ' + e.message);
+                toastError(e.message);
             }
             hideLoading();
         };
@@ -3085,7 +3098,7 @@ Bob Wilson"></textarea>
         window.bulkAddPlayers = async function() {
             const text = document.getElementById('bulkPlayersText').value.trim();
             if (!text) {
-                alert('Please enter player names');
+                toastWarning('Please enter player names');
                 return;
             }
 
@@ -3108,7 +3121,7 @@ Bob Wilson"></textarea>
             }
 
             if (!players.length) {
-                alert('No valid players found');
+                toastWarning('No valid players found');
                 return;
             }
 
@@ -3125,22 +3138,22 @@ Bob Wilson"></textarea>
                 if (result.success) {
                     let msg = `✓ Added ${result.added_count} players`;
                     if (result.skipped_count > 0) {
-                        msg += `\n\n⚠ Skipped ${result.skipped_count}:`;
+                        msg += `<br><br>⚠ Skipped ${result.skipped_count}:`;
                         if (result.results && result.results.skipped) {
                             result.results.skipped.forEach(s => {
-                                msg += `\n  • ${s.name}: ${s.reason}`;
+                                msg += `<br>  • ${s.name}: ${s.reason}`;
                             });
                         }
                     }
-                    alert(msg);
+                    toastSuccess(msg, 8000);
                     document.getElementById('bulkPlayersText').value = '';
                     await loadPlayers();
                     renderPlayers();
                 } else {
-                    alert('Error: ' + result.error);
+                    toastError(result.error);
                 }
             } catch (e) {
-                alert('Error: ' + e.message);
+                toastError(e.message);
             }
             hideLoading();
         };
@@ -3182,7 +3195,7 @@ Bob Wilson"></textarea>
 
         window.removeSelectedPlayers = async function() {
             if (selectedPlayers.size === 0) {
-                alert('No players selected');
+                toastWarning('No players selected');
                 return;
             }
 
@@ -3199,18 +3212,18 @@ Bob Wilson"></textarea>
                 if (result.success) {
                     let msg = `Removed ${result.deleted_count} players`;
                     if (result.skipped_count > 0) {
-                        msg += `\nSkipped ${result.skipped_count} (on teams)`;
+                        msg += `<br>Skipped ${result.skipped_count} (on teams)`;
                     }
-                    alert(msg);
+                    toastSuccess(msg, 5000);
                     selectedPlayers.clear();
                     updateSelectionCount();
                     await loadPlayers();
                     renderPlayers();
                 } else {
-                    alert('Error: ' + result.error);
+                    toastError(result.error);
                 }
             } catch (e) {
-                alert('Error: ' + e.message);
+                toastError(e.message);
             }
             hideLoading();
         };
@@ -3218,13 +3231,13 @@ Bob Wilson"></textarea>
         window.bulkRemoveByName = async function() {
             const text = document.getElementById('bulkRemoveText').value.trim();
             if (!text) {
-                alert('Enter player names to remove (one per line)');
+                toastWarning('Enter player names to remove (one per line)');
                 return;
             }
 
             const names = text.split('\n').map(n => n.trim()).filter(n => n);
             if (!names.length) {
-                alert('No valid names found');
+                toastWarning('No valid names found');
                 return;
             }
 
@@ -3241,23 +3254,23 @@ Bob Wilson"></textarea>
                 if (result.success) {
                     let msg = `Removed ${result.deleted_count} players`;
                     if (result.skipped_count > 0) {
-                        msg += `\nSkipped ${result.skipped_count} (on teams)`;
+                        msg += `<br>Skipped ${result.skipped_count} (on teams)`;
                     }
                     if (result.not_found_count > 0) {
-                        msg += `\nNot found: ${result.not_found_count}`;
+                        msg += `<br>Not found: ${result.not_found_count}`;
                         if (result.results.notFound.length > 0) {
-                            msg += `\n(${result.results.notFound.slice(0, 5).join(', ')}${result.results.notFound.length > 5 ? '...' : ''})`;
+                            msg += `<br>(${result.results.notFound.slice(0, 5).join(', ')}${result.results.notFound.length > 5 ? '...' : ''})`;
                         }
                     }
-                    alert(msg);
+                    toastSuccess(msg, 6000);
                     document.getElementById('bulkRemoveText').value = '';
                     await loadPlayers();
                     renderPlayers();
                 } else {
-                    alert('Error: ' + result.error);
+                    toastError(result.error);
                 }
             } catch (e) {
-                alert('Error: ' + e.message);
+                toastError(e.message);
             }
             hideLoading();
         };
@@ -3350,13 +3363,13 @@ Bob Wilson"></textarea>
         window.executeBulkSetLevels = async function() {
             const level = document.getElementById('bulkLevelSelect').value;
             if (level === '' && !document.getElementById('bulkLevelSelect').selectedIndex) {
-                alert('Please select a level');
+                toastWarning('Please select a level');
                 return;
             }
 
             const playerIds = Array.from(selectedPlayers);
             if (playerIds.length === 0) {
-                alert('No players selected');
+                toastWarning('No players selected');
                 return;
             }
 
@@ -3376,19 +3389,19 @@ Bob Wilson"></textarea>
                 if (result.success) {
                     let msg = `Updated ${result.updated.length} players to level ${level || 'Unassigned'}`;
                     if (result.errors && result.errors.length > 0) {
-                        msg += `\n${result.errors.length} errors occurred`;
+                        msg += `<br>${result.errors.length} errors occurred`;
                     }
-                    alert(msg);
+                    toastSuccess(msg, 5000);
                     closeBulkLevelModal();
                     selectedPlayers.clear();
                     await loadPlayers();
                     renderPlayers();
                 } else {
-                    alert('Error: ' + result.error);
+                    toastError(result.error);
                 }
             } catch (e) {
                 hideLoading();
-                alert('Error: ' + e.message);
+                toastError(e.message);
             }
         };
 
@@ -3415,13 +3428,13 @@ Bob Wilson"></textarea>
         window.executeBulkMoveToTeam = async function() {
             const teamSelectValue = document.getElementById('bulkTeamSelect').value;
             if (!teamSelectValue) {
-                alert('Please select a team');
+                toastWarning('Please select a team');
                 return;
             }
 
             const playerIds = Array.from(selectedPlayers);
             if (playerIds.length === 0) {
-                alert('No players selected');
+                toastWarning('No players selected');
                 return;
             }
 
@@ -3440,18 +3453,18 @@ Bob Wilson"></textarea>
                 hideLoading();
 
                 if (result.success) {
-                    alert(result.message);
+                    toastSuccess(result.message);
                     closeBulkTeamModal();
                     selectedPlayers.clear();
                     await loadPlayers();
                     await loadTeams();
                     renderPlayers();
                 } else {
-                    alert('Error: ' + result.error);
+                    toastError(result.error);
                 }
             } catch (e) {
                 hideLoading();
-                alert('Error: ' + e.message);
+                toastError(e.message);
             }
         };
 
@@ -3474,7 +3487,7 @@ Bob Wilson"></textarea>
         window.executeBulkNotify = async function() {
             const message = document.getElementById('bulkNotifyMessage').value.trim();
             if (!message) {
-                alert('Please enter a message');
+                toastWarning('Please enter a message');
                 return;
             }
 
@@ -3484,13 +3497,13 @@ Bob Wilson"></textarea>
             if (document.getElementById('bulkNotifyPush').checked) channels.push('push');
 
             if (channels.length === 0) {
-                alert('Please select at least one notification channel');
+                toastWarning('Please select at least one notification channel');
                 return;
             }
 
             const playerIds = Array.from(selectedPlayers);
             if (playerIds.length === 0) {
-                alert('No players selected');
+                toastWarning('No players selected');
                 return;
             }
 
@@ -3507,23 +3520,23 @@ Bob Wilson"></textarea>
                 hideLoading();
 
                 if (result.success) {
-                    let msg = result.message + '\n\n';
+                    let msg = result.message + '<br><br>';
                     if (result.summary) {
-                        if (channels.includes('sms')) msg += `SMS: ${result.summary.sms.sent} queued, ${result.summary.sms.skipped} skipped\n`;
-                        if (channels.includes('email')) msg += `Email: ${result.summary.email.sent} queued, ${result.summary.email.skipped} skipped\n`;
-                        if (channels.includes('push')) msg += `Push: ${result.summary.push.sent} queued, ${result.summary.push.skipped} skipped\n`;
+                        if (channels.includes('sms')) msg += `SMS: ${result.summary.sms.sent} queued, ${result.summary.sms.skipped} skipped<br>`;
+                        if (channels.includes('email')) msg += `Email: ${result.summary.email.sent} queued, ${result.summary.email.skipped} skipped<br>`;
+                        if (channels.includes('push')) msg += `Push: ${result.summary.push.sent} queued, ${result.summary.push.skipped} skipped<br>`;
                     }
-                    alert(msg);
+                    toastSuccess(msg, 7000);
                     closeBulkNotifyModal();
                     selectedPlayers.clear();
                     updateBulkActionBar();
                     renderPlayers();
                 } else {
-                    alert('Error: ' + result.error);
+                    toastError(result.error);
                 }
             } catch (e) {
                 hideLoading();
-                alert('Error: ' + e.message);
+                toastError(e.message);
             }
         };
 
@@ -3563,14 +3576,14 @@ Bob Wilson"></textarea>
                 });
 
                 if (result.success) {
-                    alert('Player updated!');
+                    toastSuccess('Player updated successfully!');
                     await loadPlayers();
                     renderPlayers();
                 } else {
-                    alert('Error: ' + result.error);
+                    toastError(result.error);
                 }
             } catch (e) {
-                alert('Error: ' + e.message);
+                toastError(e.message);
             }
         };
 
@@ -3586,14 +3599,14 @@ Bob Wilson"></textarea>
                 });
 
                 if (result.success) {
-                    alert('Player deleted');
+                    toastSuccess('Player deleted successfully');
                     await loadPlayers();
                     renderPlayers();
                 } else {
-                    alert('Error: ' + result.error);
+                    toastError(result.error);
                 }
             } catch (e) {
-                alert('Error: ' + e.message);
+                toastError(e.message);
             }
             hideLoading();
         };
@@ -3636,7 +3649,7 @@ Bob Wilson"></textarea>
         window.addBotToLeague = async function() {
             const botId = document.getElementById('botSelect').value;
             if (!botId) {
-                alert('Please select a bot');
+                toastWarning('Please select a bot');
                 return;
             }
 
@@ -3648,15 +3661,15 @@ Bob Wilson"></textarea>
                 });
 
                 if (result.success) {
-                    alert(`Bot "${result.bot_name}" added to league!`);
+                    toastSuccess(`Bot "${result.bot_name}" added to league!`);
                     await loadPlayers();
                     renderPlayers();
                     updateBotSelect();
                 } else {
-                    alert('Error: ' + result.error);
+                    toastError(result.error);
                 }
             } catch (e) {
-                alert('Error: ' + e.message);
+                toastError(e.message);
             }
         };
 
@@ -3685,7 +3698,7 @@ Bob Wilson"></textarea>
             const date = input.value;
             if (!date) return;
             if (blackoutDates.includes(date)) {
-                alert('This date is already added');
+                toastWarning('This date is already added');
                 return;
             }
             blackoutDates.push(date);
@@ -3699,7 +3712,7 @@ Bob Wilson"></textarea>
                 await recalculateMatchDates();
             } catch (e) {
                 blackoutDates = blackoutDates.filter(d => d !== date);
-                alert('Error saving: ' + e.message);
+                toastError('Error saving: ' + e.message);
             }
         };
 
@@ -3715,7 +3728,7 @@ Bob Wilson"></textarea>
                 await recalculateMatchDates();
             } catch (e) {
                 blackoutDates = oldDates;
-                alert('Error removing: ' + e.message);
+                toastError('Error removing: ' + e.message);
             }
         };
 
@@ -3725,7 +3738,7 @@ Bob Wilson"></textarea>
                 if (result.success) {
                     console.log('Match dates recalculated:', result);
                     if (result.skipped_weeks > 0) {
-                        alert(`Schedule updated! ${result.skipped_weeks} blackout week(s) skipped.`);
+                        toastSuccess(`Schedule updated! ${result.skipped_weeks} blackout week(s) skipped.`);
                     }
                     // Reload schedule display if it exists
                     if (typeof loadScheduleTab === 'function') {
@@ -4232,7 +4245,7 @@ Bob Wilson"></textarea>
                 document.getElementById(section + 'Edit').style.display = 'none';
                 updateSettingsDisplay();
             } catch (e) {
-                alert('Error saving: ' + e.message);
+                toastError('Error saving: ' + e.message);
             }
             hideLoading();
         };
@@ -4285,7 +4298,7 @@ Bob Wilson"></textarea>
             };
 
             if (!updates.league_name) {
-                alert('League name is required');
+                toastWarning('League name is required');
                 return;
             }
 
@@ -4302,12 +4315,12 @@ Bob Wilson"></textarea>
                     document.getElementById('leagueName').textContent = updates.league_name;
                     document.getElementById('leagueSeason').textContent = updates.season;
                     updateSettingsDisplay();
-                    alert('Settings saved successfully!');
+                    toastSuccess('Settings saved successfully!');
                 } else {
-                    alert('Error: ' + result.error);
+                    toastError(result.error);
                 }
             } catch (e) {
-                alert('Error saving settings: ' + e.message);
+                toastError('Error saving settings: ' + e.message);
             }
         };
 
@@ -4381,13 +4394,13 @@ Bob Wilson"></textarea>
             const playerCId = document.getElementById('teamPlayerC_id').value;
 
             if (!teamName) {
-                alert('Please enter a team name');
+                toastWarning('Please enter a team name');
                 return;
             }
 
             // At least one player required
             if (!playerAId && !playerBId && !playerCId) {
-                alert('Please select at least one player for the team');
+                toastWarning('Please select at least one player for the team');
                 return;
             }
 
@@ -4404,17 +4417,17 @@ Bob Wilson"></textarea>
                 });
 
                 if (result.success) {
-                    alert(`Team "${teamName}" created successfully!`);
+                    toastSuccess(`Team "${teamName}" created successfully!`);
                     closeCreateTeamModal();
                     await loadTeams();
                     await loadPlayers();
                     renderTeams();
                     renderPlayers();
                 } else {
-                    alert('Error: ' + result.error);
+                    toastError(result.error);
                 }
             } catch (e) {
-                alert('Error: ' + e.message);
+                toastError(e.message);
             }
             hideLoading();
         };
@@ -4423,7 +4436,7 @@ Bob Wilson"></textarea>
             const playerCount = playersData.filter(p => p.phone && !p.isBot).length;
 
             if (playerCount === 0) {
-                alert('No players with phone numbers to notify.');
+                toastWarning('No players with phone numbers to notify');
                 return;
             }
 
@@ -4445,12 +4458,12 @@ Bob Wilson"></textarea>
                 btn.textContent = '📱 TEXT ALL PLAYERS';
 
                 if (result.success) {
-                    alert(`✅ Notifications sent!\n\nSent: ${result.results.sent}\nFailed: ${result.results.failed}\nSkipped (no phone): ${result.results.skipped}`);
+                    toastSuccess(`✅ Notifications sent!<br><br>Sent: ${result.results.sent}<br>Failed: ${result.results.failed}<br>Skipped (no phone): ${result.results.skipped}`, 6000);
                 } else {
-                    alert('Error: ' + result.error);
+                    toastError(result.error);
                 }
             } catch (e) {
-                alert('Error: ' + e.message);
+                toastError(e.message);
                 event.target.disabled = false;
                 event.target.textContent = '📱 TEXT ALL PLAYERS';
             }
@@ -4466,7 +4479,7 @@ Bob Wilson"></textarea>
             const humanCount = unassigned.length - botCount;
 
             if (possibleTeams < 2) {
-                alert(`Not enough unassigned players for auto-draft.\n\nYou have ${unassigned.length} players (${humanCount} humans, ${botCount} bots).\nNeed at least ${playersPerTeam * 2} for 2 teams (${playersPerTeam} per team).`);
+                toastWarning(`Not enough unassigned players for auto-draft.<br><br>You have ${unassigned.length} players (${humanCount} humans, ${botCount} bots).<br>Need at least ${playersPerTeam * 2} for 2 teams (${playersPerTeam} per team).`, 7000);
                 return;
             }
 
@@ -4481,16 +4494,16 @@ Bob Wilson"></textarea>
                 });
 
                 if (result.success) {
-                    alert(`Draft complete!\n\n${result.teams_created} teams created.`);
+                    toastSuccess(`Draft complete! ${result.teams_created} teams created.`, 5000);
                     await loadTeams();
                     await loadPlayers();
                     renderTeams();
                     renderPlayers();
                 } else {
-                    alert('Error: ' + result.error);
+                    toastError(result.error);
                 }
             } catch (e) {
-                alert('Error: ' + e.message);
+                toastError(e.message);
             }
         };
 
@@ -4616,7 +4629,7 @@ Bob Wilson"></textarea>
             try {
                 const result = await callFunction('getDraftState', { league_id: leagueId });
                 if (!result.success || !result.draft) {
-                    alert('No draft results available.');
+                    toastInfo('No draft results available');
                     return;
                 }
 
@@ -4650,7 +4663,7 @@ Bob Wilson"></textarea>
                 alert(summary);
 
             } catch (e) {
-                alert('Error fetching draft results: ' + e.message);
+                toastError('Error fetching draft results: ' + e.message);
             }
         };
 
@@ -4863,7 +4876,7 @@ Bob Wilson"></textarea>
             const message = document.getElementById('contactMessage').value.trim();
 
             if (!message) {
-                alert('Please enter a message');
+                toastWarning('Please enter a message');
                 return;
             }
 
@@ -4882,7 +4895,7 @@ Bob Wilson"></textarea>
             const hasIndividuals = filters.individual_player_ids.length > 0;
 
             if (!hasFilters && !hasIndividuals) {
-                alert('Please select at least one recipient filter or add individual players');
+                toastWarning('Please select at least one recipient filter or add individual players');
                 return;
             }
 
@@ -4901,7 +4914,7 @@ Bob Wilson"></textarea>
             });
 
             if (recipientCount === 0) {
-                alert('No players match the selected filters or have phone numbers');
+                toastWarning('No players match the selected filters or have phone numbers');
                 return;
             }
 
@@ -4925,12 +4938,12 @@ Bob Wilson"></textarea>
                 btn.textContent = '📱 SEND MESSAGE';
 
                 if (result.success) {
-                    alert(`✅ Messages sent!\n\nSent: ${result.results.sent}\nFailed: ${result.results.failed}\nSkipped (no phone): ${result.results.skipped}`);
+                    toastSuccess(`✅ Messages sent!<br><br>Sent: ${result.results.sent}<br>Failed: ${result.results.failed}<br>Skipped (no phone): ${result.results.skipped}`, 6000);
                 } else {
-                    alert('Error: ' + result.error);
+                    toastError(result.error);
                 }
             } catch (e) {
-                alert('Error: ' + e.message);
+                toastError(e.message);
                 event.target.disabled = false;
                 event.target.textContent = '📱 SEND MESSAGE';
             }
@@ -5355,20 +5368,20 @@ Bob Wilson"></textarea>
                     const player = playersData.find(p => p.id === playerId);
                     if (player) player.level = newLevel || null;
                     renderLevelPlayers();
-                    alert(`Player level updated to ${newLevel || 'Unassigned'}`);
+                    toastSuccess(`Player level updated to ${newLevel || 'Unassigned'}`);
                 } else {
-                    alert('Error: ' + result.error);
+                    toastError(result.error);
                 }
             } catch (e) {
                 hideLoading();
-                alert('Error: ' + e.message);
+                toastError(e.message);
             }
         };
 
         // Open correction modal
         window.openCorrectionModal = function(matchId) {
             const match = matchesData.find(m => m.id === matchId);
-            if (!match) return alert('Match not found');
+            if (!match) return toastError('Match not found');
 
             const homeTeam = teamsData.find(t => t.id === match.home_team_id);
             const awayTeam = teamsData.find(t => t.id === match.away_team_id);
@@ -5395,7 +5408,7 @@ Bob Wilson"></textarea>
             const reason = document.getElementById('correctionReason').value.trim();
 
             if (!reason) {
-                alert('Please provide a reason for the correction');
+                toastWarning('Please provide a reason for the correction');
                 return;
             }
 
@@ -5422,20 +5435,20 @@ Bob Wilson"></textarea>
                     closeCorrectionModal();
                     renderCorrectionMatches();
                     loadToolsStats();
-                    alert(`Match score corrected: ${result.correction.old_score} -> ${result.correction.new_score}`);
+                    toastSuccess(`Match score corrected: ${result.correction.old_score} -> ${result.correction.new_score}`, 5000);
                 } else {
-                    alert('Error: ' + result.error);
+                    toastError(result.error);
                 }
             } catch (e) {
                 hideLoading();
-                alert('Error: ' + e.message);
+                toastError(e.message);
             }
         };
 
         // Open reschedule modal
         window.openRescheduleModal = function(matchId) {
             const match = matchesData.find(m => m.id === matchId);
-            if (!match) return alert('Match not found');
+            if (!match) return toastError('Match not found');
 
             const homeTeam = teamsData.find(t => t.id === match.home_team_id);
             const awayTeam = teamsData.find(t => t.id === match.away_team_id);
@@ -5477,7 +5490,7 @@ Bob Wilson"></textarea>
             const notifyCaptains = document.getElementById('rescheduleNotify').checked;
 
             if (!newDate) {
-                alert('Please select a new date');
+                toastWarning('Please select a new date');
                 return;
             }
 
@@ -5505,13 +5518,13 @@ Bob Wilson"></textarea>
                     renderRescheduleMatches();
                     renderMatches();
                     loadToolsStats();
-                    alert(`Match rescheduled to ${new Date(newDate).toLocaleDateString()}`);
+                    toastSuccess(`Match rescheduled to ${new Date(newDate).toLocaleDateString()}`, 5000);
                 } else {
-                    alert('Error: ' + result.error);
+                    toastError(result.error);
                 }
             } catch (e) {
                 hideLoading();
-                alert('Error: ' + e.message);
+                toastError(e.message);
             }
         };
 
@@ -5641,7 +5654,7 @@ Bob Wilson"></textarea>
 
             // Validation
             if (!forfeitingTeam) {
-                alert('Please select which team is forfeiting.');
+                toastWarning('Please select which team is forfeiting');
                 return;
             }
 
@@ -5696,13 +5709,13 @@ Bob Wilson"></textarea>
                     renderForfeitMatches();
                     renderMatches();
                     loadToolsStats();
-                    alert(`Forfeit recorded successfully. ${forfeitingTeamName} has forfeited the match.`);
+                    toastSuccess(`Forfeit recorded successfully. ${forfeitingTeamName} has forfeited the match.`, 5000);
                 } else {
-                    alert('Error: ' + result.error);
+                    toastError(result.error);
                 }
             } catch (e) {
                 hideLoading();
-                alert('Error: ' + e.message);
+                toastError(e.message);
             }
         };
 
@@ -5800,6 +5813,5 @@ Bob Wilson"></textarea>
 
     <script src="/js/display-helpers.js"></script>
     <script src="/js/nav-menu.js"></script>
-<script src="/js/feedback.js"></script>
 </body>
 </html>

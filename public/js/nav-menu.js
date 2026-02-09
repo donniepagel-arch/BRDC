@@ -1,30 +1,44 @@
 /**
  * BRDC Navigation Menu Component
  * Adds consistent navigation with home logo + hamburger menu to all pages
+ * Supports role-based visibility: admin/director items hidden from regular players
  */
 
-(function() {
-    // Menu items configuration - Simplified for league night (main nav items on dashboard)
-    const menuItems = [
-        { label: 'DASHBOARD', href: '/pages/dashboard.html', icon: '&#128100;' },
-        { label: 'SCORER', href: '/pages/scorer-hub.html', icon: '&#127919;' },
-        { label: 'PRACTICE', href: '/virtual-darts/index.html', icon: '&#127919;' },
-        { label: 'LIVE', href: '/pages/live-scoreboard.html', icon: '&#128308;' },
-        { label: 'STREAM', href: '/pages/stream-director.html', icon: '&#127909;' },
-        { label: 'MATCHMAKER', href: '/pages/matchmaker-view.html', icon: '&#128152;' },
-        { label: 'FIND EVENTS', href: '/pages/community-events.html', icon: '&#128205;' },
-        { label: 'LOGOUT', href: '#', icon: '&#128682;', action: 'logout' }
-        // Moved to dashboard quick links:
-        // { label: 'MATCH HUB', href: '/pages/match-hub.html', icon: '&#127919;' },
-        // { label: 'LEAGUE', href: '/pages/league-view.html', icon: '&#127942;' },
-        // { label: 'MESSAGES', href: '/pages/messages.html', icon: '&#128172;', hasBadge: true },
-        // Coming soon - hidden for closed beta:
-        // { label: 'HOME', href: '/', icon: '&#127968;' },
-        // { label: 'LIVE', href: '/pages/live-scoreboard.html', icon: '&#128308;' },
-        // { label: 'DART TRADER', href: '/pages/dart-trader.html', icon: '&#128176;' },
-        // { label: 'CREATE LEAGUE', href: '/pages/create-league.html', icon: '&#128203;' },
-        // { label: 'CREATE TOURNAMENT', href: '/pages/create-tournament.html', icon: '&#127942;' }
+(function () {
+    // Check if user has admin/director role from session
+    function isAdminUser() {
+        try {
+            const session = JSON.parse(localStorage.getItem('brdc_session') || '{}');
+            return session.is_admin || session.is_master_admin || session.is_director || false;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    // Menu items configuration
+    // role: 'all' = everyone, 'admin' = admin/director only
+    const allMenuItems = [
+        { label: 'DASHBOARD', href: '/pages/dashboard.html', icon: '&#128100;', role: 'all' },
+        { label: 'SCORER', href: '/pages/game-setup.html', icon: '&#127919;', role: 'all' },
+        { label: 'PRACTICE', href: '/virtual-darts/index.html', icon: '&#127919;', role: 'all' },
+        { label: 'LIVE', href: '/pages/live-scoreboard.html', icon: '&#128308;', role: 'admin' },
+        { label: 'MATCHMAKER', href: '/pages/matchmaker-view.html', icon: '&#128152;', role: 'admin' },
+        { label: 'FIND EVENTS', href: '/pages/events-hub.html', icon: '&#128205;', role: 'all' },
+        { label: 'CHAT', href: '/pages/chat-room.html', icon: '&#128488;', role: 'all' },
+        { label: 'MESSAGES', href: '/pages/messages.html', icon: '&#128172;', role: 'all', hasBadge: true },
+        // Admin/Director only
+        { label: 'LEAGUE', href: '/pages/league-view.html', icon: '&#127942;', role: 'admin' },
+        { label: 'CREATE LEAGUE', href: '/pages/create-league.html', icon: '&#128203;', role: 'admin' },
+        { label: 'CREATE TOURNAMENT', href: '/pages/create-tournament.html', icon: '&#127942;', role: 'admin' },
+        { label: 'ADMIN', href: '/pages/admin.html', icon: '&#128272;', role: 'admin' },
+        { label: 'DART TRADER', href: '/pages/dart-trader.html', icon: '&#128176;', role: 'admin' },
+        // Always last
+        { label: 'LOGOUT', href: '#', icon: '&#128682;', action: 'logout', role: 'all' }
     ];
+
+    // Filter items based on role
+    const admin = isAdminUser();
+    const menuItems = allMenuItems.filter(item => item.role === 'all' || (item.role === 'admin' && admin));
 
     // Inject styles
     const styles = document.createElement('style');
@@ -108,10 +122,12 @@
             z-index: 1000;
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 8px;
             opacity: 0;
             visibility: hidden;
             transition: all 0.3s ease;
+            max-height: 85vh;
+            overflow-y: auto;
         }
         .nav-overlay.open + .nav-menu,
         .nav-menu.open {
@@ -124,7 +140,7 @@
             display: flex;
             align-items: center;
             gap: 15px;
-            padding: 18px 40px;
+            padding: 16px 40px;
             background: rgba(26, 26, 46, 0.9);
             border: 3px solid var(--black, #1a1a2e);
             color: white;
@@ -144,6 +160,23 @@
             font-size: 28px;
             width: 35px;
             text-align: center;
+        }
+
+        .nav-menu-item.nav-admin-item {
+            border-color: var(--yellow, #FFD700);
+            color: var(--yellow, #FFD700);
+            font-size: 20px;
+            padding: 12px 40px;
+        }
+        .nav-menu-item.nav-admin-item:hover {
+            background: var(--yellow, #FFD700);
+            color: var(--black, #1a1a2e);
+        }
+
+        .nav-menu-divider {
+            height: 1px;
+            background: rgba(255, 215, 0, 0.3);
+            margin: 4px 0;
         }
 
         .nav-close-btn {
@@ -213,7 +246,16 @@
         // Menu container
         const menu = document.createElement('nav');
         menu.className = 'nav-menu';
+
+        let hasAdminSection = false;
         menu.innerHTML = menuItems.map(item => {
+            // Add divider before first admin item
+            let divider = '';
+            if (item.role === 'admin' && !hasAdminSection) {
+                hasAdminSection = true;
+                divider = '<div class="nav-menu-divider"></div>';
+            }
+
             if (item.action === 'logout') {
                 return `
                     <a href="#" class="nav-menu-item nav-logout-item" onclick="brdcNav.logout(); return false;">
@@ -222,8 +264,10 @@
                     </a>
                 `;
             }
-            return `
-                <a href="${item.href}" class="nav-menu-item">
+
+            const adminClass = item.role === 'admin' ? ' nav-admin-item' : '';
+            return `${divider}
+                <a href="${item.href}" class="nav-menu-item${adminClass}">
                     <span class="nav-icon">${item.icon}</span>
                     <span>${item.label}</span>
                     ${item.hasBadge ? '<span class="nav-badge" id="navMessageBadge">0</span>' : ''}
@@ -236,6 +280,7 @@
         const closeBtn = document.createElement('button');
         closeBtn.className = 'nav-close-btn';
         closeBtn.innerHTML = '&times;';
+        closeBtn.setAttribute('aria-label', 'Close menu');
         closeBtn.onclick = closeMenu;
         document.body.appendChild(closeBtn);
     }
@@ -362,6 +407,8 @@
         localStorage.removeItem('brdc_player_pin');
         localStorage.removeItem('brdc_player_id');
         localStorage.removeItem('brdc_player_name');
+        localStorage.removeItem('brdc_secure_session');
+        localStorage.removeItem('brdc_session_token');
 
         // Close menu
         closeMenu();

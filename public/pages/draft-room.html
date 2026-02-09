@@ -2,9 +2,10 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Draft Room - BRDC</title>
     <link rel="icon" type="image/png" href="/images/favicon.png">
+    <script src="/js/brdc-toast.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap');
 
@@ -686,6 +687,7 @@
         /* Login Page */
         .login-page {
             min-height: 100vh;
+            min-height: 100dvh;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -815,10 +817,10 @@
 
         <div class="login-box">
             <div class="login-form-title">CAPTAIN LOGIN</div>
-            <div class="login-error hidden" id="loginError"></div>
+            <div class="login-error hidden" id="loginError" role="alert"></div>
             <div class="form-group">
                 <label class="form-label">Your 8-Digit PIN</label>
-                <input type="password" class="form-input" id="pinInput" placeholder="********" maxlength="8" inputmode="numeric">
+                <input type="text" class="form-input" id="pinInput" placeholder="••••••••" maxlength="8" inputmode="numeric" pattern="[0-9]*" autocomplete="off" style="-webkit-text-security: disc;">
             </div>
             <button class="login-btn" onclick="login()">ENTER DRAFT</button>
         </div>
@@ -828,7 +830,7 @@
     <div class="main-content" id="mainContent">
         <!-- Header -->
         <div class="header-bar">
-            <button class="back-btn" onclick="goBack()">BACK</button>
+            <button class="back-btn" onclick="goBack()" aria-label="Go back">BACK</button>
             <img src="/images/gold_logo.png" alt="BRDC" class="header-logo">
             <div class="header-title">DRAFT ROOM</div>
             <div class="header-status">
@@ -960,7 +962,7 @@
         leagueId = urlParams.get('league_id');
 
         if (!leagueId) {
-            alert('No league specified');
+            toastError('No league specified');
             window.location.href = '/pages/dashboard.html';
         }
 
@@ -1399,11 +1401,11 @@
 
                 const data = await response.json();
                 if (!data.success) {
-                    alert(data.error || 'Failed to make pick');
+                    toastError(data.error || 'Failed to make pick');
                 }
             } catch (error) {
                 console.error('Pick error:', error);
-                alert('Connection error. Please try again.');
+                toastError('Connection error. Please try again.');
             }
 
             showLoading(false);
@@ -1431,11 +1433,11 @@
 
                 const data = await response.json();
                 if (!data.success) {
-                    alert(data.error || 'Failed to start draft');
+                    toastError(data.error || 'Failed to start draft');
                 }
             } catch (error) {
                 console.error('Start draft error:', error);
-                alert('Connection error. Please try again.');
+                toastError('Connection error. Please try again.');
             }
 
             showLoading(false);
@@ -1454,11 +1456,11 @@
 
                 const data = await response.json();
                 if (!data.success) {
-                    alert(data.error || 'Failed to pause draft');
+                    toastError(data.error || 'Failed to pause draft');
                 }
             } catch (error) {
                 console.error('Pause error:', error);
-                alert('Connection error.');
+                toastError('Connection error.');
             }
 
             showLoading(false);
@@ -1477,11 +1479,11 @@
 
                 const data = await response.json();
                 if (!data.success) {
-                    alert(data.error || 'Failed to resume draft');
+                    toastError(data.error || 'Failed to resume draft');
                 }
             } catch (error) {
                 console.error('Resume error:', error);
-                alert('Connection error.');
+                toastError('Connection error.');
             }
 
             showLoading(false);
@@ -1502,11 +1504,11 @@
 
                 const data = await response.json();
                 if (!data.success) {
-                    alert(data.error || 'Failed to undo pick');
+                    toastError(data.error || 'Failed to undo pick');
                 }
             } catch (error) {
                 console.error('Undo error:', error);
-                alert('Connection error.');
+                toastError('Connection error.');
             }
 
             showLoading(false);
@@ -1526,11 +1528,11 @@
 
                 const data = await response.json();
                 if (!data.success) {
-                    alert(data.error || 'Failed to auto-pick');
+                    toastError(data.error || 'Failed to auto-pick');
                 }
             } catch (error) {
                 console.error('Force pick error:', error);
-                alert('Connection error.');
+                toastError('Connection error.');
             }
 
             showLoading(false);

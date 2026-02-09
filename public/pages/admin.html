@@ -6,6 +6,7 @@
     <title>Admin Dashboard - BRDC</title>
     <link rel="icon" type="image/png" href="/images/favicon.png">
     <link rel="stylesheet" href="/css/brdc-styles.css">
+    <script src="/js/brdc-toast.js"></script>
     <style>
         body::before {
             content: '';
@@ -60,6 +61,7 @@
             margin-bottom: 20px;
             font-family: 'JetBrains Mono', monospace;
             font-weight: 700;
+            -webkit-text-security: disc;
             background: rgba(0,0,0,0.3);
             color: var(--yellow);
             transition: all 0.2s;
@@ -781,7 +783,7 @@
 </head>
 <body>
     <div class="header-bar">
-        <button class="back-btn" onclick="history.back()">← BACK</button>
+        <button class="back-btn" onclick="goBack()" aria-label="Go back">← BACK</button>
         <img src="/images/gold_logo.png" alt="BRDC" class="header-logo">
         <span class="header-title">ADMIN</span>
     </div>
@@ -793,7 +795,7 @@
             <h2>🔧 ADMIN LOGIN</h2>
             <p id="loginMessage">Enter your admin PIN to access the dashboard</p>
             <div id="loginForm">
-                <input type="password" id="pinInput" class="pin-input" placeholder="••••••••" maxlength="9" inputmode="numeric" pattern="[0-9]*" autocomplete="off">
+                <input type="text" id="pinInput" class="pin-input" placeholder="••••••••" maxlength="8" inputmode="numeric" pattern="[0-9]*" autocomplete="off">
                 <button class="brdc-btn" onclick="adminLogin()" style="width: 100%;">LOGIN</button>
             </div>
             <div id="loginLoading" style="display: none; text-align: center; padding: 20px;">
@@ -905,6 +907,21 @@
                         <option value="has-games">Has Games</option>
                         <option value="no-games">No Games</option>
                         <option value="recent">Joined Recently</option>
+                        <option value="is-bot">Bots Only</option>
+                        <option value="no-bot">Real Players Only</option>
+                        <option value="has-contact">Has Contact Info</option>
+                        <option value="no-contact">No Contact Info</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <span class="filter-label">Sort:</span>
+                    <select class="filter-select" id="playerSortBy" onchange="filterPlayers()">
+                        <option value="name-asc">Name A-Z</option>
+                        <option value="name-desc">Name Z-A</option>
+                        <option value="games-desc">Most Games</option>
+                        <option value="games-asc">Least Games</option>
+                        <option value="date-desc">Newest</option>
+                        <option value="date-asc">Oldest</option>
                     </select>
                 </div>
                 <button class="clear-filters-btn" onclick="clearPlayerFilters()">Clear</button>
@@ -1193,6 +1210,14 @@
             return div.innerHTML;
         }
 
+        function goBack() {
+            if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                window.location.href = '/pages/dashboard.html';
+            }
+        }
+
         let adminPin = null;
         let playersData = [];
         let selectedPlayers = new Set();
@@ -1259,7 +1284,7 @@
             const pin = document.getElementById('pinInput').value;
 
             if (!pin) {
-                alert('Please enter your PIN');
+                toastWarning('Please enter your PIN');
                 return;
             }
 
@@ -1272,10 +1297,10 @@
                     showDashboard();
                     renderDashboard(result);
                 } else {
-                    alert('Invalid PIN');
+                    toastError('Invalid PIN');
                 }
             } catch (error) {
-                alert('Login failed: ' + error.message);
+                toastError('Login failed: ' + error.message);
             }
         };
 
@@ -1492,7 +1517,7 @@
             if (newDirectorPin === null) return; // Cancelled
 
             if (newDirectorPin && newDirectorPin.length !== 8) {
-                alert('Player PIN must be 8 digits');
+                toastWarning('Player PIN must be 8 digits');
                 return;
             }
 
@@ -1504,13 +1529,13 @@
                 });
 
                 if (result.success) {
-                    alert('League updated');
+                    toastSuccess('League updated');
                     loadDashboard();
                 } else {
-                    alert('Error: ' + result.error);
+                    toastError('Error: ' + result.error);
                 }
             } catch (error) {
-                alert('Error: ' + error.message);
+                toastError('Error: ' + error.message);
             }
         };
 
@@ -1524,7 +1549,7 @@
             if (newDirectorPin === null) return; // Cancelled
 
             if (newDirectorPin && newDirectorPin.length !== 8) {
-                alert('Player PIN must be 8 digits');
+                toastWarning('Player PIN must be 8 digits');
                 return;
             }
 
@@ -1536,13 +1561,13 @@
                 });
 
                 if (result.success) {
-                    alert('Tournament updated');
+                    toastSuccess('Tournament updated');
                     loadDashboard();
                 } else {
-                    alert('Error: ' + result.error);
+                    toastError('Error: ' + result.error);
                 }
             } catch (error) {
-                alert('Error: ' + error.message);
+                toastError('Error: ' + error.message);
             }
         };
 
@@ -1568,13 +1593,13 @@
             try {
                 const result = await callFunction('adminDeleteLeague', { pin: adminPin, league_id: id });
                 if (result.success) {
-                    alert('League deleted');
+                    toastSuccess('League deleted');
                     loadDashboard();
                 } else {
-                    alert('Error: ' + result.error);
+                    toastError('Error: ' + result.error);
                 }
             } catch (error) {
-                alert('Error: ' + error.message);
+                toastError('Error: ' + error.message);
             }
         };
 
@@ -1584,33 +1609,33 @@
             try {
                 const result = await callFunction('adminDeleteTournament', { pin: adminPin, tournament_id: id });
                 if (result.success) {
-                    alert('Tournament deleted');
+                    toastSuccess('Tournament deleted');
                     loadDashboard();
                 } else {
-                    alert('Error: ' + result.error);
+                    toastError('Error: ' + result.error);
                 }
             } catch (error) {
-                alert('Error: ' + error.message);
+                toastError('Error: ' + error.message);
             }
         };
 
         window.clearAllData = async function() {
             const confirmation = prompt('Type "DELETE_ALL_DATA" to confirm:');
             if (confirmation !== 'DELETE_ALL_DATA') {
-                alert('Cancelled');
+                toastWarning('Cancelled');
                 return;
             }
 
             try {
                 const result = await callFunction('adminClearData', { pin: adminPin, confirm: 'DELETE_ALL_DATA' });
                 if (result.success) {
-                    alert(result.message);
+                    toastInfo(result.message);
                     loadDashboard();
                 } else {
-                    alert('Error: ' + result.error);
+                    toastError('Error: ' + result.error);
                 }
             } catch (error) {
-                alert('Error: ' + error.message);
+                toastError('Error: ' + error.message);
             }
         };
 
@@ -1723,7 +1748,7 @@
                                 <div>
                                     <div class="bot-name">${escapeHtml(bot.name)}</div>
                                     <div style="font-size: 11px; color: #666;">
-                                        PIN: <code style="background: rgba(253,216,53,0.2); padding: 2px 6px; border-radius: 4px; cursor: pointer;" onclick="navigator.clipboard.writeText('${escapeHtml(bot.pin || '')}'); alert('PIN copied!')">${escapeHtml(bot.pin || 'N/A')}</code>
+                                        PIN: <code style="background: rgba(253,216,53,0.2); padding: 2px 6px; border-radius: 4px; cursor: pointer;" onclick="navigator.clipboard.writeText('${escapeHtml(bot.pin || '')}'); toastSuccess('PIN copied!')">${escapeHtml(bot.pin || 'N/A')}</code>
                                     </div>
                                 </div>
                             </div>
@@ -1752,7 +1777,7 @@
             const name = document.getElementById('botName').value.trim();
 
             if (!name) {
-                alert('Please enter a bot name');
+                toastWarning('Please enter a bot name');
                 return;
             }
 
@@ -1785,15 +1810,15 @@
                 });
                 if (result.success) {
                     document.getElementById('botName').value = '';
-                    alert(`Bot "${name}" created!\nPIN: ${result.pin}`);
+                    toastSuccess(`Bot "${name}" created!\nPIN: ${result.pin}`);
                     bots.unshift(result.bot);
                     renderBotsList();
                     loadDashboard();
                 } else {
-                    alert(result.error || 'Failed to add bot');
+                    toastError(result.error || 'Failed to add bot');
                 }
             } catch (error) {
-                alert('Error: ' + error.message);
+                toastError('Error: ' + error.message);
             }
         };
 
@@ -1807,10 +1832,10 @@
                     renderBotsList();
                     loadDashboard();
                 } else {
-                    alert(result.error || 'Failed to delete bot');
+                    toastError(result.error || 'Failed to delete bot');
                 }
             } catch (error) {
-                alert('Error: ' + error.message);
+                toastError('Error: ' + error.message);
             }
         };
 
@@ -1821,15 +1846,15 @@
             try {
                 const result = await callFunction('deleteAllBots', {});
                 if (result.success) {
-                    alert(`Deleted ${result.deleted} bots`);
+                    toastSuccess(`Deleted ${result.deleted} bots`);
                     bots = [];
                     renderBotsList();
                     loadDashboard();
                 } else {
-                    alert(result.error || 'Failed to delete bots');
+                    toastError(result.error || 'Failed to delete bots');
                 }
             } catch (error) {
-                alert('Error: ' + error.message);
+                toastError('Error: ' + error.message);
             }
         };
 
@@ -1993,13 +2018,13 @@
                         saveBtn.disabled = false;
                     }, 1500);
                 } else {
-                    alert('Error: ' + result.error);
+                    toastError('Error: ' + result.error);
                     saveBtn.textContent = 'SAVE';
                     saveBtn.style.background = '';
                     saveBtn.disabled = false;
                 }
             } catch (error) {
-                alert('Error: ' + error.message);
+                toastError('Error: ' + error.message);
                 saveBtn.textContent = 'SAVE';
                 saveBtn.style.background = '';
                 saveBtn.disabled = false;
@@ -2046,7 +2071,24 @@
                     const created = p.created_at?._seconds ? p.created_at._seconds * 1000 : 0;
                     return created > oneWeekAgo;
                 });
+            } else if (filter === 'is-bot') {
+                filtered = filtered.filter(p => p.is_bot === true);
+            } else if (filter === 'no-bot') {
+                filtered = filtered.filter(p => p.is_bot !== true);
+            } else if (filter === 'has-contact') {
+                filtered = filtered.filter(p => p.email || p.phone);
+            } else if (filter === 'no-contact') {
+                filtered = filtered.filter(p => !p.email && !p.phone);
             }
+
+            // Sorting
+            const sortBy = document.getElementById('playerSortBy')?.value || 'name-asc';
+            if (sortBy === 'name-asc') filtered.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+            else if (sortBy === 'name-desc') filtered.sort((a, b) => (b.name || '').localeCompare(a.name || ''));
+            else if (sortBy === 'games-desc') filtered.sort((a, b) => (b.games_played || 0) - (a.games_played || 0));
+            else if (sortBy === 'games-asc') filtered.sort((a, b) => (a.games_played || 0) - (b.games_played || 0));
+            else if (sortBy === 'date-desc') filtered.sort((a, b) => (b.created_at?._seconds || 0) - (a.created_at?._seconds || 0));
+            else if (sortBy === 'date-asc') filtered.sort((a, b) => (a.created_at?._seconds || 0) - (b.created_at?._seconds || 0));
 
             // Update count
             document.getElementById('playerCount').textContent = `${filtered.length} of ${playersData.length}`;
@@ -2057,6 +2099,7 @@
         window.clearPlayerFilters = function() {
             document.getElementById('playerSearch').value = '';
             document.getElementById('playerFilter').value = '';
+            if (document.getElementById('playerSortBy')) document.getElementById('playerSortBy').value = 'name-asc';
             selectedPlayers.clear();
             document.getElementById('deleteSelectedBtn').style.display = 'none';
             filterPlayers();
@@ -2085,7 +2128,7 @@
                                        ${isSelected ? 'checked' : ''}
                                        onchange="togglePlayerSelection('${escapeHtml(p.id)}')">
                                 <div class="member-info">
-                                    <h3>${escapeHtml(p.name || 'Unnamed Player')}</h3>
+                                    <h3>${escapeHtml(p.name || 'Unnamed Player')}${p.is_bot ? '<span style="display:inline-block;background:#fdd835;color:#000;font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;margin-left:8px;vertical-align:middle;">BOT</span>' : ''}</h3>
                                     <p>
                                         PIN: <code style="background: rgba(253,216,53,0.2); padding: 2px 6px; border-radius: 4px;">${escapeHtml(p.pin || 'N/A')}</code>
                                         | ${escapeHtml(p.email || p.phone || 'No contact')}
@@ -2135,10 +2178,10 @@
                     filterPlayers();
                     loadDashboard(); // Refresh stats
                 } else {
-                    alert('Error: ' + result.error);
+                    toastError('Error: ' + result.error);
                 }
             } catch (error) {
-                alert('Error: ' + error.message);
+                toastError('Error: ' + error.message);
             }
         };
 
@@ -2167,14 +2210,14 @@
             }
 
             if (deleted > 0) {
-                alert(`Deleted ${deleted} players`);
+                toastSuccess(`Deleted ${deleted} players`);
                 document.getElementById('deleteSelectedBtn').style.display = 'none';
                 filterPlayers();
                 loadDashboard();
             }
 
             if (errors.length > 0) {
-                alert('Some errors occurred: ' + errors.join(', '));
+                toastError('Some errors occurred: ' + errors.join(', '));
             }
         };
 
@@ -2190,7 +2233,7 @@
         window.editPlayer = function(playerId) {
             const player = playersData.find(p => p.id === playerId);
             if (!player) {
-                alert('Player not found');
+                toastError('Player not found');
                 return;
             }
 
@@ -2214,7 +2257,7 @@
             const pin = document.getElementById('editPlayerPin').value.trim();
 
             if (!name) {
-                alert('Name is required');
+                toastWarning('Name is required');
                 return;
             }
 
@@ -2236,13 +2279,13 @@
                         player.pin = pin;
                     }
                     filterPlayers();
-                    alert('Player updated successfully');
+                    toastSuccess('Player updated successfully');
                 } else {
-                    alert('Failed to update player: ' + (result.error || 'Unknown error'));
+                    toastError('Failed to update player: ' + (result.error || 'Unknown error'));
                 }
             } catch (error) {
                 console.error('Error updating player:', error);
-                alert('Failed to update player');
+                toastError('Failed to update player');
             }
         };
 
@@ -2327,6 +2370,16 @@
                 const statusClass = f.status === 'new' ? 'status-new' :
                                    f.status === 'reviewed' ? 'status-reviewed' : 'status-resolved';
 
+                const screenshotHtml = f.screenshot_url ? `
+                    <div style="margin: 10px 0;">
+                        <a href="${escapeHtml(f.screenshot_url)}" target="_blank" style="display: inline-block;">
+                            <img src="${escapeHtml(f.screenshot_url)}"
+                                 alt="Screenshot"
+                                 style="max-width: 100%; max-height: 300px; border: 2px solid rgba(145, 215, 235, 0.5); border-radius: 8px; cursor: pointer;">
+                        </a>
+                    </div>
+                ` : '';
+
                 return `
                     <div class="item-card feedback-card" data-id="${f.id}">
                         <div class="item-header">
@@ -2334,10 +2387,12 @@
                             <span class="status-badge ${statusClass}">${escapeHtml(f.status || 'new')}</span>
                         </div>
                         <div class="feedback-message">${escapeHtml(f.message)}</div>
+                        ${screenshotHtml}
                         <div class="feedback-meta">
                             <span>${dateStr}</span>
                             ${f.screen_size ? `<span>Screen: ${escapeHtml(f.screen_size)}</span>` : ''}
                             ${f.player_id ? `<span>Player: ${escapeHtml(f.player_id)}</span>` : ''}
+                            ${f.url ? `<span><a href="${escapeHtml(f.url)}" target="_blank" style="color: var(--teal);">View URL</a></span>` : ''}
                         </div>
                         <div class="feedback-actions">
                             <button class="action-btn" onclick="updateFeedbackStatus('${f.id}', 'reviewed')">Mark Reviewed</button>
@@ -2412,7 +2467,7 @@
                 }
             } catch (error) {
                 console.error('Error updating feedback:', error);
-                alert('Failed to update feedback status');
+                toastError('Failed to update feedback status');
             }
         };
 
@@ -2430,7 +2485,7 @@
                 }
             } catch (error) {
                 console.error('Error deleting feedback:', error);
-                alert('Failed to delete feedback');
+                toastError('Failed to delete feedback');
             }
         };
 
@@ -2450,7 +2505,7 @@
             const message = document.getElementById('addFeedbackMessage').value.trim();
 
             if (!message) {
-                alert('Please enter a message');
+                toastWarning('Please enter a message');
                 return;
             }
 
@@ -2464,17 +2519,16 @@
                     closeAddFeedbackModal();
                     loadFeedback(); // Reload to get the new item
                 } else {
-                    alert('Failed to add feedback: ' + (result.error || 'Unknown error'));
+                    toastError('Failed to add feedback: ' + (result.error || 'Unknown error'));
                 }
             } catch (error) {
                 console.error('Error adding feedback:', error);
-                alert('Failed to add feedback');
+                toastError('Failed to add feedback');
             }
         };
 
     </script>
     <script src="/js/display-helpers.js"></script>
     <script src="/js/nav-menu.js"></script>
-<script src="/js/feedback.js"></script>
 </body>
 </html>

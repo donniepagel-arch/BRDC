@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Match Confirmation - BRDC</title>
     <link rel="icon" type="image/png" href="/images/favicon.png">
+    <script src="/js/brdc-toast.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700;800;900&display=swap');
 
@@ -444,7 +445,7 @@
 </head>
 <body>
     <div class="header-bar">
-        <button class="back-btn" onclick="history.back()">← BACK</button>
+        <button class="back-btn" onclick="goBack()" aria-label="Go back">← BACK</button>
         <img src="/images/gold_logo.png" alt="BRDC" class="header-logo">
         <span class="header-title">MATCH CONFIRMATION</span>
     </div>
@@ -523,6 +524,15 @@
 <script type="module">
 import { callFunction } from '/js/firebase-config.js';
 
+function goBack() {
+    if (window.history.length > 1) {
+        window.history.back();
+    } else {
+        window.location.href = '/pages/dashboard.html';
+    }
+}
+window.goBack = goBack;
+
 const params = new URLSearchParams(window.location.search);
 const matchPin = params.get('pin');
 
@@ -557,8 +567,8 @@ async function init() {
 
     // Otherwise fetch from server
     if (!matchPin) {
-        alert('No match PIN provided');
-        window.location.href = '/pages/scorer-hub.html';
+        toastError('No match PIN provided');
+        window.location.href = '/pages/game-setup.html';
         return;
     }
 
@@ -573,8 +583,8 @@ async function init() {
         }
     } catch (error) {
         console.error('Error loading match:', error);
-        alert('Error loading match: ' + error.message);
-        window.location.href = '/pages/scorer-hub.html';
+        toastError('Error loading match: ' + error.message);
+        window.location.href = '/pages/game-setup.html';
     }
 
     document.getElementById('loadingOverlay').classList.remove('active');
@@ -684,7 +694,7 @@ window.confirmSub = function() {
 
     const subName = document.getElementById('subNameInput').value.trim();
     if (!subName) {
-        alert('Please enter a substitute name');
+        toastWarning('Please enter a substitute name');
         return;
     }
 
@@ -781,13 +791,12 @@ function goToGame(gameNumber) {
 
 window.goBack = function() {
     sessionStorage.removeItem('pendingMatch');
-    window.location.href = '/pages/scorer-hub.html';
+    window.location.href = '/pages/game-setup.html';
 };
 
 // Init
 init();
 </script>
 <script src="/js/display-helpers.js"></script>
-<script src="/js/feedback.js"></script>
 </body>
 </html>

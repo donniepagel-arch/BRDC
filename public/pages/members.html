@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Members - BRDC</title>
     <link rel="icon" type="image/png" href="/images/favicon.png">
     <link rel="manifest" href="/manifest.json">
@@ -222,6 +222,30 @@
             vertical-align: middle;
         }
 
+        .sub-badge {
+            display: inline-block;
+            background: var(--yellow);
+            color: var(--bg-dark);
+            font-size: 9px;
+            padding: 2px 6px;
+            border-radius: 8px;
+            font-weight: 700;
+            margin-left: 8px;
+            vertical-align: middle;
+        }
+
+        .level-badge {
+            display: inline-block;
+            background: rgba(255,255,255,0.1);
+            color: var(--text-dim);
+            font-size: 9px;
+            padding: 2px 5px;
+            border-radius: 4px;
+            font-weight: 700;
+            margin-left: 6px;
+            vertical-align: middle;
+        }
+
         .stat-cell {
             font-family: 'Bebas Neue', cursive;
             font-size: 16px;
@@ -230,7 +254,6 @@
 
         .stat-cell.ppd { color: var(--pink); }
         .stat-cell.mpr { color: var(--teal); }
-        .stat-cell.marks { color: var(--yellow); }
         .stat-cell.winpct { color: var(--text-light); }
         .stat-cell.empty { color: var(--text-dim); }
 
@@ -287,7 +310,7 @@
                 font-size: 14px;
             }
 
-            .captain-badge {
+            .captain-badge, .sub-badge, .level-badge {
                 display: none;
             }
         }
@@ -296,7 +319,7 @@
 <body>
     <div class="header">
         <div class="header-left">
-            <button class="back-btn" onclick="window.location.href='/pages/dashboard.html'">&#8592;</button>
+            <button class="back-btn" id="backBtn" onclick="window.location.href='/pages/dashboard.html'" aria-label="Go back">&#8592;</button>
             <span class="header-title">MEMBERS</span>
         </div>
         <img src="/images/gold_logo.png" alt="BRDC" class="header-logo">
@@ -313,7 +336,6 @@
             <option value="mpr-asc">MPR LOW-HIGH</option>
             <option value="winpct-desc">WIN% HIGH-LOW</option>
             <option value="winpct-asc">WIN% LOW-HIGH</option>
-            <option value="ninemarks-desc">9-MARKS HIGH-LOW</option>
         </select>
         <span class="member-count" id="memberCount">-</span>
     </div>
@@ -322,6 +344,7 @@
         <div class="loading">Loading members</div>
     </div>
 
+    <script src="/js/stats-helpers.js"></script>
     <script type="module">
         import { db, doc, getDoc, collection, getDocs, query, orderBy, callFunction } from '/js/firebase-config.js';
 
@@ -349,12 +372,15 @@
 
                 // If league_id provided, only load from that league
                 if (filterLeagueId) {
-                    // Get league name for title
+                    // Get league name for title, update back button to go to league view
                     const leagueDoc = await getDoc(doc(db, 'leagues', filterLeagueId));
                     if (leagueDoc.exists()) {
                         filterLeagueName = leagueDoc.data().name || 'League';
                         document.querySelector('.header-title').textContent = `${filterLeagueName} MEMBERS`;
                     }
+                    document.getElementById('backBtn').onclick = () => {
+                        window.location.href = `/pages/league-view.html?league_id=${filterLeagueId}`;
+                    };
 
                     // Load players from this league only
                     await loadLeaguePlayers(filterLeagueId, membersMap);
@@ -419,15 +445,15 @@
                         name: player.name || 'Unknown',
                         team_name: player.team_name || '',
                         is_captain: player.is_captain || false,
-                        level: player.preferred_level || player.level || '',
+                        is_sub: player.is_sub || false,
+                        level: player.level || player.preferred_level || '',
                         league_id: leagueId,
                         tournament_id: null,
                         source: 'league',
                         stats: null,
                         ppd: null,
                         mpr: null,
-                        winpct: null,
-                        ninemarks: 0
+                        winpct: null
                     });
                 }
             }
@@ -499,9 +525,10 @@
                         // Create lookup by player ID only (RULE 1: IDs ONLY)
                         const statsLookup = {};
                         result.stats.forEach(s => {
-                            // Store by ID only - never use names for lookup
-                            if (s.player_id) {
-                                statsLookup[s.player_id] = s;
+                            // Store by ID - cloud function returns 'id' (doc ID = player ID)
+                            const pid = s.player_id || s.id;
+                            if (pid) {
+                                statsLookup[pid] = s;
                             }
                         });
 
@@ -513,18 +540,9 @@
                             if (s) {
                                 member.stats = s;
 
-                                // Calculate PPD
-                                member.ppd = s.x01_total_darts > 0
-                                    ? parseFloat((s.x01_total_points / s.x01_total_darts * 3).toFixed(1))
-                                    : null;
-
-                                // Calculate MPR
-                                member.mpr = s.cricket_total_rounds > 0
-                                    ? parseFloat((s.cricket_total_marks / s.cricket_total_rounds).toFixed(2))
-                                    : null;
-
-                                // 9-mark rounds
-                                member.ninemarks = s.cricket_nine_mark_rounds || 0;
+                                // Use stats helpers for canonical field fallbacks
+                                member.ppd = get3DA(s);
+                                member.mpr = getMPR(s);
 
                                 // Set winning %
                                 const x01Legs = s.x01_legs_played || 0;
@@ -589,10 +607,6 @@
                         aVal = a.winpct ?? -1;
                         bVal = b.winpct ?? -1;
                         break;
-                    case 'ninemarks':
-                        aVal = a.ninemarks ?? 0;
-                        bVal = b.ninemarks ?? 0;
-                        break;
                     default:
                         aVal = a.name.toLowerCase();
                         bVal = b.name.toLowerCase();
@@ -620,6 +634,8 @@
 
             const rows = filtered.map(member => {
                 const captainBadge = member.is_captain ? '<span class="captain-badge">CAPTAIN</span>' : '';
+                const subBadge = member.is_sub ? '<span class="sub-badge">FILL-IN</span>' : '';
+                const levelBadge = member.level ? `<span class="level-badge">${member.level.toUpperCase()}</span>` : '';
 
                 // Format name as "Last, First"
                 const nameParts = member.name.trim().split(' ');
@@ -633,16 +649,13 @@
                 const ppdDisplay = member.ppd !== null ? member.ppd.toFixed(1) : '-';
                 const mprDisplay = member.mpr !== null ? member.mpr.toFixed(2) : '-';
                 const winpctDisplay = member.winpct !== null ? member.winpct + '%' : '-';
-                const ninemarksDisplay = member.ninemarks || '-';
-
                 return `
                     <tr onclick="viewMember('${member.id}', '${member.league_id || ''}', '${member.tournament_id || ''}')">
                         <td>
-                            <span class="member-name">${displayName}${captainBadge}</span>
+                            <span class="member-name">${displayName}${captainBadge}${subBadge}${levelBadge}</span>
                         </td>
                         <td class="stat-cell ppd ${member.ppd === null ? 'empty' : ''}">${ppdDisplay}</td>
                         <td class="stat-cell mpr ${member.mpr === null ? 'empty' : ''}">${mprDisplay}</td>
-                        <td class="stat-cell marks ${!member.ninemarks ? 'empty' : ''}">${ninemarksDisplay}</td>
                         <td class="stat-cell winpct ${member.winpct === null ? 'empty' : ''}">${winpctDisplay}</td>
                     </tr>
                 `;
@@ -655,7 +668,6 @@
                             <th onclick="setSort('name')">NAME</th>
                             <th onclick="setSort('ppd')">3DA</th>
                             <th onclick="setSort('mpr')">MPR</th>
-                            <th onclick="setSort('ninemarks')">9s</th>
                             <th onclick="setSort('winpct')">WIN%</th>
                         </tr>
                     </thead>
@@ -695,6 +707,5 @@
         // Initialize
         loadMembers();
     </script>
-<script src="/js/feedback.js"></script>
 </body>
 </html>

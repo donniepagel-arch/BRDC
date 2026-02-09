@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Match Progress - BRDC</title>
     <link rel="icon" type="image/png" href="/images/favicon.png">
+    <script src="/js/brdc-toast.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700;800;900&display=swap');
 
@@ -427,7 +428,7 @@
 </head>
 <body>
     <div class="header-bar">
-        <button class="back-btn" onclick="history.back()">← BACK</button>
+        <button class="back-btn" onclick="goBack()" aria-label="Go back">← BACK</button>
         <img src="/images/gold_logo.png" alt="BRDC" class="header-logo">
         <span class="header-title">MATCH SETUP</span>
     </div>
@@ -509,6 +510,15 @@
 <script type="module">
 import { callFunction } from '/js/firebase-config.js';
 
+function goBack() {
+    if (window.history.length > 1) {
+        window.history.back();
+    } else {
+        window.location.href = '/pages/dashboard.html';
+    }
+}
+window.goBack = goBack;
+
 // Standard Triples Format
 const TRIPLES_FORMAT = [
     { game: 1, type: '501', format: 'singles', home: [1], away: [1], label: 'A vs A' },
@@ -528,8 +538,8 @@ function init() {
     // Get match state from session
     const stored = sessionStorage.getItem('activeMatch');
     if (!stored) {
-        alert('No active match found');
-        window.location.href = '/pages/scorer-hub.html';
+        toastError('No active match found');
+        window.location.href = '/pages/game-setup.html';
         return;
     }
 
@@ -760,7 +770,7 @@ async function finishMatch() {
     } else if (matchState.league_id) {
         window.location.href = `/pages/league-view.html?league_id=${matchState.league_id}`;
     } else {
-        window.location.href = '/pages/scorer-hub.html';
+        window.location.href = '/pages/game-setup.html';
     }
 }
 
@@ -771,7 +781,7 @@ window.exitMatch = function() {
         if (matchState && matchState.league_id && matchState.match_id) {
             window.location.href = `/pages/match-hub.html?league_id=${matchState.league_id}&match_id=${matchState.match_id}`;
         } else {
-            window.location.href = '/pages/scorer-hub.html';
+            window.location.href = '/pages/game-setup.html';
         }
     }
 };
@@ -779,6 +789,5 @@ window.exitMatch = function() {
 init();
 </script>
 <script src="/js/display-helpers.js"></script>
-<script src="/js/feedback.js"></script>
 </body>
 </html>
