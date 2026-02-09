@@ -21,6 +21,7 @@
     <meta name="theme-color" content="#FF469A">
     <script src="/js/brdc-toast.js"></script>
     <script src="/js/live-match-helper.js"></script>
+    <script src="/js/a11y-helpers.js"></script>
 
     <!-- Fonts - non-blocking with display=swap -->
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rowdies:wght@700&family=Inter:wght@400;600;700;800;900&display=swap">
@@ -1150,7 +1151,7 @@
                         <span class="player-name" id="homeName2"></span>
                     </div>
                 </div>
-                <div class="score-value" id="homeScore" onclick="submitRemainingScore(0)">501</div>
+                <div class="score-value" id="homeScore" onclick="submitRemainingScore(0)" aria-live="polite" aria-label="Home remaining score">501</div>
                 <div class="checkout-hint" id="homeCheckout"></div>
                 <div class="legs-display"><span id="homeLegs">0</span> LEGS</div>
                 <div class="stats-grid">
@@ -1182,7 +1183,7 @@
                         <span class="player-name" id="awayName2"></span>
                     </div>
                 </div>
-                <div class="score-value" id="awayScore" onclick="submitRemainingScore(1)">501</div>
+                <div class="score-value" id="awayScore" onclick="submitRemainingScore(1)" aria-live="polite" aria-label="Away remaining score">501</div>
                 <div class="checkout-hint" id="awayCheckout"></div>
                 <div class="legs-display"><span id="awayLegs">0</span> LEGS</div>
                 <div class="stats-grid">
@@ -1217,9 +1218,9 @@
                 <!-- Center Keypad Area -->
                 <div class="keypad-area">
                     <div class="score-input-display">
-                        <button class="action-btn undo" onclick="undoScore()">UNDO</button>
-                        <div class="score-input-value" id="scoreInput" onclick="clearInput()">0</div>
-                        <button class="action-btn miss" onclick="submitScore(0)">MISS</button>
+                        <button class="action-btn undo" onclick="undoScore()" aria-label="Undo last score">UNDO</button>
+                        <div class="score-input-value" id="scoreInput" onclick="clearInput()" role="status" aria-label="Score input display" aria-live="polite">0</div>
+                        <button class="action-btn miss" onclick="submitScore(0)" aria-label="Record a miss (zero score)">MISS</button>
                     </div>
 
                     <!-- Game Shot Quick Select (shown when checkout score entered) -->
@@ -1228,17 +1229,17 @@
                         <div class="game-shot-score" id="gameShotScore">141 checkout</div>
                         <div style="font-size: 12px; opacity: 0.7; margin-bottom: 8px;">Which dart hit the out?</div>
                         <div class="dart-select-row">
-                            <button class="dart-select-btn" id="dart1Btn" onclick="completeCheckoutQuick(1)">
+                            <button class="dart-select-btn" id="dart1Btn" onclick="completeCheckoutQuick(1)" aria-label="Checked out on 1st dart">
                                 1st<span class="dart-label">DART</span>
                             </button>
-                            <button class="dart-select-btn" id="dart2Btn" onclick="completeCheckoutQuick(2)">
+                            <button class="dart-select-btn" id="dart2Btn" onclick="completeCheckoutQuick(2)" aria-label="Checked out on 2nd dart">
                                 2nd<span class="dart-label">DART</span>
                             </button>
-                            <button class="dart-select-btn" id="dart3Btn" onclick="completeCheckoutQuick(3)">
+                            <button class="dart-select-btn" id="dart3Btn" onclick="completeCheckoutQuick(3)" aria-label="Checked out on 3rd dart">
                                 3rd<span class="dart-label">DART</span>
                             </button>
                         </div>
-                        <button class="game-shot-cancel" onclick="cancelGameShot()">CANCEL</button>
+                        <button class="game-shot-cancel" onclick="cancelGameShot()" aria-label="Cancel game shot">CANCEL</button>
                     </div>
 
                     <!-- Quick Checkout Buttons (shown when on checkout) -->
@@ -1298,7 +1299,7 @@
     </div>
 
     <!-- Leg Complete Modal -->
-    <div class="modal" id="legModal">
+    <div class="modal" id="legModal" role="dialog" aria-modal="true" aria-label="Leg complete">
         <div class="modal-content">
             <div class="modal-title">LEG COMPLETE!</div>
             <div class="winner-name" id="legWinnerName">Player Wins</div>
@@ -1315,7 +1316,7 @@
     </div>
 
     <!-- Game Selector Modal -->
-    <div class="modal" id="gameSelectorModal">
+    <div class="modal" id="gameSelectorModal" role="dialog" aria-modal="true" aria-label="Select game type">
         <div class="modal-content" style="max-width: 340px;">
             <div class="modal-title" style="font-size: 24px;">SELECT GAME</div>
             <div style="display: flex; flex-direction: column; gap: 8px; margin: 16px 0;">
@@ -1344,7 +1345,7 @@
     </div>
 
     <!-- Game Complete Modal -->
-    <div class="modal" id="gameModal">
+    <div class="modal" id="gameModal" role="dialog" aria-modal="true" aria-label="Game over">
         <div class="modal-content">
             <div class="modal-title">GAME OVER!</div>
             <div class="winner-name" id="gameWinnerName">Player Wins</div>
@@ -1355,21 +1356,21 @@
     </div>
 
     <!-- Checkout Darts Modal (for double out) -->
-    <div class="modal" id="dartsModal">
+    <div class="modal" id="dartsModal" role="dialog" aria-modal="true" aria-labelledby="dartsModalTitle">
         <div class="modal-content" style="max-width: 360px;">
-            <div class="modal-title" style="color: var(--yellow); font-size: 36px;">GAME SHOT!</div>
+            <div class="modal-title" id="dartsModalTitle" style="color: var(--yellow); font-size: 36px;">GAME SHOT!</div>
             <div id="checkoutScoreDisplay" style="font-family: 'Rowdies', cursive; font-size: 48px; color: var(--teal); margin: 10px 0;"></div>
             <div class="winner-name" style="font-size: 16px; opacity: 0.8; margin-bottom: 16px;">Which dart hit the out?</div>
             <div class="darts-select" style="gap: 12px;">
-                <button class="dart-count-btn" id="dartBtn1" onclick="confirmCheckout(1)" style="flex-direction: column; padding: 16px 20px;">
+                <button class="dart-count-btn" id="dartBtn1" onclick="confirmCheckout(1)" style="flex-direction: column; padding: 16px 20px;" aria-label="Checked out on 1st dart">
                     <span style="font-size: 28px;">1st</span>
                     <span style="font-size: 11px; opacity: 0.7; margin-top: 4px;">DART</span>
                 </button>
-                <button class="dart-count-btn" id="dartBtn2" onclick="confirmCheckout(2)" style="flex-direction: column; padding: 16px 20px;">
+                <button class="dart-count-btn" id="dartBtn2" onclick="confirmCheckout(2)" style="flex-direction: column; padding: 16px 20px;" aria-label="Checked out on 2nd dart">
                     <span style="font-size: 28px;">2nd</span>
                     <span style="font-size: 11px; opacity: 0.7; margin-top: 4px;">DART</span>
                 </button>
-                <button class="dart-count-btn" id="dartBtn3" onclick="confirmCheckout(3)" style="flex-direction: column; padding: 16px 20px;">
+                <button class="dart-count-btn" id="dartBtn3" onclick="confirmCheckout(3)" style="flex-direction: column; padding: 16px 20px;" aria-label="Checked out on 3rd dart">
                     <span style="font-size: 28px;">3rd</span>
                     <span style="font-size: 11px; opacity: 0.7; margin-top: 4px;">DART</span>
                 </button>
@@ -1378,7 +1379,7 @@
     </div>
 
     <!-- Game Shot Confirmation Modal -->
-    <div class="modal" id="confirmGameModal">
+    <div class="modal" id="confirmGameModal" role="dialog" aria-modal="true" aria-label="Confirm game shot">
         <div class="modal-content">
             <div class="modal-title" style="color: var(--yellow);">GAME SHOT!</div>
             <div class="winner-name" id="confirmWinnerName">Player wins the game!</div>
@@ -1392,7 +1393,7 @@
     </div>
 
     <!-- Match Complete Modal -->
-    <div class="modal" id="matchCompleteModal">
+    <div class="modal" id="matchCompleteModal" role="dialog" aria-modal="true" aria-label="Match complete">
         <div class="modal-content" style="max-width: 440px; border-color: var(--yellow);">
             <div style="font-size: 64px; margin-bottom: 8px;">🏆</div>
             <div class="modal-title" style="font-size: 36px; margin-bottom: 16px;">MATCH COMPLETE!</div>
@@ -1425,7 +1426,7 @@
     </div>
 
     <!-- PIN Entry Screen -->
-    <div class="modal" id="pinEntryScreen" style="display: none;">
+    <div class="modal" id="pinEntryScreen" style="display: none;" role="dialog" aria-modal="true" aria-label="Enter match PIN">
         <div class="modal-content" style="max-width: 400px;">
             <div class="modal-title" style="font-size: 28px;">ENTER MATCH PIN</div>
             <div style="margin: 20px 0; font-size: 14px; opacity: 0.8;">Enter the 6-character match PIN to start scoring</div>
@@ -1528,7 +1529,7 @@
     </div>
 
     <!-- Pre-Leg Popup (Always shows before each leg) -->
-    <div class="modal" id="starterModal">
+    <div class="modal" id="starterModal" role="dialog" aria-modal="true" aria-label="Leg start">
         <div class="modal-content" style="max-width: 420px;">
             <!-- Leg Info Header -->
             <div id="preLegHeader" style="margin-bottom: 20px;">
@@ -3179,6 +3180,7 @@ window.submitScore = function(score, dartsUsed = 3) {
         // Bust - no score, but track it
         throwHistory[activeTeam].push({ value: score, bust: true, remaining: team.score });
         team.darts += 3;
+        if (typeof A11y !== 'undefined') A11y.announce('Bust! Score reverted to ' + team.score, 'assertive');
         inputValue = '0';
         updateInputDisplay();
         updateThrowHistory();
@@ -3209,6 +3211,7 @@ window.submitScore = function(score, dartsUsed = 3) {
             document.getElementById('checkoutScoreDisplay').textContent = score;
 
             document.getElementById('dartsModal').classList.add('active');
+            if (typeof A11y !== 'undefined') A11y.announce('Game shot! ' + score + ' checkout. Select which dart hit the out.', 'assertive');
             return;
         } else {
             // Straight out - complete checkout
@@ -3687,6 +3690,12 @@ function switchTeam() {
     activeTeam = activeTeam === 0 ? 1 : 0;
     updateUI();
 
+    // Announce turn change for screen readers
+    if (typeof A11y !== 'undefined') {
+        const throwingTeam = activeTeam === 0 ? teams[0].name : teams[1].name;
+        A11y.announce(throwingTeam + ' now throwing', 'polite');
+    }
+
     // Update live match state after score change
     if (typeof LiveMatch !== 'undefined') {
         LiveMatch.update({
@@ -4009,6 +4018,7 @@ function showLegWinner(teamIndex) {
     const loserColor = teamIndex === 0 ? 'var(--teal)' : 'var(--pink)';
 
     document.getElementById('legWinnerName').textContent = winnerTeam.name + ' WINS LEG ' + leg + '!';
+    if (typeof A11y !== 'undefined') A11y.announce(winnerTeam.name + ' wins leg ' + leg + '. Score: ' + winnerTeam.legs + ' to ' + loserTeam.legs, 'assertive');
     document.getElementById('legStats').innerHTML = `
         <div style="display: grid; grid-template-columns: 1fr auto auto; gap: 8px; font-size: 13px;">
             <div style="font-weight: 700; color: var(--text-dim);"></div>
@@ -4331,6 +4341,7 @@ function showGameWinner(teamIndex) {
     const loserBest = loser.bestLeg < 999 ? loser.bestLeg : '-';
 
     document.getElementById('gameWinnerName').textContent = winner.name + ' WINS!';
+    if (typeof A11y !== 'undefined') A11y.announce(winner.name + ' wins the game! ' + winner.legs + ' to ' + loser.legs, 'assertive');
     document.getElementById('gameStats').innerHTML = `
         <div style="text-align: center; margin-bottom: 12px;">
             <span style="font-size: 32px; font-family: 'Rowdies', cursive;">
@@ -5230,12 +5241,15 @@ function showMatchCompleteModal(matchState, gameStats) {
     if (homeScore > awayScore) {
         winnerEl.textContent = `${homeTeamName} WINS!`;
         winnerEl.style.color = 'var(--pink)';
+        if (typeof A11y !== 'undefined') A11y.announce(homeTeamName + ' wins the match! ' + homeScore + ' to ' + awayScore, 'assertive');
     } else if (awayScore > homeScore) {
         winnerEl.textContent = `${awayTeamName} WINS!`;
         winnerEl.style.color = 'var(--teal)';
+        if (typeof A11y !== 'undefined') A11y.announce(awayTeamName + ' wins the match! ' + awayScore + ' to ' + homeScore, 'assertive');
     } else {
         winnerEl.textContent = 'MATCH TIED!';
         winnerEl.style.color = 'var(--yellow)';
+        if (typeof A11y !== 'undefined') A11y.announce('Match tied! ' + homeScore + ' to ' + awayScore, 'assertive');
     }
 
     // Build stats summary from accumulated game results

@@ -20,6 +20,8 @@
     <link rel="apple-touch-icon" href="/images/gold_logo.png">
     <meta name="theme-color" content="#FF469A">
     <script src="/js/brdc-toast.js"></script>
+    <script src="/js/live-match-helper.js"></script>
+    <script src="/js/a11y-helpers.js"></script>
 
     <!-- Fonts - non-blocking with display=swap -->
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@500;600;700&family=JetBrains+Mono:wght@600;700&display=swap">
@@ -874,6 +876,27 @@
             transform: scale(0.95);
         }
 
+        .dart-back-btn {
+            display: block;
+            width: 100%;
+            margin-top: 12px;
+            padding: 12px;
+            background: rgba(255,255,255,0.08);
+            border: 2px solid rgba(255,255,255,0.15);
+            border-radius: 8px;
+            color: var(--text-dim);
+            font-size: 14px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            cursor: pointer;
+        }
+
+        .dart-back-btn:active {
+            background: rgba(255,255,255,0.15);
+            color: var(--text-light);
+        }
+
         .dart-count-btn:disabled {
             background: rgba(0,0,0,0.2);
             border-color: rgba(255,255,255,0.05);
@@ -1153,7 +1176,7 @@
         <span class="verification-banner-icon">⚠️</span>
         STATS VERIFICATION MODE
     </div>
-    <button class="exit-btn" onclick="exitGame()">EXIT</button>
+    <button class="exit-btn" onclick="exitGame()" aria-label="Exit game">EXIT</button>
 
     <!-- Casual Setup Screen -->
     <div class="setup-screen" id="setupScreen">
@@ -1213,7 +1236,7 @@
     <div class="scoreboard">
         <div class="team-panel home active" id="headerHome">
             <div class="team-name" id="homeName">Home</div>
-            <div class="team-score" id="homeScore">0</div>
+            <div class="team-score" id="homeScore" aria-live="polite" aria-label="Home score">0</div>
             <div class="team-stats">
                 <span class="stat-item" title="This Leg">Leg: <span class="val" id="homeLegMPR">0.00</span></span>
                 <span class="stat-item" title="Overall Match">MPR: <span class="val" id="homeMPR">0.00</span></span>
@@ -1226,7 +1249,7 @@
         </div>
         <div class="team-panel away" id="headerAway">
             <div class="team-name" id="awayName">Away</div>
-            <div class="team-score" id="awayScore">0</div>
+            <div class="team-score" id="awayScore" aria-live="polite" aria-label="Away score">0</div>
             <div class="team-stats">
                 <span class="stat-item" title="This Leg">Leg: <span class="val" id="awayLegMPR">0.00</span></span>
                 <span class="stat-item" title="Overall Match">MPR: <span class="val" id="awayMPR">0.00</span></span>
@@ -1244,7 +1267,7 @@
     <div class="control-bar">
         <!-- Wrong Game Button Row -->
         <div class="wrong-game-row" id="wrongGameRow" style="display: none;">
-            <button class="wrong-game-btn" onclick="showGameSelector('current')">WRONG GAME?</button>
+            <button class="wrong-game-btn" onclick="showGameSelector('current')" aria-label="Wrong game type, select different game">WRONG GAME?</button>
         </div>
         <!-- Dart Display -->
         <div class="dart-display">
@@ -1259,15 +1282,15 @@
 
         <!-- Action Buttons -->
         <div class="action-row">
-            <button class="action-btn undo" onclick="undoDart()">UNDO</button>
-            <button class="action-btn miss" onclick="addMiss()">MISS</button>
-            <button class="action-btn clear" onclick="clearTurn()">CLEAR</button>
-            <button class="action-btn next" onclick="nextPlayer()">NEXT</button>
+            <button class="action-btn undo" onclick="undoDart()" aria-label="Undo last dart">UNDO</button>
+            <button class="action-btn miss" onclick="addMiss()" aria-label="Record a miss">MISS</button>
+            <button class="action-btn clear" onclick="clearTurn()" aria-label="Clear current turn">CLEAR</button>
+            <button class="action-btn next" onclick="nextPlayer()" aria-label="Submit turn and switch player">NEXT</button>
         </div>
     </div>
 
     <!-- Leg Complete Modal -->
-    <div class="modal" id="legModal">
+    <div class="modal" id="legModal" role="dialog" aria-modal="true" aria-label="Leg complete">
         <div class="modal-content">
             <div class="modal-title">LEG COMPLETE!</div>
             <div class="modal-subtitle" id="legWinnerText">Player Wins Leg!</div>
@@ -1284,7 +1307,7 @@
     </div>
 
     <!-- Game Over Modal -->
-    <div class="modal" id="winModal">
+    <div class="modal" id="winModal" role="dialog" aria-modal="true" aria-label="Game over">
         <div class="modal-content">
             <div class="modal-title">GAME OVER!</div>
             <div class="modal-subtitle" id="winnerText">Player Wins!</div>
@@ -1295,7 +1318,7 @@
     </div>
 
     <!-- Starter Modal (Cork or Ready) -->
-    <div class="modal" id="starterModal">
+    <div class="modal" id="starterModal" role="dialog" aria-modal="true" aria-label="Leg start">
         <div class="modal-content" style="max-width: 380px;">
             <div id="starterLegInfo" style="margin-bottom: 16px; font-size: 13px; opacity: 0.7; letter-spacing: 3px;">LEG 1</div>
 
@@ -1354,20 +1377,21 @@
     </div>
 
     <!-- Darts Out Modal -->
-    <div class="modal" id="dartsModal">
+    <div class="modal" id="dartsModal" role="dialog" aria-modal="true" aria-label="Closed out - select darts used">
         <div class="modal-content">
             <div class="modal-title">CLOSED OUT!</div>
             <div class="modal-subtitle">How many darts used?</div>
             <div class="darts-select">
-                <button class="dart-count-btn" id="dartBtn1" onclick="confirmWinDarts(1)">1</button>
-                <button class="dart-count-btn" id="dartBtn2" onclick="confirmWinDarts(2)">2</button>
-                <button class="dart-count-btn" id="dartBtn3" onclick="confirmWinDarts(3)">3</button>
+                <button class="dart-count-btn" id="dartBtn1" onclick="confirmWinDarts(1)" aria-label="Closed out with 1 dart">1</button>
+                <button class="dart-count-btn" id="dartBtn2" onclick="confirmWinDarts(2)" aria-label="Closed out with 2 darts">2</button>
+                <button class="dart-count-btn" id="dartBtn3" onclick="confirmWinDarts(3)" aria-label="Closed out with 3 darts">3</button>
             </div>
+            <button class="dart-back-btn" onclick="cancelWinDarts()" aria-label="Cancel and go back">BACK</button>
         </div>
     </div>
 
     <!-- Game Selector Modal -->
-    <div class="modal" id="gameSelectorModal">
+    <div class="modal" id="gameSelectorModal" role="dialog" aria-modal="true" aria-label="Select game type">
         <div class="modal-content" style="max-width: 340px;">
             <div class="modal-title" id="gameSelectorTitle">SELECT GAME</div>
             <div style="display: flex; flex-direction: column; gap: 10px; margin: 20px 0;">
@@ -1407,7 +1431,7 @@
     </div>
 
     <!-- Match Complete Modal -->
-    <div class="modal" id="matchCompleteModal">
+    <div class="modal" id="matchCompleteModal" role="dialog" aria-modal="true" aria-label="Match complete">
         <div class="modal-content" style="max-width: 440px; border-color: var(--yellow);">
             <div style="font-size: 64px; margin-bottom: 8px;">🏆</div>
             <div class="modal-title" style="font-size: 36px; margin-bottom: 16px;">MATCH COMPLETE!</div>
@@ -1452,6 +1476,11 @@ const leagueId = params.get('league_id');
 const matchId = params.get('match_id');
 const tournamentId = params.get('tournament_id'); // Tournament support
 const tournamentMatchId = params.get('tournament_match_id'); // Tournament match ID
+const tournamentType = params.get('tournament_type') || 'single'; // 'single' or 'double'
+const bracketType = params.get('bracket_type') || ''; // 'winners', 'losers', 'grand_finals_1', 'grand_finals_2'
+const returnUrl = params.get('return_url') || ''; // Where to navigate back after scoring
+const eventId = params.get('event_id') || ''; // For regular tournament events
+const tDirectorPin = params.get('director_pin') || ''; // For double-elim auth
 const gameIndex = parseInt(params.get('game_index') || '0'); // Index in games array
 const gameNumber = parseInt(params.get('game_number') || '1'); // Display number (1-based)
 const adminPin = params.get('admin_pin') || '';
@@ -1791,30 +1820,34 @@ function init() {
     // Start live match tracking for league/tournament games
     if ((leagueId && matchId) || tournamentId) {
         (async () => {
+            await LiveMatch.start({
+                match_id: matchId || tournamentMatchId,
+                event_id: leagueId || tournamentId,
+                event_name: homeTeamName + ' vs ' + awayTeamName,
+                event_type: tournamentId ? 'tournament' : 'league',
+                game_type: 'cricket',
+                starting_score: 0,
+                race_to: legsToWin,
+                team1_name: homeTeamName,
+                team1_player_ids: homePlayers.map(p => p?.id).filter(Boolean),
+                team1_player_names: homePlayers.map(p => p?.name).filter(Boolean),
+                team2_name: awayTeamName,
+                team2_player_ids: awayPlayers.map(p => p?.id).filter(Boolean),
+                team2_player_names: awayPlayers.map(p => p?.name).filter(Boolean)
+            });
+        })();
+    }
+
+    // Auto-start double-elim tournament matches
+    if (tournamentId && tournamentMatchId && tournamentType === 'double') {
+        (async () => {
             try {
-                const scorerPin = localStorage.getItem('brdc_player_pin') || adminPin || matchPin;
-                if (scorerPin) {
-                    await callFunction('startLiveMatch', {
-                        scorer_pin: scorerPin,
-                        match_id: matchId || tournamentMatchId,
-                        event_id: leagueId || tournamentId,
-                        event_type: tournamentId ? 'tournament' : 'league',
-                        match_data: {
-                            event_name: homeTeamName + ' vs ' + awayTeamName,
-                            game_type: 'cricket',
-                            starting_score: 0,
-                            race_to: legsToWin,
-                            team1_name: homeTeamName,
-                            team1_player_ids: homePlayers.map(p => p?.id).filter(Boolean),
-                            team1_player_names: homePlayers.map(p => p?.name).filter(Boolean),
-                            team2_name: awayTeamName,
-                            team2_player_ids: awayPlayers.map(p => p?.id).filter(Boolean),
-                            team2_player_names: awayPlayers.map(p => p?.name).filter(Boolean)
-                        }
-                    });
-                }
+                await callFunction('startDoubleElimMatch', {
+                    tournament_id: tournamentId,
+                    match_id: tournamentMatchId
+                });
             } catch (e) {
-                console.warn('Failed to start live match tracking:', e);
+                console.warn('Could not auto-start match (may already be in progress):', e.message);
             }
         })();
     }
@@ -1973,7 +2006,14 @@ window.addHit = function(target, mult) {
         document.getElementById('dartBtn3').disabled = false;
 
         document.getElementById('dartsModal').classList.add('active');
+        if (typeof A11y !== 'undefined') A11y.announce(players[activePlayer].name + ' closed out! Select how many darts used.', 'assertive');
     }
+};
+
+window.cancelWinDarts = function() {
+    document.getElementById('dartsModal').classList.remove('active');
+    pendingWin = null;
+    undoDart();
 };
 
 window.confirmWinDarts = function(dartsUsed) {
@@ -2273,6 +2313,29 @@ window.nextPlayer = function() {
     renderBoard();
     updateDisplay();
 
+    // Announce turn change for screen readers
+    if (typeof A11y !== 'undefined') {
+        A11y.announce(players[activePlayer].name + ' now throwing', 'polite');
+    }
+
+    // Update live match state after player turn
+    LiveMatch.update({
+        team1_games_won: players[0].legs || 0,
+        team2_games_won: players[1].legs || 0,
+        current_leg: {
+            leg_number: leg,
+            team1_score: players[0].score,
+            team2_score: players[1].score,
+            team1_darts: players[0].totalRounds * 3 || 0,
+            team2_darts: players[1].totalRounds * 3 || 0,
+            throwing: activePlayer === 0 ? 'team1' : 'team2',
+            marks: {
+                home: players[0].marks,
+                away: players[1].marks
+            }
+        }
+    });
+
     botPlaying = false;
     if (isCurrentPlayerBot()) {
         botPlay();
@@ -2453,6 +2516,7 @@ function showLegModal() {
     const loserColor = activePlayer === 0 ? 'var(--teal)' : 'var(--pink)';
 
     document.getElementById('legWinnerText').textContent = winnerPlayer.name + ' Wins Leg ' + leg + '!';
+    if (typeof A11y !== 'undefined') A11y.announce(winnerPlayer.name + ' wins leg ' + leg + '. Score: ' + winnerPlayer.legs + ' to ' + loserPlayer.legs, 'assertive');
     document.getElementById('legStats').innerHTML = `
         <div style="display: grid; grid-template-columns: 1fr auto auto; gap: 8px; font-size: 13px;">
             <div style="font-weight: 600; color: var(--text-muted);"></div>
@@ -2696,6 +2760,7 @@ function showWinModal() {
     const loserFastest = allTimeStats[1 - activePlayer].fewestRounds < 999 ? allTimeStats[1 - activePlayer].fewestRounds : '-';
 
     document.getElementById('winnerText').textContent = winner.name + ' Wins!';
+    if (typeof A11y !== 'undefined') A11y.announce(winner.name + ' wins the game! ' + winner.legs + ' to ' + loser.legs, 'assertive');
     document.getElementById('winStats').innerHTML = `
         <div style="text-align: center; margin-bottom: 16px;">
             <span style="font-family: 'Bebas Neue', cursive;">
@@ -2736,6 +2801,36 @@ function showWinModal() {
         </div>
     `;
     document.getElementById('winModal').classList.add('active');
+
+    // Update live match state after leg completion
+    LiveMatch.update({
+        team1_games_won: players[0].legs || 0,
+        team2_games_won: players[1].legs || 0,
+        current_leg: {
+            leg_number: leg,
+            team1_score: players[0].score,
+            team2_score: players[1].score,
+            team1_darts: players[0].totalRounds * 3 || 0,
+            team2_darts: players[1].totalRounds * 3 || 0,
+            throwing: activePlayer === 0 ? 'team1' : 'team2',
+            marks: {
+                home: players[0].marks,
+                away: players[1].marks
+            }
+        }
+    });
+
+    // End live match tracking for casual games (league/tournament handled by showMatchCompleteModal)
+    if (isCasual && ((leagueId && matchId) || tournamentId)) {
+        LiveMatch.end({
+            winner: { name: winner.name, score: winner.legs },
+            loser: { name: loser.name, score: loser.legs },
+            stats: {
+                topMPR: parseFloat(mprW) || 0,
+                mostMarks: winner.totalMarks
+            }
+        }).catch(e => console.warn('Failed to end live match tracking:', e));
+    }
 }
 
 window.newGame = function() {
@@ -2828,6 +2923,10 @@ window.saveAndExit = async function() {
                         darts: homeT.darts,
                         isWinningTurn: homeT.isWinningTurn || false
                     };
+                    if (homeT.isWinningTurn) {
+                        roundData.home.closed_out = true;
+                        roundData.home.closeout_darts = Array.isArray(homeT.darts) ? homeT.darts.length : 3;
+                    }
                     // Mark notable rounds (5+ marks)
                     if (homeT.totalMarks >= 9) roundData.home.notable = '9MR';
                     else if (homeT.totalMarks >= 7) roundData.home.notable = '7MR';
@@ -2843,6 +2942,10 @@ window.saveAndExit = async function() {
                         darts: awayT.darts,
                         isWinningTurn: awayT.isWinningTurn || false
                     };
+                    if (awayT.isWinningTurn) {
+                        roundData.away.closed_out = true;
+                        roundData.away.closeout_darts = Array.isArray(awayT.darts) ? awayT.darts.length : 3;
+                    }
                     // Mark notable rounds (5+ marks)
                     if (awayT.totalMarks >= 9) roundData.away.notable = '9MR';
                     else if (awayT.totalMarks >= 7) roundData.away.notable = '7MR';
@@ -3080,14 +3183,26 @@ window.saveAndExit = async function() {
             hideLoading();
             toastSuccess('Game saved!');
         } else if (tournamentId && tournamentMatchId) {
-            // Tournament game submission with offline queue fallback
-            await callWithQueue(callFunction, 'submitMatchResult', {
-                tournament_id: tournamentId,
-                match_id: tournamentMatchId,
-                player1_score: players[0].legs,
-                player2_score: players[1].legs,
-                game_stats: comprehensiveGameStats
-            });
+            if (tournamentType === 'double') {
+                // Double elimination (Matchmaker/Heartbreaker) submission
+                await callWithQueue(callFunction, 'submitDoubleElimMatchResult', {
+                    tournament_id: tournamentId,
+                    match_id: tournamentMatchId,
+                    team1_score: players[0].legs,
+                    team2_score: players[1].legs,
+                    director_pin: tDirectorPin,
+                    game_stats: comprehensiveGameStats
+                });
+            } else {
+                // Single elimination tournament submission
+                await callWithQueue(callFunction, 'submitMatchResult', {
+                    tournament_id: tournamentId,
+                    match_id: tournamentMatchId,
+                    player1_score: players[0].legs,
+                    player2_score: players[1].legs,
+                    game_stats: comprehensiveGameStats
+                });
+            }
             hideLoading();
             toastSuccess('Tournament match saved!');
         } else if (isVerificationMode) {
@@ -3493,12 +3608,15 @@ function showMatchCompleteModal(matchState, gameStats) {
     if (homeScore > awayScore) {
         winnerEl.textContent = `${homeTeamName} WINS!`;
         winnerEl.style.color = 'var(--pink)';
+        if (typeof A11y !== 'undefined') A11y.announce(homeTeamName + ' wins the match! ' + homeScore + ' to ' + awayScore, 'assertive');
     } else if (awayScore > homeScore) {
         winnerEl.textContent = `${awayTeamName} WINS!`;
         winnerEl.style.color = 'var(--teal)';
+        if (typeof A11y !== 'undefined') A11y.announce(awayTeamName + ' wins the match! ' + awayScore + ' to ' + homeScore, 'assertive');
     } else {
         winnerEl.textContent = 'MATCH TIED!';
         winnerEl.style.color = 'var(--yellow)';
+        if (typeof A11y !== 'undefined') A11y.announce('Match tied! ' + homeScore + ' to ' + awayScore, 'assertive');
     }
 
     // Build stats summary from accumulated game results
@@ -3533,23 +3651,21 @@ function showMatchCompleteModal(matchState, gameStats) {
 
     // End live match tracking
     if ((leagueId && matchId) || tournamentId) {
-        try {
-            const scorerPin = localStorage.getItem('brdc_player_pin') || adminPin || matchPin;
-            if (scorerPin) {
-                callFunction('endLiveMatch', {
-                    scorer_pin: scorerPin,
-                    match_id: matchId || tournamentMatchId,
-                    result: {
-                        winner: homeScore > awayScore ? 'team1' : (awayScore > homeScore ? 'team2' : 'tie'),
-                        team1_score: homeScore,
-                        team2_score: awayScore,
-                        total_legs: totalHomeLegs + totalAwayLegs
-                    }
-                }).catch(e => console.warn('Failed to end live match tracking:', e));
+        const winner = homeScore > awayScore ?
+            { name: homeTeamName, score: homeScore } :
+            (awayScore > homeScore ? { name: awayTeamName, score: awayScore } : { name: 'Tie', score: homeScore });
+        const loser = homeScore > awayScore ?
+            { name: awayTeamName, score: awayScore } :
+            (awayScore > homeScore ? { name: homeTeamName, score: homeScore } : { name: 'Tie', score: awayScore });
+
+        LiveMatch.end({
+            winner: winner,
+            loser: loser,
+            stats: {
+                topMPR: null, // TODO: calculate from player stats
+                mostMarks: null
             }
-        } catch (e) {
-            console.warn('Failed to end live match tracking:', e);
-        }
+        }).catch(e => console.warn('Failed to end live match tracking:', e));
     }
 
     // Show modal
@@ -3573,9 +3689,24 @@ window.backToHub = function() {
 };
 
 function navigateAway() {
-    // Simple return logic: league games go to match-hub, everything else to scorer-hub
+    // End live match tracking before navigating away (safety fallback)
+    if ((leagueId && matchId) || tournamentId) {
+        LiveMatch.end({
+            winner: { name: 'Unknown', score: players[0].legs },
+            loser: { name: 'Unknown', score: players[1].legs }
+        }).catch(e => console.warn('Failed to end live match tracking:', e));
+    }
+
     if (leagueId && matchId) {
         window.location.href = `/pages/match-hub.html?league_id=${leagueId}&match_id=${matchId}`;
+    } else if (returnUrl) {
+        window.location.href = returnUrl;
+    } else if (tournamentId && eventId) {
+        window.location.href = `/pages/event-view.html?tournament_id=${tournamentId}&event_id=${eventId}`;
+    } else if (tournamentId && tournamentType === 'double') {
+        window.location.href = `/pages/matchmaker-bracket.html?tournament_id=${tournamentId}`;
+    } else if (tournamentId) {
+        window.location.href = `/pages/tournament-bracket.html?tournament_id=${tournamentId}`;
     } else {
         window.location.href = '/pages/game-setup.html';
     }
@@ -3605,6 +3736,15 @@ window.exitGame = function() {
             };
             sessionStorage.setItem('matchResumeState', JSON.stringify(resumeState));
             gameSaving = true;
+
+            // End live match tracking before resume save (safety fallback)
+            if ((leagueId && matchId) || tournamentId) {
+                LiveMatch.end({
+                    winner: { name: 'Unknown', score: players[0].legs },
+                    loser: { name: 'Unknown', score: players[1].legs }
+                }).catch(e => console.warn('Failed to end live match tracking:', e));
+            }
+
             window.location.href = '/pages/game-setup.html?resume=true';
             return;
         }
@@ -3907,6 +4047,5 @@ if ('serviceWorker' in navigator) {
 }
 </script>
 <script src="/js/nav-menu.js"></script>
-<script src="/js/feedback.js"></script>
 </body>
 </html>
