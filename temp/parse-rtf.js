@@ -6,6 +6,66 @@
 const fs = require('fs');
 const path = require('path');
 
+// Extract timing metadata from RTF header
+function extractMatchMetadata(text) {
+    const lines = text.split('\n');
+    let match_date = null;
+    let start_time = null;
+    let end_time = null;
+    let game_time_minutes = null;
+    let match_length_minutes = null;
+
+    for (const line of lines) {
+        // Date: Wed, 14-Jan-2026 or Date: 14-Jan-2026
+        const dateMatch = line.match(/Date[:\s]+(?:\w+,?\s*)?(\d+-\w+-\d+)/i);
+        if (dateMatch) {
+            match_date = new Date(dateMatch[1]);
+        }
+
+        // Start: 7:33 PM
+        const startMatch = line.match(/Start[:\s]+(\d+):(\d+)\s*([AP]M)/i);
+        if (startMatch && match_date) {
+            let hours = parseInt(startMatch[1]);
+            const minutes = parseInt(startMatch[2]);
+            const ampm = startMatch[3].toUpperCase();
+
+            if (ampm === 'PM' && hours !== 12) hours += 12;
+            if (ampm === 'AM' && hours === 12) hours = 0;
+
+            start_time = new Date(match_date);
+            start_time.setHours(hours, minutes, 0, 0);
+        }
+
+        // End: 10:45 PM
+        const endMatch = line.match(/End[:\s]+(\d+):(\d+)\s*([AP]M)/i);
+        if (endMatch && match_date) {
+            let hours = parseInt(endMatch[1]);
+            const minutes = parseInt(endMatch[2]);
+            const ampm = endMatch[3].toUpperCase();
+
+            if (ampm === 'PM' && hours !== 12) hours += 12;
+            if (ampm === 'AM' && hours === 12) hours = 0;
+
+            end_time = new Date(match_date);
+            end_time.setHours(hours, minutes, 0, 0);
+        }
+
+        // Game Time: 02:37
+        const gameTimeMatch = line.match(/Game Time[:\s]+(\d+):(\d+)/i);
+        if (gameTimeMatch) {
+            game_time_minutes = parseInt(gameTimeMatch[1]) * 60 + parseInt(gameTimeMatch[2]);
+        }
+
+        // Match Length: 03:12
+        const lengthMatch = line.match(/Match Length[:\s]+(\d+):(\d+)/i);
+        if (lengthMatch) {
+            match_length_minutes = parseInt(lengthMatch[1]) * 60 + parseInt(lengthMatch[2]);
+        }
+    }
+
+    return { match_date, start_time, end_time, game_time_minutes, match_length_minutes };
+}
+
 // Parse RTF content to plain text
 function rtfToText(rtfContent) {
     let text = rtfContent
@@ -50,7 +110,7 @@ function rtfToText(rtfContent) {
 function isValidPlayerName(str) {
     if (!str) return false;
     if (/^\d+$/.test(str)) return false;
-    if (/^DO\s*\(\d+\)$/i.test(str)) return false;
+    if (/^DO\s*\(\s*\d+\s*\)$/i.test(str)) return false;
     if (str === 'X' || str === '∅' || str === '-' || str === '!') return false;
     if (str === 'Start' || str === 'Player' || str === 'Turn' || str === 'Score' || str === 'Rnd') return false;
     // Exclude cricket hit notation (e.g., "T20", "S19x2", "DB", "SB", "T20, S19")
@@ -59,6 +119,26 @@ function isValidPlayerName(str) {
     if (/^\d+[MBTDS]/.test(str)) return false; // Notable markers like "5M", "3B"
     if (str.includes(',') && /[TDS]\d+/.test(str)) return false; // Multi-hit notation
     return /[a-zA-Z]/.test(str);
+}
+
+// Detect notable X01 throw (returns label or null)
+function getX01Notable(score) {
+    if (score === 180) return '180';
+    if (score >= 171) return 'T80';  // Ton-80 (171-179)
+    if (score >= 140) return 'TON+'; // Ton-40+ (140-169)
+    if (score >= 100) return 'TON';  // Ton (100-139)
+    if (score >= 95) return '95+';   // Near-ton (95-99)
+    return null;
+}
+
+// Detect notable Cricket throw (returns label or null)
+function getCricketNotable(marks) {
+    if (marks >= 9) return '9M';
+    if (marks === 8) return '8M';
+    if (marks === 7) return '7M';
+    if (marks === 6) return '6M';
+    if (marks === 5) return '5M';
+    return null;
 }
 
 // Parse cricket hit notation to count marks
@@ -101,10 +181,16 @@ function parse501Leg(lines) {
     let checkoutPlayer = null;
     let checkoutRound = null;
     let winnerSide = null;
+    let headerValues = []; // Track header values for side validation
 
     for (const line of lines) {
         if (!line.trim()) continue;
         const normalizedLine = line.replace(/\s*\t\s*/g, '\t').trim();
+
+        // Capture header values (first few numbers before throws start)
+        if (!inThrowData && /^\d+$/.test(normalizedLine.trim())) {
+            headerValues.push(parseInt(normalizedLine.trim()));
+        }
 
         // Detect header
         if (normalizedLine.includes('Player\tTurn') || normalizedLine.includes('!\tPlayer')) {
@@ -120,7 +206,7 @@ function parse501Leg(lines) {
         if (!inThrowData) continue;
 
         // Check for DO marker in line (checkout)
-        const doMatch = line.match(/DO\s*\((\d+)\)/);
+        const doMatch = line.match(/DO\s*\(\s*(\d+)\s*\)/);
         if (doMatch) {
             checkoutDarts = parseInt(doMatch[1]);
         }
@@ -150,22 +236,54 @@ function parse501Leg(lines) {
 
         // Find the round number - it's the number that makes sense as a round
         // Rounds increment by 1 each turn, so prefer exact match to lastRound + 1
+        // Standard format: Player Score Remaining ROUND Remaining Score Player
+        // Round should have at least 2 values before and 2 values after
         let roundInfo = null;
         const expectedRound = lastRound + 1;
 
-        // First pass: look for exactly the expected next round
+        // First pass: look for exactly the expected next round with proper context (2+ values on each side)
         for (const num of numbers) {
             if (num.value === expectedRound) {
                 const beforeVals = allValues.filter(n => n.index < num.index);
                 const afterVals = allValues.filter(n => n.index > num.index);
-                if (beforeVals.length > 0 && afterVals.length > 0) {
+                // Require at least 2 values before and 2 after (score + remaining on each side)
+                if (beforeVals.length >= 2 && afterVals.length >= 2) {
                     roundInfo = num;
                     break;
                 }
             }
         }
 
-        // Second pass: if no exact match, look for any valid round >= expected
+        // Second pass: relax to 1+ values on each side for expected round
+        if (!roundInfo) {
+            for (const num of numbers) {
+                if (num.value === expectedRound) {
+                    const beforeVals = allValues.filter(n => n.index < num.index);
+                    const afterVals = allValues.filter(n => n.index > num.index);
+                    if (beforeVals.length > 0 && afterVals.length > 0) {
+                        roundInfo = num;
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Third pass: if no exact match, look for any valid round >= expected with proper context
+        if (!roundInfo) {
+            for (const num of numbers) {
+                if (num.value > 0 && num.value <= 30 && num.value >= expectedRound) {
+                    const beforeVals = allValues.filter(n => n.index < num.index);
+                    const afterVals = allValues.filter(n => n.index > num.index);
+                    // Prefer candidates with 2+ values on each side
+                    if (beforeVals.length >= 2 && afterVals.length >= 2) {
+                        roundInfo = num;
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Fourth pass: fallback to any valid round
         if (!roundInfo) {
             for (const num of numbers) {
                 if (num.value > 0 && num.value <= 30 && num.value >= expectedRound) {
@@ -193,15 +311,23 @@ function parse501Leg(lines) {
                 if (true) { // Always process checkout-only rows
                     // This is a checkout row - only winner threw, opponent didn't get to throw
                     const side = playerStats[player]?.side || 'away';
-                    throws.push({
+                    const scoreValue = numbers.length > 2 ? numbers[2].value : 0;
+                    const throwData = {
                         round: round,
                         side: side,
                         player: player,
-                        score: numbers.length > 2 ? numbers[2].value : 0,
+                        score: scoreValue,
                         remaining: 0,
-                        isCheckout: true,
+                        checkout: true,
+                        checkout_darts: checkoutDarts,
                         opponentDidNotThrow: true // Flag that opponent didn't throw this round
-                    });
+                    };
+
+                    // Add notable flag
+                    const notable = getX01Notable(scoreValue);
+                    if (notable) throwData.notable = notable;
+
+                    throws.push(throwData);
 
                     if (!playerStats[player]) {
                         playerStats[player] = { darts: 0, points: 0, side };
@@ -241,25 +367,46 @@ function parse501Leg(lines) {
         if (homePlayers.length > 0) homePlayer = homePlayers[0].name;
         if (awayPlayers.length > 0) awayPlayer = awayPlayers[awayPlayers.length - 1].name;
 
+        // Detect "bust + checkout same round" pattern
+        // Pattern: One player busts (X marker, remaining > 0), other checks out (DO marker, remaining = 0)
+        const homeBusted = specials.some(s => s.type === 'X' && s.index < roundInfo.index);
+        const awayBusted = specials.some(s => s.type === 'X' && s.index > roundInfo.index);
+        
         // Record home throw
         if (homePlayer && homeScore !== null && homeRemaining !== null) {
-            throws.push({
+            const throwData = {
                 round,
                 side: 'home',
                 player: homePlayer,
                 score: homeScore,
                 remaining: homeRemaining
-            });
+            };
+
+            // Add notable flag for X01
+            const notable = getX01Notable(homeScore);
+            if (notable) throwData.notable = notable;
+
+            // Check if this is a checkout (remaining = 0 AND not busted)
+            if (homeRemaining === 0 && !homeBusted) {
+                throwData.checkout = true;
+                throwData.checkout_darts = doMatch ? checkoutDarts : 3;
+            }
+
+            throws.push(throwData);
 
             if (!playerStats[homePlayer]) {
                 playerStats[homePlayer] = { darts: 0, points: 0, side: 'home' };
             }
             playerStats[homePlayer].points += homeScore;
 
-            // Check if this is a checkout
-            if (homeRemaining === 0 && doMatch) {
-                playerStats[homePlayer].darts += checkoutDarts;
+            if (homeRemaining === 0 && !homeBusted) {
+                if (doMatch) {
+                    playerStats[homePlayer].darts += checkoutDarts;
+                } else {
+                    playerStats[homePlayer].darts += 3; // Fallback if DO marker missing/unparsed
+                }
                 checkoutPlayer = homePlayer;
+                winnerSide = 'home';
             } else {
                 playerStats[homePlayer].darts += 3;
             }
@@ -267,30 +414,103 @@ function parse501Leg(lines) {
 
         // Record away throw
         if (awayPlayer && awayRemaining !== null) {
-            throws.push({
+            const throwData = {
                 round,
                 side: 'away',
                 player: awayPlayer,
                 score: awayScore || 0,
                 remaining: awayRemaining
-            });
+            };
+
+            // Add notable flag for X01
+            const notable = getX01Notable(awayScore || 0);
+            if (notable) throwData.notable = notable;
+
+            // Check if this is a checkout (remaining = 0 AND not busted)
+            if (awayRemaining === 0 && !awayBusted) {
+                throwData.checkout = true;
+                throwData.checkout_darts = doMatch ? checkoutDarts : 3;
+            }
+
+            throws.push(throwData);
 
             if (!playerStats[awayPlayer]) {
                 playerStats[awayPlayer] = { darts: 0, points: 0, side: 'away' };
             }
             playerStats[awayPlayer].points += awayScore || 0;
 
-            // Check if this is a checkout
-            if (awayRemaining === 0 && doMatch) {
-                playerStats[awayPlayer].darts += checkoutDarts;
+            if (awayRemaining === 0 && !awayBusted) {
+                if (doMatch) {
+                    playerStats[awayPlayer].darts += checkoutDarts;
+                } else {
+                    playerStats[awayPlayer].darts += 3;
+                }
                 checkoutPlayer = awayPlayer;
+                winnerSide = 'away';
             } else {
                 playerStats[awayPlayer].darts += 3;
             }
         }
     }
 
-    return { throws, playerStats, checkout_darts: checkoutDarts, checkout_player: checkoutPlayer };
+    // Validate winner against team averages
+    // If header shows pattern like [0, 4] and winner has much lower average, sides may be flipped
+    if (winnerSide && headerValues.length >= 2) {
+        const homePlayers = Object.keys(playerStats).filter(p => playerStats[p].side === 'home');
+        const awayPlayers = Object.keys(playerStats).filter(p => playerStats[p].side === 'away');
+        
+        // Calculate team averages
+        const homeTotal = homePlayers.reduce((acc, p) => ({
+            darts: acc.darts + playerStats[p].darts,
+            points: acc.points + playerStats[p].points
+        }), { darts: 0, points: 0 });
+        
+        const awayTotal = awayPlayers.reduce((acc, p) => ({
+            darts: acc.darts + playerStats[p].darts,
+            points: acc.points + playerStats[p].points
+        }), { darts: 0, points: 0 });
+        
+        const home3DA = homeTotal.darts > 0 ? (homeTotal.points / homeTotal.darts * 3) : 0;
+        const away3DA = awayTotal.darts > 0 ? (awayTotal.points / awayTotal.darts * 3) : 0;
+        
+        // Check for suspicious pattern: winner has significantly lower average
+        const avgDiff = Math.abs(home3DA - away3DA);
+        if (avgDiff > 4.0) { // More than 4 point difference in 3DA
+            // Check header pattern: [small, large] suggests small=home lost, large=away lost
+            const [val1, val2] = headerValues;
+            if (val1 < val2 && winnerSide === 'home' && away3DA > home3DA) {
+                // Home "won" but has much lower average, and header shows 0-4 pattern
+                // This suggests sides are flipped - flip the result
+                winnerSide = 'away';
+                
+                // Swap player sides
+                Object.keys(playerStats).forEach(p => {
+                    playerStats[p].side = playerStats[p].side === 'home' ? 'away' : 'home';
+                });
+                
+                // Swap throws
+                throws.forEach(t => {
+                    t.side = t.side === 'home' ? 'away' : 'home';
+                });
+            } else if (val1 > val2 && winnerSide === 'away' && home3DA > away3DA) {
+                // Away "won" but has much lower average, and header shows large-small pattern
+                // Flip the result
+                winnerSide = 'home';
+                
+                // Swap player sides
+                Object.keys(playerStats).forEach(p => {
+                    playerStats[p].side = playerStats[p].side === 'home' ? 'away' : 'home';
+                });
+                
+                // Swap throws
+                throws.forEach(t => {
+                    t.side = t.side === 'home' ? 'away' : 'home';
+                });
+            }
+        }
+    }
+
+    return { throws, playerStats, checkout_darts: checkoutDarts, checkout_player: checkoutPlayer, winner: winnerSide };
 }
 
 // Check if string looks like cricket hit notation
@@ -385,17 +605,20 @@ function parseCricketLeg(lines, options = {}) {
         const parts = normalizedLine.split('\t').filter(p => p.trim() !== '');
         if (parts.length < 3) continue;
 
-        // Check for winner-only closing line format: [round] [score] [hit] [player] [notable?]
-        // e.g., "17	370	DBx2	Donnie Pagel	3B"
+        // Check for winner-only closing line formats:
+        // Format 1: [round] [score] [hit] [player] [notable?]  (e.g., "17	370	DBx2	Donnie Pagel	3B")
+        // Format 2: [player] [hit] [score] [round]             (e.g., "John Linden	SBx2	20	12")
         if (parts.length >= 3 && parts.length <= 6) {
+            let round = null;
+            let score = null;
+            let hit = null;
+            let player = null;
+
+            // Try Format 1: [round] [score] [hit] [player]
             const firstNum = parseInt(parts[0]);
             if (!isNaN(firstNum) && firstNum > lastRound && firstNum <= 50) {
-                // This might be a closing throw line
-                const round = firstNum;
-                const score = parseInt(parts[1]) || 0;
-                let hit = null;
-                let player = null;
-
+                round = firstNum;
+                score = parseInt(parts[1]) || 0;
                 // Find hit and player in remaining parts
                 for (let i = 2; i < parts.length; i++) {
                     if (isHitNotation(parts[i]) || parts[i] === '∅') {
@@ -404,43 +627,62 @@ function parseCricketLeg(lines, options = {}) {
                         player = parts[i];
                     }
                 }
-
-                if (player && hit) {
-                    lastRound = round;
-                    const marks = parseHitNotation(hit);
-                    // Closing throw - use 3 darts, adjustment happens later if needed
-                    const dartsUsed = 3;
-
-                    // Determine side based on known players
-                    let side = 'away'; // Default to away for closing throws
-                    if (playerStats[player]) {
-                        side = playerStats[player].side;
+            }
+            
+            // Try Format 2: [player] [hit] [score] [round]
+            if (!round && parts.length === 4 && isValidPlayerName(parts[0])) {
+                const lastNum = parseInt(parts[3]);
+                if (!isNaN(lastNum) && lastNum > lastRound && lastNum <= 50) {
+                    player = parts[0];
+                    if (isHitNotation(parts[1]) || parts[1] === '∅') {
+                        hit = parts[1];
                     }
-
-                    const throwData = {
-                        round,
-                        side,
-                        player,
-                        hit,
-                        marks,
-                        score,
-                        isClosingThrow: true
-                    };
-                    throws.push(throwData);
-
-                    if (!playerStats[player]) {
-                        playerStats[player] = { darts: 0, marks: 0, side };
-                    }
-                    playerStats[player].marks += marks;
-                    playerStats[player].darts += dartsUsed;
-
-                    if (side === 'home') {
-                        lastHomeThrow = { player, round, darts: dartsUsed };
-                    } else {
-                        lastAwayThrow = { player, round, darts: dartsUsed };
-                    }
-                    continue;
+                    score = parseInt(parts[2]) || 0;
+                    round = lastNum;
                 }
+            }
+
+            if (round && player && hit) {
+                lastRound = round;
+                const marks = parseHitNotation(hit);
+                // Closing throw - use 3 darts, adjustment happens later if needed
+                const dartsUsed = 3;
+
+                // Determine side based on known players
+                let side = 'away'; // Default to away for closing throws
+                if (playerStats[player]) {
+                    side = playerStats[player].side;
+                }
+
+                const throwData = {
+                    round,
+                    side,
+                    player,
+                    hit,
+                    marks,
+                    score,
+                    closed_out: true,
+                    closeout_darts: dartsUsed // Will be adjusted later if options.closeoutDarts provided
+                };
+
+                // Add notable flag for cricket
+                const notable = getCricketNotable(marks);
+                if (notable) throwData.notable = notable;
+
+                throws.push(throwData);
+
+                if (!playerStats[player]) {
+                    playerStats[player] = { darts: 0, marks: 0, side };
+                }
+                playerStats[player].marks += marks;
+                playerStats[player].darts += dartsUsed;
+
+                if (side === 'home') {
+                    lastHomeThrow = { player, round, darts: dartsUsed };
+                } else {
+                    lastAwayThrow = { player, round, darts: dartsUsed };
+                }
+                continue;
             }
         }
 
@@ -530,6 +772,11 @@ function parseCricketLeg(lines, options = {}) {
                 marks,
                 score: homeScore
             };
+
+            // Add notable flag for cricket
+            const notable = getCricketNotable(marks);
+            if (notable) throwData.notable = notable;
+
             throws.push(throwData);
             lastHomeThrow = { player: homePlayer, round, darts: 3 };
 
@@ -550,6 +797,11 @@ function parseCricketLeg(lines, options = {}) {
                 marks,
                 score: awayScore
             };
+
+            // Add notable flag for cricket
+            const notable = getCricketNotable(marks);
+            if (notable) throwData.notable = notable;
+
             throws.push(throwData);
             lastAwayThrow = { player: awayPlayer, round, darts: 3 };
 
@@ -558,18 +810,6 @@ function parseCricketLeg(lines, options = {}) {
             }
             playerStats[awayPlayer].marks += marks;
             playerStats[awayPlayer].darts += 3;
-        }
-    }
-
-    // Adjust dart count for winner's closeout if provided externally
-    if (options.winner && options.closeoutDarts && options.closeoutDarts < 3) {
-        const lastThrow = options.winner === 'home' ? lastHomeThrow : lastAwayThrow;
-        if (lastThrow && playerStats[lastThrow.player]) {
-            // Only adjust if we counted 3 darts but should have counted fewer
-            if (lastThrow.darts === 3) {
-                const dartAdjustment = 3 - options.closeoutDarts;
-                playerStats[lastThrow.player].darts -= dartAdjustment;
-            }
         }
     }
 
@@ -583,9 +823,70 @@ function parseCricketLeg(lines, options = {}) {
         }
         // If scores are equal, look for closing throw
         if (!winner) {
-            const closingThrow = throws.find(t => t.isClosingThrow);
+            const closingThrow = throws.find(t => t.closed_out);
             if (closingThrow) {
                 winner = closingThrow.side;
+            }
+        }
+
+        // Mark the last throw from the winner as the closeout
+        if (winner && throws.length > 0) {
+            const lastThrow = winner === 'home' ? lastHomeThrow : lastAwayThrow;
+            if (lastThrow) {
+                const winningThrow = throws.find(t =>
+                    t.round === lastThrow.round &&
+                    t.player === lastThrow.player &&
+                    t.side === winner
+                );
+                if (winningThrow && !winningThrow.closed_out) {
+                    winningThrow.closed_out = true;
+                    winningThrow.closeout_darts = 3; // Default, will be adjusted if needed
+                }
+            }
+        }
+    }
+
+    // Adjust dart count for winner's closeout if provided externally
+    if (options.winner && options.closeoutDarts && options.closeoutDarts < 3) {
+        const lastThrow = options.winner === 'home' ? lastHomeThrow : lastAwayThrow;
+        if (lastThrow && playerStats[lastThrow.player]) {
+            // Only adjust if we counted 3 darts but should have counted fewer
+            if (lastThrow.darts === 3) {
+                const dartAdjustment = 3 - options.closeoutDarts;
+                playerStats[lastThrow.player].darts -= dartAdjustment;
+
+                // Also update the closeout_darts field on the throw object
+                const closingThrow = throws.find(t =>
+                    t.round === lastThrow.round &&
+                    t.player === lastThrow.player &&
+                    t.closed_out
+                );
+                if (closingThrow) {
+                    closingThrow.closeout_darts = options.closeoutDarts;
+                }
+            }
+        }
+    }
+
+    // Calculate closeout darts from summaryDarts for singles games
+    // In singles, summaryDarts is the total for one player
+    // We extract it from summary lines like: "2.6  Darts: 34  3 Dart Avg"
+    // This appears TWICE in the summary (once for home, once for away)
+    // For now, we'll use the approach: if counted darts > summary darts, the winner closed with fewer darts
+    if (summaryDarts && winner) {
+        // Check if this is singles (only 2 players total)
+        const playerCount = Object.keys(playerStats).length;
+        if (playerCount === 2) {
+            // Get the winner's player
+            const winnerPlayer = winner === 'home' ? homePlayer : awayPlayer;
+            if (winnerPlayer && playerStats[winnerPlayer]) {
+                const countedDarts = playerStats[winnerPlayer].darts;
+                // summaryDarts is for the winner (appears first in summary line)
+                // If we counted more darts than the summary shows, adjust the closeout
+                if (countedDarts > summaryDarts) {
+                    const dartAdjustment = countedDarts - summaryDarts;
+                    playerStats[winnerPlayer].darts = summaryDarts;
+                }
             }
         }
     }
@@ -698,8 +999,8 @@ function parseMatchSection(lines) {
         // Detect game header - each "Game X.Y - Type" is a separate leg with its own type
         const gameMatch = line.match(/Game\s+(\d+)\.(\d+)\s*-\s*(501|Cricket)\s*(SIDO|DIDO)?/i);
         if (gameMatch) {
-            // Save previous leg
-            if (currentLeg && legLines.length > 0 && currentGame) {
+            // Save previous leg (using its OWN type, not the new leg's type!)
+            if (currentLeg && legLines.length > 0 && currentGame && currentLegType) {
                 const gameType = currentLegType.toLowerCase().includes('501') ? '501' : 'cricket';
                 const parsed = gameType === '501' ? parse501Leg(legLines) : parseCricketLeg(legLines);
                 currentLeg.throws = parsed.throws;
@@ -708,8 +1009,8 @@ function parseMatchSection(lines) {
                 if (gameType === '501' && parsed.checkout_darts) {
                     currentLeg.checkout_darts = parsed.checkout_darts;
                 }
-                // For cricket, capture the winner from final scores
-                if (gameType === 'cricket' && parsed.winner) {
+                // Capture the winner (works for both 501 and cricket)
+                if (parsed.winner) {
                     currentLeg.winner = parsed.winner;
                 }
                 // Detect doubles by player count (4 players = doubles)
@@ -720,25 +1021,27 @@ function parseMatchSection(lines) {
                 }
             }
 
-            const gameNum = parseInt(gameMatch[1]);
-            const legNum = parseInt(gameMatch[2]);
+            // NOW update to the NEW leg's type
+            const setNumber = parseInt(gameMatch[1]);
+            const legNumber = parseInt(gameMatch[2]);
             const legType = gameMatch[3];
             const variant = gameMatch[4] || '';
             currentLegType = legType + (variant ? ' ' + variant : '');
 
-            // New game?
-            if (!currentGame || currentGame.gameNumber !== gameNum) {
+            // New game/set?
+            if (!currentGame || currentGame.set !== setNumber) {
                 if (currentGame) games.push(currentGame);
                 currentGame = {
-                    gameNumber: gameNum,
-                    type: currentLegType, // Will be updated based on first leg
+                    set: setNumber,           // Add set field
+                    gameNumber: setNumber,    // Keep for backward compat
+                    type: currentLegType,
                     isDoubles: false,
                     legs: []
                 };
             }
 
             currentLeg = {
-                legNumber: legNum,
+                legNumber: legNumber,
                 type: currentLegType,  // Each leg tracks its own type
                 throws: [],
                 player_stats: {}
@@ -767,8 +1070,8 @@ function parseMatchSection(lines) {
         if (gameType === '501' && parsed.checkout_darts) {
             currentLeg.checkout_darts = parsed.checkout_darts;
         }
-        // For cricket, capture the winner from final scores
-        if (gameType === 'cricket' && parsed.winner) {
+        // Capture the winner (works for both 501 and cricket)
+        if (parsed.winner) {
             currentLeg.winner = parsed.winner;
         }
         // Detect doubles by player count (4 players = doubles)
@@ -780,7 +1083,100 @@ function parseMatchSection(lines) {
     }
     if (currentGame) games.push(currentGame);
 
+    // Normalize side assignments across legs within each game
+    // RTF orientation can flip between legs, causing incorrect tie scores
+    for (const game of games) {
+        normalizeSideAssignments(game);
+    }
+
     return games;
+}
+
+/**
+ * Normalize side assignments across all legs in a game
+ * Ensures the same players are always on the same side (home/away)
+ * even if RTF export flips orientation between legs
+ */
+function normalizeSideAssignments(game) {
+    if (!game.legs || game.legs.length < 2) return;
+
+    // Get all players from first leg to establish canonical orientation
+    const firstLeg = game.legs[0];
+    const firstLegPlayers = firstLeg.player_stats || {};
+    
+    const canonicalHomePlayers = [];
+    const canonicalAwayPlayers = [];
+    
+    for (const [player, stats] of Object.entries(firstLegPlayers)) {
+        if (stats.side === 'home') {
+            canonicalHomePlayers.push(player);
+        } else if (stats.side === 'away') {
+            canonicalAwayPlayers.push(player);
+        }
+    }
+    
+    if (canonicalHomePlayers.length === 0 && canonicalAwayPlayers.length === 0) {
+        return; // No players found, can't normalize
+    }
+
+    // Check and fix each subsequent leg
+    for (let i = 1; i < game.legs.length; i++) {
+        const leg = game.legs[i];
+        const legPlayers = leg.player_stats || {};
+        
+        // Count how many canonical home/away players appear on each side
+        let homePlayersOnHomeSide = 0;
+        let homePlayersOnAwaySide = 0;
+        let awayPlayersOnHomeSide = 0;
+        let awayPlayersOnAwaySide = 0;
+        
+        for (const [player, stats] of Object.entries(legPlayers)) {
+            const isCanonicalHome = canonicalHomePlayers.includes(player);
+            const isCanonicalAway = canonicalAwayPlayers.includes(player);
+            
+            if (stats.side === 'home') {
+                if (isCanonicalHome) homePlayersOnHomeSide++;
+                if (isCanonicalAway) awayPlayersOnHomeSide++;
+            } else if (stats.side === 'away') {
+                if (isCanonicalHome) homePlayersOnAwaySide++;
+                if (isCanonicalAway) awayPlayersOnAwaySide++;
+            }
+        }
+        
+        // If more canonical home players are on away side, or more canonical away players are on home side,
+        // then this leg has flipped orientation
+        const isFlipped = (homePlayersOnAwaySide > homePlayersOnHomeSide) || 
+                         (awayPlayersOnHomeSide > awayPlayersOnAwaySide);
+        
+        if (isFlipped) {
+            // Flip all side assignments in this leg
+            for (const stats of Object.values(legPlayers)) {
+                if (stats.side === 'home') {
+                    stats.side = 'away';
+                } else if (stats.side === 'away') {
+                    stats.side = 'home';
+                }
+            }
+            
+            // Flip throws
+            if (leg.throws) {
+                for (const throwData of leg.throws) {
+                    if (throwData.side === 'home') {
+                        throwData.side = 'away';
+                    } else if (throwData.side === 'away') {
+                        throwData.side = 'home';
+                    }
+                }
+            }
+            
+            // Flip winner
+            if (leg.winner === 'home') {
+                leg.winner = 'away';
+            } else if (leg.winner === 'away') {
+                leg.winner = 'home';
+            }
+        }
+    }
 }
 
 // Parse RTF file that may contain multiple matches (separated by "More Darts!")
@@ -824,21 +1220,35 @@ function parseMultiMatchRTF(filePath) {
     return allMatches;
 }
 
-// Parse the entire RTF file (backward compatible - returns games from first/only match)
+// Parse the entire RTF file
 function parseRTFMatch(filePath) {
+    const rtfContent = fs.readFileSync(filePath, 'utf8');
+    const text = rtfToText(rtfContent);
+
+    // Extract timing metadata
+    const metadata = extractMatchMetadata(text);
+
     const matches = parseMultiMatchRTF(filePath);
 
-    // Return games from first match for backward compatibility
+    // Return games from first match with metadata
     if (matches.length === 1) {
-        return matches[0].games;
+        return { games: matches[0].games, metadata };
     }
 
     // If multiple matches, return all games (legacy behavior)
+    // Reassign set numbers sequentially across all match sections
     const allGames = [];
+    let setNumber = 1;
     for (const match of matches) {
-        allGames.push(...match.games);
+        for (const game of match.games) {
+            // Reassign the set number to be sequential across the entire match
+            game.set = setNumber;
+            game.gameNumber = setNumber;
+            allGames.push(game);
+            setNumber++;
+        }
     }
-    return allGames;
+    return { games: allGames, metadata };
 }
 
 // Calculate final stats
@@ -869,7 +1279,8 @@ function calculateFinalStats(playerStats, gameType) {
 // Test parser output
 function testWithVerification(filePath) {
     console.log(`\n=== Testing: ${filePath} ===\n`);
-    const games = parseRTFMatch(filePath);
+    const result = parseRTFMatch(filePath);
+    const games = result.games || result;
 
     for (const game of games) {
         console.log(`Game ${game.gameNumber}: ${game.type} (${game.isDoubles ? 'Doubles' : 'Singles'})`);

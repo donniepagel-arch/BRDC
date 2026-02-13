@@ -1,252 +1,366 @@
 /**
- * Import Week 1 matches from RTF files to Firestore
- * Run: node import-week1-matches.js
+ * Final robust import for Weeks 1-3
  */
-
-const { parseRTFMatch, parseMultiMatchRTF } = require('../temp/parse-rtf.js');
+const { parseRTFMatch } = require('../temp/parse-rtf.js');
 const path = require('path');
 const https = require('https');
 
 const LEAGUE_ID = 'aOq4Y0ETxPZ66tM1uUtP';
 
-// Team rosters for player-to-team mapping
-const TEAM_ROSTERS = {
-    'M. Pagel': ['Matt Pagel', 'Joe Peters', 'John Linden'],
-    'D. Pagel': ['Donnie Pagel', 'Christian Ketchem', 'Jenn M', 'Jennifer Malek'],
-    'N. Kull': ['Nathan Kull', 'Nate Kull', 'Michael Jarvis', 'Stephanie Kull', 'Steph Kull'],
-    'K. Yasenchak': ['Kevin Yasenchak', 'Brian Smith', 'Cesar Andino'],
-    'D. Partlo': ['Dan Partlo', 'Joe Donley', 'Kevin Mckelvey'],
-    'E. Olschansky': ['Eddie Olschansky', 'Eddie Olschanskey', 'Jeff Boss', 'Michael Gonzalez', 'Mike Gonzalez', 'Mike Gonzales'],
-    'T. Massimiani': ['Tony Massimiani', 'Dominick Russano', 'Dom Russano', 'Chris Benco'],
-    'J. Ragnoni': ['John Ragnoni', 'Marc Tate', 'David Brunner', 'Derek Fess', 'Josh Kelly', 'Joshua kelly'],
-    'N. Mezlak': ['Nick Mezlak', 'Cory Jacobs', 'Dillon Ulisses', 'Dillon U', 'Dillon Ullises'],
-    'D. Russano': ['Danny Russano', 'Chris Russano', 'Eric Duale', 'Eric'],
-    'E.O. March': ['Eddie Olschansky', 'Jeff Boss', 'Michael Gonzalez', 'Mike Gonzales']
+// Comprehensive mapping of player names to their base team and official position
+const PLAYER_CONFIG = {
+    'Matt Pagel': { team: 'M. Pagel', pos: 'p1' },
+    'Joe Peters': { team: 'M. Pagel', pos: 'p2' },
+    'John Linden': { team: 'M. Pagel', pos: 'p3' },
+    'Dave Bonness': { team: 'M. Pagel', pos: 'p2' },
+
+    'Donnie Pagel': { team: 'D. Pagel', pos: 'p1' },
+    'Christian Ketchum': { team: 'D. Pagel', pos: 'p2' },
+    'Christian Ketchem': { team: 'D. Pagel', pos: 'p2' },
+    'Jenn M': { team: 'D. Pagel', pos: 'p3' },
+    'Jenn Malek': { team: 'D. Pagel', pos: 'p3' },
+    'Jennifer Malek': { team: 'D. Pagel', pos: 'p3' },
+    'Matt Wentz': { team: 'D. Pagel', pos: 'p2' },
+
+    'Nathan Kull': { team: 'N. Kull', pos: 'p1' },
+    'Nate Kull': { team: 'N. Kull', pos: 'p1' },
+    'Michael Jarvis': { team: 'N. Kull', pos: 'p2' },
+    'Stephanie Kull': { team: 'N. Kull', pos: 'p3' },
+    'Steph Kull': { team: 'N. Kull', pos: 'p3' },
+
+    'Kevin Yasenchak': { team: 'K. Yasenchak', pos: 'p1' },
+    'Kevin Y': { team: 'K. Yasenchak', pos: 'p1' },
+    'Brian Smith': { team: 'K. Yasenchak', pos: 'p2' },
+    'Brian S': { team: 'K. Yasenchak', pos: 'p2' },
+    'Cesar Andino': { team: 'K. Yasenchak', pos: 'p3' },
+    'Cesar A': { team: 'K. Yasenchak', pos: 'p3' },
+
+    'Dan Partlo': { team: 'D. Partlo', pos: 'p1' },
+    'Joe Donley': { team: 'D. Partlo', pos: 'p2' },
+    'Kevin McKelvey': { team: 'D. Partlo', pos: 'p3' },
+    'Kevin Mckelvey': { team: 'D. Partlo', pos: 'p3' },
+
+    'Eddie Olschansky': { team: 'E. O', pos: 'p1' },
+    'Eddie O': { team: 'E. O', pos: 'p1' },
+    'Eddie Olschanskey': { team: 'E. O', pos: 'p1' },
+    'Jeff Boss': { team: 'E. O', pos: 'p2' },
+    'Michael Gonzalez': { team: 'E. O', pos: 'p3' },
+    'Mike Gonzalez': { team: 'E. O', pos: 'p3' },
+    'Mike Gonzales': { team: 'E. O', pos: 'p3' },
+    'Mike Gonz': { team: 'E. O', pos: 'p3' },
+
+
+    'Tony Massimiani': { team: 'neon nightmares', pos: 'p1' },
+    'Chris Benco': { team: 'neon nightmares', pos: 'p2' },
+    'Chris B': { team: 'neon nightmares', pos: 'p2' },
+    'Dominick Russano': { team: 'neon nightmares', pos: 'p3' },
+    'Dom Russano': { team: 'neon nightmares', pos: 'p3' },
+    'DR': { team: 'neon nightmares', pos: 'p3' },
+    'TM': { team: 'neon nightmares', pos: 'p1' },
+
+    'John Ragnoni': { team: 'J. Ragnoni', pos: 'p1' },
+    'Marc Tate': { team: 'J. Ragnoni', pos: 'p2' },
+    'David Brunner': { team: 'J. Ragnoni', pos: 'p3' },
+    'Dave Brunner': { team: 'J. Ragnoni', pos: 'p3' },
+    'Derek Fess': { team: 'J. Ragnoni', pos: 'p1' },
+    'Josh Kelly': { team: 'J. Ragnoni', pos: 'p3' },
+    'Joshua kelly': { team: 'J. Ragnoni', pos: 'p3' },
+    'Derek': { team: 'J. Ragnoni', pos: 'p1' },
+    'DF': { team: 'J. Ragnoni', pos: 'p1' },
+    'JK': { team: 'J. Ragnoni', pos: 'p3' },
+    'Anthony Donley': { team: 'J. Ragnoni', pos: 'p1' },
+
+    'Nick Mezlak': { team: 'N. Mezlak', pos: 'p1' },
+    'Cory Jacobs': { team: 'N. Mezlak', pos: 'p2' },
+    'Dillon Ulisses': { team: 'N. Mezlak', pos: 'p3' },
+    'Dillon U': { team: 'N. Mezlak', pos: 'p3' },
+    'Dillon Ullises': { team: 'N. Mezlak', pos: 'p3' },
+
+    'Danny Russano': { team: 'D. Russano', pos: 'p1' },
+    'Chris Russano': { team: 'D. Russano', pos: 'p2' },
+    'Eric Duale': { team: 'D. Russano', pos: 'p3' },
+    'Eric D': { team: 'D. Russano', pos: 'p3' },
+    'Eric': { team: 'D. Russano', pos: 'p3' },
+    'Luke Kollias': { team: 'D. Russano', pos: 'p2' }
 };
 
-function getTeamForPlayer(playerName, homeTeam, awayTeam) {
-    const name = playerName.trim().toLowerCase();
-    const homeRoster = TEAM_ROSTERS[homeTeam] || [];
-    const awayRoster = TEAM_ROSTERS[awayTeam] || [];
+const EXPECTED_ORDER = [
+    'P1+P2 Doubles 501',
+    'P3 Singles Cricket',
+    'P1 Singles Cricket',
+    'P2+P3 Doubles 501',
+    'P2 Singles Cricket',
+    'P1 Singles 501',
+    'P1+P3 Doubles 501',
+    'P2 Singles 501',
+    'P3 Singles 501'
+];
 
-    for (const p of homeRoster) {
-        if (name.includes(p.toLowerCase()) || p.toLowerCase().includes(name)) return 'home';
+function findConfig(name) {
+    if (!name) return null;
+    const n = name.trim().toLowerCase();
+    for (const key of Object.keys(PLAYER_CONFIG)) {
+        if (key.toLowerCase() === n || n.includes(key.toLowerCase()) || key.toLowerCase().includes(n)) {
+            return PLAYER_CONFIG[key];
+        }
     }
-    for (const p of awayRoster) {
-        if (name.includes(p.toLowerCase()) || p.toLowerCase().includes(name)) return 'away';
-    }
+    // Specific match for short codes like DR, TM, DF, JK
+    if (n === 'dr') return PLAYER_CONFIG['Dom Russano'];
+    if (n === 'tm') return PLAYER_CONFIG['Tony Massimiani'];
+    if (n === 'df') return PLAYER_CONFIG['Derek Fess'];
+    if (n === 'jk') return PLAYER_CONFIG['Josh Kelly'];
+    if (n === 'marc') return PLAYER_CONFIG['Marc Tate'];
+    if (n === 'chris b') return PLAYER_CONFIG['Chris Benco'];
     return null;
 }
 
-// Match IDs from Firestore
-const MATCHES = [
-    // Add matches here to import
-];
+// Canonical name mapping: RTF typos/variants → correct spelling
+// Applied during conversion so Firestore always stores the correct name
+const CANONICAL_NAMES = {
+    'Christian Ketchem': 'Christian Ketchum',
+    'Nate Kull': 'Nathan Kull',
+    'Steph Kull': 'Stephanie Kull',
+    'Jenn M': 'Jennifer Malek',
+    'Jenn Malek': 'Jennifer Malek',
+    'Mike Gonzales': 'Michael Gonzalez',
+    'Mike Gonzalez': 'Michael Gonzalez',
+    'Mike Gonz': 'Michael Gonzalez',
+    'Eddie O': 'Eddie Olschansky',
+    'Eddie Olschanskey': 'Eddie Olschansky',
+    'Kevin Y': 'Kevin Yasenchak',
+    'Brian S': 'Brian Smith',
+    'Cesar A': 'Cesar Andino',
+    'Dom Russano': 'Dominick Russano',
+    'Kevin Mckelvey': 'Kevin McKelvey',
+    'Mike Jarvis': 'Michael Jarvis',
+    'Chris B': 'Chris Benco',
+    'Matt Wentz': 'Matthew Wentz',
+    'Dave Bonness': 'Dave Bonness',
+    'Dillon U': 'Dillon Ulisses'
+};
 
-// Helper to identify player combo for reordering
-function getPlayerCombo(game, homeTeam, awayTeam) {
-    const players = new Set();
-    for (const leg of game.legs) {
-        Object.keys(leg.player_stats || {}).forEach(p => players.add(p.toLowerCase()));
-    }
-    const playerList = Array.from(players);
-
-    // For Massimioni team: tony, chris (benco), dom (russano)
-    const hasT = playerList.some(p => p.includes('tony'));
-    const hasC = playerList.some(p => p.includes('chris') || p.includes('benco'));
-    const hasD = playerList.some(p => p.includes('dom') || p.includes('russano'));
-
-    if (hasT && hasC && !hasD) return 'tony/chris';
-    if (hasT && hasD && !hasC) return 'tony/dom';
-    if (hasC && hasD && !hasT) return 'chris/dom';
-    if (hasT && !hasC && !hasD) return 'tony';
-    if (hasC && !hasT && !hasD) return 'chris';
-    if (hasD && !hasT && !hasC) return 'dom';
-    return '???';
+function canonicalizeName(name) {
+    return CANONICAL_NAMES[name] || name;
 }
 
-// Reorder games based on player pattern
-function reorderGames(games, expectedOrder, homeTeam, awayTeam) {
+// Module-level fill-in overrides for the current match being processed
+let _currentFillIns = {};
+
+function setFillIns(fillIns) {
+    _currentFillIns = fillIns || {};
+}
+
+function getTeamForPlayer(playerName, homeTeam, awayTeam) {
+    // Check fill-in overrides first (player from another team playing as sub)
+    if (_currentFillIns[playerName]) return _currentFillIns[playerName];
+
+    const config = findConfig(playerName);
+    if (!config) return null;
+    // Special case for teams that have multiple names (E.O vs E. O vs E.O. March)
+    const normalize = (t) => t.toLowerCase().replace(/\s+/g, '').replace(/\./g, '');
+    const playerTeam = normalize(config.team);
+    if (playerTeam === normalize(homeTeam)) return 'home';
+    if (playerTeam === normalize(awayTeam)) return 'away';
+
+    // Fallback if team names don't match exactly but we know the league structure
+    if (homeTeam.includes('Olschansky') || homeTeam === 'E. O') {
+        if (playerTeam === 'eo') return 'home';
+    }
+    if (awayTeam.includes('Olschansky') || awayTeam === 'E. O') {
+        if (playerTeam === 'eo') return 'away';
+    }
+    if (homeTeam.toLowerCase().includes('nightmares')) {
+        if (playerTeam === 'neonnightmares') return 'home';
+    }
+    if (awayTeam.toLowerCase().includes('nightmares')) {
+        if (playerTeam === 'neonnightmares') return 'away';
+    }
+
+    return null;
+}
+
+function getPlayerPositionCombo(game, homeTeamName, awayTeamName) {
+    const players = new Set();
+    for (const leg of game.legs) {
+        Object.keys(leg.player_stats || {}).forEach(p => players.add(p));
+    }
+
+    const homePositions = new Set();
+    players.forEach(p => {
+        const team = getTeamForPlayer(p, homeTeamName, awayTeamName);
+        if (team === 'home') {
+            const config = findConfig(p);
+            if (config) homePositions.add(config.pos);
+        }
+    });
+
+    const hasP1 = homePositions.has('p1');
+    const hasP2 = homePositions.has('p2');
+    const hasP3 = homePositions.has('p3');
+
+    const format = game.legs[0]?.type?.toLowerCase().includes('cricket') ? 'Cricket' : '501';
+    const isDoubles = game.legs[0]?.isDoubles || Object.keys(game.legs[0]?.player_stats || {}).length >= 4;
+
+    if (isDoubles) {
+        if (hasP1 && hasP2) return 'P1+P2 Doubles 501';
+        if (hasP2 && hasP3) return 'P2+P3 Doubles 501';
+        if (hasP1 && hasP3) return 'P1+P3 Doubles 501';
+    } else {
+        if (format === 'Cricket') {
+            if (hasP1) return 'P1 Singles Cricket';
+            if (hasP2) return 'P2 Singles Cricket';
+            if (hasP3) return 'P3 Singles Cricket';
+        } else {
+            if (hasP1) return 'P1 Singles 501';
+            if (hasP2) return 'P2 Singles 501';
+            if (hasP3) return 'P3 Singles 501';
+        }
+    }
+    return 'Unknown';
+}
+
+function reorderGames(games, homeTeam, awayTeam) {
     const byCombo = {};
     for (const g of games) {
-        const combo = getPlayerCombo(g, homeTeam, awayTeam);
+        const combo = getPlayerPositionCombo(g, homeTeam, awayTeam);
         if (!byCombo[combo]) byCombo[combo] = [];
         byCombo[combo].push(g);
+        console.log(`  Parsed Game: ${combo} (${Object.keys(g.legs[0]?.player_stats || {}).join(', ')})`);
     }
 
     const reordered = [];
-    const used = {};
-    for (const combo of expectedOrder) {
-        if (!used[combo]) used[combo] = 0;
-        if (byCombo[combo] && byCombo[combo][used[combo]]) {
-            const game = byCombo[combo][used[combo]];
-            game.gameNumber = reordered.length + 1;
-            reordered.push(game);
-            used[combo]++;
+    EXPECTED_ORDER.forEach(type => {
+        if (byCombo[type] && byCombo[type].length > 0) {
+            reordered.push(byCombo[type].shift());
+        } else {
+            console.warn(`  WARNING: Missing game for ${type}`);
         }
-    }
+    });
+
+    // Handle leftovers (e.g. if P2 played twice in singles)
+    Object.keys(byCombo).forEach(type => {
+        while (byCombo[type].length > 0) {
+            const leftover = byCombo[type].shift();
+            console.warn(`  WARNING: Leftover game of type ${type} - appending at end`);
+            reordered.push(leftover);
+        }
+    });
+
     return reordered;
 }
 
-// Group throws by round - each throw object should have both home and away
-// Uses player names to determine actual team (not RTF home/away which varies)
 function groupThrowsByRound(throws, homeTeam, awayTeam) {
-    const byRound = {};
-    for (const t of throws) {
-        if (!byRound[t.round]) {
-            byRound[t.round] = { round: t.round, home: null, away: null };
+    const rounds = [];
+    let currentRound = null;
+
+    throws.forEach(t => {
+        const roundNum = t.round;
+        if (!currentRound || currentRound.round !== roundNum) {
+            currentRound = { round: roundNum, home: null, away: null };
+            rounds.push(currentRound);
         }
-        // Map to actual team based on player name
-        const actualSide = getTeamForPlayer(t.player, homeTeam, awayTeam) || t.side;
-        byRound[t.round][actualSide] = {
-            player: t.player,
-            score: t.score,
-            remaining: t.remaining,
-            hit: t.hit,
-            marks: t.marks
-        };
-    }
-    return Object.values(byRound).sort((a, b) => a.round - b.round);
+
+        const canonName = canonicalizeName(t.player);
+        const team = getTeamForPlayer(t.player, homeTeam, awayTeam);
+        if (team === 'home') {
+            currentRound.home = { player: canonName, hit: t.hit, score: t.score, marks: t.marks, remaining: t.remaining };
+            // X01 flags
+            if (t.notable) currentRound.home.notable = t.notable;
+            if (t.checkout) currentRound.home.checkout = true;
+            if (t.checkout_darts) currentRound.home.checkout_darts = t.checkout_darts;
+            // Cricket flags
+            if (t.closed_out) currentRound.home.closed_out = true;
+            if (t.closeout_darts) currentRound.home.closeout_darts = t.closeout_darts;
+        } else if (team === 'away') {
+            currentRound.away = { player: canonName, hit: t.hit, score: t.score, marks: t.marks, remaining: t.remaining };
+            // X01 flags
+            if (t.notable) currentRound.away.notable = t.notable;
+            if (t.checkout) currentRound.away.checkout = true;
+            if (t.checkout_darts) currentRound.away.checkout_darts = t.checkout_darts;
+            // Cricket flags
+            if (t.closed_out) currentRound.away.closed_out = true;
+            if (t.closeout_darts) currentRound.away.closeout_darts = t.closeout_darts;
+        }
+    });
+
+    return rounds;
 }
 
-// Convert parsed games to Firestore format
-function convertToFirestoreFormat(parsedGames, homeTeam, awayTeam) {
+function convertToFirestoreFormat(parsedGames, homeTeam, awayTeam, metadata, matchConfig) {
+    const matchId = matchConfig.matchId;
     const games = [];
-    let totalDarts = 0;
     let totalLegs = 0;
-    let homeScore = 0;
-    let awayScore = 0;
+    let totalDarts = 0;
 
-    // Group games by set number
-    // Check if all games have the same gameNumber (e.g., all "Game 1.x" format)
-    // If so, assign unique sequential game numbers
-    const gameNumbers = parsedGames.map(g => g.gameNumber);
-    const allSameGameNum = gameNumbers.every(n => n === gameNumbers[0]);
-    if (allSameGameNum && parsedGames.length > 1) {
-        parsedGames.forEach((g, idx) => {
-            g.gameNumber = idx + 1;
-        });
-    }
+    parsedGames.forEach((parsedGame, index) => {
+        const setNum = index + 1;
+        const setLegs = [];
+        let setHomeLegsWon = 0;
+        let setAwayLegsWon = 0;
+        const homePlayersSet = new Set();
+        const awayPlayersSet = new Set();
 
-    const setMap = {};
-    for (const game of parsedGames) {
-        const setNum = game.gameNumber;
-        if (!setMap[setNum]) {
-            setMap[setNum] = {
-                set: setNum,
-                legs: [],
-                homeLegsWon: 0,
-                awayLegsWon: 0
-            };
-        }
-
-        for (const leg of game.legs) {
+        (parsedGame.legs || []).forEach((leg, legIndex) => {
             totalLegs++;
+            const legType = leg.type?.toLowerCase() || '501';
+            // Determine alignment for this leg: Is the "home" (left) side actually the home team?
+            // Find a player on the "home" (left) side of the raw data
+            const leftSidePlayer = Object.keys(leg.player_stats || {}).find(p => leg.player_stats[p].side === 'home');
+            let leftSideIsHomeTeam = true; // Default assumption
 
-            // Determine winner from player_stats
-            const playerStats = leg.player_stats || {};
-            const players = Object.keys(playerStats);
-
-            // Map players to actual teams using player names (not RTF home/away which varies)
-            let actualHomePlayers = [];
-            let actualAwayPlayers = [];
-            for (const [name, stats] of Object.entries(playerStats)) {
-                const actualSide = getTeamForPlayer(name, homeTeam, awayTeam);
-                if (actualSide === 'home') actualHomePlayers.push(name);
-                else if (actualSide === 'away') actualAwayPlayers.push(name);
-                totalDarts += stats.darts || 0;
+            if (leftSidePlayer) {
+                const team = getTeamForPlayer(leftSidePlayer, homeTeam, awayTeam);
+                if (team === 'away') {
+                    leftSideIsHomeTeam = false;
+                }
             }
 
-            // Determine winner - check throws for checkout
-            let winner = null;
+            const rawWinner = leg.winner;
+
+            // Remap winner from RTF orientation to actual team orientation
+            let legWinner = rawWinner;
+            if (!leftSideIsHomeTeam) {
+                if (rawWinner === 'home') legWinner = 'away';
+                else if (rawWinner === 'away') legWinner = 'home';
+            }
+
+            if (legWinner === 'home') { setHomeLegsWon++; }
+            else if (legWinner === 'away') { setAwayLegsWon++; }
+
+
+            const playerStats = {};
+            const homeStats = { darts: 0, points: 0, marks: 0 };
+            const awayStats = { darts: 0, points: 0, marks: 0 };
+
             const throws = leg.throws || [];
-            const lastThrow = throws[throws.length - 1];
-            const legType = (leg.type || game.type || '').toLowerCase();
-            const is501 = legType.includes('501');
+            totalDarts += throws.length * 3;
 
-            // Check throws for remaining === 0 (checkout) - map player to actual team
-            for (const t of throws) {
-                if (t.remaining === 0) {
-                    winner = getTeamForPlayer(t.player, homeTeam, awayTeam);
-                    break;
-                }
-            }
+            Object.entries(leg.player_stats || {}).forEach(([rawPlayer, stats]) => {
+                const player = canonicalizeName(rawPlayer);
+                const team = getTeamForPlayer(rawPlayer, homeTeam, awayTeam);
+                if (team === 'home') homePlayersSet.add(player);
+                else if (team === 'away') awayPlayersSet.add(player);
 
-            // For 501, also check if total points equals 501 (means they checked out)
-            if (!winner && is501) {
-                let homePoints = 0;
-                let awayPoints = 0;
-                for (const [name, stats] of Object.entries(playerStats)) {
-                    const actualSide = getTeamForPlayer(name, homeTeam, awayTeam);
-                    if (actualSide === 'home') homePoints += stats.points || 0;
-                    else if (actualSide === 'away') awayPoints += stats.points || 0;
-                }
-                if (homePoints === 501) winner = 'home';
-                else if (awayPoints === 501) winner = 'away';
-            }
+                playerStats[player] = {
+                    darts: stats.darts || 0,
+                    points: stats.points || 0,
+                    marks: stats.marks || 0,
+                    three_dart_avg: stats.three_dart_avg || 0,
+                    mpr: stats.mpr || 0
+                };
+                if (stats.checkout) playerStats[player].checkout = stats.checkout;
 
-            // For cricket, use the winner from the parser (based on final scores)
-            // but map to actual team using player names
-            if (!winner && legType.includes('cricket')) {
-                // First check if the leg has a winner from parsing
-                if (leg.winner) {
-                    // Parser gives us 'home'/'away' from RTF, need to map to actual team
-                    // Find a player from that side and map to their actual team
-                    const parsedWinnerSide = leg.winner;
-                    for (const [name, stats] of Object.entries(playerStats)) {
-                        if (stats.side === parsedWinnerSide) {
-                            winner = getTeamForPlayer(name, homeTeam, awayTeam);
-                            break;
-                        }
-                    }
-                } else {
-                    // Fallback: look for explicit closing throw marker
-                    const closingThrow = throws.find(t => t.isClosingThrow);
-                    if (closingThrow) {
-                        winner = getTeamForPlayer(closingThrow.player, homeTeam, awayTeam);
-                    } else {
-                        // Last resort: find the last round where only one side threw
-                        const roundMap = {};
-                        for (const t of throws) {
-                            if (!roundMap[t.round]) roundMap[t.round] = { home: null, away: null };
-                            roundMap[t.round][t.side] = t;
-                        }
-                        const rounds = Object.keys(roundMap).map(Number).sort((a, b) => b - a);
-                        for (const r of rounds) {
-                            const rd = roundMap[r];
-                            if (rd.home && !rd.away && rd.home.player) {
-                                winner = getTeamForPlayer(rd.home.player, homeTeam, awayTeam);
-                                break;
-                            } else if (rd.away && !rd.home && rd.away.player) {
-                                winner = getTeamForPlayer(rd.away.player, homeTeam, awayTeam);
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-
-            if (winner === 'home') setMap[setNum].homeLegsWon++;
-            else if (winner === 'away') setMap[setNum].awayLegsWon++;
-
-            // Calculate home and away stats from player_stats using actual team mapping
-            let homeStats = { darts: 0, points: 0, marks: 0 };
-            let awayStats = { darts: 0, points: 0, marks: 0 };
-
-            for (const [name, stats] of Object.entries(playerStats)) {
-                const actualSide = getTeamForPlayer(name, homeTeam, awayTeam);
-                if (actualSide === 'home') {
+                if (team === 'home') {
                     homeStats.darts += stats.darts || 0;
                     homeStats.points += stats.points || 0;
                     homeStats.marks += stats.marks || 0;
-                } else if (actualSide === 'away') {
+                } else if (team === 'away') {
                     awayStats.darts += stats.darts || 0;
                     awayStats.points += stats.points || 0;
                     awayStats.marks += stats.marks || 0;
                 }
-            }
+            });
 
-            // Calculate averages
             const format = legType.includes('501') ? '501' : legType.includes('cricket') ? 'cricket' : legType;
             if (format === '501') {
                 homeStats.three_dart_avg = homeStats.darts > 0 ? parseFloat(((homeStats.points / homeStats.darts) * 3).toFixed(2)) : 0;
@@ -256,89 +370,87 @@ function convertToFirestoreFormat(parsedGames, homeTeam, awayTeam) {
                 awayStats.mpr = awayStats.darts > 0 ? parseFloat(((awayStats.marks / awayStats.darts) * 3).toFixed(2)) : 0;
             }
 
-            // Build leg data
             const legData = {
-                leg_number: leg.legNumber,
+                leg_number: legIndex + 1,
                 format: format,
-                winner: winner,
+                winner: legWinner,
                 home_stats: homeStats,
                 away_stats: awayStats,
                 player_stats: playerStats,
                 throws: groupThrowsByRound(throws, homeTeam, awayTeam)
             };
 
-            // Add checkout info for 501
-            if (format === '501') {
-                // Add checkout_darts if available
-                if (leg.checkout_darts) {
-                    legData.checkout_darts = leg.checkout_darts;
-                }
-                // Add checkout score
-                if (winner) {
-                    const winningThrow = throws.find(t => t.remaining === 0 &&
-                        getTeamForPlayer(t.player, homeTeam, awayTeam) === winner);
-                    if (winningThrow) {
-                        legData.checkout = winningThrow.score;
-                    }
-                }
+            if (format === '501' && legWinner) {
+                const winningThrow = throws.find(t => t.remaining === 0 &&
+                    getTeamForPlayer(t.player, homeTeam, awayTeam) === legWinner);
+                if (winningThrow) legData.checkout = winningThrow.score;
             }
+            setLegs.push(legData);
+        });
 
-            setMap[setNum].legs.push(legData);
+        let setWinner = setHomeLegsWon > setAwayLegsWon ? 'home' :
+            setAwayLegsWon > setHomeLegsWon ? 'away' : 'tie';
+
+        // Apply set winner overrides (if needed)
+        // NOTE: Overrides should ONLY change the winner, NOT the leg counts
+        // Leg counts are correctly accumulated from parsed legs (lines 271-276)
+        if (matchConfig.setOverrides && matchConfig.setOverrides[setNum]) {
+            setWinner = matchConfig.setOverrides[setNum];
+            console.log(`  [OVERRIDE] Set ${setNum} Winner FORCED to: ${setWinner}`);
+            // DO NOT modify setHomeLegsWon/setAwayLegsWon - they're already correct from parser
         }
-    }
 
-    // Convert sets to games array
-    for (const [setNum, setData] of Object.entries(setMap)) {
-        const gameWinner = setData.homeLegsWon > setData.awayLegsWon ? 'home' :
-                          setData.awayLegsWon > setData.homeLegsWon ? 'away' : 'tie';
-
-        if (gameWinner === 'home') homeScore++;
-        else if (gameWinner === 'away') awayScore++;
-
-        // Get players from legs - use actual team mapping, not RTF side
-        const homePlayersSet = new Set();
-        const awayPlayersSet = new Set();
-
-        for (const leg of setData.legs) {
-            for (const [name, stats] of Object.entries(leg.player_stats || {})) {
-                const actualSide = getTeamForPlayer(name, homeTeam, awayTeam);
-                if (actualSide === 'home') homePlayersSet.add(name);
-                else if (actualSide === 'away') awayPlayersSet.add(name);
-            }
+        // Legacy fix for D. Partlo vs D. Pagel (Week 3) - Set 1
+        // The RTF has anomalous mixed player columns for Set 1, causing incorrect winner detection.
+        // NOTE: This should be handled by reordering games, not by overriding here
+        if (matchId === 'xX4UtSU1dms9spECerDd' && setNum === 1) {
+            console.log('  [FIX] Overriding Set 1 winner to Away (D. Pagel) due to mixed RTF columns');
+            setWinner = 'away';
+            // DO NOT modify leg counts - leave them as parsed
         }
 
         games.push({
-            game_number: parseInt(setNum),
-            set: parseInt(setNum),
-            type: setData.legs[0]?.format || 'mixed',
-            format: setData.legs[0]?.format || 'mixed',
+            set: setNum,
+            game_number: setNum,
+            type: parsedGame.type || 'mixed',
+            format: parsedGame.type?.toLowerCase().includes('cricket') ? 'cricket' : '501',
             home_players: Array.from(homePlayersSet),
             away_players: Array.from(awayPlayersSet),
-            result: {
-                home_legs: setData.homeLegsWon,
-                away_legs: setData.awayLegsWon
-            },
-            winner: gameWinner,
+            winner: setWinner,
+            result: { home_legs: setHomeLegsWon, away_legs: setAwayLegsWon },
             status: 'completed',
-            legs: setData.legs
+            legs: setLegs
         });
-    }
+    });
+
+    let homeScore = 0;
+    let awayScore = 0;
+    games.forEach(g => {
+        if (g.winner === 'home') homeScore++;
+        else if (g.winner === 'away') awayScore++;
+    });
 
     return {
         games,
         home_team: homeTeam,
         away_team: awayTeam,
+        home_score: homeScore,
+        away_score: awayScore,
         final_score: { home: homeScore, away: awayScore },
         total_darts: totalDarts,
-        total_legs: totalLegs
+        total_legs: totalLegs,
+        total_sets: games.length,
+        match_date: metadata.match_date || new Date().toISOString(),
+        start_time: metadata.start_time ? metadata.start_time.toISOString() : null,
+        end_time: metadata.end_time ? metadata.end_time.toISOString() : null,
+        game_time_minutes: metadata.game_time_minutes || null,
+        match_length_minutes: metadata.match_length_minutes || null
     };
 }
 
-// Make HTTP request to cloud function
 function postToCloudFunction(url, data) {
     return new Promise((resolve, reject) => {
         const postData = JSON.stringify(data);
-
         const urlObj = new URL(url);
         const options = {
             hostname: urlObj.hostname,
@@ -350,19 +462,13 @@ function postToCloudFunction(url, data) {
                 'Content-Length': Buffer.byteLength(postData)
             }
         };
-
         const req = https.request(options, (res) => {
             let body = '';
             res.on('data', chunk => body += chunk);
             res.on('end', () => {
-                try {
-                    resolve(JSON.parse(body));
-                } catch (e) {
-                    resolve({ raw: body });
-                }
+                try { resolve(JSON.parse(body)); } catch (e) { resolve({ raw: body }); }
             });
         });
-
         req.on('error', reject);
         req.write(postData);
         req.end();
@@ -371,27 +477,26 @@ function postToCloudFunction(url, data) {
 
 async function importMatch(match) {
     console.log(`\n=== Importing: ${match.name} ===`);
-
-    const rtfPath = path.join(__dirname, match.rtfFile);
+    const rtfPath = path.join(__dirname, '..', match.rtfFile);
     console.log(`Reading: ${rtfPath}`);
 
     try {
-        let parsedGames = parseRTFMatch(rtfPath);
-        console.log(`Parsed ${parsedGames.length} games`);
+        // Set fill-in overrides for this match (players from other teams playing as subs)
+        setFillIns(match.fillIns || {});
 
-        // Reorder games if needed (for files with out-of-order sets)
-        if (match.reorderByPlayers) {
-            console.log(`Reordering games by player pattern...`);
-            parsedGames = reorderGames(parsedGames, match.reorderByPlayers, match.homeTeam, match.awayTeam);
-            console.log(`Reordered to ${parsedGames.length} games`);
+        const { games: parsedGames, metadata } = parseRTFMatch(rtfPath);
+        console.log(`Parsed ${parsedGames.length} raw games/legs`);
+
+        let gamesToConvert = parsedGames;
+        if (match.reorder) {
+            console.log(`Reordering games to official BRDC 9-set format...`);
+            gamesToConvert = reorderGames(parsedGames, match.homeTeam, match.awayTeam);
+            console.log(`Reordered to ${gamesToConvert.length} sets`);
         }
 
-        const matchData = convertToFirestoreFormat(parsedGames, match.homeTeam, match.awayTeam);
-        console.log(`Converted to ${matchData.games.length} sets, ${matchData.total_legs} legs`);
-        console.log(`Score: ${match.homeTeam} ${matchData.final_score.home} - ${matchData.final_score.away} ${match.awayTeam}`);
-        console.log(`DEBUG: First game first leg checkout_darts:`, matchData.games[0]?.legs[0]?.checkout_darts || 'NONE');
+        const matchData = convertToFirestoreFormat(gamesToConvert, match.homeTeam, match.awayTeam, metadata, match);
+        console.log(`Calculated Score: ${match.homeTeam} ${matchData.final_score.home} - ${matchData.final_score.away} ${match.awayTeam}`);
 
-        // Import match data
         const importUrl = 'https://us-central1-brdc-v2.cloudfunctions.net/importMatchData';
         const importResult = await postToCloudFunction(importUrl, {
             leagueId: LEAGUE_ID,
@@ -400,39 +505,68 @@ async function importMatch(match) {
         });
         console.log('Import result:', JSON.stringify(importResult, null, 2));
 
-        // Update stats
-        const statsUrl = 'https://us-central1-brdc-v2.cloudfunctions.net/updateImportedMatchStats';
-        const statsResult = await postToCloudFunction(statsUrl, {
-            leagueId: LEAGUE_ID,
-            matchId: match.matchId
-        });
-        console.log('Stats result:', JSON.stringify(statsResult, null, 2));
-
-        return { success: true, match: match.name, import: importResult, stats: statsResult };
+        return { success: true, match: match.name, import: importResult };
     } catch (error) {
         console.error(`Error importing ${match.name}:`, error.message);
         return { success: false, match: match.name, error: error.message };
     }
 }
 
-async function main() {
-    console.log('Starting Week 1 match imports...');
-    console.log(`League ID: ${LEAGUE_ID}`);
+const MATCHES = [
+    { name: 'Pagel v Pagel (Week 1)', matchId: 'sgmoL4GyVUYP67aOS7wm', rtfFile: 'temp/trips league/week 1/pagel v pagel MATCH.rtf', homeTeam: 'M. Pagel', awayTeam: 'D. Pagel', reorder: true },
+    { name: 'N. Kull vs K. Yasenchak (Week 1)', matchId: 'JqiWABEBS7Bqk8n7pKxD', rtfFile: 'temp/trips league/week 1/yasenchak v kull.rtf', homeTeam: 'N. Kull', awayTeam: 'K. Yasenchak', reorder: true },
+    { name: 'E.O vs D. Partlo (Week 1)', matchId: '0lxEeuAa7fEDSVeY3uCG', rtfFile: 'temp/trips league/week 1/partlo v olschansky.rtf', homeTeam: 'E. O', awayTeam: 'D. Partlo', reorder: true },
+    { name: 'N. Mezlak vs D. Russano (Week 1)', matchId: 'nYv1XeGTWbaxBepI6F5u', rtfFile: 'temp/trips league/week 1/mezlak v russano.rtf', homeTeam: 'N. Mezlak', awayTeam: 'D. Russano', reorder: true },
+    { name: 'J. Ragnoni vs Neon Nightmares (Week 1)', matchId: 'OTYlCe3NNbinKlpZccwS', rtfFile: 'temp/trips league/week 1/massimiani v ragnoni.rtf', homeTeam: 'J. Ragnoni', awayTeam: 'neon nightmares', reorder: true },
+    { name: 'D. Pagel vs N. Kull (Week 2)', matchId: 'RfSuCwwQUm2vvpH3e322', rtfFile: 'temp/trips league/week 2/pagel v kull.rtf', homeTeam: 'D. Pagel', awayTeam: 'N. Kull', reorder: true },
+    { name: 'D. Russano vs J. Ragnoni (Week 2)', matchId: 'mOtQbjkiLzWc6Ea7gnkp', rtfFile: 'temp/trips league/week 2/russano v ragnoni.rtf', homeTeam: 'D. Russano', awayTeam: 'J. Ragnoni', reorder: true },
+    { name: 'E.O. vs N. Mezlak (Week 2)', matchId: 'DhKUt2hCdSEJaNRDceIz', rtfFile: 'temp/trips league/week 2/mezlak V e.o.rtf', homeTeam: 'E. O', awayTeam: 'N. Mezlak', reorder: true },
+    { name: 'D. Partlo vs M. Pagel (Week 2)', matchId: 'fqICAD9zFe7cLgNM2m4T', rtfFile: 'temp/trips league/week 2/dpartlo v mpagel.rtf', homeTeam: 'D. Partlo', awayTeam: 'M. Pagel', reorder: true },
+    { name: 'Neon Nightmares vs K. Yasenchak (Week 2)', matchId: 'j99cYF5bV2Se7zoNVpgi', rtfFile: 'temp/trips league/week 2/massimiani v yasenchak.rtf', homeTeam: 'neon nightmares', awayTeam: 'K. Yasenchak', reorder: true },
+    { name: 'J. Ragnoni vs E. O (Week 3)', matchId: 'P57BmQcCGdfZLIxaIe5P', rtfFile: 'temp/trips league/week 3/e.o v jragnonio.rtf', homeTeam: 'J. Ragnoni', awayTeam: 'E. O', reorder: true },
+    { name: 'D. Partlo vs D. Pagel (Week 3)', matchId: 'xX4UtSU1dms9spECerDd', rtfFile: 'temp/trips league/week 3/dpartlo v dpagel.rtf', homeTeam: 'D. Partlo', awayTeam: 'D. Pagel', reorder: true },
+    { name: 'K. Yasenchak vs D. Russano (Week 3)', matchId: 'nUT8f6Fvdi1y7St9wlGQ', rtfFile: 'temp/trips league/week 3/russano v yasenchak.rtf', homeTeam: 'K. Yasenchak', awayTeam: 'D. Russano', reorder: true },
+    { name: 'N. Kull vs Neon Nightmares (Week 3)', matchId: 'bHKrdlJnQWbABkMWkLov', rtfFile: 'temp/trips league/week 3/nkull v neon nightmares.rtf', homeTeam: 'N. Kull', awayTeam: 'neon nightmares', reorder: true },
+    { name: 'N. Mezlak vs M. Pagel (Week 3)', matchId: 'pw8L1xdnkTDCiorTwbWO', rtfFile: 'temp/trips league/week 3/mpagel v nmezlak.rtf', homeTeam: 'N. Mezlak', awayTeam: 'M. Pagel', reorder: true },
+    // Week 4
+    { name: 'D. Pagel vs N. Mezlak (Week 4)', matchId: 'zRWjWDe2qw7R8MC7K81i', rtfFile: 'temp/trips league/week 4/pagel v mezlak.rtf', homeTeam: 'D. Pagel', awayTeam: 'N. Mezlak', reorder: true },
+    { name: 'D. Partlo vs N. Kull (Week 4)', matchId: 'pNJ5wKPIrHPQqXQv5Nhl', rtfFile: 'temp/trips league/week 4/partlo v kull.rtf', homeTeam: 'D. Partlo', awayTeam: 'N. Kull', reorder: true },
+    { name: 'M. Pagel vs J. Ragnoni (Week 4)', matchId: 'ZRBshDQa7pRghXNonnAs', rtfFile: 'temp/trips league/week 4/ragnoni v pagel.rtf', homeTeam: 'M. Pagel', awayTeam: 'J. Ragnoni', reorder: true, fillIns: { 'Christian Ketchum': 'home' } },
+    { name: 'E. O vs K. Yasenchak (Week 4)', matchId: 'cd313aLms9YgAEMHXJpV', rtfFile: 'temp/trips league/week 4/yasenchak v olshansky.rtf', homeTeam: 'E. O', awayTeam: 'K. Yasenchak', reorder: true },
+    { name: 'Neon Nightmares vs D. Russano (Week 4)', matchId: 'IQ4pQ6jqQUAsvdOg0j3e', rtfFile: 'temp/trips league/week 4/neon nightmare v drussano.rtf', homeTeam: 'neon nightmares', awayTeam: 'D. Russano', reorder: true }
+];
 
+async function main() {
+    console.log(`Starting all imports for League: ${LEAGUE_ID}`);
     const results = [];
     for (const match of MATCHES) {
-        const result = await importMatch(match);
-        results.push(result);
+        results.push(await importMatch(match));
     }
+    console.log('\n=== IMPORT SUMMARY ===');
+    results.forEach(r => console.log(`[${r.success ? 'OK' : 'FAIL'}] ${r.match}${r.error ? ': ' + r.error : ''}`));
 
-    console.log('\n=== SUMMARY ===');
-    for (const result of results) {
-        if (result.success) {
-            console.log(`[OK] ${result.match}`);
+    const successCount = results.filter(r => r.success).length;
+    if (successCount > 0) {
+        console.log(`\n=== RECALCULATING ALL STATS (${successCount} matches imported) ===`);
+        const recalcUrl = 'https://us-central1-brdc-v2.cloudfunctions.net/recalculateAllLeagueStats';
+        const recalcResult = await postToCloudFunction(recalcUrl, { leagueId: LEAGUE_ID });
+        if (recalcResult.success) {
+            console.log(`Stats recalculated: ${recalcResult.matchesProcessed} matches → ${recalcResult.playersUpdated} players`);
         } else {
-            console.log(`[FAIL] ${result.match}: ${result.error}`);
+            console.error('Stats recalc failed:', recalcResult.error || recalcResult);
         }
     }
 }
 
-main().catch(console.error);
+// Export functions for use by other scripts
+module.exports = {
+    reorderGames,
+    convertToFirestoreFormat,
+    getTeamForPlayer,
+    setFillIns
+};
+
+// Run main only if called directly (not required as a module)
+if (require.main === module) {
+    main().catch(console.error);
+}
