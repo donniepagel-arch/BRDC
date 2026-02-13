@@ -18,77 +18,43 @@ C:\Users\gcfrp\projects\brdc-firebase
 
 ---
 
-# 🚨 RULE #1: OPUS DOES NOT CODE 🚨
+# RULE #1: OPUS ORCHESTRATES, AGENTS CODE
 
-**THIS IS THE MOST IMPORTANT RULE. READ IT FIRST. FOLLOW IT ALWAYS.**
+**Opus (PM Claude) = PROJECT MANAGER.** You plan, coordinate, and dispatch coding agents.
 
-## Before Writing ANY Code, ASK:
+## How It Works (Opus 4.6+)
 
-1. **"Should I write prompts for the terminal agents instead?"** - The answer is almost always YES
-2. **"How many terminals are available?"** - Plan work to maximize parallelization
+Opus dispatches coding agents directly via the **Task tool**:
 
-**Current terminal capacity: 8 terminals available**
+1. **Plan** — Break tasks into parallelizable work
+2. **Dispatch** — Launch subagents via Task tool (`gsd-executor`, `Bash`, `general-purpose`)
+3. **Coordinate** — Track progress, handle blockers, ensure quality
+4. **Research** — Read files, explore codebase, understand context
 
-Use them wisely. Break work into 8 parallel streams when possible.
+**Subagents (Sonnet/Haiku) = CODERS.** They execute autonomously and report back.
 
----
+### Agent Dispatch (Preferred)
+```
+Task tool → subagent_type: "gsd-executor" or "general-purpose"
+  - model: "sonnet" (default for coding)
+  - model: "haiku" (simple/repetitive tasks)
+  - run_in_background: true (for long tasks)
+```
 
-## You Are The Project Coordinator
-
-**VS Code Claude (Opus) = PROJECT MANAGER.** You do NOT write code directly. You:
-
-1. **Plan** - Break down tasks into parallelizable work (up to 8 streams!)
-2. **Write prompts** - Create detailed, self-contained prompts for terminal agents
-3. **Coordinate** - Track progress, handle blockers, ensure quality
-4. **Research** - Read files, explore codebase, understand context
-
-**Terminal Claudes (Sonnet/Haiku) = CODERS.** They receive your prompts and execute.
-
-## Prompt Format (REQUIRED)
-
-Every prompt you write for terminal agents MUST include:
-
+### Legacy Terminal Prompts (Still Supported)
+If the user prefers copy-paste prompts for external terminals, include:
 ```
 Working directory: C:\Users\gcfrp\projects\brdc-firebase
-
 Permissions: Read all, Write all, Bash (npm, node, git, firebase)
+```
 
----
-
-## Task: [Clear description]
-
-[Detailed instructions...]
-
-## Files to Modify
-- [specific files]
-
-## Test Data
+### Test Data
 - League ID: aOq4Y0ETxPZ66tM1uUtP
 - Match ID: sgmoL4GyVUYP67aOS7wm
 
-## When Done
-- Deploy: `firebase deploy --only hosting` (for frontend)
-- Deploy: `firebase deploy --only functions` (for backend)
-- Report to: [docs/work-tracking/FILENAME.md]
-```
-
-### Why Permissions Matter
-Without explicit permissions, terminal agents get blocked by approval prompts constantly. The user has to keep clicking "allow". Including permissions in every prompt prevents this.
-
-### Model Selection
-Include in your prompt:
-- **Model: Sonnet** - For most coding tasks (fast, capable)
-- **Model: Haiku** - For simple/repetitive tasks (fastest, cheapest)
-- **Model: Opus** - Only for complex architectural decisions
-
-## Violation = Wasted Time
-
-If you (Opus) start writing code directly:
-- You're doing terminal work at Opus prices
-- You're blocking parallel execution
-- You're violating the #1 efficiency rule
-
-**STOP. Write a prompt instead. Give it to the user to run in a terminal.**
+### Deployment
+- Frontend: `firebase deploy --only hosting`
+- Backend: `firebase deploy --only functions`
 
 ---
 
@@ -1375,7 +1341,7 @@ These are distinct concepts that all need to be configurable:
 | Double In | ✅ | ✅ | ✅ |
 | Double Out | ✅ | ✅ | ✅ |
 | Straight/Free Out | ✅ | ✅ | ✅ |
-| **Master Out** | ✅ | ✅ | ❌ **MISSING** |
+| **Master Out** | ✅ | ✅ | ✅ |
 
 ### Naming Inconsistency
 - create-league & create-tournament use: `straight`, `double`, `master`
@@ -1384,7 +1350,7 @@ These are distinct concepts that all need to be configurable:
 These mean the same thing but should be standardized to: `straight`, `double`, `master`
 
 ### TODO
-1. **Add Master Out to x01.html** - Currently if a league is created with Master Out rules, the scorer won't enforce it correctly. Master Out = can finish on double OR triple.
+1. ~~**Add Master Out to x01.html**~~ - DONE. Master Out is fully implemented in x01-scorer.html. Master Out = can finish on double OR triple.
 2. **Standardize naming** - Use `straight` everywhere instead of `free`
 
 ---
@@ -1486,7 +1452,7 @@ Maintain a `TEAM_ROSTERS` mapping for each match to correctly identify which tea
 ```javascript
 const TEAM_ROSTERS = {
     'M. Pagel': ['Matt Pagel', 'Joe Peters', 'John Linden'],
-    'D. Pagel': ['Donnie Pagel', 'Christian Ketchem', 'Jenn M', 'Jennifer Malek'],
+    'D. Pagel': ['Donnie Pagel', 'Christian Ketchum', 'Jenn M', 'Jennifer Malek'],
     'N. Kull': ['Nathan Kull', 'Nate Kull', 'Michael Jarvis', 'Stephanie Kull'],
     'K. Yasenchak': ['Kevin Yasenchak', 'Brian Smith', 'Cesar Andino'],
     'D. Partlo': ['Dan Partlo', 'Joe Donley', 'Kevin Mckelvey'],
@@ -1531,12 +1497,51 @@ if (allSameGameNum && parsedGames.length > 1) {
 2. Higher final score wins
 3. Fallback: Check for `isClosingThrow` marker
 
-### Match Format (Triples League)
+### Match Format (Triples League) - EXACT NIGHTLY FORMAT
 
-- **9 sets per match** (best of 3 legs each)
-- **Player combinations**: Singles (1v1) and Doubles (2v2)
-- **Each unique player combination plays only once** per match
-- **Typical order**: Varies per match, user must provide if RTF is out of order
+**Each match has 9 sets in this EXACT order.** Use this to reorder games when RTF is out of order.
+
+| Set | Home Players | Format | Description |
+|-----|--------------|--------|-------------|
+| **1** | P1 + P2 | 501 Doubles | Best of 3 |
+| **2** | P3 | Cricket Singles | Best of 3 |
+| **3** | P1 | Cricket Singles | Best of 3 |
+| **4** | P2 + P3 | 501 Doubles | Best of 3 |
+| **5** | P2 | Cricket Singles | Best of 3 |
+| **6** | P1 | 501 Singles | Best of 3 |
+| **7** | P1 + P3 | 501 Doubles | Best of 3 |
+| **8** | P2 | 501 Singles | Best of 3 |
+| **9** | P3 | 501 Singles | Best of 3 |
+
+**Player positions (P1, P2, P3)** = The team's roster order (usually skill-based).
+
+**How to identify which set a parsed game belongs to:**
+1. **Count players**: 4 players = doubles, 2 players = singles
+2. **Check format**: 501 vs Cricket
+3. **Identify position combo**: Which positions are playing
+
+**Position-to-Set mapping:**
+- P1+P2 Doubles 501 → Set 1
+- P3 Singles Cricket → Set 2
+- P1 Singles Cricket → Set 3
+- P2+P3 Doubles 501 → Set 4
+- P2 Singles Cricket → Set 5
+- P1 Singles 501 → Set 6
+- P1+P3 Doubles 501 → Set 7
+- P2 Singles 501 → Set 8
+- P3 Singles 501 → Set 9
+
+**Typical team rosters (position order):**
+- `M. Pagel`: P1=Matt Pagel, P2=John Linden, P3=Dave Bonness (or Joe Peters)
+- `N. Mezlak`: P1=Nick Mezlak, P2=Cory Jacobs, P3=Dillon Ulisses
+- `D. Pagel`: P1=Donnie Pagel, P2=Christian Ketchum, P3=Jennifer Malek
+- `K. Yasenchak`: P1=Kevin Yasenchak, P2=Brian Smith, P3=Cesar Andino
+- `N. Kull`: P1=Nathan Kull, P2=Michael Jarvis, P3=Stephanie Kull
+- `D. Russano`: P1=Danny Russano, P2=Chris Russano, P3=Eric Duale
+- `E. Olschansky`: P1=Eddie Olschansky, P2=Jeff Boss, P3=Mike Gonzalez
+- `J. Ragnoni`: P1=John Ragnoni, P2=Marc Tate, P3=David Brunner (subs: Derek Fess, Josh Kelly)
+- `neon nightmares` (T. Massimiani): P1=Tony Massimiani, P2=Chris Benco, P3=Dominick Russano
+
 
 ### Debugging Tips
 

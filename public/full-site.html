@@ -1,16 +1,18 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Burning River Dart Club</title>
     <link rel="icon" type="image/png" href="/images/favicon.png">
     <link rel="manifest" href="/manifest.json">
-    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="BRDC">
     <link rel="apple-touch-icon" href="/images/gold_logo.png">
     <meta name="theme-color" content="#0f0f1a">
+    <script src="/js/brdc-toast.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&display=swap');
 
@@ -26,9 +28,16 @@
             --text-dim: #5a5a6e;
         }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
 
-        html, body {
+        html,
+        body {
             height: 100%;
             background: var(--bg-dark);
             color: var(--text-primary);
@@ -38,7 +47,8 @@
         body {
             display: flex;
             flex-direction: column;
-            padding-bottom: 80px; /* Space for bottom nav */
+            padding-bottom: 80px;
+            /* Space for bottom nav */
         }
 
         /* Header */
@@ -194,7 +204,7 @@
 
         .quick-action {
             background: linear-gradient(135deg, var(--bg-card) 0%, #1e1e32 100%);
-            border: 1px solid rgba(255,255,255,0.08);
+            border: 1px solid rgba(255, 255, 255, 0.08);
             border-radius: 16px;
             padding: 20px;
             text-align: center;
@@ -317,7 +327,7 @@
             position: absolute;
             top: 10px;
             right: 10px;
-            background: rgba(0,0,0,0.5);
+            background: rgba(0, 0, 0, 0.5);
             padding: 4px 10px;
             border-radius: 10px;
             font-size: 10px;
@@ -458,7 +468,7 @@
             background: linear-gradient(135deg, var(--bg-card) 0%, #1e1e32 100%);
             border-radius: 20px;
             overflow: hidden;
-            border: 1px solid rgba(255,255,255,0.08);
+            border: 1px solid rgba(255, 255, 255, 0.08);
         }
 
         .featured-image {
@@ -524,7 +534,7 @@
             left: 0;
             right: 0;
             background: var(--bg-card);
-            border-top: 1px solid rgba(255,255,255,0.08);
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
             display: flex;
             justify-content: space-around;
             padding: 10px 0 20px;
@@ -577,7 +587,9 @@
         }
 
         @keyframes spin {
-            to { transform: rotate(360deg); }
+            to {
+                transform: rotate(360deg);
+            }
         }
 
         /* Responsive */
@@ -585,12 +597,14 @@
             .quick-actions {
                 grid-template-columns: 1fr;
             }
+
             .league-card {
                 flex: 0 0 260px;
             }
         }
     </style>
 </head>
+
 <body>
     <!-- Header -->
     <header class="header">
@@ -608,7 +622,8 @@
     <div class="search-container">
         <div class="search-wrapper">
             <span class="search-icon">🔍</span>
-            <input type="text" class="search-input" id="pinInput" placeholder="Enter match PIN to join..." maxlength="6" autocomplete="off">
+            <input type="text" class="search-input" id="pinInput" placeholder="Enter match PIN to join..." maxlength="6"
+                autocomplete="off">
         </div>
     </div>
 
@@ -629,7 +644,7 @@
                 <div class="quick-action-title">PLAY NOW</div>
                 <div class="quick-action-desc">Quick game with friends</div>
             </a>
-            <a href="/pages/browse-events.html" class="quick-action">
+            <a href="/pages/events-hub.html" class="quick-action">
                 <div class="quick-action-icon">📋</div>
                 <div class="quick-action-title">BROWSE</div>
                 <div class="quick-action-desc">Find leagues & events</div>
@@ -644,7 +659,8 @@
             <div class="featured-body">
                 <div class="featured-label">Featured Event</div>
                 <h2 class="featured-title" id="featuredTitle">Loading...</h2>
-                <p class="featured-desc" id="featuredDesc">Check out what's happening in the Cleveland dart community.</p>
+                <p class="featured-desc" id="featuredDesc">Check out what's happening in the Cleveland dart community.
+                </p>
                 <a href="#" class="featured-btn" id="featuredBtn">View Details</a>
             </div>
         </div>
@@ -713,109 +729,109 @@
         </a>
     </nav>
 
-<script type="module">
-import { callFunction, db, collection, query, where, getDocs, orderBy, limit } from '/js/firebase-config.js';
+    <script type="module">
+        import { callFunction, db, collection, query, where, getDocs, orderBy, limit } from '/js/firebase-config.js';
 
-// Check login state
-function checkLoginState() {
-    const session = localStorage.getItem('brdc_session');
-    if (session) {
-        try {
-            const data = JSON.parse(session);
-            document.getElementById('profileIcon').textContent = data.first_name ? data.first_name[0].toUpperCase() : '👤';
-            document.getElementById('profileText').textContent = data.first_name || 'Profile';
-        } catch (e) {}
-    }
-}
-
-window.goToProfile = function() {
-    window.location.href = '/pages/dashboard.html';
-};
-
-// PIN Input handler
-document.getElementById('pinInput').addEventListener('keyup', async (e) => {
-    const pin = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
-    e.target.value = pin;
-
-    if (e.key === 'Enter' && pin.length >= 4) {
-        try {
-            const result = await callFunction('getMatchByPin', { pin });
-            if (result.success && result.match) {
-                const match = result.match;
-                const games = match.games || [];
-                let gameToPlay = games.find(g => g.status === 'pending' || g.status === 'in_progress');
-                if (!gameToPlay && games.length > 0) gameToPlay = games[0];
-
-                if (gameToPlay) {
-                    const gameIndex = games.indexOf(gameToPlay);
-                    const format = gameToPlay.format || '501';
-                    const isCricket = format.toLowerCase() === 'cricket';
-                    const scorerPage = isCricket ? 'league-cricket.html' : 'x01-scorer.html';
-
-                    const params = new URLSearchParams({
-                        league_id: match.league_id,
-                        match_id: match.match_id,
-                        game_index: gameIndex,
-                        game_number: gameToPlay.game_number || gameIndex + 1,
-                        format: format,
-                        type: gameToPlay.type || 'singles',
-                        checkout: gameToPlay.checkout || 'double',
-                        best_of: gameToPlay.best_of || 3
-                    });
-
-                    if (gameToPlay.home_players) params.set('home_players', JSON.stringify(gameToPlay.home_players));
-                    if (gameToPlay.away_players) params.set('away_players', JSON.stringify(gameToPlay.away_players));
-
-                    window.location.href = `/pages/${scorerPage}?${params.toString()}`;
-                }
-            } else {
-                alert('Match not found. Check the PIN and try again.');
+        // Check login state
+        function checkLoginState() {
+            const session = localStorage.getItem('brdc_session');
+            if (session) {
+                try {
+                    const data = JSON.parse(session);
+                    document.getElementById('profileIcon').textContent = data.first_name ? data.first_name[0].toUpperCase() : '👤';
+                    document.getElementById('profileText').textContent = data.first_name || 'Profile';
+                } catch (e) { console.warn('Profile load failed:', e); }
             }
-        } catch (error) {
-            alert('Error: ' + error.message);
-        }
-    }
-});
-
-// Tab navigation
-document.querySelectorAll('.tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-        const tabId = tab.dataset.tab;
-        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-        tab.classList.add('active');
-
-        if (tabId === 'leagues') window.location.href = '/pages/leagues.html';
-        else if (tabId === 'tournaments') window.location.href = '/pages/tournaments.html';
-        else if (tabId === 'standings') window.location.href = '/pages/leagues.html';
-    });
-});
-
-// Load Active Leagues
-async function loadLeagues() {
-    const container = document.getElementById('leaguesScroll');
-    try {
-        console.log('Loading leagues...');
-        const leaguesQuery = query(
-            collection(db, 'leagues'),
-            where('status', 'in', ['active', 'registration']),
-            limit(10)
-        );
-        const snap = await getDocs(leaguesQuery);
-        console.log('Leagues found:', snap.size);
-
-        if (snap.empty) {
-            container.innerHTML = '<div class="empty-state">No active leagues right now</div>';
-            return;
         }
 
-        const colors = ['', 'teal', 'yellow'];
-        let colorIndex = 0;
+        window.goToProfile = function () {
+            window.location.href = '/pages/dashboard.html';
+        };
 
-        container.innerHTML = snap.docs.map(doc => {
-            const league = doc.data();
-            const color = colors[colorIndex % 3];
-            colorIndex++;
-            return `
+        // PIN Input handler
+        document.getElementById('pinInput').addEventListener('keyup', async (e) => {
+            const pin = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+            e.target.value = pin;
+
+            if (e.key === 'Enter' && pin.length >= 4) {
+                try {
+                    const result = await callFunction('getMatchByPin', { pin });
+                    if (result.success && result.match) {
+                        const match = result.match;
+                        const games = match.games || [];
+                        let gameToPlay = games.find(g => g.status === 'pending' || g.status === 'in_progress');
+                        if (!gameToPlay && games.length > 0) gameToPlay = games[0];
+
+                        if (gameToPlay) {
+                            const gameIndex = games.indexOf(gameToPlay);
+                            const format = gameToPlay.format || '501';
+                            const isCricket = format.toLowerCase() === 'cricket';
+                            const scorerPage = isCricket ? 'league-cricket.html' : 'x01-scorer.html';
+
+                            const params = new URLSearchParams({
+                                league_id: match.league_id,
+                                match_id: match.match_id,
+                                game_index: gameIndex,
+                                game_number: gameToPlay.game_number || gameIndex + 1,
+                                format: format,
+                                type: gameToPlay.type || 'singles',
+                                checkout: gameToPlay.checkout || 'double',
+                                best_of: gameToPlay.best_of || 3
+                            });
+
+                            if (gameToPlay.home_players) params.set('home_players', JSON.stringify(gameToPlay.home_players));
+                            if (gameToPlay.away_players) params.set('away_players', JSON.stringify(gameToPlay.away_players));
+
+                            window.location.href = `/pages/${scorerPage}?${params.toString()}`;
+                        }
+                    } else {
+                        toastError('Match not found. Check the PIN and try again.');
+                    }
+                } catch (error) {
+                    toastError('Error: ' + error.message);
+                }
+            }
+        });
+
+        // Tab navigation
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                const tabId = tab.dataset.tab;
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+
+                if (tabId === 'leagues') window.location.href = '/pages/leagues.html';
+                else if (tabId === 'tournaments') window.location.href = '/pages/tournaments.html';
+                else if (tabId === 'standings') window.location.href = '/pages/leagues.html';
+            });
+        });
+
+        // Load Active Leagues
+        async function loadLeagues() {
+            const container = document.getElementById('leaguesScroll');
+            try {
+                console.log('Loading leagues...');
+                const leaguesQuery = query(
+                    collection(db, 'leagues'),
+                    where('status', 'in', ['active', 'registration']),
+                    limit(10)
+                );
+                const snap = await getDocs(leaguesQuery);
+                console.log('Leagues found:', snap.size);
+
+                if (snap.empty) {
+                    container.innerHTML = '<div class="empty-state">No active leagues right now</div>';
+                    return;
+                }
+
+                const colors = ['', 'teal', 'yellow'];
+                let colorIndex = 0;
+
+                container.innerHTML = snap.docs.map(doc => {
+                    const league = doc.data();
+                    const color = colors[colorIndex % 3];
+                    colorIndex++;
+                    return `
                 <a href="/pages/league-view.html?league_id=${doc.id}" class="league-card">
                     <div class="league-card-image ${color}">
                         <span class="league-card-icon">🎯</span>
@@ -831,48 +847,48 @@ async function loadLeagues() {
                     </div>
                 </a>
             `;
-        }).join('');
+                }).join('');
 
-        // Set featured card to first active league
-        if (snap.docs.length > 0) {
-            const featured = snap.docs[0].data();
-            document.getElementById('featuredTitle').textContent = featured.league_name || featured.name || 'League Play';
-            document.getElementById('featuredDesc').textContent = `${featured.venue_name || 'Local venue'} - ${featured.day_of_week || 'Weekly'} nights`;
-            document.getElementById('featuredBtn').href = `/pages/league-view.html?league_id=${snap.docs[0].id}`;
-            document.getElementById('featuredCard').style.display = 'block';
-        }
-    } catch (error) {
-        console.error('Error loading leagues:', error);
-        container.innerHTML = '<div class="empty-state">Could not load leagues</div>';
-    }
-}
-
-// Load Tournaments
-async function loadTournaments() {
-    const container = document.getElementById('tournamentsScroll');
-    try {
-        console.log('Loading tournaments...');
-        const tournamentsQuery = query(
-            collection(db, 'tournaments'),
-            where('status', 'in', ['created', 'registration', 'active']),
-            limit(10)
-        );
-        const snap = await getDocs(tournamentsQuery);
-        console.log('Tournaments found:', snap.size);
-
-        if (snap.empty) {
-            container.innerHTML = '<div class="empty-state">No upcoming tournaments</div>';
-            return;
+                // Set featured card to first active league
+                if (snap.docs.length > 0) {
+                    const featured = snap.docs[0].data();
+                    document.getElementById('featuredTitle').textContent = featured.league_name || featured.name || 'League Play';
+                    document.getElementById('featuredDesc').textContent = `${featured.venue_name || 'Local venue'} - ${featured.day_of_week || 'Weekly'} nights`;
+                    document.getElementById('featuredBtn').href = `/pages/league-view.html?league_id=${snap.docs[0].id}`;
+                    document.getElementById('featuredCard').style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Error loading leagues:', error);
+                container.innerHTML = '<div class="empty-state">Could not load leagues</div>';
+            }
         }
 
-        const colors = ['teal', 'yellow', ''];
-        let colorIndex = 0;
+        // Load Tournaments
+        async function loadTournaments() {
+            const container = document.getElementById('tournamentsScroll');
+            try {
+                console.log('Loading tournaments...');
+                const tournamentsQuery = query(
+                    collection(db, 'tournaments'),
+                    where('status', 'in', ['created', 'registration', 'active']),
+                    limit(10)
+                );
+                const snap = await getDocs(tournamentsQuery);
+                console.log('Tournaments found:', snap.size);
 
-        container.innerHTML = snap.docs.map(doc => {
-            const tournament = doc.data();
-            const color = colors[colorIndex % 3];
-            colorIndex++;
-            return `
+                if (snap.empty) {
+                    container.innerHTML = '<div class="empty-state">No upcoming tournaments</div>';
+                    return;
+                }
+
+                const colors = ['teal', 'yellow', ''];
+                let colorIndex = 0;
+
+                container.innerHTML = snap.docs.map(doc => {
+                    const tournament = doc.data();
+                    const color = colors[colorIndex % 3];
+                    colorIndex++;
+                    return `
                 <a href="/pages/tournament-view.html?tournament_id=${doc.id}" class="league-card">
                     <div class="league-card-image ${color}">
                         <span class="league-card-icon">🏆</span>
@@ -888,57 +904,57 @@ async function loadTournaments() {
                     </div>
                 </a>
             `;
-        }).join('');
-    } catch (error) {
-        console.error('Error loading tournaments:', error);
-        container.innerHTML = '<div class="empty-state">Could not load tournaments</div>';
-    }
-}
-
-// Load Weekly Leaders
-async function loadLeaders() {
-    const container = document.getElementById('leadersScroll');
-    try {
-        console.log('Loading leaders...');
-        const leaguesQuery = query(collection(db, 'leagues'), where('status', '==', 'active'));
-        const leaguesSnap = await getDocs(leaguesQuery);
-        console.log('Active leagues for leaders:', leaguesSnap.size);
-
-        if (leaguesSnap.empty) {
-            container.innerHTML = '<div class="empty-state">No active leagues</div>';
-            return;
+                }).join('');
+            } catch (error) {
+                console.error('Error loading tournaments:', error);
+                container.innerHTML = '<div class="empty-state">Could not load tournaments</div>';
+            }
         }
 
-        const leaders = [];
+        // Load Weekly Leaders
+        async function loadLeaders() {
+            const container = document.getElementById('leadersScroll');
+            try {
+                console.log('Loading leaders...');
+                const leaguesQuery = query(collection(db, 'leagues'), where('status', '==', 'active'));
+                const leaguesSnap = await getDocs(leaguesQuery);
+                console.log('Active leagues for leaders:', leaguesSnap.size);
 
-        for (const leagueDoc of leaguesSnap.docs) {
-            console.log('Loading stats for league:', leagueDoc.id);
-            const statsSnap = await getDocs(collection(db, 'leagues', leagueDoc.id, 'stats'));
-            console.log('Stats found:', statsSnap.size);
-            statsSnap.forEach(doc => {
-                const stats = doc.data();
-                const avg = stats.x01_total_darts > 0
-                    ? ((stats.x01_total_points || 0) / (stats.x01_total_darts || 1) * 3)
-                    : 0;
-                if (avg > 0) {
-                    leaders.push({
-                        name: stats.player_name || 'Unknown',
-                        avg: avg,
-                        level: stats.level || ''
+                if (leaguesSnap.empty) {
+                    container.innerHTML = '<div class="empty-state">No active leagues</div>';
+                    return;
+                }
+
+                const leaders = [];
+
+                for (const leagueDoc of leaguesSnap.docs) {
+                    console.log('Loading stats for league:', leagueDoc.id);
+                    const statsSnap = await getDocs(collection(db, 'leagues', leagueDoc.id, 'stats'));
+                    console.log('Stats found:', statsSnap.size);
+                    statsSnap.forEach(doc => {
+                        const stats = doc.data();
+                        const avg = stats.x01_total_darts > 0
+                            ? ((stats.x01_total_points || 0) / (stats.x01_total_darts || 1) * 3)
+                            : 0;
+                        if (avg > 0) {
+                            leaders.push({
+                                name: stats.player_name || 'Unknown',
+                                avg: avg,
+                                level: stats.level || ''
+                            });
+                        }
                     });
                 }
-            });
-        }
 
-        leaders.sort((a, b) => b.avg - a.avg);
-        const topLeaders = leaders.slice(0, 10);
+                leaders.sort((a, b) => b.avg - a.avg);
+                const topLeaders = leaders.slice(0, 10);
 
-        if (topLeaders.length === 0) {
-            container.innerHTML = '<div class="empty-state">No stats yet this week</div>';
-            return;
-        }
+                if (topLeaders.length === 0) {
+                    container.innerHTML = '<div class="empty-state">No stats yet this week</div>';
+                    return;
+                }
 
-        container.innerHTML = topLeaders.map(leader => `
+                container.innerHTML = topLeaders.map(leader => `
             <div class="leader-card">
                 <div class="leader-avatar">${leader.name.charAt(0)}</div>
                 <div class="leader-name">${leader.name}</div>
@@ -946,79 +962,79 @@ async function loadLeaders() {
                 <div class="leader-label">501 Avg</div>
             </div>
         `).join('');
-    } catch (error) {
-        console.error('Error loading leaders:', error);
-        container.innerHTML = '<div class="empty-state">Could not load leaders</div>';
-    }
-}
-
-// Load Notable Performances
-async function loadPerformances() {
-    const container = document.getElementById('performancesScroll');
-    try {
-        const leaguesQuery = query(collection(db, 'leagues'), where('status', '==', 'active'));
-        const leaguesSnap = await getDocs(leaguesQuery);
-
-        const performances = [];
-        const oneWeekAgo = new Date();
-        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-
-        for (const leagueDoc of leaguesSnap.docs) {
-            const teamsSnap = await getDocs(collection(db, 'leagues', leagueDoc.id, 'teams'));
-            const teamsMap = {};
-            teamsSnap.forEach(doc => { teamsMap[doc.id] = doc.data().team_name || 'Team'; });
-
-            const matchesSnap = await getDocs(
-                query(collection(db, 'leagues', leagueDoc.id, 'matches'), where('completed', '==', true))
-            );
-
-            matchesSnap.forEach(doc => {
-                const match = doc.data();
-                const matchDate = match.completed_at?.toDate?.() || match.match_date?.toDate?.();
-                if (!matchDate || matchDate < oneWeekAgo) return;
-
-                const playerStats = match.player_stats || {};
-                Object.entries(playerStats).forEach(([playerId, stats]) => {
-                    if (stats.x01_avg && parseFloat(stats.x01_avg) >= 50) {
-                        performances.push({
-                            type: 'Match Avg',
-                            value: parseFloat(stats.x01_avg).toFixed(1),
-                            player: stats.player_name || 'Unknown',
-                            team: teamsMap[stats.team_id] || '',
-                            date: matchDate
-                        });
-                    }
-                    if (stats.high_checkout && stats.high_checkout >= 100) {
-                        performances.push({
-                            type: 'Checkout',
-                            value: stats.high_checkout,
-                            player: stats.player_name || 'Unknown',
-                            team: teamsMap[stats.team_id] || '',
-                            date: matchDate
-                        });
-                    }
-                    if (stats.tons_180 && stats.tons_180 >= 1) {
-                        performances.push({
-                            type: '180!',
-                            value: '180',
-                            player: stats.player_name || 'Unknown',
-                            team: teamsMap[stats.team_id] || '',
-                            date: matchDate
-                        });
-                    }
-                });
-            });
+            } catch (error) {
+                console.error('Error loading leaders:', error);
+                container.innerHTML = '<div class="empty-state">Could not load leaders</div>';
+            }
         }
 
-        performances.sort((a, b) => (b.date || 0) - (a.date || 0));
-        const topPerfs = performances.slice(0, 10);
+        // Load Notable Performances
+        async function loadPerformances() {
+            const container = document.getElementById('performancesScroll');
+            try {
+                const leaguesQuery = query(collection(db, 'leagues'), where('status', '==', 'active'));
+                const leaguesSnap = await getDocs(leaguesQuery);
 
-        if (topPerfs.length === 0) {
-            container.innerHTML = '<div class="empty-state">No notable performances this week</div>';
-            return;
-        }
+                const performances = [];
+                const oneWeekAgo = new Date();
+                oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
 
-        container.innerHTML = topPerfs.map(p => `
+                for (const leagueDoc of leaguesSnap.docs) {
+                    const teamsSnap = await getDocs(collection(db, 'leagues', leagueDoc.id, 'teams'));
+                    const teamsMap = {};
+                    teamsSnap.forEach(doc => { teamsMap[doc.id] = doc.data().team_name || 'Team'; });
+
+                    const matchesSnap = await getDocs(
+                        query(collection(db, 'leagues', leagueDoc.id, 'matches'), where('completed', '==', true))
+                    );
+
+                    matchesSnap.forEach(doc => {
+                        const match = doc.data();
+                        const matchDate = match.completed_at?.toDate?.() || match.match_date?.toDate?.();
+                        if (!matchDate || matchDate < oneWeekAgo) return;
+
+                        const playerStats = match.player_stats || {};
+                        Object.entries(playerStats).forEach(([playerId, stats]) => {
+                            if (stats.x01_avg && parseFloat(stats.x01_avg) >= 50) {
+                                performances.push({
+                                    type: 'Match Avg',
+                                    value: parseFloat(stats.x01_avg).toFixed(1),
+                                    player: stats.player_name || 'Unknown',
+                                    team: teamsMap[stats.team_id] || '',
+                                    date: matchDate
+                                });
+                            }
+                            if (stats.high_checkout && stats.high_checkout >= 100) {
+                                performances.push({
+                                    type: 'Checkout',
+                                    value: stats.high_checkout,
+                                    player: stats.player_name || 'Unknown',
+                                    team: teamsMap[stats.team_id] || '',
+                                    date: matchDate
+                                });
+                            }
+                            if (stats.tons_180 && stats.tons_180 >= 1) {
+                                performances.push({
+                                    type: '180!',
+                                    value: '180',
+                                    player: stats.player_name || 'Unknown',
+                                    team: teamsMap[stats.team_id] || '',
+                                    date: matchDate
+                                });
+                            }
+                        });
+                    });
+                }
+
+                performances.sort((a, b) => (b.date || 0) - (a.date || 0));
+                const topPerfs = performances.slice(0, 10);
+
+                if (topPerfs.length === 0) {
+                    container.innerHTML = '<div class="empty-state">No notable performances this week</div>';
+                    return;
+                }
+
+                container.innerHTML = topPerfs.map(p => `
             <div class="perf-card">
                 <div class="perf-value">${p.value}</div>
                 <div class="perf-type">${p.type}</div>
@@ -1026,23 +1042,23 @@ async function loadPerformances() {
                 <div class="perf-team">${p.team}</div>
             </div>
         `).join('');
-    } catch (error) {
-        container.innerHTML = '<div class="empty-state">Could not load performances</div>';
-    }
-}
+            } catch (error) {
+                container.innerHTML = '<div class="empty-state">Could not load performances</div>';
+            }
+        }
 
-// Initialize
-checkLoginState();
-loadLeagues();
-loadTournaments();
-loadLeaders();
-loadPerformances();
+        // Initialize
+        checkLoginState();
+        loadLeagues();
+        loadTournaments();
+        loadLeaders();
+        loadPerformances();
 
-// Register service worker
-if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js').catch(() => {});
-}
-</script>
-<script src="/js/feedback.js"></script>
+        // Register service worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js').catch(() => { });
+        }
+    </script>
 </body>
+
 </html>

@@ -809,7 +809,6 @@
 
                 // Monitor connection state
                 peerConnection.onconnectionstatechange = () => {
-                    console.log('Connection state:', peerConnection.connectionState);
                     updateConnectionStatus(peerConnection.connectionState);
 
                     if (peerConnection.connectionState === 'failed') {
@@ -838,7 +837,6 @@
                             sdp: answerData.sdp,
                             type: answerData.type
                         }));
-                        console.log('Answer received and set');
                     }
                 });
 
@@ -946,7 +944,6 @@
                 await deleteDoc(doc(db, 'streaming_sessions', sessionId, 'offers', cameraRole));
                 await deleteDoc(doc(db, 'streaming_sessions', sessionId, 'camera_status', cameraRole));
             } catch (e) {
-                console.log('Cleanup error:', e);
             }
 
             // Stop local stream
@@ -972,9 +969,7 @@
         // Handle visibility change (tab switch, screen lock)
         document.addEventListener('visibilitychange', () => {
             if (document.hidden && peerConnection) {
-                console.log('Page hidden, connection may be affected');
             } else if (!document.hidden && peerConnection) {
-                console.log('Page visible again');
                 // Check connection state and reconnect if needed
                 if (peerConnection.connectionState === 'disconnected' || peerConnection.connectionState === 'failed') {
                     toastWarning('Reconnecting...');

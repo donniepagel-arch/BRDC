@@ -14,7 +14,7 @@
 
     <link rel="icon" type="image/png" href="/images/favicon.png">
     <link rel="manifest" href="/manifest.json">
-    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="BRDC">
     <link rel="apple-touch-icon" href="/images/gold_logo.png">
@@ -1765,8 +1765,8 @@ let homeTeamName = decodeURIComponent(params.get('home_team_name') || 'Home');
 let awayTeamName = decodeURIComponent(params.get('away_team_name') || 'Away');
 
 let homePlayers = [], awayPlayers = [];
-try { homePlayers = JSON.parse(params.get('home_players') || '[]'); } catch(e) {}
-try { awayPlayers = JSON.parse(params.get('away_players') || '[]'); } catch(e) {}
+try { homePlayers = JSON.parse(params.get('home_players') || '[]'); } catch(e) { toastWarning('Could not parse player roster'); }
+try { awayPlayers = JSON.parse(params.get('away_players') || '[]'); } catch(e) { toastWarning('Could not parse player roster'); }
 
 // For choice games, default to 501 until cork winner chooses
 const formatParam = params.get('format');
@@ -2278,7 +2278,6 @@ async function backupGameState() {
         };
 
         await saveGameState(GAME_STATE_ID, state);
-        console.log('Game state backed up after leg', leg - 1);
     } catch (e) {
         console.warn('Failed to backup game state:', e);
     }
@@ -2335,13 +2334,11 @@ function restoreGameState(saved) {
     document.getElementById('homeLegs').textContent = teams[0].legs;
     document.getElementById('awayLegs').textContent = teams[1].legs;
 
-    console.log('Game state restored - Leg', leg, 'Score:', teams[0].legs, '-', teams[1].legs);
 }
 
 async function clearSavedGame() {
     try {
         await clearGameState(GAME_STATE_ID);
-        console.log('Saved game state cleared');
     } catch (e) {
         console.warn('Error clearing saved game:', e);
     }
@@ -2924,11 +2921,11 @@ window.submitRemainingScore = function(teamIndex) {
 
     // Validate the calculated throw score
     if (throwScore < 0) {
-        alert('Invalid: The remaining score cannot be higher than your current score!');
+        toastError('Invalid: The remaining score cannot be higher than your current score!');
         return;
     }
     if (throwScore > 180) {
-        alert('Invalid: Maximum score per turn is 180!');
+        toastError('Invalid: Maximum score per turn is 180!');
         return;
     }
 
@@ -3087,7 +3084,7 @@ window.submitCurrentScore = function() {
     pendingMultiplier = null;
 
     if (finalScore > 180) {
-        alert('Maximum score is 180!');
+        toastError('Maximum score is 180!');
         inputValue = '0';
         updateInputDisplay();
         return;
@@ -3108,7 +3105,7 @@ window.submitScore = function(score, dartsUsed = 3) {
     // Double-in validation: first score of leg must be even (or 0)
     if (inRule === 'double' && currentLegStats[activeTeam].darts === 0 && score > 0) {
         if (score % 2 !== 0) {
-            alert('Double In: First score must be even (you need to start with a double)');
+            toastError('Double In: First score must be even (you need to start with a double)');
             inputValue = '0';
             updateInputDisplay();
             isSubmitting = false;
@@ -3118,7 +3115,7 @@ window.submitScore = function(score, dartsUsed = 3) {
 
     // Impossible score validation
     if (IMPOSSIBLE_SCORES.includes(score)) {
-        alert('Invalid score - ' + score + ' is not achievable with 3 darts');
+        toastError('Invalid score - ' + score + ' is not achievable with 3 darts');
         inputValue = '0';
         updateInputDisplay();
         isSubmitting = false;
@@ -3425,7 +3422,7 @@ function completeCheckout(score, dartsUsed) {
     // Validate minimum darts - prevent impossible scores like 8-darters
     const minDarts = calculateMinDarts(STARTING_SCORE);
     if (totalDarts < minDarts) {
-        alert(`Invalid: ${STARTING_SCORE} cannot be completed in ${totalDarts} darts.\nMinimum possible is ${minDarts} darts.`);
+        toastError(`Invalid: ${STARTING_SCORE} cannot be completed in ${totalDarts} darts. Minimum possible is ${minDarts} darts.`);
         document.getElementById('dartsModal').classList.remove('active');
         return;
     }
@@ -3940,13 +3937,13 @@ window.editThrow = function(teamIdx, throwIdx) {
 
     const newScore = parseInt(newValue);
     if (isNaN(newScore) || newScore < 0 || newScore > 180) {
-        alert('Invalid score. Must be 0-180.');
+        toastError('Invalid score. Must be 0-180.');
         return;
     }
 
     // Check for impossible scores
     if (IMPOSSIBLE_SCORES.includes(newScore)) {
-        alert('Invalid score - ' + newScore + ' is not achievable with 3 darts');
+        toastError('Invalid score - ' + newScore + ' is not achievable with 3 darts');
         return;
     }
 
@@ -5305,12 +5302,19 @@ function showMatchCompleteModal(matchState, gameStats) {
             (awayScore > homeScore ? { name: homeTeamName, score: homeScore } : { name: 'Tie', score: awayScore });
 
         if (typeof LiveMatch !== 'undefined') {
+            // Calculate PPD (Points Per Dart) for both teams
+            const homePPD = teams[0].darts > 0 ? teams[0].points / teams[0].darts : 0;
+            const awayPPD = teams[1].darts > 0 ? teams[1].points / teams[1].darts : 0;
+            const topPPDValue = homePPD >= awayPPD && homePPD > 0 ?
+                { player: homeTeamName, value: parseFloat(homePPD.toFixed(2)) } :
+                (awayPPD > 0 ? { player: awayTeamName, value: parseFloat(awayPPD.toFixed(2)) } : null);
+
             await LiveMatch.end({
                 winner: winner,
                 loser: loser,
                 stats: {
                     // Add basic stats from the match
-                    topPPD: null, // TODO: calculate from player stats
+                    topPPD: topPPDValue,
                     highestCheckout: Math.max(teams[0].highCheckout || 0, teams[1].highCheckout || 0) > 0 ?
                         { player: teams[0].highCheckout > teams[1].highCheckout ? homeTeamName : awayTeamName,
                           value: Math.max(teams[0].highCheckout || 0, teams[1].highCheckout || 0) } : null
@@ -5593,7 +5597,7 @@ window.selectNextGame = function(type) {
 window.confirmX01Selection = function() {
     const rawScore = parseInt(document.getElementById('x01CustomScore').value);
     if (isNaN(rawScore) || rawScore < 101 || rawScore > 1001) {
-        alert('Invalid score. Must be between 101 and 1001.');
+        toastError('Invalid score. Must be between 101 and 1001.');
         return;
     }
     const score = rawScore;

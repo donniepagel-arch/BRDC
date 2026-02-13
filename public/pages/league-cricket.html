@@ -14,7 +14,7 @@
 
     <link rel="icon" type="image/png" href="/images/favicon.png">
     <link rel="manifest" href="/manifest.json">
-    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="BRDC">
     <link rel="apple-touch-icon" href="/images/gold_logo.png">
@@ -3658,12 +3658,23 @@ function showMatchCompleteModal(matchState, gameStats) {
             { name: awayTeamName, score: awayScore } :
             (awayScore > homeScore ? { name: homeTeamName, score: homeScore } : { name: 'Tie', score: awayScore });
 
+        // Calculate MPR for both players
+        const homeMPR = players[0].totalRounds > 0 ? players[0].totalMarks / players[0].totalRounds : 0;
+        const awayMPR = players[1].totalRounds > 0 ? players[1].totalMarks / players[1].totalRounds : 0;
+        const topMPRValue = homeMPR >= awayMPR && homeMPR > 0 ?
+            { player: homeTeamName, value: parseFloat(homeMPR.toFixed(2)) } :
+            (awayMPR > 0 ? { player: awayTeamName, value: parseFloat(awayMPR.toFixed(2)) } : null);
+
+        const mostMarksValue = players[0].totalMarks >= players[1].totalMarks && players[0].totalMarks > 0 ?
+            { player: homeTeamName, value: players[0].totalMarks } :
+            (players[1].totalMarks > 0 ? { player: awayTeamName, value: players[1].totalMarks } : null);
+
         LiveMatch.end({
             winner: winner,
             loser: loser,
             stats: {
-                topMPR: null, // TODO: calculate from player stats
-                mostMarks: null
+                topMPR: topMPRValue,
+                mostMarks: mostMarksValue
             }
         }).catch(e => console.warn('Failed to end live match tracking:', e));
     }

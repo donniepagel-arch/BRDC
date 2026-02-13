@@ -9,6 +9,7 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#FF469A">
     <link rel="stylesheet" href="/css/brdc-styles.css">
+    <link rel="stylesheet" href="/css/print.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap');
 
@@ -798,6 +799,37 @@
                 padding: 4px 10px;
             }
         }
+
+        /* Skeleton Loading States */
+        .skeleton {
+            background: linear-gradient(90deg, #1e2a47 25%, #2a3a57 50%, #1e2a47 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s ease-in-out infinite;
+            border-radius: 8px;
+        }
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        /* Print-specific overrides */
+        @media print {
+            /* Ensure roster table prints cleanly */
+            .players-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 10px;
+            }
+
+            /* Hide level toggle buttons in print */
+            .level-toggle {
+                display: none;
+            }
+
+            /* Simplify player cards for print */
+            .player-card:hover {
+                transform: none;
+            }
+        }
     </style>
 </head>
 <body>
@@ -816,9 +848,41 @@
     </nav>
 
     <div class="team-container" id="mainContent">
-        <div class="empty-state">
-            <div class="empty-state-icon">...</div>
-            Loading team...
+        <!-- Team header skeleton -->
+        <div style="text-align: center; padding: 20px;">
+            <div class="skeleton" style="height: 24px; width: 60px; margin: 0 auto 8px;"></div>
+            <div class="skeleton" style="height: 32px; width: 180px; margin: 0 auto 6px;"></div>
+            <div class="skeleton" style="height: 14px; width: 140px; margin: 0 auto 12px;"></div>
+            <div style="display: flex; justify-content: center; gap: 20px;">
+                <div class="skeleton" style="height: 40px; width: 60px;"></div>
+                <div class="skeleton" style="height: 40px; width: 60px;"></div>
+                <div class="skeleton" style="height: 40px; width: 60px;"></div>
+            </div>
+        </div>
+        <!-- Tab skeleton -->
+        <div style="display: flex; gap: 8px; margin: 0 16px 16px;">
+            <div class="skeleton" style="height: 36px; width: 80px; border-radius: 20px;"></div>
+            <div class="skeleton" style="height: 36px; width: 80px; border-radius: 20px;"></div>
+            <div class="skeleton" style="height: 36px; width: 80px; border-radius: 20px;"></div>
+            <div class="skeleton" style="height: 36px; width: 80px; border-radius: 20px;"></div>
+        </div>
+        <!-- Player cards skeleton (3x) -->
+        <div style="padding: 0 16px;">
+            <div style="background: var(--bg-card, #1e2a47); border: 3px solid #000; border-radius: 12px; padding: 16px; margin-bottom: 10px; display: flex; align-items: center; gap: 12px;">
+                <div class="skeleton" style="width: 48px; height: 48px; border-radius: 50%; flex-shrink: 0;"></div>
+                <div style="flex: 1;"><div class="skeleton" style="height: 16px; width: 120px; margin-bottom: 8px;"></div><div class="skeleton" style="height: 12px; width: 80px;"></div></div>
+                <div><div class="skeleton" style="height: 14px; width: 50px; margin-bottom: 6px;"></div><div class="skeleton" style="height: 14px; width: 50px;"></div></div>
+            </div>
+            <div style="background: var(--bg-card, #1e2a47); border: 3px solid #000; border-radius: 12px; padding: 16px; margin-bottom: 10px; display: flex; align-items: center; gap: 12px;">
+                <div class="skeleton" style="width: 48px; height: 48px; border-radius: 50%; flex-shrink: 0;"></div>
+                <div style="flex: 1;"><div class="skeleton" style="height: 16px; width: 100px; margin-bottom: 8px;"></div><div class="skeleton" style="height: 12px; width: 70px;"></div></div>
+                <div><div class="skeleton" style="height: 14px; width: 50px; margin-bottom: 6px;"></div><div class="skeleton" style="height: 14px; width: 50px;"></div></div>
+            </div>
+            <div style="background: var(--bg-card, #1e2a47); border: 3px solid #000; border-radius: 12px; padding: 16px; margin-bottom: 10px; display: flex; align-items: center; gap: 12px;">
+                <div class="skeleton" style="width: 48px; height: 48px; border-radius: 50%; flex-shrink: 0;"></div>
+                <div style="flex: 1;"><div class="skeleton" style="height: 16px; width: 110px; margin-bottom: 8px;"></div><div class="skeleton" style="height: 12px; width: 60px;"></div></div>
+                <div><div class="skeleton" style="height: 14px; width: 50px; margin-bottom: 6px;"></div><div class="skeleton" style="height: 14px; width: 50px;"></div></div>
+            </div>
         </div>
     </div>
 
@@ -1549,5 +1613,7 @@
 <script src="/js/display-helpers.js"></script>
 <script src="/js/stats-helpers.js"></script>
 <script src="/js/nav-menu.js"></script>
+<script src="/components/brdc-navigation-init.js"></script>
+<script>initBRDCNavigation({ page: 'team-profile' });</script>
 </body>
 </html>

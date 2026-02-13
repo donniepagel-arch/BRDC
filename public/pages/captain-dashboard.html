@@ -9,6 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700&display=swap">
     <link rel="stylesheet" href="/css/brdc-styles.css">
+    <link rel="stylesheet" href="/css/print.css">
     <style>
         :root {
             --pink: #FF469A;
@@ -1046,6 +1047,62 @@
         ::-webkit-scrollbar-thumb:hover {
             background: var(--text-dim);
         }
+
+        /* Skeleton Loading States */
+        .skeleton {
+            background: linear-gradient(90deg, #1e2a47 25%, #2a3a57 50%, #1e2a47 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s ease-in-out infinite;
+            border-radius: 8px;
+        }
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        /* Print-specific overrides */
+        @media print {
+            /* Hide attendance toggle buttons */
+            .attendance-btn,
+            .attendance-icon,
+            .presence-indicator {
+                display: none !important;
+            }
+
+            /* Hide lineup editing buttons and controls */
+            .lineup-controls,
+            .set-lineup-btn,
+            .add-sub-btn,
+            .remove-sub-btn,
+            .edit-btn,
+            .delete-btn,
+            .action-btn {
+                display: none !important;
+            }
+
+            /* Hide alert count badges */
+            .alert-count,
+            .badge {
+                display: none !important;
+            }
+
+            /* Hide interactive SET LINEUP controls */
+            .lineup-editor,
+            .lineup-drag-handle,
+            .lineup-reorder-controls {
+                display: none !important;
+            }
+
+            /* Clean up roster table for print */
+            .roster-table {
+                width: 100%;
+            }
+
+            /* Simplify player cards */
+            .player-card:hover {
+                transform: none;
+            }
+        }
     </style>
 
     <!-- Toast Notifications -->
@@ -1184,7 +1241,49 @@
         <!-- Roster Tab -->
         <section class="tab-content active" id="tab-roster" role="tabpanel" aria-label="Team roster">
             <div class="roster-grid" id="rosterGrid">
-                <div style="text-align: center; color: #aaa; padding: 40px;">Loading roster...</div>
+                <!-- Skeleton loading state -->
+                <div class="roster-card">
+                    <div class="skeleton" style="height: 12px; width: 80px; margin-bottom: 8px;"></div>
+                    <div class="skeleton" style="height: 24px; width: 140px; margin-bottom: 16px;"></div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                        <div style="background: rgba(0,0,0,0.25); padding: 10px 8px; border-radius: 8px;">
+                            <div class="skeleton" style="height: 10px; width: 30px; margin: 0 auto 6px;"></div>
+                            <div class="skeleton" style="height: 20px; width: 40px; margin: 0 auto;"></div>
+                        </div>
+                        <div style="background: rgba(0,0,0,0.25); padding: 10px 8px; border-radius: 8px;">
+                            <div class="skeleton" style="height: 10px; width: 30px; margin: 0 auto 6px;"></div>
+                            <div class="skeleton" style="height: 20px; width: 40px; margin: 0 auto;"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="roster-card">
+                    <div class="skeleton" style="height: 12px; width: 80px; margin-bottom: 8px;"></div>
+                    <div class="skeleton" style="height: 24px; width: 140px; margin-bottom: 16px;"></div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                        <div style="background: rgba(0,0,0,0.25); padding: 10px 8px; border-radius: 8px;">
+                            <div class="skeleton" style="height: 10px; width: 30px; margin: 0 auto 6px;"></div>
+                            <div class="skeleton" style="height: 20px; width: 40px; margin: 0 auto;"></div>
+                        </div>
+                        <div style="background: rgba(0,0,0,0.25); padding: 10px 8px; border-radius: 8px;">
+                            <div class="skeleton" style="height: 10px; width: 30px; margin: 0 auto 6px;"></div>
+                            <div class="skeleton" style="height: 20px; width: 40px; margin: 0 auto;"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="roster-card">
+                    <div class="skeleton" style="height: 12px; width: 80px; margin-bottom: 8px;"></div>
+                    <div class="skeleton" style="height: 24px; width: 140px; margin-bottom: 16px;"></div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                        <div style="background: rgba(0,0,0,0.25); padding: 10px 8px; border-radius: 8px;">
+                            <div class="skeleton" style="height: 10px; width: 30px; margin: 0 auto 6px;"></div>
+                            <div class="skeleton" style="height: 20px; width: 40px; margin: 0 auto;"></div>
+                        </div>
+                        <div style="background: rgba(0,0,0,0.25); padding: 10px 8px; border-radius: 8px;">
+                            <div class="skeleton" style="height: 10px; width: 30px; margin: 0 auto 6px;"></div>
+                            <div class="skeleton" style="height: 20px; width: 40px; margin: 0 auto;"></div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -1299,15 +1398,12 @@
                         const player = dashResult.dashboard.player;
                         const roles = dashResult.dashboard.roles;
 
-                        console.log('Player:', player.name, 'is_captain:', player.is_captain);
-                        console.log('Roles playing:', roles?.playing);
 
                         // Find captain role - check if player is captain of any team
                         if (roles && roles.playing) {
                             for (const team of roles.playing) {
                                 // Skip teams without team_id
                                 if (!team.team_id) {
-                                    console.log('Skipping team without team_id:', team);
                                     continue;
                                 }
 
@@ -1318,7 +1414,6 @@
                                     currentTeamId = team.team_id;
                                     captainEmail = player.email || null;
 
-                                    console.log('Trying team:', currentTeamId, 'league:', currentLeagueId, 'playerId:', player.id);
 
                                     // Try to load captain dashboard - use player ID for auth
                                     try {
@@ -1332,7 +1427,6 @@
 
                                         const result = await callFunction('getCaptainDashboard', params);
 
-                                        console.log('getCaptainDashboard result:', result.success, result.error);
 
                                         if (result.success) {
                                             dashboardData = result;
@@ -2107,9 +2201,39 @@
         document.getElementById('loginEmail').addEventListener('keypress', (e) => { if (e.key === 'Enter') captainLogin(); });
     </script>
 
+    <script type="module">
+        import { initTabSwipe } from '/js/tab-swipe.js';
+
+        // Get visible tabs only (some may be hidden like Free Agents)
+        function getVisibleTabs() {
+            return Array.from(document.querySelectorAll('.tabs .tab'))
+                .filter(t => t.style.display !== 'none' && !t.hidden);
+        }
+
+        function getTabName(btn) {
+            const match = btn.getAttribute('onclick')?.match(/showTab\('(\w+)'/);
+            return match ? match[1] : null;
+        }
+
+        initTabSwipe({
+            container: 'main',
+            getActiveIndex: () => {
+                const visibleTabs = getVisibleTabs();
+                return visibleTabs.findIndex(t => t.classList.contains('active'));
+            },
+            getTabCount: () => getVisibleTabs().length,
+            onSwipe: (index) => {
+                const visibleTabs = getVisibleTabs();
+                const tabName = getTabName(visibleTabs[index]);
+                if (tabName) window.showTab(tabName);
+            }
+        });
+    </script>
+
 <script src="/js/display-helpers.js"></script>
 <script src="/js/stats-helpers.js"></script>
-<script src="/js/feedback.js"></script>
 <script src="/js/nav-menu.js"></script>
+<script src="/components/brdc-navigation-init.js"></script>
+<script>initBRDCNavigation({ page: 'captain-dashboard' });</script>
 </body>
 </html>

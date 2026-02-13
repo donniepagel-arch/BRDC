@@ -204,6 +204,9 @@ class VirtualDarts {
         });
         this.handleResize();
 
+        // Initialize Haptic Manager
+        this.hapticManager = new HapticManager();
+
         // Initialize components
         this.dartboard = new Dartboard(this.canvas);
         this.physics = new Physics(this.dartboard);
@@ -355,6 +358,22 @@ class VirtualDarts {
         document.getElementById('difficultySelect')?.addEventListener('change', (e) => {
             setDifficulty(e.target.value);
         });
+
+        // Haptic toggle
+        const hapticToggle = document.getElementById('hapticToggle');
+        if (hapticToggle) {
+            // Set initial state from HapticManager
+            hapticToggle.checked = this.hapticManager.isEnabled();
+
+            // Listen for changes
+            hapticToggle.addEventListener('change', (e) => {
+                if (e.target.checked) {
+                    this.hapticManager.enable();
+                } else {
+                    this.hapticManager.disable();
+                }
+            });
+        }
     }
 
     /**
@@ -960,6 +979,8 @@ class VirtualDarts {
         if (this.state.score === 0) {
             // Track checkout score for achievements (the turn score is the checkout)
             this.lastCheckoutScore = this.state.turnScore;
+            // Haptic feedback for checkout
+            this.hapticManager.checkout();
             this.gameWon();
         }
     }
@@ -1052,6 +1073,9 @@ class VirtualDarts {
             setTimeout(() => bustEl.classList.add('hidden'), 2000);
         }
 
+        // Haptic feedback for bust
+        this.hapticManager.bust();
+
         // End turn immediately
         this.state.dartsInTurn = CONFIG.GAME.DARTS_PER_TURN;
     }
@@ -1063,6 +1087,8 @@ class VirtualDarts {
         // Track 180s in 501 games
         if (this.state.gameType === '501' && this.state.turnScore === 180) {
             this.state.count180s++;
+            // Haptic feedback for 180
+            this.hapticManager.oneEighty();
             // Also record for achievements - check for 180 achievement immediately
             if (typeof AchievementSystem !== 'undefined') {
                 AchievementSystem.recordTurnScore(180);
@@ -1255,6 +1281,15 @@ class VirtualDarts {
                 // Animation complete - add dart
                 this.dartboard.addDart(result.x, result.y);
                 this.state.isAnimating = false;
+
+                // Haptic feedback on dart hit
+                if (result.hit.multiplier >= 2) {
+                    // Double or treble - stronger feedback
+                    this.hapticManager.specialHit();
+                } else {
+                    // Regular hit
+                    this.hapticManager.dartHit();
+                }
 
                 // Show swipe quality popup if available
                 if (result.swipeQuality !== undefined) {

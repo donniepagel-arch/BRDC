@@ -6,7 +6,7 @@
     <title>Darts Hub - BRDC</title>
     <link rel="icon" type="image/png" href="/images/favicon.png">
     <link rel="manifest" href="/manifest.json">
-    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#FF469A">
     <link rel="stylesheet" href="/css/brdc-styles.css">
     <script src="/js/brdc-toast.js"></script>
@@ -1307,7 +1307,7 @@
         let presenceInterval = null;
 
         // Check for stored PIN
-        window.addEventListener('DOMContentLoaded', async () => {
+        async function init() {
             // Load push notifications module (fail-safe)
             try {
                 const pushModule = await import('/js/push-notifications.js');
@@ -1361,7 +1361,13 @@
             document.getElementById('pinInput').addEventListener('keyup', (e) => {
                 if (e.key === 'Enter') login();
             });
-        });
+        }
+
+        if (document.readyState === 'loading') {
+            window.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
 
         // Tab switching
         window.showLoginTab = function(tab) {
@@ -1456,7 +1462,6 @@
             // Initialize push notifications (prompt if not enabled)
             if (currentPlayer?.id) {
                 initializePushNotifications(currentPlayer.id).then(enabled => {
-                    console.log('Push notifications:', enabled ? 'enabled' : 'not enabled');
                 });
             }
 
@@ -1471,12 +1476,14 @@
         async function updatePresence() {
             if (!currentPlayer?.id) return;
             try {
-                const presenceRef = doc(db, 'presence', currentPlayer.id);
+                const presenceRef = doc(db, 'presence_heartbeats', currentPlayer.id);
                 await setDoc(presenceRef, {
                     player_id: currentPlayer.id,
                     player_name: currentPlayer.name,
-                    last_seen: new Date(),
-                    status: 'online'
+                    last_heartbeat: serverTimestamp(),
+                    status: 'online',
+                    current_page: 'messages',
+                    updated_at: serverTimestamp()
                 }, { merge: true });
             } catch (error) {
                 console.error('Error updating presence:', error);
@@ -1487,7 +1494,7 @@
             // Listen for online players (active in last 5 minutes)
             const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
             const presenceRef = collection(db, 'presence_heartbeats');
-            const q = query(presenceRef, where('last_seen', '>=', fiveMinutesAgo));
+            const q = query(presenceRef, where('last_heartbeat', '>=', fiveMinutesAgo));
 
             unsubscribePresence = onSnapshot(q, (snapshot) => {
                 const players = [];
@@ -1573,8 +1580,8 @@
             container.innerHTML = challenges.map(c => `
                 <div class="challenge-card">
                     <div class="challenge-info">
-                        <div class="challenge-from">${c.challenger_name}</div>
-                        <div class="challenge-type">${c.game_type || '501'} Challenge</div>
+                        <div class="challenge-from">${escapeHtml(c.challenger_name)}</div>
+                        <div class="challenge-type">${escapeHtml(c.game_type || '501')} Challenge</div>
                     </div>
                     <div class="challenge-actions">
                         <button class="challenge-btn accept" onclick="acceptChallenge('${c.id}')">ACCEPT</button>
@@ -1592,6 +1599,11 @@
                 }
             } catch (error) {
                 console.error('Error loading channels:', error);
+                const noChannels = document.getElementById('noChannels');
+                if (noChannels) {
+                    noChannels.style.display = 'block';
+                    noChannels.innerHTML = '<div class="empty-icon">!</div><p>Failed to load channels. Pull down to refresh.</p>';
+                }
             }
         }
 
@@ -1673,6 +1685,10 @@
                 }
             } catch (error) {
                 console.error('Error loading conversations:', error);
+                const listContainer = document.getElementById('dmList');
+                if (listContainer) {
+                    listContainer.innerHTML = '<div class="empty-state"><div class="empty-icon">!</div><p>Failed to load conversations</p></div>';
+                }
             }
         }
 
@@ -1874,7 +1890,7 @@
                     target_name: selectedPlayer.name,
                     game_type: selectedGameType,
                     status: 'pending',
-                    created_at: new Date()
+                    created_at: serverTimestamp()
                 });
 
                 closeChallengeModal();
@@ -1888,24 +1904,26 @@
         window.acceptChallenge = async function(challengeId) {
             try {
                 const challengeRef = doc(db, 'challenges', challengeId);
-                const challengeSnap = await challengeRef.get ? await challengeRef.get() : null;
 
                 // Update challenge status
                 await setDoc(challengeRef, { status: 'accepted' }, { merge: true });
 
                 // Navigate to game setup
-                toastSuccess('Challenge accepted! Redirecting to game...');
+                toastSuccess('Challenge accepted!');
                 // Could redirect to game setup page here
             } catch (error) {
                 console.error('Error accepting challenge:', error);
+                toastError('Failed to accept challenge');
             }
         };
 
         window.declineChallenge = async function(challengeId) {
             try {
                 await deleteDoc(doc(db, 'challenges', challengeId));
+                toastSuccess('Challenge declined');
             } catch (error) {
                 console.error('Error declining challenge:', error);
+                toastError('Failed to decline challenge');
             }
         };
 
@@ -1924,6 +1942,7 @@
                 }
             } catch (error) {
                 console.error('Error starting conversation:', error);
+                toastError('Failed to start conversation');
             }
         };
 
@@ -1993,8 +2012,8 @@
                                         ${player.photo ? `<img src="${player.photo}" alt="" style="width:100%;height:100%;border-radius:50%;">` : initials}
                                     </div>
                                     <div>
-                                        <div class="search-result-name">${player.name}</div>
-                                        ${player.team_name ? `<div class="search-result-team">${player.team_name}</div>` : ''}
+                                        <div class="search-result-name">${escapeHtml(player.name)}</div>
+                                        ${player.team_name ? `<div class="search-result-team">${escapeHtml(player.team_name || '')}</div>` : ''}
                                     </div>
                                 </div>
                             `;
@@ -2072,11 +2091,13 @@
             // Mark as offline
             if (currentPlayer?.id) {
                 try {
-                    await deleteDoc(doc(db, 'presence', currentPlayer.id));
+                    await deleteDoc(doc(db, 'presence_heartbeats', currentPlayer.id));
                 } catch (e) {}
             }
         });
     </script>
 <script src="/js/nav-menu.js"></script>
+<script src="/components/brdc-navigation-init.js"></script>
+<script>initBRDCNavigation({ page: 'messages' });</script>
 </body>
 </html>

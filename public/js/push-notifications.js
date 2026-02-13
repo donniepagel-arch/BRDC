@@ -6,9 +6,8 @@
 // Firebase messaging instance (lazy loaded)
 let messagingInstance = null;
 
-// VAPID key for FCM (public key)
-// You'll need to generate this in Firebase Console > Project Settings > Cloud Messaging
-const VAPID_KEY = 'BOB_P5xO-RXyvDqZYuVgRMCXiX7wYBhCIiWWR-NVTXshUFtif_YspGW6fxaMA6wYXKdk4PanSGG1Kk27XxUNCFA'; // TODO: Replace with actual VAPID key
+// VAPID key for FCM (public key from Firebase Console)
+const VAPID_KEY = 'BOB_P5xO-RXyvDqZYuVgRMCXiX7wYBhCIiWWR-NVTXshUFtif_YspGW6fxaMA6wYXKdk4PanSGG1Kk27XxUNCFA';
 
 /**
  * Initialize Firebase Messaging

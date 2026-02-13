@@ -2598,14 +2598,14 @@ Bob Wilson"></textarea>
                     teamsData = result.teams;
                     document.getElementById('teamCount').textContent = teamsData.length;
                 }
-            } catch (e) { console.error(e); }
+            } catch (e) { console.error(e); toastError('Failed to load teams'); }
         }
 
         async function loadMatches() {
             try {
                 const result = await callFunction('getSchedule', { league_id: leagueId });
                 if (result.success) matchesData = result.matches;
-            } catch (e) { console.error(e); }
+            } catch (e) { console.error(e); toastError('Failed to load matches'); }
         }
 
         function renderWeekSelector() {
@@ -2718,7 +2718,7 @@ Bob Wilson"></textarea>
                 try {
                     const r = await callFunction('startMatch', { league_id: leagueId, match_id: m.id, admin_pin: adminPin });
                     if (r.success) pins.push(`${m.home_team_name} vs ${m.away_team_name}: ${r.match_pin}`);
-                } catch (e) { console.error(e); }
+                } catch (e) { console.error(e); toastError('Failed to start a match'); }
             }
             await loadMatches();
             renderMatches();
@@ -2884,7 +2884,7 @@ Bob Wilson"></textarea>
                     playersData = result.players;
                     document.getElementById('playerCountBadge').textContent = playersData.length;
                 }
-            } catch (e) { console.error('Error loading players:', e); }
+            } catch (e) { console.error('Error loading players:', e); toastError('Failed to load players'); }
         }
 
         // Store currently visible filtered players for bulk select all
@@ -3623,6 +3623,7 @@ Bob Wilson"></textarea>
                 updateBotSelect();
             } catch (e) {
                 console.error('Error loading bots:', e);
+                toastError('Failed to load bots');
             }
         }
 
@@ -3736,7 +3737,7 @@ Bob Wilson"></textarea>
             try {
                 const result = await callFunction('updateMatchDates', { league_id: leagueId });
                 if (result.success) {
-                    console.log('Match dates recalculated:', result);
+                    // Match dates recalculated successfully
                     if (result.skipped_weeks > 0) {
                         toastSuccess(`Schedule updated! ${result.skipped_weeks} blackout week(s) skipped.`);
                     }
@@ -3747,6 +3748,7 @@ Bob Wilson"></textarea>
                 }
             } catch (e) {
                 console.error('Error recalculating match dates:', e);
+                toastError('Failed to recalculate match dates');
             }
         }
 
@@ -4537,7 +4539,7 @@ Bob Wilson"></textarea>
                     updateDraftStatusDisplay(result.draft);
                 }
             } catch (e) {
-                console.log('No draft state yet or error fetching:', e.message);
+                console.warn('No draft state yet or error fetching:', e.message);
             }
         }
 
@@ -4659,8 +4661,8 @@ Bob Wilson"></textarea>
                     summary += `Completed: ${completedDate.toLocaleDateString()} at ${completedDate.toLocaleTimeString()}\n`;
                 }
 
-                // Show in a modal or alert (using alert for simplicity)
-                alert(summary);
+                // Show draft results as info toast
+                toastInfo(`<pre style="text-align:left;font-size:11px;max-height:300px;overflow:auto;white-space:pre-wrap">${summary}</pre>`, 15000);
 
             } catch (e) {
                 toastError('Error fetching draft results: ' + e.message);
@@ -4982,6 +4984,7 @@ Bob Wilson"></textarea>
                 document.getElementById('forfeitsCount').textContent = forfeitsCount;
             } catch (e) {
                 console.error('Error loading tools stats:', e);
+                toastError('Failed to load tools stats');
             }
         }
 
@@ -5813,5 +5816,7 @@ Bob Wilson"></textarea>
 
     <script src="/js/display-helpers.js"></script>
     <script src="/js/nav-menu.js"></script>
+    <script src="/components/brdc-navigation-init.js"></script>
+    <script>initBRDCNavigation({ page: 'league-director' });</script>
 </body>
 </html>

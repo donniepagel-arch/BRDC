@@ -46,16 +46,22 @@ window.initBRDCNavigation = function (options = {}) {
     // Default options
     const config = {
         page: options.page || '',
+        pageTitle: options.pageTitle || '',
+        backUrl: options.backUrl || '',
         showMobileNav: options.showMobileNav !== false,
         showBreadcrumbs: options.showBreadcrumbs !== false && (options.breadcrumbs || []).length > 0,
         showBackButton: options.showBackButton !== false,
-        showSearch: options.showSearch !== false,
+        showSearch: options.showSearch === true,
         breadcrumbs: options.breadcrumbs || []
     };
 
     // Load required CSS
+    loadCSS('/css/fb-mobile.css');
     loadCSS('/css/brdc-navigation.css');
-    loadCSS('/css/brdc-search.css');
+    if (config.showSearch) loadCSS('/css/brdc-search.css');
+
+    // Load accessibility utilities
+    loadScript('/js/a11y-helpers.js');
 
     // Add body class for mobile nav padding
     if (config.showMobileNav) {
@@ -68,10 +74,11 @@ window.initBRDCNavigation = function (options = {}) {
     }
 
     // Load navigation component - v2.0 auto-inits, so we just configure it
-    loadScript('/components/brdc-navigation.js', function () {
+    loadScript('/components/brdc-navigation.js?v=2', function () {
         // If already auto-initialized, just update config
         if (window.brdcNavInitialized && window.brdcNav) {
             window.brdcNav.currentPage = config.page || window.brdcNav.detectCurrentPage();
+            if (config.pageTitle) window.brdcNav.setPageTitle(config.pageTitle);
             window.brdcNav.setActivePage(window.brdcNav.currentPage);
             return;
         }
@@ -79,6 +86,8 @@ window.initBRDCNavigation = function (options = {}) {
         // Otherwise init manually (for pages that don't auto-trigger)
         const nav = new BRDCNavigation({
             page: config.page,
+            pageTitle: config.pageTitle,
+            backUrl: config.backUrl,
             showMobileNav: config.showMobileNav,
             showBreadcrumbs: config.showBreadcrumbs,
             showBackButton: config.showBackButton,
@@ -94,6 +103,9 @@ window.initBRDCNavigation = function (options = {}) {
     if (config.showSearch) {
         loadScript('/components/brdc-search.js');
     }
+
+    // Load chat drawer for site-wide swipe-to-chat
+    loadScript('/js/chat-drawer.js?v=2');
 };
 
 

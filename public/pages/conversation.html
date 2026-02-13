@@ -6,7 +6,7 @@
     <title>Conversation - BRDC</title>
     <link rel="icon" type="image/png" href="/images/favicon.png">
     <link rel="manifest" href="/manifest.json">
-    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#FF469A">
     <link rel="stylesheet" href="/css/brdc-styles.css">
     <script src="/js/brdc-toast.js"></script>
@@ -230,8 +230,10 @@
             window.location.href = '/pages/messages.html';
         }
 
-        // Check for stored PIN
-        window.addEventListener('DOMContentLoaded', async () => {
+        // Initialize conversation
+        // Note: module scripts with top-level await finish after DOMContentLoaded fires,
+        // so we use a readyState check instead of addEventListener('DOMContentLoaded')
+        async function init() {
             playerPin = localStorage.getItem('brdc_player_pin');
 
             if (!playerPin) {
@@ -268,7 +270,13 @@
                     sendMessage();
                 }
             });
-        });
+        }
+
+        if (document.readyState === 'loading') {
+            window.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
 
         async function loadConversation() {
             try {
@@ -279,9 +287,7 @@
                 });
 
                 if (result.success) {
-                    currentPlayerId = result.conversation?.other_participant?.id ?
-                        conversationId.replace(result.conversation.other_participant.id, '').replace('_', '') :
-                        null;
+                    currentPlayerId = result.conversation?.current_player_id || null;
 
                     otherParticipant = result.conversation?.other_participant;
 
@@ -472,7 +478,8 @@
 
             // Scroll to bottom only if this is the initial load or a new message was added
             if (!window.hasScrolledToBottom) {
-                scrollToBottom();
+                const container = document.getElementById('messageList');
+                container.scrollTop = container.scrollHeight;
                 window.hasScrolledToBottom = true;
             }
         }

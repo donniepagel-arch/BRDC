@@ -24,14 +24,54 @@
         textDim: 'var(--text-dim, #8a8aa3)'
     };
 
+    // Cache helper with stale-while-revalidate pattern
+    const CacheHelper = {
+        FRESH_TIME: 5 * 60 * 1000,      // 5 minutes
+        STALE_TIME: 30 * 60 * 1000,     // 30 minutes
+
+        get(key) {
+            try {
+                const cached = localStorage.getItem(key);
+                if (!cached) return null;
+                const { data, timestamp } = JSON.parse(cached);
+                const age = Date.now() - timestamp;
+                return {
+                    data,
+                    age,
+                    isFresh: age < this.FRESH_TIME,
+                    isStale: age >= this.FRESH_TIME && age < this.STALE_TIME,
+                    isExpired: age >= this.STALE_TIME
+                };
+            } catch (e) {
+                return null;
+            }
+        },
+
+        set(key, data) {
+            try {
+                localStorage.setItem(key, JSON.stringify({
+                    data,
+                    timestamp: Date.now()
+                }));
+            } catch (e) {
+                console.warn('Cache set failed:', e);
+            }
+        },
+
+        clear(key) {
+            localStorage.removeItem(key);
+        }
+    };
+
     // Menu items configuration by section
     const MENU_ITEMS = {
         play: [
-            { icon: '🎯', label: 'Scorer Hub', href: '/pages/scorer-hub.html' },
-            { icon: '🎮', label: 'VR-Darts', href: '/virtual-darts/index.html' },
-            { icon: '📺', label: 'Live Scoreboard', href: '/pages/live-scoreboard.html' },
-            { icon: '🎥', label: 'Stream Director', href: '/pages/stream-director.html' },
-            { icon: '🎲', label: 'Online Play', href: '/pages/online-play.html' }
+            { icon: '🎯', label: 'Scorer', href: '/pages/game-setup.html' }
+            // Hidden until functional:
+            // { icon: '🎮', label: 'VR-Darts', href: '/virtual-darts/index.html' },
+            // { icon: '📺', label: 'Live Scoreboard', href: '/pages/live-scoreboard.html' },
+            // { icon: '🎥', label: 'Stream Director', href: '/pages/stream-director.html' },
+            // { icon: '🎲', label: 'Online Play', href: '/pages/online-play.html' }
         ],
         discover: [
             { icon: '👥', label: 'Friends', href: '/pages/friends.html' },
@@ -39,17 +79,15 @@
             { icon: '👥', label: 'Members', href: '/pages/members.html' }
         ],
         manage: [
-            { icon: '👔', label: 'Captain Dashboard', href: '/pages/captain-dashboard.html' },
-            { icon: '📋', label: 'Roster', href: '/pages/roster.html' },
-            { icon: '📨', label: 'Team Messages', href: '/pages/team-messages.html' }
+            { icon: '👔', label: 'Captain Dashboard', href: '/pages/captain-dashboard.html', highlight: true }
         ],
         admin: [
-            { icon: '🏆', label: 'Director Dashboard', href: '/pages/director-dashboard.html' },
-            { icon: '⚙️', label: 'League Settings', href: '/pages/league-settings.html' }
+            { icon: '🏆', label: 'Director Dashboard', href: '/pages/director-dashboard.html' }
+        ],
+        siteAdmin: [
+            { icon: '🛡️', label: 'Site Admin', href: '/pages/admin.html' }
         ],
         settings: [
-            { icon: '⚙️', label: 'Account Settings', href: '/pages/settings.html' },
-            { icon: '🔔', label: 'Notifications', href: '/pages/notification-settings.html' },
             { icon: '🚪', label: 'Logout', action: 'logout' }
         ]
     };
@@ -231,6 +269,16 @@
         .fb-sidebar-item-label {
             font-size: 15px;
             font-weight: 500;
+        }
+
+        .fb-sidebar-item.highlight {
+            background: linear-gradient(135deg, rgba(255, 70, 154, 0.3), rgba(255, 70, 154, 0.15));
+            border: 1px solid rgba(255, 70, 154, 0.5);
+            font-weight: 600;
+        }
+
+        .fb-sidebar-item.highlight:hover {
+            background: linear-gradient(135deg, rgba(255, 70, 154, 0.4), rgba(255, 70, 154, 0.25));
         }
 
         .fb-sidebar-item.logout {
@@ -505,6 +553,53 @@
             text-align: center;
             color: ${CSS_VARS.textDim};
             font-size: 14px;
+        }
+
+        /* ===== SKELETON LOADERS (CHAT) ===== */
+        .skeleton-chat-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+        }
+
+        .skeleton-chat-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(90deg, ${CSS_VARS.bgCard} 25%, ${CSS_VARS.bgPanel} 50%, ${CSS_VARS.bgCard} 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            flex-shrink: 0;
+        }
+
+        .skeleton-chat-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .skeleton-chat-name {
+            height: 14px;
+            width: 60%;
+            background: linear-gradient(90deg, ${CSS_VARS.bgCard} 25%, ${CSS_VARS.bgPanel} 50%, ${CSS_VARS.bgCard} 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: 4px;
+            margin-bottom: 6px;
+        }
+
+        .skeleton-chat-preview {
+            height: 12px;
+            width: 80%;
+            background: linear-gradient(90deg, ${CSS_VARS.bgCard} 25%, ${CSS_VARS.bgPanel} 50%, ${CSS_VARS.bgCard} 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: 4px;
+        }
+
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
         }
 
         /* ===== FB SEARCH OVERLAY ===== */
@@ -986,17 +1081,22 @@
             // Play section (always visible)
             html += this.renderSection('Play', MENU_ITEMS.play);
 
-            // Discover section (always visible)
-            html += this.renderSection('Discover', MENU_ITEMS.discover);
-
-            // Manage section (captains only)
+            // Manage section (captains only) - shown prominently near top
             if (this.player && this.player.is_captain) {
                 html += this.renderSection('Manage', MENU_ITEMS.manage);
             }
 
+            // Discover section (always visible)
+            html += this.renderSection('Discover', MENU_ITEMS.discover);
+
             // Admin section (directors/admins only)
             if (this.player && (this.player.is_director || this.player.is_admin || this.player.is_master_admin)) {
                 html += this.renderSection('Admin', MENU_ITEMS.admin);
+            }
+
+            // Site Admin section (master admins only)
+            if (this.player && this.player.is_master_admin) {
+                html += this.renderSection('Site Admin', MENU_ITEMS.siteAdmin);
             }
 
             // Settings section (always visible)
@@ -1023,6 +1123,7 @@
             items.forEach(item => {
                 const isActive = item.href && currentPath.includes(item.href.replace('/pages/', ''));
                 const isLogout = item.action === 'logout';
+                const isHighlight = item.highlight === true;
 
                 if (item.action) {
                     html += `
@@ -1032,7 +1133,7 @@
                         </a>`;
                 } else {
                     html += `
-                        <a href="${item.href}" class="fb-sidebar-item ${isActive ? 'active' : ''}">
+                        <a href="${item.href}" class="fb-sidebar-item ${isActive ? 'active' : ''} ${isHighlight ? 'highlight' : ''}">
                             <span class="fb-sidebar-item-icon">${item.icon}</span>
                             <span class="fb-sidebar-item-label">${item.label}</span>
                         </a>`;
@@ -1050,7 +1151,6 @@
                     window.FBNav.logout();
                     break;
                 default:
-                    console.log('Unknown action:', action);
             }
         }
 
@@ -1150,7 +1250,6 @@
                     }
                     break;
                 default:
-                    console.log('Unknown tab action:', action);
             }
         }
 
@@ -1223,10 +1322,10 @@
                     <button class="fb-chat-sidebar-tab" data-tab="rooms" style="flex: 1; padding: 10px; background: none; border: none; color: ${CSS_VARS.textDim}; font-size: 12px; font-weight: 600; cursor: pointer; border-bottom: 2px solid transparent;">ROOMS</button>
                 </div>
                 <div class="fb-chat-sidebar-list" id="fbChatList">
-                    <div class="fb-chat-empty">Loading...</div>
+                    ${this.getSkeletonHTML()}
                 </div>
                 <div class="fb-chat-sidebar-list" id="fbRoomList" style="display: none;">
-                    <div class="fb-chat-empty">Loading...</div>
+                    ${this.getSkeletonHTML()}
                 </div>
                 <div class="fb-chat-sidebar-footer">
                     <a href="/pages/messages.html" class="fb-chat-sidebar-see-all">See All Messages</a>
@@ -1357,34 +1456,59 @@
                     return;
                 }
 
-                const { callFunction } = await import('/js/firebase-config.js');
+                const chatCacheKey = `chat_conversations_${playerPin}`;
+                const roomCacheKey = `chat_rooms_${playerPin}`;
+                const chatCache = CacheHelper.get(chatCacheKey);
+                const roomCache = CacheHelper.get(roomCacheKey);
 
-                // Load conversations (direct messages)
-                try {
-                    const convResult = await callFunction('getConversations', {
-                        player_pin: playerPin
-                    });
-
-                    if (convResult.success && convResult.conversations && convResult.conversations.length > 0) {
-                        this.chats = convResult.conversations.map(conv => ({
-                            id: conv.id,
-                            name: conv.other_participant?.name || 'Unknown',
-                            lastMessage: conv.last_message?.text || '',
-                            lastMessageTime: conv.updated_at,
-                            unread: conv.unread_count > 0,
-                            type: 'conversation'
-                        }));
-                        this.renderChats();
-                    } else {
-                        listEl.innerHTML = '<div class="fb-chat-empty">No conversations yet</div>';
-                    }
-                } catch (error) {
-                    console.error('Error loading conversations:', error);
-                    listEl.innerHTML = '<div class="fb-chat-empty">No conversations yet</div>';
+                // Show cached data immediately if available (fresh or stale)
+                if (chatCache && (chatCache.isFresh || chatCache.isStale)) {
+                    this.chats = chatCache.data;
+                    this.renderChats();
+                }
+                if (roomCache && (roomCache.isFresh || roomCache.isStale)) {
+                    this.rooms = roomCache.data;
+                    this.renderRooms();
                 }
 
-                // Load chatrooms
-                if (roomListEl) {
+                // If cache is fresh, skip API calls
+                if (chatCache && chatCache.isFresh && roomCache && roomCache.isFresh) {
+                    return;
+                }
+
+                const { callFunction } = await import('/js/firebase-config.js');
+
+                // Load conversations (direct messages) - fetch if no cache or stale/expired
+                if (!chatCache || chatCache.isStale || chatCache.isExpired) {
+                    try {
+                        const convResult = await callFunction('getConversations', {
+                            player_pin: playerPin
+                        });
+
+                        if (convResult.success && convResult.conversations && convResult.conversations.length > 0) {
+                            this.chats = convResult.conversations.map(conv => ({
+                                id: conv.id,
+                                name: conv.other_participant?.name || 'Unknown',
+                                lastMessage: conv.last_message?.text || '',
+                                lastMessageTime: conv.updated_at,
+                                unread: conv.unread_count > 0,
+                                type: 'conversation'
+                            }));
+                            CacheHelper.set(chatCacheKey, this.chats);
+                            this.renderChats();
+                        } else {
+                            listEl.innerHTML = '<div class="fb-chat-empty">No conversations yet</div>';
+                        }
+                    } catch (error) {
+                        console.error('Error loading conversations:', error);
+                        if (!chatCache) {
+                            listEl.innerHTML = '<div class="fb-chat-empty">No conversations yet</div>';
+                        }
+                    }
+                }
+
+                // Load chatrooms - fetch if no cache or stale/expired
+                if (roomListEl && (!roomCache || roomCache.isStale || roomCache.isExpired)) {
                     try {
                         const roomsResult = await callFunction('getPlayerChatRooms', {
                             player_pin: playerPin
@@ -1408,6 +1532,7 @@
                                     unread: (room.unread_count || 0) > 0,
                                     type: room.type
                                 }));
+                                CacheHelper.set(roomCacheKey, this.rooms);
                                 this.renderRooms();
                             } else {
                                 roomListEl.innerHTML = '<div class="fb-chat-empty">No chatrooms yet</div>';
@@ -1417,7 +1542,9 @@
                         }
                     } catch (error) {
                         console.error('Error loading rooms:', error);
-                        roomListEl.innerHTML = '<div class="fb-chat-empty">No chatrooms yet</div>';
+                        if (!roomCache) {
+                            roomListEl.innerHTML = '<div class="fb-chat-empty">No chatrooms yet</div>';
+                        }
                     }
                 }
             } catch (error) {
@@ -1482,6 +1609,21 @@
                     </a>`;
             });
             listEl.innerHTML = html;
+        }
+
+        getSkeletonHTML() {
+            let html = '';
+            for (let i = 0; i < 5; i++) {
+                html += `
+                    <div class="skeleton-chat-item">
+                        <div class="skeleton-chat-avatar"></div>
+                        <div class="skeleton-chat-content">
+                            <div class="skeleton-chat-name"></div>
+                            <div class="skeleton-chat-preview"></div>
+                        </div>
+                    </div>`;
+            }
+            return html;
         }
 
         getInitials(name) {
@@ -1705,7 +1847,7 @@
             let html = '<div class="fb-search-section-title">Quick Links</div>';
 
             const quickLinks = [
-                { icon: '🎯', title: 'Scorer Hub', href: '/pages/scorer-hub.html' },
+                { icon: '🎯', title: 'Scorer', href: '/pages/game-setup.html' },
                 { icon: '📅', title: 'Events', href: '/pages/events-hub.html' },
                 { icon: '👥', title: 'Members', href: '/pages/members.html' }
             ];
@@ -2015,10 +2157,9 @@
         search.init();
         notifications.init();
 
-        // Set player data for sidebar
-        if (player) {
-            sidebar.setPlayer(player);
-        }
+        // Set player data for sidebar (always generate content, even without player)
+        sidebar.setPlayer(player || null);
+        sidebar.generateContent();
 
         // Set active tab based on current page
         footer.setActive(getCurrentTab());

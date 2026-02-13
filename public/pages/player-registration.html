@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Player Registration - BRDC</title>
     <link rel="icon" type="image/png" href="/images/favicon.png">
+    <script src="/js/brdc-toast.js"></script>
     <link rel="stylesheet" href="/css/brdc-styles.css">
     
     <!-- PayPal SDK -->
@@ -14,7 +15,7 @@
     <div id="appContainer"></div>
 
     <script type="module">
-        import { db, doc, getDoc, callFunction } from '/js/firebase-config.js';
+        import { db, doc, getDoc, getDocs, collection, callFunction } from '/js/firebase-config.js';
         
         const urlParams = new URLSearchParams(window.location.search);
         const eventId = urlParams.get('event_id');
@@ -41,10 +42,15 @@
                     throw new Error('Event or tournament not found');
                 }
                 
+                // Query registrations count
+                const registrationsSnap = await getDocs(
+                    collection(db, 'tournaments', tournamentId, 'registrations')
+                );
+
                 eventData = {
                     event: { id: eventId, ...eventDoc.data() },
                     tournament: { id: tournamentId, ...tournamentDoc.data() },
-                    registrationCount: 0 // TODO: Query registrations count
+                    registrationCount: registrationsSnap.size
                 };
                 
                 renderRegistrationForm();
@@ -196,7 +202,7 @@
             // Validate chosen PIN is exactly 4 digits
             const chosenPin = formData.get('chosen_pin');
             if (!/^\d{4}$/.test(chosenPin)) {
-                alert('Please enter exactly 4 digits for your PIN');
+                toastWarning('Please enter exactly 4 digits for your PIN');
                 return;
             }
 
@@ -204,7 +210,7 @@
             const phone = formData.get('phone') || '';
             const phoneDigits = phone.replace(/\D/g, '');
             if (phoneDigits.length < 4) {
-                alert('Please enter a valid phone number with at least 4 digits');
+                toastWarning('Please enter a valid phone number with at least 4 digits');
                 return;
             }
 
@@ -241,7 +247,7 @@
                 }
 
             } catch (error) {
-                alert('Error: ' + error.message);
+                toastError('Error: ' + error.message);
                 console.error('Registration error:', error);
                 btn.disabled = false;
                 btn.textContent = eventData.event.entry_fee > 0 ? 'CONTINUE TO PAYMENT' : 'REGISTER NOW';
@@ -316,7 +322,7 @@
                         }
                     } catch (error) {
                         console.error('Error creating order:', error);
-                        alert('Payment failed. Please try again.');
+                        toastError('Payment failed. Please try again.');
                         throw error;
                     }
                 },
@@ -331,17 +337,17 @@
                         if (result.success) {
                             showSuccess(result);
                         } else {
-                            alert('Payment capture failed: ' + result.error);
+                            toastError('Payment capture failed: ' + result.error);
                         }
                     } catch (error) {
                         console.error('Error capturing payment:', error);
-                        alert('Payment verification failed. Contact support.');
+                        toastError('Payment verification failed. Contact support.');
                     }
                 },
                 
                 onError: function(err) {
                     console.error('PayPal error:', err);
-                    alert('Payment failed. Please try again or contact support.');
+                    toastError('Payment failed. Please try again or contact support.');
                 }
                 
             }).render('#paypal-button-container');
@@ -402,6 +408,5 @@
             `;
         }
     </script>
-<script src="/js/feedback.js"></script>
 </body>
 </html>

@@ -1,7 +1,6 @@
 /**
- * BRDC Navigation Styles v2.0
- * Mobile-first responsive navigation
- * Mobile: bottom nav | Tablet: sidebar + bottom | Desktop: header
+ * BRDC Navigation Styles v3.0
+ * Mobile/Tablet: unified top header + bottom nav | Desktop: header bar
  */
 
 :root {
@@ -137,113 +136,190 @@ body.has-mobile-nav {
     padding-bottom: calc(70px + env(safe-area-inset-bottom));
 }
 
-/* ===== TABLET SIDEBAR ===== */
-.brdc-sidebar {
-    position: fixed;
-    top: 0;
-    left: 0;
-    bottom: 70px;
-    /* Leave room for bottom nav */
-    width: 220px;
-    background: var(--nav-bg);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border-right: 2px solid var(--nav-border);
-    z-index: 999;
-    transition: transform 0.3s ease, width 0.3s ease;
-    display: flex;
-    flex-direction: column;
-}
-
-.brdc-sidebar.collapsed {
-    width: 60px;
-}
-
-.brdc-sidebar.collapsed .sidebar-label {
-    display: none;
-}
-
-.sidebar-toggle {
-    position: absolute;
-    top: 12px;
-    right: -16px;
-    width: 32px;
-    height: 32px;
-    background: var(--nav-active);
-    border: none;
-    border-radius: 50%;
-    color: white;
-    font-size: 14px;
-    cursor: pointer;
-    z-index: 1001;
-    box-shadow: 0 2px 8px rgba(255, 70, 154, 0.4);
-    transition: transform 0.2s ease;
-}
-
-.sidebar-toggle:hover {
-    transform: scale(1.1);
-}
-
-.sidebar-nav {
-    display: flex;
-    flex-direction: column;
-    padding: 60px 8px 8px;
-    gap: 4px;
-    overflow-y: auto;
-}
-
-.sidebar-item {
+/* ===== MOBILE/TABLET UNIFIED TOP HEADER ===== */
+.brdc-mobile-header {
     display: flex;
     align-items: center;
     gap: 12px;
     padding: 12px 16px;
-    color: var(--nav-text);
-    text-decoration: none;
-    border-radius: 10px;
+    background: var(--nav-bg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 3px solid var(--nav-active);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+/* Hide on desktop */
+@media (min-width: 1024px) {
+    .brdc-mobile-header {
+        display: none !important;
+    }
+}
+
+.brdc-mh-back {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.08);
+    color: #f0f0f0;
+    font-size: 18px;
+    cursor: pointer;
+    flex-shrink: 0;
     transition: all 0.2s ease;
-    white-space: nowrap;
+    -webkit-tap-highlight-color: transparent;
 }
 
-.sidebar-item:hover {
-    background: var(--nav-hover);
+.brdc-mh-back:hover {
+    border-color: var(--nav-active);
     color: var(--nav-active);
+    background: rgba(255, 70, 154, 0.1);
 }
 
-.sidebar-item.active {
-    background: var(--nav-hover);
-    color: var(--nav-active);
-    border-left: 3px solid var(--nav-active);
+.brdc-mh-back:active {
+    transform: scale(0.95);
 }
 
-.sidebar-icon {
-    font-size: 20px;
+.brdc-mh-logo {
+    width: 36px;
+    height: 36px;
+    object-fit: contain;
     flex-shrink: 0;
 }
 
-.sidebar-label {
-    font-size: 13px;
-    font-weight: 600;
+.brdc-mh-title {
+    font-family: 'Bebas Neue', cursive;
+    font-size: 22px;
+    letter-spacing: 2px;
+    color: var(--nav-active);
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-/* Body adjustment when sidebar is present */
-body.has-sidebar {
-    margin-left: 60px;
-    transition: margin-left 0.3s ease;
+.brdc-mh-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+    flex-shrink: 0;
 }
 
-body.has-sidebar.sidebar-expanded {
-    margin-left: 220px;
+/* Ensure moved action buttons inherit proper styling in mobile header */
+.brdc-mh-actions .header-btn,
+.brdc-mh-actions .fb-header-btn {
+    background: rgba(255, 255, 255, 0.08);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #f0f0f0;
+    cursor: pointer;
+    transition: all 0.2s ease;
 }
 
-/* Hide sidebar on mobile and desktop */
-@media (max-width: 767px),
-(min-width: 1024px) {
-    .brdc-sidebar {
-        display: none;
+.brdc-mh-actions .header-btn:hover,
+.brdc-mh-actions .fb-header-btn:hover {
+    border-color: var(--nav-active);
+    color: var(--nav-active);
+}
+
+/* Compact text buttons moved into mobile header (e.g. DIRECTOR LOGIN, PRINT) */
+.brdc-mh-actions .director-login-btn,
+.brdc-mh-actions .print-btn,
+.brdc-mh-actions .sell-btn,
+.brdc-mh-actions .create-btn {
+    font-size: 11px;
+    padding: 6px 10px;
+    border-radius: 16px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+    border: 2px solid var(--nav-active);
+    background: rgba(255, 70, 154, 0.15);
+    color: var(--nav-active);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+}
+
+.brdc-mh-actions .director-login-btn:hover,
+.brdc-mh-actions .print-btn:hover,
+.brdc-mh-actions .sell-btn:hover,
+.brdc-mh-actions .create-btn:hover {
+    background: rgba(255, 70, 154, 0.3);
+}
+
+/* Small screen: reduce header padding */
+@media (max-width: 375px) {
+    .brdc-mobile-header {
+        padding: 10px 12px;
+        gap: 8px;
     }
 
-    body.has-sidebar {
-        margin-left: 0;
+    .brdc-mh-title {
+        font-size: 18px;
+    }
+
+    .brdc-mh-back,
+    .brdc-mh-logo {
+        width: 32px;
+        height: 32px;
+    }
+}
+
+/* Landscape: compact header */
+@media (max-width: 768px) and (orientation: landscape) {
+    .brdc-mobile-header {
+        padding: 8px 16px;
+    }
+
+    .brdc-mh-title {
+        font-size: 18px;
+    }
+}
+
+/* Auto-hide per-page static headers when nav component is active on mobile/tablet */
+/* The unified nav creates its own fb-header, so hide any inline static headers */
+body.has-brdc-nav:not(.is-desktop) .header-bar,
+body.has-brdc-nav:not(.is-desktop) .header:not(.fb-header),
+body.has-brdc-nav:not(.is-desktop) .page-header,
+body.has-brdc-nav:not(.is-desktop) [data-hidden-by-nav="true"] {
+    display: none !important;
+}
+
+/* Push body content below the fixed fb-header on pages without .fb-main wrapper */
+body.has-brdc-nav:not(.is-desktop) {
+    padding-top: calc(56px + env(safe-area-inset-top, 0px));
+}
+/* Pages with .fb-main already handle their own padding, so reset body padding */
+body.has-brdc-nav:not(.is-desktop):has(.fb-main) {
+    padding-top: 0;
+}
+
+/* Print: show original static header, hide mobile header */
+@media print {
+    .brdc-mobile-header,
+    .brdc-mobile-nav {
+        display: none !important;
+    }
+
+    .header-bar[data-hidden-by-nav],
+    .header[data-hidden-by-nav],
+    .page-header[data-hidden-by-nav],
+    .fb-header[data-hidden-by-nav] {
+        display: flex !important;
     }
 }
 
@@ -409,64 +485,6 @@ body.has-desktop-nav {
     /* Header is sticky, no need for padding */
 }
 
-/* ===== BACK BUTTON ===== */
-.brdc-back-btn {
-    position: fixed;
-    top: 16px;
-    left: 16px;
-    z-index: 998;
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    border: 2px solid rgba(255, 255, 255, 0.2);
-    border-radius: 20px;
-    color: #f0f0f0;
-    font-size: 14px;
-    font-weight: 600;
-    padding: 8px 16px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-
-.brdc-back-btn:hover {
-    background: rgba(255, 255, 255, 0.15);
-    border-color: var(--nav-active);
-    color: var(--nav-active);
-    transform: translateX(-2px);
-}
-
-.brdc-back-btn:active {
-    transform: translateX(-2px) scale(0.98);
-}
-
-/* Adjust back button position when desktop nav is present */
-body.has-desktop-nav .brdc-back-btn {
-    top: 72px;
-    /* Below sticky header */
-}
-
-/* Adjust back button for tablet sidebar */
-body.has-sidebar .brdc-back-btn {
-    left: 76px;
-}
-
-body.has-sidebar.sidebar-expanded .brdc-back-btn {
-    left: 236px;
-}
-
-/* Mobile adjustments */
-@media (max-width: 767px) {
-    .brdc-back-btn {
-        top: 12px;
-        left: 12px;
-        font-size: 13px;
-        padding: 6px 12px;
-    }
-}
-
 /* ===== ROLE BADGES ===== */
 .brdc-role-badges {
     display: none;
@@ -588,6 +606,7 @@ body.is-tablet .mobile-only {
     flex: 1;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
+    touch-action: pan-y; /* Prevent double-tap zoom on notification scroll */
 }
 
 .fb-notification-item {

@@ -32,6 +32,7 @@
             font-family: 'Inter', sans-serif;
             background: linear-gradient(135deg, var(--bg-dark) 0%, var(--blue-dark) 100%);
             min-height: 100vh;
+            min-height: 100dvh;
             color: var(--text-light);
             overflow: hidden;
             width: 1920px;
@@ -666,11 +667,19 @@
 
         // Parse URL parameters
         const urlParams = new URLSearchParams(window.location.search);
-        const tournamentId = urlParams.get('tournament_id');
-        const mode = urlParams.get('mode') || 'bracket';
+        const tournamentId = urlParams.get('id') || urlParams.get('tournament_id');
+        const validModes = ['bracket', 'partner-reveal', 'match-call', 'heartbreaker-alert'];
+        const requestedMode = urlParams.get('mode');
+        const defaultMode = validModes.includes(requestedMode) ? requestedMode : 'bracket';
+        if (requestedMode && !validModes.includes(requestedMode)) {
+            console.warn(`Invalid TV mode "${requestedMode}", defaulting to bracket`);
+        }
 
         let tournamentData = null;
-        let unsubscribeListener = null;
+        let currentMode = null;             // Track which mode is currently displayed
+        let unsubscribeContentListener = null;  // Listener for mode-specific content (subcollections)
+        let unsubscribeTournamentDoc = null;     // Single listener on tournament doc
+        let countdownInterval = null;
 
         function updateConnectionStatus(connected) {
             const indicator = document.getElementById('connectionIndicator');
@@ -686,39 +695,117 @@
             }
         }
 
-        // Initialize on page load
-        window.addEventListener('DOMContentLoaded', async () => {
+        // =============================================
+        // INITIALIZATION
+        // Module scripts are deferred - DOM is ready when this runs.
+        // Do NOT use DOMContentLoaded (it has already fired).
+        // =============================================
+        async function init() {
             if (!tournamentId) {
                 showError('No tournament ID provided', 'Please add ?tournament_id=XXX to the URL');
                 return;
             }
 
-            // Show the appropriate mode
-            showMode(mode);
+            // Show default mode immediately (so something is visible)
+            switchToMode(defaultMode);
 
-            // Load tournament data
-            await loadTournament();
+            // Set up single real-time listener on tournament doc.
+            // This handles: bracket data, tv_display_mode changes, heartbreaker alerts, and headers.
+            setupTournamentDocListener();
+        }
 
-            // Set up real-time listener based on mode
-            setupListener(mode);
-        });
+        // =============================================
+        // SINGLE TOURNAMENT DOC LISTENER
+        // Watches the tournament document for ALL changes:
+        //   - bracket data updates (for bracket view)
+        //   - tv_display_mode changes (from director)
+        //   - mingle_period data (for heartbreaker alert)
+        //   - tournament name (for headers)
+        // =============================================
+        function setupTournamentDocListener() {
+            unsubscribeTournamentDoc = onSnapshot(
+                doc(db, 'tournaments', tournamentId),
+                (snapshot) => {
+                    updateConnectionStatus(true);
 
-        async function loadTournament() {
-            try {
-                const tournamentDoc = await getDoc(doc(db, 'tournaments', tournamentId));
-                if (tournamentDoc.exists()) {
-                    tournamentData = { id: tournamentDoc.id, ...tournamentDoc.data() };
+                    if (!snapshot.exists()) {
+                        showError('Tournament Not Found', 'The specified tournament does not exist');
+                        return;
+                    }
+
+                    const data = snapshot.data();
+                    tournamentData = { id: snapshot.id, ...data };
                     updateHeaders();
-                } else {
-                    showError('Tournament Not Found', 'The specified tournament does not exist');
+
+                    // Check if director changed TV mode
+                    const firestoreMode = data.tv_display_mode;
+                    const modeChanged = firestoreMode && validModes.includes(firestoreMode) && firestoreMode !== currentMode;
+                    if (modeChanged) {
+                        switchToMode(firestoreMode);
+                        // switchToMode already triggers initial render for the new mode, so skip below
+                    }
+
+                    // If bracket mode is active and this was a data update (not mode switch),
+                    // re-render bracket with latest data
+                    if (!modeChanged && currentMode === 'bracket' && data.bracket) {
+                        renderBracketFromDoc(data.bracket, data);
+                    }
+
+                    // If heartbreaker-alert mode is active and this was a data update, refresh countdown
+                    if (!modeChanged && currentMode === 'heartbreaker-alert') {
+                        updateHeartbreakerAlert(data);
+                    }
+                },
+                (error) => {
+                    console.error('Tournament doc listener error:', error);
+                    updateConnectionStatus(false);
                 }
-            } catch (error) {
-                console.error('Error loading tournament:', error);
-                showError('Error Loading Tournament', error.message);
+            );
+        }
+
+        // =============================================
+        // MODE SWITCHING
+        // =============================================
+        function switchToMode(modeName) {
+            if (modeName === currentMode) return;
+
+            currentMode = modeName;
+
+            // Update visible display panel
+            showModePanel(modeName);
+
+            // Clean up any mode-specific content listener (subcollection listeners)
+            if (unsubscribeContentListener) {
+                unsubscribeContentListener();
+                unsubscribeContentListener = null;
+            }
+
+            // Set up mode-specific content listeners for modes that need subcollections
+            // (bracket and heartbreaker-alert use the tournament doc listener, no extra listener needed)
+            switch (modeName) {
+                case 'bracket':
+                    // Bracket data comes from tournament doc - already handled by setupTournamentDocListener
+                    // Trigger immediate render if we already have data
+                    if (tournamentData?.bracket) {
+                        renderBracketFromDoc(tournamentData.bracket, tournamentData);
+                    }
+                    break;
+                case 'partner-reveal':
+                    setupPartnerRevealListener();
+                    break;
+                case 'match-call':
+                    setupMatchCallListener();
+                    break;
+                case 'heartbreaker-alert':
+                    // Heartbreaker data comes from tournament doc - already handled
+                    if (tournamentData) {
+                        updateHeartbreakerAlert(tournamentData);
+                    }
+                    break;
             }
         }
 
-        function showMode(modeName) {
+        function showModePanel(modeName) {
             // Hide all modes
             document.querySelectorAll('.display-mode').forEach(el => {
                 el.classList.remove('active');
@@ -733,7 +820,8 @@
             };
 
             const viewId = modeMap[modeName] || 'bracketView';
-            document.getElementById(viewId).classList.add('active');
+            const el = document.getElementById(viewId);
+            if (el) el.classList.add('active');
         }
 
         function updateHeaders() {
@@ -741,149 +829,141 @@
 
             const name = tournamentData.tournament_name || 'HEARTBREAKER TOURNAMENT';
 
-            document.getElementById('bracketTitle').textContent = name;
-            document.getElementById('revealTitle').textContent = name;
-            document.getElementById('callTitle').textContent = name;
+            const bracketTitle = document.getElementById('bracketTitle');
+            const revealTitle = document.getElementById('revealTitle');
+            const callTitle = document.getElementById('callTitle');
+            if (bracketTitle) bracketTitle.textContent = name;
+            if (revealTitle) revealTitle.textContent = name;
+            if (callTitle) callTitle.textContent = name;
         }
 
-        function setupListener(modeName) {
-            // Clean up existing listener
-            if (unsubscribeListener) {
-                unsubscribeListener();
-            }
-
-            switch(modeName) {
-                case 'bracket':
-                    setupBracketListener();
-                    break;
-                case 'partner-reveal':
-                    setupPartnerRevealListener();
-                    break;
-                case 'match-call':
-                    setupMatchCallListener();
-                    break;
-                case 'heartbreaker-alert':
-                    setupHeartbreakerAlertListener();
-                    break;
-            }
-        }
-
-        // ========== BRACKET VIEW LISTENER ==========
-        async function setupBracketListener() {
-            try {
-                // Listen for changes to matches in real-time
-                const matchesRef = collection(db, 'tournaments', tournamentId, 'matches');
-                const q = query(matchesRef, orderBy('round'), orderBy('match_number'));
-
-                unsubscribeListener = onSnapshot(
-                    q,
-                    (snapshot) => {
-                        updateConnectionStatus(true);
-                        const matches = [];
-                        snapshot.forEach(doc => {
-                            matches.push({ id: doc.id, ...doc.data() });
-                        });
-                        renderBracket(matches);
-                    },
-                    (error) => {
-                        console.error('Bracket listener error:', error);
-                        updateConnectionStatus(false);
-                    }
-                );
-            } catch (error) {
-                console.error('Error setting up bracket listener:', error);
-                updateConnectionStatus(false);
-                showError('Error Loading Bracket', error.message);
-            }
-        }
-
-        function renderBracket(matches) {
+        // ========== BRACKET RENDERING ==========
+        function renderBracketFromDoc(bracket, tournament) {
             const container = document.getElementById('bracketContainer');
             const loading = document.getElementById('bracketLoading');
 
-            if (matches.length === 0) {
-                loading.querySelector('.loading-text').textContent = 'Waiting for bracket generation...';
+            const winnersMatches = bracket.winners || [];
+            const losersMatches = bracket.losers || [];
+
+            if (winnersMatches.length === 0 && losersMatches.length === 0) {
+                if (loading) loading.querySelector('.loading-text').textContent = 'Waiting for bracket generation...';
                 return;
             }
 
-            // Hide loading, show bracket
-            loading.style.display = 'none';
-            container.style.display = 'flex';
+            if (loading) loading.style.display = 'none';
+            if (container) container.style.display = 'flex';
 
-            // Separate winners and losers brackets
-            const winnersMatches = matches.filter(m => m.bracket === 'winners');
-            const losersMatches = matches.filter(m => m.bracket === 'losers');
+            // Group winners by round
+            const winnersHTML = renderBracketSide(winnersMatches, 'WINNERS BRACKET', 'winners',
+                tournament?.winners_game_type || 'cricket');
 
-            // Render winners bracket
-            const winnersHTML = `
-                <div class="bracket-side">
-                    <div class="bracket-side-title winners">🏆 WINNERS BRACKET</div>
+            // Group losers by round
+            const losersHTML = renderBracketSide(losersMatches, 'LOSERS BRACKET', 'losers',
+                tournament?.losers_game_type || '501');
+
+            // Grand finals
+            let finalsHTML = '';
+            if (bracket.grand_finals?.match1) {
+                finalsHTML = `<div class="bracket-side" style="min-width: 300px;">
+                    <div class="bracket-side-title winners">GRAND FINALS</div>
                     <div class="bracket-round">
-                        ${winnersMatches.map(renderBracketMatch).join('')}
+                        ${renderBracketMatch(bracket.grand_finals.match1)}
+                        ${bracket.grand_finals.match2 ? renderBracketMatch(bracket.grand_finals.match2) : ''}
                     </div>
-                </div>
-            `;
+                </div>`;
+            }
 
-            // Render losers bracket
-            const losersHTML = `
-                <div class="bracket-side">
-                    <div class="bracket-side-title losers">💔 LOSERS BRACKET</div>
-                    <div class="bracket-round">
-                        ${losersMatches.map(renderBracketMatch).join('')}
+            container.innerHTML = winnersHTML + losersHTML + finalsHTML;
+        }
+
+        function renderBracketSide(matches, title, side, gameType) {
+            const roundsMap = {};
+            matches.forEach(m => {
+                const r = m.round || 1;
+                if (!roundsMap[r]) roundsMap[r] = [];
+                roundsMap[r].push(m);
+            });
+
+            const roundNumbers = Object.keys(roundsMap).map(Number).sort((a, b) => a - b);
+            if (roundNumbers.length === 0) return '';
+
+            let html = `<div class="bracket-side"><div class="bracket-side-title ${side}">${title}</div><div style="display: flex; gap: 20px; align-items: stretch;">`;
+
+            roundNumbers.forEach(r => {
+                const roundMatches = roundsMap[r].sort((a, b) => (a.position || 0) - (b.position || 0));
+                const totalRounds = roundNumbers.length;
+                let roundLabel;
+                if (side === 'winners') {
+                    if (r === roundNumbers[roundNumbers.length - 1]) roundLabel = 'WC FINAL';
+                    else if (r === roundNumbers[roundNumbers.length - 2] && totalRounds > 2) roundLabel = 'WC SEMI';
+                    else roundLabel = `ROUND ${r}`;
+                } else {
+                    if (r === roundNumbers[roundNumbers.length - 1]) roundLabel = 'LC FINAL';
+                    else roundLabel = `LC R${r}`;
+                }
+
+                html += `<div style="min-width: 260px; display: flex; flex-direction: column;">
+                    <div style="text-align: center; font-family: 'Bebas Neue', cursive; font-size: 14px; color: var(--text-dim); letter-spacing: 2px; margin-bottom: 10px;">${roundLabel}</div>
+                    <div style="display: flex; flex-direction: column; justify-content: space-around; flex: 1; gap: 8px;">
+                        ${roundMatches.map(m => renderBracketMatch(m)).join('')}
                     </div>
-                </div>
-            `;
+                </div>`;
+            });
 
-            container.innerHTML = winnersHTML + losersHTML;
+            html += '</div></div>';
+            return html;
         }
 
         function renderBracketMatch(match) {
-            const team1 = match.team1_name || 'TBD';
-            const team2 = match.team2_name || 'TBD';
-            const score1 = match.team1_score || 0;
-            const score2 = match.team2_score || 0;
+            const team1 = match.team1?.team_name || match.team1?.name || 'TBD';
+            const team2 = match.team2?.team_name || match.team2?.name || 'TBD';
+            const score1 = match.scores?.team1 ?? '-';
+            const score2 = match.scores?.team2 ?? '-';
             const isComplete = match.status === 'completed';
             const isInProgress = match.status === 'in_progress';
-            const winner = match.winner;
+            const isBye = match.status === 'bye';
 
-            const team1Class = isComplete && winner === 'team1' ? 'winner' : (isComplete ? 'loser' : '');
-            const team2Class = isComplete && winner === 'team2' ? 'winner' : (isComplete ? 'loser' : '');
+            const team1Won = isComplete && match.winner_id === match.team1_id;
+            const team2Won = isComplete && match.winner_id === match.team2_id;
+            const team1Class = team1Won ? 'winner' : (team2Won ? 'loser' : '');
+            const team2Class = team2Won ? 'winner' : (team1Won ? 'loser' : '');
 
-            // Board badge for active matches
-            const boardBadge = (isInProgress || match.status === 'ready') && match.board_number
-                ? `<div class="bracket-board-badge">BOARD ${match.board_number}</div>`
+            const boardBadge = match.board
+                ? `<div class="bracket-board-badge">BOARD ${match.board}</div>`
                 : '';
 
             return `
-                <div class="bracket-match ${isInProgress ? 'in-progress' : ''}">
+                <div class="bracket-match ${isInProgress ? 'in-progress' : ''} ${isBye ? 'bye' : ''}">
                     ${boardBadge}
-                    <div class="bracket-team ${team1Class}">${team1}</div>
+                    <div class="bracket-team ${team1Class}">${isBye && !match.team2 ? team1 + ' (BYE)' : team1}</div>
                     ${isComplete ? `
                         <div class="bracket-score">${score1} - ${score2}</div>
                     ` : isInProgress ? `
-                        <div class="bracket-score live">${score1} - ${score2}</div>
+                        <div class="bracket-score live">IN PROGRESS</div>
+                    ` : isBye ? `
+                        <div class="bracket-vs" style="font-size: 14px; color: var(--text-dim);">BYE</div>
                     ` : `
                         <div class="bracket-vs">VS</div>
                     `}
-                    <div class="bracket-team ${team2Class}">${team2}</div>
+                    <div class="bracket-team ${team2Class}">${isBye && !match.team1 ? team2 + ' (BYE)' : team2}</div>
                 </div>
             `;
         }
 
         // ========== PARTNER REVEAL LISTENER ==========
-        async function setupPartnerRevealListener() {
+        function setupPartnerRevealListener() {
             try {
-                // Listen for matched teams
+                // Listen for matched teams in subcollection
                 const teamsRef = collection(db, 'tournaments', tournamentId, 'teams');
                 const q = query(teamsRef, where('type', '==', 'matched_team'));
 
-                unsubscribeListener = onSnapshot(
+                unsubscribeContentListener = onSnapshot(
                     q,
                     (snapshot) => {
                         updateConnectionStatus(true);
                         const teams = [];
-                        snapshot.forEach(doc => {
-                            teams.push({ id: doc.id, ...doc.data() });
+                        snapshot.forEach(d => {
+                            teams.push({ id: d.id, ...d.data() });
                         });
                         renderPartnerReveal(teams);
                     },
@@ -900,6 +980,7 @@
 
         function renderPartnerReveal(teams) {
             const container = document.getElementById('revealPairs');
+            if (!container) return;
 
             if (teams.length === 0) {
                 container.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: var(--text-dim); font-size: 36px; padding: 80px;">Waiting for partner draw...</div>';
@@ -908,16 +989,18 @@
 
             container.innerHTML = teams.map((team, index) => {
                 const delay = index * 0.2;
+                const p1 = team.player1 || {};
+                const p2 = team.player2 || {};
                 return `
                     <div class="reveal-pair" style="animation-delay: ${delay}s;">
                         <div class="reveal-team-name">${team.team_name || 'Team ' + (index + 1)}</div>
                         <div class="reveal-players">
-                            <span class="reveal-player ${team.player1.gender === 'M' ? 'male' : 'female'}">
-                                ${team.player1.name}
+                            <span class="reveal-player ${p1.gender === 'M' ? 'male' : 'female'}">
+                                ${p1.name || 'Player 1'}
                             </span>
-                            <span class="reveal-heart">💕</span>
-                            <span class="reveal-player ${team.player2.gender === 'M' ? 'male' : 'female'}">
-                                ${team.player2.name}
+                            <span class="reveal-heart">&hearts;</span>
+                            <span class="reveal-player ${p2.gender === 'M' ? 'male' : 'female'}">
+                                ${p2.name || 'Player 2'}
                             </span>
                         </div>
                     </div>
@@ -926,18 +1009,18 @@
         }
 
         // ========== MATCH CALL LISTENER ==========
-        async function setupMatchCallListener() {
+        function setupMatchCallListener() {
             try {
-                // Listen for active and ready matches (shows both pending and in-progress)
+                // Listen for active and ready matches in subcollection
                 const matchesRef = collection(db, 'tournaments', tournamentId, 'matches');
 
-                unsubscribeListener = onSnapshot(
+                unsubscribeContentListener = onSnapshot(
                     matchesRef,
                     (snapshot) => {
                         updateConnectionStatus(true);
                         const allMatches = [];
-                        snapshot.forEach(doc => {
-                            const match = { id: doc.id, ...doc.data() };
+                        snapshot.forEach(d => {
+                            const match = { id: d.id, ...d.data() };
                             // Show matches that are ready or in progress
                             if (match.status === 'ready' || match.status === 'in_progress') {
                                 allMatches.push(match);
@@ -967,6 +1050,7 @@
         function renderMatchCall(matches) {
             const container = document.getElementById('callMatches');
             const roundEl = document.getElementById('callRound');
+            if (!container || !roundEl) return;
 
             if (matches.length === 0) {
                 container.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: var(--text-dim); font-size: 36px; padding: 80px;">No matches ready to play</div>';
@@ -975,7 +1059,6 @@
 
             // Count active vs ready
             const activeCount = matches.filter(m => m.status === 'in_progress').length;
-            const readyCount = matches.filter(m => m.status === 'ready').length;
             roundEl.textContent = activeCount > 0 ? `${activeCount} MATCH${activeCount !== 1 ? 'ES' : ''} IN PROGRESS` : 'NEXT MATCHES';
 
             container.innerHTML = matches.map(match => {
@@ -1008,38 +1091,14 @@
             }).join('');
         }
 
-        // ========== HEARTBREAKER ALERT LISTENER ==========
-        async function setupHeartbreakerAlertListener() {
-            try {
-                // Listen for mingle period status
-                unsubscribeListener = onSnapshot(
-                    doc(db, 'tournaments', tournamentId),
-                    (snapshot) => {
-                        updateConnectionStatus(true);
-                        if (snapshot.exists()) {
-                            const data = snapshot.data();
-                            updateHeartbreakerAlert(data);
-                        }
-                    },
-                    (error) => {
-                        console.error('Heartbreaker alert listener error:', error);
-                        updateConnectionStatus(false);
-                    }
-                );
-            } catch (error) {
-                console.error('Error setting up heartbreaker alert listener:', error);
-                updateConnectionStatus(false);
-            }
-        }
-
-        let countdownInterval = null;
-
+        // ========== HEARTBREAKER ALERT ==========
         function updateHeartbreakerAlert(data) {
             const mingleActive = data.mingle_period_active || false;
-            const mingleEndTime = data.mingle_end_time?.toDate();
+            const mingleEndTime = data.mingle_end_time?.toDate ? data.mingle_end_time.toDate() : null;
 
             if (!mingleActive || !mingleEndTime) {
-                document.getElementById('alertCountdown').textContent = '--:--';
+                const el = document.getElementById('alertCountdown');
+                if (el) el.textContent = '--:--';
                 return;
             }
 
@@ -1049,27 +1108,32 @@
             }
 
             // Update countdown every second
-            countdownInterval = setInterval(() => {
+            function tick() {
                 const now = new Date();
                 const remaining = Math.max(0, Math.floor((mingleEndTime - now) / 1000));
 
                 const minutes = Math.floor(remaining / 60);
                 const seconds = remaining % 60;
 
-                document.getElementById('alertCountdown').textContent =
-                    `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                const el = document.getElementById('alertCountdown');
+                if (el) el.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
 
                 if (remaining <= 0) {
                     clearInterval(countdownInterval);
+                    countdownInterval = null;
                 }
-            }, 1000);
+            }
+
+            tick(); // Immediate first tick
+            countdownInterval = setInterval(tick, 1000);
         }
 
+        // ========== ERROR DISPLAY ==========
         function showError(title, message) {
             // Show error in all display modes
             const errorHTML = `
                 <div class="error-container">
-                    <div class="error-icon">⚠️</div>
+                    <div class="error-icon">!</div>
                     <div class="error-title">${title}</div>
                     <div class="error-message">${message}</div>
                 </div>
@@ -1080,28 +1144,15 @@
             });
         }
 
-        // Listen for mode changes from URL (director can update this)
-        let lastMode = mode;
-        setInterval(() => {
-            const currentParams = new URLSearchParams(window.location.search);
-            const currentMode = currentParams.get('mode') || 'bracket';
-
-            if (currentMode !== lastMode) {
-                lastMode = currentMode;
-                showMode(currentMode);
-                setupListener(currentMode);
-            }
-        }, 1000);
-
-        // Cleanup on page unload
+        // ========== CLEANUP ==========
         window.addEventListener('beforeunload', () => {
-            if (unsubscribeListener) {
-                unsubscribeListener();
-            }
-            if (countdownInterval) {
-                clearInterval(countdownInterval);
-            }
+            if (unsubscribeTournamentDoc) unsubscribeTournamentDoc();
+            if (unsubscribeContentListener) unsubscribeContentListener();
+            if (countdownInterval) clearInterval(countdownInterval);
         });
+
+        // ========== START ==========
+        init();
     </script>
 </body>
 </html>

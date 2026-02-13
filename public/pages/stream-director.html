@@ -431,7 +431,7 @@
                 </div>
                 <div class="form-group">
                     <label class="form-label">Stream Key</label>
-                    <input type="password" id="streamKey" class="form-input" placeholder="Enter stream key">
+                    <input type="password" id="streamKey" class="form-input" inputmode="text" placeholder="Enter stream key">
                 </div>
                 <button class="btn btn-go-live" id="goLiveBtn" onclick="toggleLive()" disabled>GO LIVE</button>
             </div>
@@ -562,7 +562,6 @@
                 try {
                     await deleteDoc(doc(db, 'streaming_sessions', sessionId));
                 } catch (e) {
-                    console.log('Cleanup error:', e);
                 }
 
                 Object.values(peerConnections).forEach(pc => {
@@ -598,7 +597,6 @@
         }
 
         async function handleOffer(role, offerData) {
-            console.log(`Received offer from ${role} camera`);
 
             // Close existing connection if any
             if (peerConnections[role]) {
@@ -610,7 +608,6 @@
 
             // Handle incoming stream
             pc.ontrack = (event) => {
-                console.log(`Received track from ${role}`);
                 remoteStreams[role] = event.streams[0];
                 document.getElementById(`${role}Video`).srcObject = event.streams[0];
                 updateSourceStatus(role, true);
@@ -629,7 +626,6 @@
             };
 
             pc.onconnectionstatechange = () => {
-                console.log(`${role} connection state:`, pc.connectionState);
                 if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
                     updateSourceStatus(role, false);
                     remoteStreams[role] = null;
@@ -719,7 +715,6 @@
                 relaySocket = new WebSocket(relayUrl);
 
                 relaySocket.onopen = () => {
-                    console.log('Connected to relay server');
                     updateRelayStatus('connected', 'Relay: Connected');
                     document.getElementById('goLiveBtn').disabled = false;
 
@@ -732,7 +727,6 @@
                 };
 
                 relaySocket.onclose = () => {
-                    console.log('Disconnected from relay server');
                     updateRelayStatus('disconnected', 'Relay: Disconnected');
                     document.getElementById('goLiveBtn').disabled = true;
                     if (isLive) {
@@ -761,16 +755,13 @@
         };
 
         function handleRelayMessage(message) {
-            console.log('Relay message:', message);
 
             switch (message.type) {
                 case 'started':
-                    console.log(`Stream started on ${message.platform}`);
                     updateRelayStatus('streaming', `LIVE on ${message.platform.toUpperCase()}`);
                     break;
 
                 case 'stopped':
-                    console.log('Stream stopped');
                     updateRelayStatus('connected', 'Relay: Connected');
                     break;
 
@@ -926,7 +917,6 @@
 
                 // Request data every 1 second for smoother streaming
                 mediaRecorder.start(1000);
-                console.log('Canvas capture started');
 
             } catch (error) {
                 console.error('Error starting MediaRecorder:', error);

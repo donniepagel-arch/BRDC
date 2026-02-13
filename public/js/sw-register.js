@@ -10,7 +10,7 @@ if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js')
             .then(registration => {
-                console.log('✅ Service Worker registered:', registration.scope);
+                // console.log('✅ Service Worker registered:', registration.scope);
 
                 // Check for updates every 60 seconds
                 setInterval(() => {
@@ -24,7 +24,7 @@ if ('serviceWorker' in navigator) {
                     newWorker.addEventListener('statechange', () => {
                         if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
                             // New service worker available
-                            console.log('🔄 New version available! Reload to update.');
+                            // console.log('🔄 New version available! Reload to update.');
 
                             // Optional: Show update notification
                             if (confirm('A new version of BRDC is available. Reload now?')) {
@@ -42,7 +42,7 @@ if ('serviceWorker' in navigator) {
 
 // Handle offline/online status
 window.addEventListener('online', () => {
-    console.log('✅ Back online');
+    // console.log('✅ Back online');
     document.body.classList.remove('offline');
 
     // Optional: Show reconnected notification
@@ -50,7 +50,7 @@ window.addEventListener('online', () => {
 });
 
 window.addEventListener('offline', () => {
-    console.log('⚠️ Offline mode');
+    // console.log('⚠️ Offline mode');
     document.body.classList.add('offline');
 
     // Optional: Show offline notification

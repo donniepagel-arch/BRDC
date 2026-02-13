@@ -42,17 +42,17 @@ export function initChallengeSystem() {
  */
 export async function openChallengeModal(playerId, playerName) {
     if (!CHAT_FEATURES.CHALLENGE_SYSTEM) {
-        alert('Challenge system is not enabled');
+        toastInfo('Challenge system is not enabled');
         return;
     }
 
     if (!playerPin) {
-        alert('Please log in to send challenges');
+        toastWarning('Please log in to send challenges');
         return;
     }
 
     if (playerId === currentPlayerId) {
-        alert('You cannot challenge yourself');
+        toastWarning('You cannot challenge yourself');
         return;
     }
 
@@ -217,7 +217,7 @@ export async function submitChallenge(event) {
  */
 export async function openChallengesList() {
     if (!playerPin) {
-        alert('Please log in to view challenges');
+        toastWarning('Please log in to view challenges');
         return;
     }
 
@@ -468,12 +468,12 @@ function startChallengesListener() {
  */
 export async function openLeaderboard(category = 'most_wins') {
     if (!CHAT_FEATURES.LEADERBOARDS) {
-        alert('Leaderboards are not enabled');
+        toastInfo('Leaderboards are not enabled');
         return;
     }
 
     if (!playerPin) {
-        alert('Please log in to view leaderboards');
+        toastWarning('Please log in to view leaderboards');
         return;
     }
 
@@ -629,7 +629,7 @@ function renderLeaderboard(leaders, category, playerRank) {
  */
 export async function sendRematch(matchId) {
     if (!playerPin) {
-        alert('Please log in to send rematch');
+        toastWarning('Please log in to send rematch');
         return;
     }
 

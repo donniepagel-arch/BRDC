@@ -601,7 +601,7 @@ export function dismissMatch(matchId) {
 export async function openMatchOverlay(matchId) {
     if (!CHAT_FEATURES.MATCH_OVERLAY) {
         // Fall back to match page
-        window.location.href = `/pages/match-report.html?id=${matchId}`;
+        window.location.href = `/pages/match-hub.html?id=${matchId}`;
         return;
     }
 
@@ -735,7 +735,7 @@ function showMatchOverlay(match) {
             ${statsHtml}
 
             <div class="overlay-actions">
-                <a href="/pages/match-report.html?id=${match.match_id}" class="overlay-btn">View Full Scoresheet</a>
+                <a href="/pages/match-hub.html?id=${match.match_id}" class="overlay-btn">View Full Scoresheet</a>
                 ${match.chat_room_id ? `<a href="/pages/chat-room.html?id=${match.chat_room_id}" class="overlay-btn secondary">Jump to Match Chat</a>` : ''}
             </div>
 

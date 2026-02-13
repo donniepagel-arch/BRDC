@@ -1,10 +1,10 @@
 /**
  * BRDC Service Worker
  * Provides offline caching and IndexedDB storage for game data
- * v29 - Added Virtual Darts offline support, improved fallback page
+ * v45 - Fixes #2-4: Viewport adjustments, validation improvements
  */
 
-const CACHE_VERSION = 'brdc-v34';
+const CACHE_VERSION = 'brdc-v46';
 const CACHE_NAME = `brdc-cache-${CACHE_VERSION}`;
 
 // Critical pages - scorer pages prioritized for offline use
@@ -12,7 +12,7 @@ const CRITICAL_PAGES = [
     '/',
     '/pages/x01-scorer.html',      // Primary 501 scorer - CRITICAL
     '/pages/league-cricket.html',  // Primary cricket scorer - CRITICAL
-    '/pages/scorer-hub.html',      // Scorer navigation
+    '/pages/game-setup.html',      // Scorer navigation
     '/pages/game-setup.html',      // Game setup
     '/pages/knockout.html',        // Knockout games
     '/pages/dashboard.html',       // Player dashboard
@@ -24,10 +24,9 @@ const CRITICAL_PAGES = [
     '/pages/messages.html',        // Messaging
     '/pages/captain-dashboard.html', // Captain tools
     '/pages/league-director.html', // Director tools
-    '/pages/my-stats.html',        // Personal stats
     '/pages/leagues.html',         // League list
     '/pages/tournaments.html',     // Tournament list
-    '/pages/browse-events.html',   // Event browser
+    '/pages/events-hub.html',      // Events browser
     '/pages/members.html',         // Member directory
     '/pages/offline.html'          // Offline fallback
 ];
@@ -109,7 +108,7 @@ const PRECACHE_ASSETS = [
 
 // Install event - cache static assets
 self.addEventListener('install', (event) => {
-    console.log('[SW] Installing service worker v29...');
+    console.log('[SW] Installing service worker v46...');
     event.waitUntil(
         caches.open(CACHE_NAME)
             .then((cache) => {
@@ -131,7 +130,7 @@ self.addEventListener('install', (event) => {
 
 // Activate event - clean ALL old caches
 self.addEventListener('activate', (event) => {
-    console.log('[SW] Activating service worker v29...');
+    console.log('[SW] Activating service worker v46...');
     event.waitUntil(
         caches.keys()
             .then((cacheNames) => {
@@ -170,11 +169,9 @@ self.addEventListener('fetch', (event) => {
     if (url.pathname.includes('__')) return; // Firebase internal
 
     // Scorer pages: CACHE-FIRST (critical for offline scoring)
-    const isScorerPage = url.pathname.includes('league-501') ||
-                         url.pathname.includes('league-cricket') ||
-                         url.pathname.includes('x01.html') ||
-                         url.pathname.includes('cricket.html') ||
-                         url.pathname.includes('scorer-hub');
+    const isScorerPage = url.pathname.includes('x01-scorer') ||
+        url.pathname.includes('league-cricket') ||
+        url.pathname.includes('game-setup');
 
     if (isScorerPage) {
         event.respondWith(cacheFirstWithNetworkUpdate(request));
@@ -316,9 +313,9 @@ async function createOfflineResponse(request) {
             return offlinePage;
         }
 
-        // Fallback to scorer-hub for scorer pages
+        // Fallback to game-setup for scorer pages
         if (url.pathname.includes('league-') || url.pathname.includes('scorer')) {
-            const scorerHub = await cache.match('/pages/scorer-hub.html');
+            const scorerHub = await cache.match('/pages/game-setup.html');
             if (scorerHub) return scorerHub;
         }
     }
@@ -368,7 +365,7 @@ async function createOfflineResponse(request) {
                 <h1>You're Offline</h1>
                 <p>Your scores are saved locally and will sync when you reconnect.</p>
                 <p>Scoring pages work offline - try opening the scorer directly.</p>
-                <a href="/pages/scorer-hub.html" class="btn">Open Scorer</a>
+                <a href="/pages/game-setup.html" class="btn">Open Scorer</a>
             </div>
         </body>
         </html>`,

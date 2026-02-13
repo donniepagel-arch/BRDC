@@ -2,9 +2,10 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Heartbreaker Mingle - BRDC</title>
     <link rel="icon" type="image/png" href="/images/favicon.png">
+    <script src="/js/brdc-toast.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Archivo+Black&family=Inter:wght@400;600;700;800&display=swap');
 
@@ -27,6 +28,7 @@
             font-family: 'Inter', sans-serif;
             background: linear-gradient(135deg, var(--bg-dark) 0%, var(--blue-dark) 100%);
             min-height: 100vh;
+            min-height: 100dvh;
             color: var(--text-light);
         }
 
@@ -567,12 +569,23 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
-    <script src="/js/firebase-init.js"></script>
+    <script>
+        // Initialize Firebase (compat SDK)
+        const firebaseConfig = {
+            apiKey: "AIzaSyDN1aYhoVt3OX5EafsNTVB09i8VFx7QM1U",
+            authDomain: "brdc-v2.firebaseapp.com",
+            projectId: "brdc-v2",
+            storageBucket: "brdc-v2.firebasestorage.app",
+            messagingSenderId: "726670872282",
+            appId: "1:726670872282:web:913d19c8cb3b24bf919fe3"
+        };
+        firebase.initializeApp(firebaseConfig);
+    </script>
 
     <script>
         const db = firebase.firestore();
         const urlParams = new URLSearchParams(window.location.search);
-        const tournamentId = urlParams.get('tournament_id');
+        const tournamentId = urlParams.get('id') || urlParams.get('tournament_id');
         const playerId = urlParams.get('player_id');
         const teamId = urlParams.get('team_id');
 
@@ -589,7 +602,7 @@
 
         async function init() {
             if (!tournamentId || !playerId || !teamId) {
-                alert('Missing required parameters');
+                toastError('Missing required parameters');
                 return;
             }
 
@@ -677,11 +690,11 @@
                         document.getElementById('nudgeSection').style.display = 'none';
                     }
                 } else {
-                    alert('Error submitting decision: ' + result.error);
+                    toastError('Error submitting decision: ' + result.error);
                 }
             } catch (error) {
                 console.error('Error making decision:', error);
-                alert('Failed to submit decision');
+                toastError('Failed to submit decision');
             }
         }
 
@@ -766,7 +779,7 @@
 
         async function sendNudge(targetPlayerId) {
             if (nudgesSentCount >= 3) {
-                alert('You\'ve already sent 3 nudges (maximum allowed)');
+                toastWarning('You\'ve already sent 3 nudges (maximum allowed)');
                 return;
             }
 
@@ -787,13 +800,13 @@
                     nudgesSentCount++;
                     document.getElementById('nudgesSent').textContent = nudgesSentCount;
                     await loadAvailableTargets(); // Refresh to update button states
-                    alert('Nudge sent! 💘');
+                    toastSuccess('Nudge sent! 💘');
                 } else {
-                    alert('Error sending nudge: ' + result.error);
+                    toastError('Error sending nudge: ' + result.error);
                 }
             } catch (error) {
                 console.error('Error sending nudge:', error);
-                alert('Failed to send nudge');
+                toastError('Failed to send nudge');
             }
         }
 
@@ -866,5 +879,7 @@
         // Initialize on load
         init();
     </script>
+<script src="/components/brdc-navigation-init.js"></script>
+<script>initBRDCNavigation({ page: 'matchmaker-mingle' });</script>
 </body>
 </html>

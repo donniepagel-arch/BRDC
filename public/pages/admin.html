@@ -779,6 +779,51 @@
             background: #666;
             cursor: not-allowed;
         }
+
+        /* Skeleton Loading States */
+        .skeleton {
+            background: linear-gradient(90deg, #1e2a47 25%, #2a3a57 50%, #1e2a47 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s ease-in-out infinite;
+            border-radius: 8px;
+        }
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+        .skeleton-stat-card {
+            background: var(--bg-card);
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+        }
+        .skeleton-list-item {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 10px;
+        }
+
+        /* Mobile Touch Targets - WCAG 2.1 AA */
+        @media (max-width: 768px) {
+            /* Ensure minimum 44px touch targets on mobile */
+            button, .tab, .admin-tab, .filter-option, [role="checkbox"], [role="tab"], .action-btn,
+            .btn-add-bot, .btn-delete-all, .dashboard-btn, .clear-filters-btn, .back-btn {
+                min-height: 44px;
+            }
+
+            .admin-tab {
+                min-height: 44px;
+                padding: 12px 20px;
+            }
+
+            .feedback-actions .action-btn {
+                min-height: 44px;
+                padding: 10px 16px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -854,7 +899,19 @@
                 <span class="results-count" id="leagueCount"></span>
             </div>
             <div id="leaguesList">
-                <div class="empty-state">Loading...</div>
+                <!-- Skeleton loading state -->
+                <div class="skeleton-list-item">
+                    <div class="skeleton" style="height: 18px; width: 200px; margin-bottom: 8px;"></div>
+                    <div class="skeleton" style="height: 14px; width: 120px;"></div>
+                </div>
+                <div class="skeleton-list-item">
+                    <div class="skeleton" style="height: 18px; width: 180px; margin-bottom: 8px;"></div>
+                    <div class="skeleton" style="height: 14px; width: 100px;"></div>
+                </div>
+                <div class="skeleton-list-item">
+                    <div class="skeleton" style="height: 18px; width: 220px; margin-bottom: 8px;"></div>
+                    <div class="skeleton" style="height: 14px; width: 140px;"></div>
+                </div>
             </div>
         </div>
 
@@ -889,7 +946,15 @@
                 <span class="results-count" id="tournamentCount"></span>
             </div>
             <div id="tournamentsList">
-                <div class="empty-state">Loading...</div>
+                <!-- Skeleton loading state -->
+                <div class="skeleton-list-item">
+                    <div class="skeleton" style="height: 18px; width: 200px; margin-bottom: 8px;"></div>
+                    <div class="skeleton" style="height: 14px; width: 120px;"></div>
+                </div>
+                <div class="skeleton-list-item">
+                    <div class="skeleton" style="height: 18px; width: 180px; margin-bottom: 8px;"></div>
+                    <div class="skeleton" style="height: 14px; width: 100px;"></div>
+                </div>
             </div>
         </div>
 
@@ -929,7 +994,15 @@
                 <span class="results-count" id="playerCount"></span>
             </div>
             <div id="playersList">
-                <div class="empty-state">Loading...</div>
+                <!-- Skeleton loading state -->
+                <div class="skeleton-list-item">
+                    <div class="skeleton" style="height: 18px; width: 160px; margin-bottom: 8px;"></div>
+                    <div class="skeleton" style="height: 14px; width: 100px;"></div>
+                </div>
+                <div class="skeleton-list-item">
+                    <div class="skeleton" style="height: 18px; width: 180px; margin-bottom: 8px;"></div>
+                    <div class="skeleton" style="height: 14px; width: 120px;"></div>
+                </div>
             </div>
         </div>
 
@@ -1576,7 +1649,7 @@
             const league = window.leaguesData.find(l => l.id === id);
             if (!league) return;
 
-            alert(`League Details:\n\nID: ${league.id}\nName: ${league.name}\nStatus: ${league.status}\nType: ${league.type}\n\nDirector: ${league.director_name || 'N/A'}\nAdmin PIN: ${league.admin_pin || 'N/A'}\nPlayer PIN: ${league.director_pin || 'Not set'}\n\nVenue: ${league.venue_name || 'N/A'}`);
+            toastInfo(`<b>${league.name}</b><br>ID: ${league.id}<br>Status: ${league.status}<br>Type: ${league.type}<br>Director: ${league.director_name || 'N/A'}<br>Admin PIN: ${league.admin_pin || 'N/A'}<br>Player PIN: ${league.director_pin || 'Not set'}<br>Venue: ${league.venue_name || 'N/A'}`, 8000);
         };
 
         // Show Tournament Details
@@ -1584,7 +1657,7 @@
             const tournament = window.tournamentsData.find(t => t.id === id);
             if (!tournament) return;
 
-            alert(`Tournament Details:\n\nID: ${tournament.id}\nName: ${tournament.name}\nDate: ${tournament.date}\nStatus: ${tournament.status}\n\nDirector: ${tournament.director_name || 'N/A'}\nDirector PIN: ${tournament.director_pin || 'N/A'}\nPlayer PIN: ${tournament.director_player_pin || 'Not set'}\n\nVenue: ${tournament.venue_name || 'N/A'}`);
+            toastInfo(`<b>${tournament.name}</b><br>ID: ${tournament.id}<br>Date: ${tournament.date}<br>Status: ${tournament.status}<br>Director: ${tournament.director_name || 'N/A'}<br>Director PIN: ${tournament.director_pin || 'N/A'}<br>Player PIN: ${tournament.director_player_pin || 'Not set'}<br>Venue: ${tournament.venue_name || 'N/A'}`, 8000);
         };
 
         window.deleteLeague = async function(id, name) {
@@ -2530,5 +2603,7 @@
     </script>
     <script src="/js/display-helpers.js"></script>
     <script src="/js/nav-menu.js"></script>
+    <script src="/components/brdc-navigation-init.js"></script>
+    <script>initBRDCNavigation({ page: 'admin' });</script>
 </body>
 </html>

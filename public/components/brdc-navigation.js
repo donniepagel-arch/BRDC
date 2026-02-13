@@ -1,7 +1,7 @@
 /**
- * BRDC Navigation Component v2.0
+ * BRDC Navigation Component v3.0
  * Unified mobile-first navigation system
- * Supports: Mobile (bottom nav), Tablet (sidebar + bottom), Desktop (header)
+ * Mobile/Tablet: unified top header + bottom nav | Desktop: header bar
  */
 
 class BRDCNavigation {
@@ -9,11 +9,14 @@ class BRDCNavigation {
         this.currentPage = options.page || this.detectCurrentPage();
         this.showMobileNav = options.showMobileNav !== false;
         this.showBackButton = options.showBackButton !== false;
+        this.pageTitle = options.pageTitle || '';
+        this.backUrl = options.backUrl || '';
         this.breadcrumbPath = options.breadcrumbPath || [];
         this.player = null;
         this.isMobile = window.innerWidth < 768;
         this.isTablet = window.innerWidth >= 768 && window.innerWidth < 1024;
         this.isDesktop = window.innerWidth >= 1024;
+        this._hiddenHeader = null; // track original header hidden by mobile header
     }
 
     /**
@@ -42,18 +45,11 @@ class BRDCNavigation {
         if (this.isDesktop) document.body.classList.add('is-desktop');
 
         // Render appropriate navigation
-        this.renderMobileNav();
-
         if (this.isDesktop) {
             this.renderDesktopNav();
-        }
-
-        if (this.isTablet) {
-            this.renderTabletSidebar();
-        }
-
-        if (this.showBackButton && !this.isHomePage()) {
-            this.renderBackButton();
+        } else {
+            this.renderMobileHeader();
+            this.renderMobileNav();
         }
 
         this.renderRoleBadges();
@@ -118,6 +114,11 @@ class BRDCNavigation {
         if (badge) {
             badge.setAttribute('data-count', count);
         }
+        // Update aria-label on the notification button
+        const btn = document.querySelector(`[data-action="${action}"]`);
+        if (btn) {
+            btn.setAttribute('aria-label', `Notifications, ${count} unread`);
+        }
     }
 
     /**
@@ -132,35 +133,41 @@ class BRDCNavigation {
      * Handle window resize
      */
     handleResize() {
-        const wasMobile = this.isMobile;
-        const wasTablet = this.isTablet;
         const wasDesktop = this.isDesktop;
 
         this.isMobile = window.innerWidth < 768;
         this.isTablet = window.innerWidth >= 768 && window.innerWidth < 1024;
         this.isDesktop = window.innerWidth >= 1024;
 
-        // Only re-render if breakpoint changed
-        if (wasMobile !== this.isMobile || wasTablet !== this.isTablet || wasDesktop !== this.isDesktop) {
+        // Only act if crossing the desktop threshold
+        if (wasDesktop !== this.isDesktop) {
             document.body.classList.toggle('is-mobile', this.isMobile);
             document.body.classList.toggle('is-tablet', this.isTablet);
             document.body.classList.toggle('is-desktop', this.isDesktop);
 
-            // Toggle desktop nav
-            const desktopNav = document.getElementById('brdcDesktopNav');
-            if (this.isDesktop && !desktopNav) {
+            if (this.isDesktop) {
+                // Switched TO desktop: remove mobile header, restore static header, show desktop nav
+                const mobileHeader = document.getElementById('brdcMobileHeader');
+                if (mobileHeader) mobileHeader.remove();
+                const mobileNav = document.getElementById('brdcMobileNav');
+                if (mobileNav) mobileNav.remove();
+                if (this._hiddenHeader) {
+                    this._hiddenHeader.removeAttribute('data-hidden-by-nav');
+                    this._hiddenHeader.style.display = '';
+                }
                 this.renderDesktopNav();
-            } else if (!this.isDesktop && desktopNav) {
-                desktopNav.remove();
+            } else {
+                // Switched FROM desktop: remove desktop nav, create mobile header + bottom nav
+                const desktopNav = document.getElementById('brdcDesktopNav');
+                if (desktopNav) desktopNav.remove();
+                document.body.classList.remove('has-desktop-nav');
+                this.renderMobileHeader();
+                this.renderMobileNav();
             }
-
-            // Toggle tablet sidebar
-            const sidebar = document.getElementById('brdcSidebar');
-            if (this.isTablet && !sidebar) {
-                this.renderTabletSidebar();
-            } else if (!this.isTablet && sidebar) {
-                sidebar.remove();
-            }
+        } else {
+            // Update sub-breakpoint classes even within mobile/tablet
+            document.body.classList.toggle('is-mobile', this.isMobile);
+            document.body.classList.toggle('is-tablet', this.isTablet);
         }
     }
 
@@ -188,31 +195,45 @@ class BRDCNavigation {
         const nav = document.createElement('nav');
         nav.id = 'brdcMobileNav';
         nav.className = 'brdc-mobile-nav';
+        nav.setAttribute('aria-label', 'Main navigation');
         nav.innerHTML = `
-            <a href="/pages/dashboard.html" class="mobile-nav-item ${this.currentPage === 'home' ? 'active' : ''}" data-page="home">
-                <span class="mobile-nav-icon">🏠</span>
+            <a href="/pages/dashboard.html" class="mobile-nav-item ${this.currentPage === 'home' ? 'active' : ''}" data-page="home" ${this.currentPage === 'home' ? 'aria-current="page"' : ''}>
+                <span class="mobile-nav-icon" aria-hidden="true">🏠</span>
                 <span class="mobile-nav-label">Home</span>
             </a>
-            <a href="/pages/events-hub.html" class="mobile-nav-item ${this.currentPage === 'events' ? 'active' : ''}" data-page="events">
-                <span class="mobile-nav-icon">📅</span>
+            <a href="/pages/events-hub.html" class="mobile-nav-item ${this.currentPage === 'events' ? 'active' : ''}" data-page="events" ${this.currentPage === 'events' ? 'aria-current="page"' : ''}>
+                <span class="mobile-nav-icon" aria-hidden="true">📅</span>
                 <span class="mobile-nav-label">Events</span>
             </a>
-            <a href="/pages/dart-trader.html" class="mobile-nav-item ${this.currentPage === 'trader' ? 'active' : ''}" data-page="trader">
-                <span class="mobile-nav-icon">💰</span>
+            <a href="/pages/dart-trader.html" class="mobile-nav-item ${this.currentPage === 'trader' ? 'active' : ''}" data-page="trader" ${this.currentPage === 'trader' ? 'aria-current="page"' : ''}>
+                <span class="mobile-nav-icon" aria-hidden="true">💰</span>
                 <span class="mobile-nav-label">Trader</span>
             </a>
-            <a href="#" class="mobile-nav-item" data-action="notifications">
-                <span class="mobile-nav-icon fb-footer-tab-badge" data-count="0">🔔</span>
+            <button class="mobile-nav-item" data-action="notifications" aria-label="Notifications, 0 unread">
+                <span class="mobile-nav-icon fb-footer-tab-badge" data-count="0" aria-hidden="true">🔔</span>
                 <span class="mobile-nav-label">Alerts</span>
-            </a>
-            <a href="/pages/player-profile.html" class="mobile-nav-item ${this.currentPage === 'profile' ? 'active' : ''}" data-page="profile">
-                <span class="mobile-nav-icon">👤</span>
+            </button>
+            <a href="/pages/player-profile.html" class="mobile-nav-item ${this.currentPage === 'profile' ? 'active' : ''}" data-page="profile" ${this.currentPage === 'profile' ? 'aria-current="page"' : ''}>
+                <span class="mobile-nav-icon" aria-hidden="true">👤</span>
                 <span class="mobile-nav-label">Profile</span>
             </a>
         `;
 
         document.body.appendChild(nav);
         document.body.classList.add('has-mobile-nav');
+
+        // Inject skip-to-content link
+        if (!document.getElementById('brdcSkipNav')) {
+            const skip = document.createElement('a');
+            skip.id = 'brdcSkipNav';
+            skip.href = '#mainContent';
+            skip.className = 'sr-only';
+            skip.textContent = 'Skip to main content';
+            skip.style.cssText = 'position:absolute;top:-40px;left:0;background:var(--pink);color:white;padding:8px 16px;z-index:100001;font-weight:700;border-radius:0 0 8px 0;';
+            skip.addEventListener('focus', function() { this.style.top = '0'; });
+            skip.addEventListener('blur', function() { this.style.top = '-40px'; });
+            document.body.insertBefore(skip, document.body.firstChild);
+        }
 
         // Bind notification click
         const alertBtn = nav.querySelector('[data-action="notifications"]');
@@ -225,13 +246,93 @@ class BRDCNavigation {
     }
 
     /**
-     * Toggle notifications panel
+     * Render unified mobile/tablet top header
+     * Creates fb-header layout: hamburger | centered logo | chat button
+     * Hides any existing static header to avoid duplicates
      */
-    toggleNotifications() {
-        console.log('Toggle notifications');
-        // TODO: Implement notification panel logic or emit event
-        const event = new CustomEvent('brdc:toggle-notifications');
-        window.dispatchEvent(event);
+    renderMobileHeader() {
+        if (this.isDesktop) return;
+        if (document.getElementById('brdcMobileHeader')) return;
+
+        // Find and hide any existing static header
+        const existingHeader = document.querySelector('.header-bar')
+            || document.querySelector('.header')
+            || document.querySelector('.page-header')
+            || document.querySelector('.fb-header');
+
+        if (existingHeader) {
+            existingHeader.style.display = 'none';
+            existingHeader.setAttribute('data-hidden-by-nav', 'true');
+            this._hiddenHeader = existingHeader;
+        }
+
+        // Determine if back button or hamburger should show
+        const showBack = this.showBackButton && !this.isHomePage();
+        const backUrl = this.backUrl || '';
+
+        // Create header element matching fb-header layout
+        const header = document.createElement('header');
+        header.id = 'brdcMobileHeader';
+        header.className = 'fb-header';
+        header.setAttribute('role', 'banner');
+
+        // Left side: hamburger menu or back button
+        const leftContent = showBack
+            ? `<button class="fb-header-btn" id="brdcBackBtn" aria-label="Go back">
+                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                       <path d="M19 12H5M12 19l-7-7 7-7"/>
+                   </svg>
+               </button>`
+            : `<button class="fb-header-btn" id="brdcSidebarToggle" aria-label="Open menu">
+                   <div class="fb-hamburger">
+                       <span></span>
+                       <span></span>
+                       <span></span>
+                   </div>
+               </button>`;
+
+        header.innerHTML = `
+            <div class="fb-header-left">
+                ${leftContent}
+            </div>
+            <div class="fb-header-center">
+                <a href="/pages/dashboard.html">
+                    <img src="/images/gold_logo.png" alt="BRDC" class="fb-header-logo">
+                </a>
+            </div>
+            <div class="fb-header-right">
+                <button class="fb-header-btn fb-header-btn-badge" id="brdcChatBtn" data-count="0" aria-label="Messages">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+                    </svg>
+                </button>
+            </div>
+        `;
+
+        // Insert at top of body
+        document.body.insertBefore(header, document.body.firstChild);
+
+        // Wire up hamburger or back button
+        if (showBack) {
+            header.querySelector('#brdcBackBtn').addEventListener('click', () => {
+                if (backUrl) {
+                    window.location.href = backUrl;
+                } else if (window.history.length > 1) {
+                    window.history.back();
+                } else {
+                    window.location.href = '/pages/dashboard.html';
+                }
+            });
+        } else {
+            header.querySelector('#brdcSidebarToggle').addEventListener('click', () => {
+                if (window.FBNav && window.FBNav.sidebar) {
+                    window.FBNav.sidebar.open();
+                }
+            });
+        }
+
+        // Chat button is wired by chat-drawer.js (loaded via brdc-navigation-init.js)
+        // to avoid double-toggle from duplicate handlers.
     }
 
     /**
@@ -246,32 +347,33 @@ class BRDCNavigation {
         const nav = document.createElement('header');
         nav.id = 'brdcDesktopNav';
         nav.className = 'brdc-desktop-nav';
+        nav.setAttribute('role', 'banner');
         nav.innerHTML = `
             <div class="desktop-nav-brand">
                 <a href="/pages/dashboard.html" class="desktop-nav-logo">
-                    <img src="/images/gold_logo.png" alt="BRDC" height="32">
+                    <img src="/images/gold_logo.png" alt="BRDC Home" height="32">
                 </a>
             </div>
-            <div class="desktop-nav-links">
-                <a href="/pages/leagues.html" class="desktop-nav-link ${this.currentPage === 'leagues' ? 'active' : ''}">Leagues</a>
-                <a href="/pages/tournaments.html" class="desktop-nav-link ${this.currentPage === 'events' ? 'active' : ''}">Tournaments</a>
+            <nav class="desktop-nav-links" aria-label="Main navigation">
+                <a href="/pages/leagues.html" class="desktop-nav-link ${this.currentPage === 'leagues' ? 'active' : ''}" ${this.currentPage === 'leagues' ? 'aria-current="page"' : ''}>Leagues</a>
+                <a href="/pages/tournaments.html" class="desktop-nav-link ${this.currentPage === 'events' ? 'active' : ''}" ${this.currentPage === 'events' ? 'aria-current="page"' : ''}>Tournaments</a>
                 <a href="/pages/events-hub.html" class="desktop-nav-link">Events</a>
-                <a href="/pages/match-hub.html" class="desktop-nav-link ${this.currentPage === 'play' ? 'active' : ''}">Match Hub</a>
-            </div>
+                <a href="/pages/match-hub.html" class="desktop-nav-link ${this.currentPage === 'play' ? 'active' : ''}" ${this.currentPage === 'play' ? 'aria-current="page"' : ''}>Match Hub</a>
+            </nav>
             <div class="desktop-nav-user">
-                <div class="desktop-nav-user-menu" id="userMenuToggle">
+                <button class="desktop-nav-user-menu" id="userMenuToggle" aria-expanded="false" aria-haspopup="true" aria-label="User menu">
                     <span class="desktop-nav-user-name">${playerName}</span>
-                    <div class="desktop-nav-user-avatar">${initials}</div>
-                    <span class="dropdown-arrow">▼</span>
-                </div>
-                <div class="desktop-user-dropdown" id="userDropdown">
-                    <a href="/pages/player-profile.html" class="dropdown-item">My Profile</a>
-                    <a href="/pages/friends.html" class="dropdown-item">Friends</a>
-                    <a href="/pages/messages.html" class="dropdown-item">Messages</a>
-                    ${this.player?.roles?.captaining?.length ? '<a href="/pages/captain-dashboard.html" class="dropdown-item">Captain Dashboard</a>' : ''}
-                    ${this.player?.roles?.directing?.length ? '<a href="/pages/league-director.html" class="dropdown-item">Director Tools</a>' : ''}
-                    <div class="dropdown-divider"></div>
-                    <a href="#" class="dropdown-item" onclick="window.logout?.(); return false;">Logout</a>
+                    <div class="desktop-nav-user-avatar" aria-hidden="true">${initials}</div>
+                    <span class="dropdown-arrow" aria-hidden="true">▼</span>
+                </button>
+                <div class="desktop-user-dropdown" id="userDropdown" role="menu">
+                    <a href="/pages/player-profile.html" class="dropdown-item" role="menuitem">My Profile</a>
+                    <a href="/pages/friends.html" class="dropdown-item" role="menuitem">Friends</a>
+                    <a href="/pages/messages.html" class="dropdown-item" role="menuitem">Messages</a>
+                    ${this.player?.roles?.captaining?.length ? '<a href="/pages/captain-dashboard.html" class="dropdown-item" role="menuitem">Captain Dashboard</a>' : ''}
+                    ${this.player?.roles?.directing?.length ? '<a href="/pages/league-director.html" class="dropdown-item" role="menuitem">Director Tools</a>' : ''}
+                    <div class="dropdown-divider" role="separator"></div>
+                    <a href="#" class="dropdown-item" role="menuitem" onclick="window.logout?.(); return false;">Logout</a>
                 </div>
             </div>
         `;
@@ -279,105 +381,50 @@ class BRDCNavigation {
         document.body.insertBefore(nav, document.body.firstChild);
         document.body.classList.add('has-desktop-nav');
 
-        // Toggle dropdown
+        // Toggle dropdown with keyboard support
         const toggle = nav.querySelector('#userMenuToggle');
         const dropdown = nav.querySelector('#userDropdown');
         toggle.addEventListener('click', (e) => {
             e.stopPropagation();
-            dropdown.classList.toggle('open');
+            const isOpen = dropdown.classList.toggle('open');
+            toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
         });
-        document.addEventListener('click', () => dropdown.classList.remove('open'));
-    }
-
-    /**
-     * Render tablet sidebar navigation
-     */
-    renderTabletSidebar() {
-        if (document.getElementById('brdcSidebar')) return;
-
-        const sidebar = document.createElement('aside');
-        sidebar.id = 'brdcSidebar';
-        sidebar.className = 'brdc-sidebar collapsed';
-        sidebar.innerHTML = `
-            <button class="sidebar-toggle" id="sidebarToggle">☰</button>
-            <nav class="sidebar-nav">
-                <a href="/pages/dashboard.html" class="sidebar-item ${this.currentPage === 'home' ? 'active' : ''}">
-                    <span class="sidebar-icon">🏠</span>
-                    <span class="sidebar-label">Home</span>
-                </a>
-                <a href="/pages/leagues.html" class="sidebar-item ${this.currentPage === 'leagues' ? 'active' : ''}">
-                    <span class="sidebar-icon">⚡</span>
-                    <span class="sidebar-label">Leagues</span>
-                </a>
-                <a href="/pages/tournaments.html" class="sidebar-item">
-                    <span class="sidebar-icon">🏆</span>
-                    <span class="sidebar-label">Tournaments</span>
-                </a>
-                <a href="/pages/events-hub.html" class="sidebar-item">
-                    <span class="sidebar-icon">📅</span>
-                    <span class="sidebar-label">Events</span>
-                </a>
-                <a href="/pages/match-hub.html" class="sidebar-item ${this.currentPage === 'play' ? 'active' : ''}">
-                    <span class="sidebar-icon">🎯</span>
-                    <span class="sidebar-label">Match Hub</span>
-                </a>
-                <a href="/pages/friends.html" class="sidebar-item">
-                    <span class="sidebar-icon">👥</span>
-                    <span class="sidebar-label">Friends</span>
-                </a>
-                <a href="/pages/messages.html" class="sidebar-item">
-                    <span class="sidebar-icon">💬</span>
-                    <span class="sidebar-label">Messages</span>
-                </a>
-                ${this.player?.roles?.captaining?.length ? `
-                <a href="/pages/captain-dashboard.html" class="sidebar-item">
-                    <span class="sidebar-icon">👔</span>
-                    <span class="sidebar-label">Captain</span>
-                </a>` : ''}
-                ${this.player?.roles?.directing?.length ? `
-                <a href="/pages/league-director.html" class="sidebar-item">
-                    <span class="sidebar-icon">📋</span>
-                    <span class="sidebar-label">Director</span>
-                </a>` : ''}
-            </nav>
-        `;
-
-        document.body.insertBefore(sidebar, document.body.firstChild);
-        document.body.classList.add('has-sidebar');
-
-        // Toggle sidebar
-        const toggle = sidebar.querySelector('#sidebarToggle');
-        toggle.addEventListener('click', () => {
-            sidebar.classList.toggle('collapsed');
-            document.body.classList.toggle('sidebar-expanded');
-        });
-    }
-
-    /**
-     * Render back button
-     */
-    renderBackButton() {
-        if (document.getElementById('brdcBackBtn')) return;
-
-        const backBtn = document.createElement('button');
-        backBtn.id = 'brdcBackBtn';
-        backBtn.className = 'brdc-back-btn';
-        backBtn.innerHTML = '← Back';
-        backBtn.onclick = () => {
-            if (window.history.length > 1) {
-                window.history.back();
-            } else {
-                window.location.href = '/pages/dashboard.html';
+        toggle.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && dropdown.classList.contains('open')) {
+                dropdown.classList.remove('open');
+                toggle.setAttribute('aria-expanded', 'false');
+                toggle.focus();
             }
-        };
+        });
+        document.addEventListener('click', () => {
+            dropdown.classList.remove('open');
+            toggle.setAttribute('aria-expanded', 'false');
+        });
+        // Arrow key navigation within dropdown menu
+        dropdown.addEventListener('keydown', (e) => {
+            const items = Array.from(dropdown.querySelectorAll('[role="menuitem"]'));
+            const idx = items.indexOf(document.activeElement);
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                items[(idx + 1) % items.length]?.focus();
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                items[(idx - 1 + items.length) % items.length]?.focus();
+            } else if (e.key === 'Escape') {
+                dropdown.classList.remove('open');
+                toggle.setAttribute('aria-expanded', 'false');
+                toggle.focus();
+            }
+        });
+    }
 
-        // Insert after desktop nav or at top
-        const desktopNav = document.getElementById('brdcDesktopNav');
-        if (desktopNav) {
-            desktopNav.after(backBtn);
-        } else {
-            document.body.insertBefore(backBtn, document.body.firstChild);
-        }
+    /**
+     * Update mobile header title (callable from pages that set title dynamically)
+     */
+    setPageTitle(title) {
+        this.pageTitle = title;
+        const titleEl = document.querySelector('.brdc-mh-title');
+        if (titleEl) titleEl.textContent = title;
     }
 
     /**
@@ -415,7 +462,7 @@ class BRDCNavigation {
         container.id = 'brdcRoleBadges';
         container.className = 'brdc-role-badges';
 
-        const header = document.querySelector('header') || document.querySelector('.fb-header') || document.getElementById('brdcDesktopNav');
+        const header = document.getElementById('brdcMobileHeader') || document.getElementById('brdcDesktopNav') || document.querySelector('header') || document.querySelector('.fb-header');
         if (header) {
             header.after(container);
         } else {
@@ -434,8 +481,14 @@ class BRDCNavigation {
         // Update mobile nav
         const mobileNav = document.getElementById('brdcMobileNav');
         if (mobileNav) {
-            mobileNav.querySelectorAll('.mobile-nav-item').forEach(item => {
-                item.classList.toggle('active', item.dataset.page === page);
+            mobileNav.querySelectorAll('.mobile-nav-item[data-page]').forEach(item => {
+                const isActive = item.dataset.page === page;
+                item.classList.toggle('active', isActive);
+                if (isActive) {
+                    item.setAttribute('aria-current', 'page');
+                } else {
+                    item.removeAttribute('aria-current');
+                }
             });
         }
 
@@ -444,26 +497,18 @@ class BRDCNavigation {
         if (desktopNav) {
             desktopNav.querySelectorAll('.desktop-nav-link').forEach(link => {
                 const href = link.getAttribute('href');
-                link.classList.toggle('active',
-                    (page === 'leagues' && href.includes('leagues')) ||
+                const isActive = (page === 'leagues' && href.includes('leagues')) ||
                     (page === 'events' && (href.includes('tournament') || href.includes('event'))) ||
-                    (page === 'play' && href.includes('match'))
-                );
+                    (page === 'play' && href.includes('match'));
+                link.classList.toggle('active', isActive);
+                if (isActive) {
+                    link.setAttribute('aria-current', 'page');
+                } else {
+                    link.removeAttribute('aria-current');
+                }
             });
         }
 
-        // Update sidebar
-        const sidebar = document.getElementById('brdcSidebar');
-        if (sidebar) {
-            sidebar.querySelectorAll('.sidebar-item').forEach(item => {
-                const href = item.getAttribute('href');
-                item.classList.toggle('active',
-                    (page === 'home' && href.includes('dashboard')) ||
-                    (page === 'leagues' && href.includes('leagues')) ||
-                    (page === 'play' && href.includes('match'))
-                );
-            });
-        }
     }
 }
 

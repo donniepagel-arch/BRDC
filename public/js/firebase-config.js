@@ -1,6 +1,6 @@
 // Firebase Configuration
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
-import { getFirestore, collection, addDoc, query, where, getDocs, doc, getDoc, onSnapshot, updateDoc, setDoc, deleteDoc, orderBy, limit, serverTimestamp, Timestamp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+import { getFirestore, collection, addDoc, query, where, getDocs, doc, getDoc, onSnapshot, updateDoc, setDoc, deleteDoc, orderBy, limit, startAfter, serverTimestamp, Timestamp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js';
 
 const firebaseConfig = {
@@ -43,11 +43,10 @@ async function uploadImage(file, folder = 'images') {
 
 /**
  * Call a Cloud Function via HTTPS
+ * Uses direct Cloud Functions URL
  */
 async function callFunction(functionName, data) {
-    const REGION = 'us-central1';
-    const PROJECT_ID = 'brdc-v2';
-    const url = `https://${REGION}-${PROJECT_ID}.cloudfunctions.net/${functionName}`;
+    const url = `https://us-central1-brdc-v2.cloudfunctions.net/${functionName}`;
 
     try {
         const response = await fetch(url, {
@@ -133,6 +132,7 @@ export {
     deleteDoc,
     orderBy,
     limit,
+    startAfter,
     serverTimestamp,
     Timestamp,
     ref,

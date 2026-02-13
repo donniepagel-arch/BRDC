@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Team - BRDC</title>
     <link rel="icon" type="image/png" href="/images/favicon.png">
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700&display=swap');
 
         :root {
             --pink: #FF469A;
@@ -42,7 +42,7 @@
 
         .header-bar {
             background: var(--bg-panel);
-            border-bottom: 3px solid var(--teal);
+            border-bottom: 3px solid #000;
             padding: 12px 15px;
             display: flex;
             align-items: center;
@@ -110,9 +110,10 @@
         }
 
         .record-value {
-            font-family: 'Bebas Neue', cursive;
+            font-family: 'JetBrains Mono', monospace;
             font-size: 36px;
             color: var(--yellow);
+            font-weight: 600;
         }
 
         .record-label {
@@ -125,28 +126,33 @@
         /* Tabs */
         .tab-container {
             display: flex;
-            gap: 5px;
+            gap: 8px;
             margin-bottom: 15px;
-            border-bottom: 2px solid var(--border-color);
-            padding-bottom: 5px;
+            padding-bottom: 0;
             overflow-x: auto;
+            justify-content: center;
         }
 
         .tab {
-            background: rgba(0,0,0,0.3);
-            border: none;
-            padding: 10px 16px;
+            background: transparent;
+            border: 2px solid var(--text-dim);
+            padding: 8px 20px;
             font-family: 'Bebas Neue', cursive;
-            font-size: 14px;
+            font-size: 15px;
             letter-spacing: 1px;
             color: var(--text-dim);
             cursor: pointer;
-            border-radius: 6px 6px 0 0;
+            border-radius: 20px;
             white-space: nowrap;
+            transition: all 0.2s;
         }
 
-        .tab:hover { color: white; background: rgba(255,255,255,0.1); }
-        .tab.active { background: var(--teal); color: #000; }
+        .tab:hover { border-color: var(--text-light); color: var(--text-light); }
+        .tab.active {
+            border-color: var(--yellow);
+            color: var(--yellow);
+            background: rgba(253,216,53,0.1);
+        }
 
         .tab-content { display: none; }
         .tab-content.active { display: block; }
@@ -154,8 +160,9 @@
         /* Schedule Card */
         .schedule-card {
             background: var(--bg-card);
-            border: 2px solid var(--border-color);
-            border-radius: 10px;
+            border: 3px solid #000;
+            border-radius: 12px;
+            box-shadow: 4px 4px 0 rgba(0,0,0,0.3);
             padding: 15px;
             margin-bottom: 12px;
             display: flex;
@@ -210,8 +217,9 @@
 
         .roster-card {
             background: var(--bg-card);
-            border: 2px solid var(--border-color);
-            border-radius: 10px;
+            border: 3px solid #000;
+            border-radius: 12px;
+            box-shadow: 4px 4px 0 rgba(0,0,0,0.3);
             padding: 15px;
             display: flex;
             align-items: center;
@@ -283,6 +291,7 @@
         }
 
         .roster-stat .value {
+            font-family: 'JetBrains Mono', monospace;
             color: var(--yellow);
             font-weight: 600;
         }
@@ -297,16 +306,18 @@
 
         .stat-card {
             background: var(--bg-card);
-            border: 2px solid var(--border-color);
-            border-radius: 10px;
+            border: 3px solid #000;
+            border-radius: 12px;
+            box-shadow: 4px 4px 0 rgba(0,0,0,0.3);
             padding: 15px;
             text-align: center;
         }
 
         .stat-value {
-            font-family: 'Bebas Neue', cursive;
+            font-family: 'JetBrains Mono', monospace;
             font-size: 28px;
             color: var(--yellow);
+            font-weight: 700;
         }
 
         .stat-label {
@@ -347,6 +358,36 @@
 
         @keyframes spin { to { transform: rotate(360deg); } }
 
+        /* Skeleton Loading States */
+        .skeleton {
+            background: linear-gradient(90deg, #1e2a47 25%, #2a3a57 50%, #1e2a47 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s ease-in-out infinite;
+            border-radius: 8px;
+        }
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        /* Breadcrumbs */
+        .breadcrumbs {
+            padding: 8px 16px;
+            font-size: 12px;
+            color: var(--text-dim);
+            max-width: 1100px;
+            margin: 0 auto;
+            display: none;
+        }
+        @media (min-width: 1024px) {
+            .breadcrumbs { display: block; }
+        }
+        .breadcrumbs ol { list-style: none; display: flex; flex-wrap: wrap; gap: 4px; margin: 0; padding: 0; }
+        .breadcrumbs li::after { content: '>'; margin-left: 8px; color: var(--text-dim); }
+        .breadcrumbs li:last-child::after { content: ''; }
+        .breadcrumbs a { color: var(--teal); text-decoration: none; }
+        .breadcrumbs a:hover { text-decoration: underline; }
+
         @media (max-width: 500px) {
             .team-name { font-size: 26px; }
             .record-value { font-size: 28px; }
@@ -362,10 +403,48 @@
         <span class="header-title" id="headerTitle">TEAM</span>
     </div>
 
+    <nav class="breadcrumbs" aria-label="Breadcrumb">
+        <ol>
+            <li><a href="/pages/dashboard.html">Dashboard</a></li>
+            <li><a href="#" id="breadcrumbLeague">League</a></li>
+            <li aria-current="page" id="breadcrumbTeam">Team</li>
+        </ol>
+    </nav>
+
     <div class="container">
-        <div class="loading" id="loadingState">
-            <div class="spinner"></div>
-            <p style="margin-top: 15px; color: var(--text-dim);">Loading team...</p>
+        <div id="loadingState">
+            <!-- Team header skeleton -->
+            <div style="text-align: center; padding: 20px 15px;">
+                <div class="skeleton" style="height: 32px; width: 180px; margin: 0 auto 8px;"></div>
+                <div class="skeleton" style="height: 14px; width: 140px; margin: 0 auto 15px;"></div>
+                <div style="display: flex; justify-content: center; gap: 30px;">
+                    <div style="text-align: center;"><div class="skeleton" style="height: 36px; width: 50px; margin: 0 auto 4px;"></div><div class="skeleton" style="height: 10px; width: 40px;"></div></div>
+                    <div style="text-align: center;"><div class="skeleton" style="height: 36px; width: 50px; margin: 0 auto 4px;"></div><div class="skeleton" style="height: 10px; width: 40px;"></div></div>
+                    <div style="text-align: center;"><div class="skeleton" style="height: 36px; width: 50px; margin: 0 auto 4px;"></div><div class="skeleton" style="height: 10px; width: 40px;"></div></div>
+                </div>
+            </div>
+            <!-- Tab skeleton -->
+            <div style="display: flex; gap: 8px; margin-bottom: 15px; justify-content: center;">
+                <div class="skeleton" style="height: 36px; width: 90px; border-radius: 20px;"></div>
+                <div class="skeleton" style="height: 36px; width: 80px; border-radius: 20px;"></div>
+                <div class="skeleton" style="height: 36px; width: 70px; border-radius: 20px;"></div>
+            </div>
+            <!-- Schedule cards skeleton (3x) -->
+            <div style="background: var(--bg-card); border: 3px solid #000; border-radius: 12px; box-shadow: 4px 4px 0 rgba(0,0,0,0.3); padding: 15px; margin-bottom: 12px; display: flex; align-items: center; gap: 15px;">
+                <div class="skeleton" style="width: 50px; height: 40px; border-radius: 6px; flex-shrink: 0;"></div>
+                <div style="flex: 1;"><div class="skeleton" style="height: 15px; width: 120px; margin-bottom: 6px;"></div><div class="skeleton" style="height: 12px; width: 80px;"></div></div>
+                <div class="skeleton" style="height: 20px; width: 45px;"></div>
+            </div>
+            <div style="background: var(--bg-card); border: 3px solid #000; border-radius: 12px; box-shadow: 4px 4px 0 rgba(0,0,0,0.3); padding: 15px; margin-bottom: 12px; display: flex; align-items: center; gap: 15px;">
+                <div class="skeleton" style="width: 50px; height: 40px; border-radius: 6px; flex-shrink: 0;"></div>
+                <div style="flex: 1;"><div class="skeleton" style="height: 15px; width: 100px; margin-bottom: 6px;"></div><div class="skeleton" style="height: 12px; width: 70px;"></div></div>
+                <div class="skeleton" style="height: 20px; width: 45px;"></div>
+            </div>
+            <div style="background: var(--bg-card); border: 3px solid #000; border-radius: 12px; box-shadow: 4px 4px 0 rgba(0,0,0,0.3); padding: 15px; margin-bottom: 12px; display: flex; align-items: center; gap: 15px;">
+                <div class="skeleton" style="width: 50px; height: 40px; border-radius: 6px; flex-shrink: 0;"></div>
+                <div style="flex: 1;"><div class="skeleton" style="height: 15px; width: 110px; margin-bottom: 6px;"></div><div class="skeleton" style="height: 12px; width: 90px;"></div></div>
+                <div class="skeleton" style="height: 20px; width: 45px;"></div>
+            </div>
         </div>
 
         <div id="teamContent" style="display: none;">
@@ -390,14 +469,14 @@
             </div>
 
             <!-- Tabs -->
-            <div class="tab-container">
-                <div class="tab active" onclick="switchTab('schedule')">SCHEDULE</div>
-                <div class="tab" onclick="switchTab('roster')">ROSTER</div>
-                <div class="tab" onclick="switchTab('stats')">STATS</div>
+            <div class="tab-container" role="tablist" aria-label="Team sections">
+                <button type="button" class="tab active" role="tab" aria-selected="true" aria-controls="scheduleTab" onclick="switchTab('schedule')">SCHEDULE</button>
+                <button type="button" class="tab" role="tab" aria-selected="false" aria-controls="rosterTab" onclick="switchTab('roster')">ROSTER</button>
+                <button type="button" class="tab" role="tab" aria-selected="false" aria-controls="statsTab" onclick="switchTab('stats')">STATS</button>
             </div>
 
             <!-- Schedule Tab -->
-            <div id="scheduleTab" class="tab-content active">
+            <div id="scheduleTab" class="tab-content active" role="tabpanel">
                 <div id="scheduleContent">
                     <div class="empty-state">
                         <div class="icon">📅</div>
@@ -407,7 +486,7 @@
             </div>
 
             <!-- Roster Tab -->
-            <div id="rosterTab" class="tab-content">
+            <div id="rosterTab" class="tab-content" role="tabpanel">
                 <div class="roster-grid" id="rosterContent">
                     <div class="empty-state">
                         <div class="icon">👥</div>
@@ -417,7 +496,7 @@
             </div>
 
             <!-- Stats Tab -->
-            <div id="statsTab" class="tab-content">
+            <div id="statsTab" class="tab-content" role="tabpanel">
                 <div class="stats-grid" id="statsContent">
                     <div class="stat-card">
                         <div class="stat-value" id="teamAvg">-</div>
@@ -440,6 +519,7 @@
         </div>
     </div>
 
+<script src="/js/stats-helpers.js"></script>
 <script type="module">
 import { db, collection, doc, getDoc, getDocs, query, where, orderBy } from '/js/firebase-config.js';
 
@@ -481,6 +561,15 @@ async function loadTeamData() {
         document.getElementById('teamLeague').textContent = leagueName;
         document.getElementById('teamWins').textContent = team.wins || 0;
         document.getElementById('teamLosses').textContent = team.losses || 0;
+
+        // Update breadcrumbs
+        const bcLeague = document.getElementById('breadcrumbLeague');
+        if (bcLeague) {
+            bcLeague.textContent = leagueName || 'League';
+            bcLeague.href = `/pages/league-view.html?league_id=${leagueId}`;
+        }
+        const bcTeam = document.getElementById('breadcrumbTeam');
+        if (bcTeam) bcTeam.textContent = teamName || 'Team';
 
         // Calculate position (would need standings data)
         // For now just show record-based position
@@ -588,19 +677,17 @@ async function loadRoster(team) {
     const container = document.getElementById('rosterContent');
 
     try {
-        // Get players from team data
-        let players = [];
-        if (team.players?.length) {
-            players = team.players;
-        } else if (team.player_ids?.length) {
-            players = team.player_ids.map((id, i) => ({
-                id,
-                name: team.player_names?.[i] || 'Unknown',
-                level: team.player_levels?.[i] || ''
-            }));
-        }
+        // RULE 4: Query players collection by team_id, never from team document
+        const playersSnap = await getDocs(collection(db, 'leagues', leagueId, 'players'));
+        const teamPlayers = [];
+        playersSnap.forEach(d => {
+            const player = { id: d.id, ...d.data() };
+            if (player.team_id === teamId) {
+                teamPlayers.push(player);
+            }
+        });
 
-        if (players.length === 0) {
+        if (teamPlayers.length === 0) {
             container.innerHTML = `
                 <div class="empty-state">
                     <div class="icon">👥</div>
@@ -610,54 +697,43 @@ async function loadRoster(team) {
             return;
         }
 
-        // Get stats for each player
+        // Get stats for each player using stats-helpers.js
         const playersWithStats = [];
-        for (const player of players) {
-            let stats = { x01_three_dart_avg: '-', cricket_mpr: '-' };
+        for (const player of teamPlayers) {
+            let statsDisplay = { x01_three_dart_avg: '-', cricket_mpr: '-' };
             try {
                 const statsDoc = await getDoc(doc(db, 'leagues', leagueId, 'stats', player.id));
                 if (statsDoc.exists()) {
                     const s = statsDoc.data();
-                    // Calculate 3DA from components if available, else use canonical/legacy fields
-                    if (s.x01_total_darts > 0) {
-                        stats.x01_three_dart_avg = (s.x01_total_points / s.x01_total_darts * 3).toFixed(1);
-                    } else if (s.x01_three_dart_avg != null) {
-                        stats.x01_three_dart_avg = Number(s.x01_three_dart_avg).toFixed(1);
-                    } else if (s.x01_avg != null) {
-                        stats.x01_three_dart_avg = Number(s.x01_avg).toFixed(1);
-                    }
-                    // Calculate MPR from components if available, else use canonical/legacy fields
-                    if (s.cricket_total_rounds > 0) {
-                        stats.cricket_mpr = (s.cricket_total_marks / s.cricket_total_rounds).toFixed(2);
-                    } else if (s.cricket_mpr != null) {
-                        stats.cricket_mpr = Number(s.cricket_mpr).toFixed(2);
-                    } else if (s.mpr != null) {
-                        stats.cricket_mpr = Number(s.mpr).toFixed(2);
-                    }
+                    const avg = get3DA(s);
+                    const mpr = getMPR(s);
+                    if (avg != null) statsDisplay.x01_three_dart_avg = avg.toFixed(1);
+                    if (mpr != null) statsDisplay.cricket_mpr = mpr.toFixed(2);
                 }
             } catch (e) { /* ignore */ }
 
             playersWithStats.push({
                 ...player,
-                isCaptain: player.id === team.captain_id,
-                stats
+                isCaptain: player.id === team.captain_id || player.is_captain === true,
+                stats: statsDisplay
             });
         }
 
-        // Sort: captain first, then by level
+        // Sort: captain first, then by position, then by level
         playersWithStats.sort((a, b) => {
             if (a.isCaptain) return -1;
             if (b.isCaptain) return 1;
+            if (a.position && b.position) return a.position - b.position;
             const levelOrder = { 'A': 1, 'B': 2, 'C': 3, '': 4 };
             return (levelOrder[a.level] || 4) - (levelOrder[b.level] || 4);
         });
 
         container.innerHTML = playersWithStats.map(player => `
             <div class="roster-card ${player.isCaptain ? 'captain' : ''}" onclick="viewPlayer('${player.id}')">
-                <div class="roster-avatar">${player.name.charAt(0).toUpperCase()}</div>
+                <div class="roster-avatar">${(player.name || '?').charAt(0).toUpperCase()}</div>
                 <div class="roster-info">
                     <div class="roster-name">
-                        ${player.name}
+                        ${player.name || 'Unknown'}
                         ${player.isCaptain ? '<span class="captain-badge">Captain</span>' : ''}
                     </div>
                     ${player.level ? `<span class="roster-level ${player.level}">${player.level}</span>` : ''}
@@ -677,13 +753,15 @@ async function loadRoster(team) {
 
 async function loadTeamStats(team) {
     try {
-        // Get players from team
-        let playerIds = [];
-        if (team.players?.length) {
-            playerIds = team.players.map(p => p.id);
-        } else if (team.player_ids?.length) {
-            playerIds = team.player_ids;
-        }
+        // RULE 4: Query players collection by team_id
+        const playersSnap = await getDocs(collection(db, 'leagues', leagueId, 'players'));
+        const playerIds = [];
+        playersSnap.forEach(d => {
+            const player = d.data();
+            if (player.team_id === teamId) {
+                playerIds.push(d.id);
+            }
+        });
 
         if (playerIds.length === 0) return;
 
@@ -702,7 +780,7 @@ async function loadTeamStats(team) {
                     totalDarts += s.x01_total_darts || 0;
                     totalMarks += s.cricket_total_marks || 0;
                     totalRounds += s.cricket_total_rounds || 0;
-                    total180s += s.x01_tons_180 || s.x01_ton_80 || 0;
+                    total180s += s.x01_tons_180 || 0;
                     if ((s.x01_high_checkout || 0) > highOut) {
                         highOut = s.x01_high_checkout;
                     }
@@ -734,9 +812,16 @@ function formatDate(dateStr) {
 }
 
 window.switchTab = function(tabName) {
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(t => {
+        t.classList.remove('active');
+        t.setAttribute('aria-selected', 'false');
+    });
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-    event.target.classList.add('active');
+    const activeTab = document.querySelector(`.tab[aria-controls="${tabName}Tab"]`);
+    if (activeTab) {
+        activeTab.classList.add('active');
+        activeTab.setAttribute('aria-selected', 'true');
+    }
     document.getElementById(tabName + 'Tab').classList.add('active');
 };
 
@@ -745,5 +830,7 @@ window.viewPlayer = function(playerId) {
 };
 </script>
 <script src="/js/display-helpers.js"></script>
+<script src="/components/brdc-navigation-init.js"></script>
+<script>initBRDCNavigation({ page: 'league-team' });</script>
 </body>
 </html>
