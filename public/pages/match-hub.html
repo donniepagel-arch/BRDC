@@ -3677,6 +3677,11 @@
                 return a.name.localeCompare(b.name);
             });
 
+            // Filter to only visible players (for row rendering)
+            const visiblePlayers = selectedFilterPlayers.length > 0
+                ? allPlayers.filter(p => selectedFilterPlayers.includes(p.name))
+                : allPlayers;
+
             // Calculate team totals
             const homeTeamName = homeTeam?.team_name || homeTeam?.name || 'Home';
             const awayTeamName = awayTeam?.team_name || awayTeam?.name || 'Away';
@@ -3731,6 +3736,7 @@
                             </tr>
                         </thead>
                         <tbody>
+                            ${selectedFilterPlayers.length === 0 ? `
                             <tr class="team-total-row home-total">
                                 <td>${homeTeamName}</td>
                                 <td>${homeTotal.totalGames}</td>
@@ -3748,8 +3754,8 @@
                                 <td>${away3DA}</td>
                                 <td>${awayMPR}</td>
                                 <td>${awayMissPct}%</td>
-                            </tr>
-                            ${allPlayers.map(p => {
+                            </tr>` : ''}
+                            ${visiblePlayers.map(p => {
                                 const winPct = p.totalGames > 0 ? Math.round((p.totalWins / p.totalGames) * 100) : 0;
                                 const totalMissThrows = p.x01.missThrows + p.cricket.missThrows;
                                 const totalAllThrows = p.x01.totalThrows + p.cricket.totalThrows;
@@ -3826,12 +3832,15 @@
             `;
 
             // X01 Players Table
-            const x01Players = allPlayers.filter(p => p.x01.legs > 0);
+            const x01AllPlayers = allPlayers.filter(p => p.x01.legs > 0);
+            const x01Players = selectedFilterPlayers.length > 0
+                ? x01AllPlayers.filter(p => selectedFilterPlayers.includes(p.name))
+                : x01AllPlayers;
 
             // Calculate X01 team totals
             const homeX01 = { legs: 0, wins: 0, points: 0, darts: 0, first9Points: 0, first9Darts: 0, missThrows: 0, totalThrows: 0 };
             const awayX01 = { legs: 0, wins: 0, points: 0, darts: 0, first9Points: 0, first9Darts: 0, missThrows: 0, totalThrows: 0 };
-            x01Players.forEach(p => {
+            x01AllPlayers.forEach(p => {
                 const total = p.side === 'home' ? homeX01 : awayX01;
                 total.legs += p.x01.legs;
                 total.wins += p.x01.wins;
@@ -3870,6 +3879,7 @@
                             </tr>
                         </thead>
                         <tbody>
+                            ${selectedFilterPlayers.length === 0 ? `
                             <tr class="team-total-row home-total">
                                 <td>${homeTeamName}</td>
                                 <td>${homeX01.legs}</td>
@@ -3891,7 +3901,7 @@
                                 <td class="dim">${awayX01.darts || '-'}</td>
                                 <td>${awayX01Avg}</td>
                                 <td>${awayX01First9}</td>
-                            </tr>
+                            </tr>` : ''}
                             ${x01Players.map(p => {
                                 const avg = p.x01.darts > 0 ? (p.x01.points / p.x01.darts) * 3 : 0;
                                 const first9Avg = p.x01.first9Darts > 0 ? (p.x01.first9Points / p.x01.first9Darts) * 3 : 0;
@@ -3972,12 +3982,15 @@
             `;
 
             // Cricket Players Table
-            const cricketPlayers = allPlayers.filter(p => p.cricket.legs > 0);
+            const cricketAllPlayers = allPlayers.filter(p => p.cricket.legs > 0);
+            const cricketPlayers = selectedFilterPlayers.length > 0
+                ? cricketAllPlayers.filter(p => selectedFilterPlayers.includes(p.name))
+                : cricketAllPlayers;
 
             // Calculate Cricket team totals
             const homeCricket = { legs: 0, wins: 0, marks: 0, darts: 0, missThrows: 0, totalThrows: 0 };
             const awayCricket = { legs: 0, wins: 0, marks: 0, darts: 0, missThrows: 0, totalThrows: 0 };
-            cricketPlayers.forEach(p => {
+            cricketAllPlayers.forEach(p => {
                 const total = p.side === 'home' ? homeCricket : awayCricket;
                 total.legs += p.cricket.legs;
                 total.wins += p.cricket.wins;
@@ -4011,6 +4024,7 @@
                             </tr>
                         </thead>
                         <tbody>
+                            ${selectedFilterPlayers.length === 0 ? `
                             <tr class="team-total-row home-total">
                                 <td>${homeTeamName}</td>
                                 <td>${homeCricket.legs}</td>
@@ -4030,7 +4044,7 @@
                                 <td class="dim">${awayCricket.marks || '-'}</td>
                                 <td class="dim">${awayCricket.darts || '-'}</td>
                                 <td>${awayCricketMPR}</td>
-                            </tr>
+                            </tr>` : ''}
                             ${cricketPlayers.map(p => {
                                 const mpr = p.cricket.darts > 0 ? p.cricket.marks / (p.cricket.darts / 3) : 0;
                                 const winPct = p.cricket.legs > 0 ? Math.round((p.cricket.wins / p.cricket.legs) * 100) : 0;
@@ -4417,6 +4431,12 @@
                 return { home: homeTotal, away: awayTotal };
             }
 
+            // Helper: filter player names by selected filter
+            const filterVisibleNames = (names) => selectedFilterPlayers.length > 0
+                ? names.filter(name => selectedFilterPlayers.includes(name))
+                : names;
+            const showTeamTotals = selectedFilterPlayers.length === 0;
+
             // Build HTML - Start with sub-tab navigation
             let html = `
                 <div class="perf-subtab-nav">
@@ -4431,14 +4451,14 @@
             // Table 1 - 60+ DOUBLE-OUTS
             const hasCheckoutData = Object.keys(playerCheckouts).some(name => playerCheckouts[name].total > 0);
             if (hasCheckoutData) {
-                const allPlayersSorted = [...homePlayerNames, ...awayPlayerNames].filter(name => playerCheckouts[name] && playerCheckouts[name].total > 0);
+                const allPlayersSorted = filterVisibleNames([...homePlayerNames, ...awayPlayerNames].filter(name => playerCheckouts[name] && playerCheckouts[name].total > 0));
 
                 // Calculate team totals
                 const checkoutTotals = calcTeamTotals(playerCheckouts, homePlayerNames, awayPlayerNames, ['high', 'total', '60_99', '100_139', '140_160', '161_plus']);
 
-                const teamRows =
+                const teamRows = showTeamTotals ?
                     '<tr class="team-total-row home-total"><td>' + homeTeamName + '</td><td>' + (checkoutTotals.home.high || '-') + '</td><td>' + (checkoutTotals.home.total || '-') + '</td><td>' + (checkoutTotals.home['60_99'] || '-') + '</td><td>' + (checkoutTotals.home['100_139'] || '-') + '</td><td>' + (checkoutTotals.home['140_160'] || '-') + '</td><td>' + (checkoutTotals.home['161_plus'] || '-') + '</td></tr>' +
-                    '<tr class="team-total-row away-total"><td>' + awayTeamName + '</td><td>' + (checkoutTotals.away.high || '-') + '</td><td>' + (checkoutTotals.away.total || '-') + '</td><td>' + (checkoutTotals.away['60_99'] || '-') + '</td><td>' + (checkoutTotals.away['100_139'] || '-') + '</td><td>' + (checkoutTotals.away['140_160'] || '-') + '</td><td>' + (checkoutTotals.away['161_plus'] || '-') + '</td></tr>';
+                    '<tr class="team-total-row away-total"><td>' + awayTeamName + '</td><td>' + (checkoutTotals.away.high || '-') + '</td><td>' + (checkoutTotals.away.total || '-') + '</td><td>' + (checkoutTotals.away['60_99'] || '-') + '</td><td>' + (checkoutTotals.away['100_139'] || '-') + '</td><td>' + (checkoutTotals.away['140_160'] || '-') + '</td><td>' + (checkoutTotals.away['161_plus'] || '-') + '</td></tr>' : '';
 
                 const checkoutRows = allPlayersSorted.map(name => {
                     const data = playerCheckouts[name];
@@ -4452,7 +4472,7 @@
             // Table 2 - CHECKOUT PERFORMANCE
             const hasCheckoutPerfData = Object.keys(playerCheckoutPerf).some(name => playerCheckoutPerf[name].totalOpportunities > 0);
             if (hasCheckoutPerfData) {
-                const allPlayersSorted = [...homePlayerNames, ...awayPlayerNames].filter(name => playerCheckoutPerf[name] && playerCheckoutPerf[name].totalOpportunities > 0);
+                const allPlayersSorted = filterVisibleNames([...homePlayerNames, ...awayPlayerNames].filter(name => playerCheckoutPerf[name] && playerCheckoutPerf[name].totalOpportunities > 0));
 
                 const perfTotals = calcTeamTotals(playerCheckoutPerf, homePlayerNames, awayPlayerNames, ['checkoutSum', 'checkoutCount', 'checkoutDarts', 'totalOpportunities', 'first9Points', 'first9Darts']);
 
@@ -4463,9 +4483,9 @@
                 const homeCoe = (perfTotals.home.totalOpportunities > 0 && perfTotals.home.checkoutDarts > 0) ? Math.round((perfTotals.home.checkoutDarts / (perfTotals.home.totalOpportunities * 3)) * 100) + '%' : '-';
                 const awayCoe = (perfTotals.away.totalOpportunities > 0 && perfTotals.away.checkoutDarts > 0) ? Math.round((perfTotals.away.checkoutDarts / (perfTotals.away.totalOpportunities * 3)) * 100) + '%' : '-';
 
-                const perfTeamRows =
+                const perfTeamRows = showTeamTotals ?
                     '<tr class="team-total-row home-total"><td>' + homeTeamName + '</td><td>' + homeFir9 + '</td><td>' + homeAfin + '</td><td>' + (perfTotals.home.checkoutDarts || '-') + '</td><td>' + (perfTotals.home.totalOpportunities || '-') + '</td><td>' + homeCoe + '</td></tr>' +
-                    '<tr class="team-total-row away-total"><td>' + awayTeamName + '</td><td>' + awayFir9 + '</td><td>' + awayAfin + '</td><td>' + (perfTotals.away.checkoutDarts || '-') + '</td><td>' + (perfTotals.away.totalOpportunities || '-') + '</td><td>' + awayCoe + '</td></tr>';
+                    '<tr class="team-total-row away-total"><td>' + awayTeamName + '</td><td>' + awayFir9 + '</td><td>' + awayAfin + '</td><td>' + (perfTotals.away.checkoutDarts || '-') + '</td><td>' + (perfTotals.away.totalOpportunities || '-') + '</td><td>' + awayCoe + '</td></tr>' : '';
 
                 const perfRows = allPlayersSorted.map(name => {
                     const perf = playerCheckoutPerf[name];
@@ -4484,7 +4504,7 @@
             // Table 3 - OPPORTUNITY TRACKING
             const hasOpportunityData = Object.keys(playerOpportunity).some(name => playerOpportunity[name].x01Legs > 0);
             if (hasOpportunityData) {
-                const allPlayersSorted = [...homePlayerNames, ...awayPlayerNames].filter(name => playerOpportunity[name] && playerOpportunity[name].x01Legs > 0);
+                const allPlayersSorted = filterVisibleNames([...homePlayerNames, ...awayPlayerNames].filter(name => playerOpportunity[name] && playerOpportunity[name].x01Legs > 0));
 
                 const oppTotals = calcTeamTotals(playerOpportunity, homePlayerNames, awayPlayerNames, ['x01Legs', 'attempts', 'successfulDarts']);
                 const homeOppPct = oppTotals.home.attempts > 0 ? Math.round((oppTotals.home.successfulDarts / (oppTotals.home.attempts * 3)) * 100) + '%' : '-';
@@ -4501,9 +4521,9 @@
                     }
                 });
 
-                const oppTeamRows =
+                const oppTeamRows = showTeamTotals ?
                     '<tr class="team-total-row home-total"><td>' + homeTeamName + '</td><td>' + (oppTotals.home.x01Legs || '-') + '</td><td>' + (oppTotals.home.attempts || '-') + '</td><td>' + (oppTotals.home.successfulDarts || '-') + '</td><td>' + homeOppPct + '</td><td>' + homeTrackedLegs.size + '</td></tr>' +
-                    '<tr class="team-total-row away-total"><td>' + awayTeamName + '</td><td>' + (oppTotals.away.x01Legs || '-') + '</td><td>' + (oppTotals.away.attempts || '-') + '</td><td>' + (oppTotals.away.successfulDarts || '-') + '</td><td>' + awayOppPct + '</td><td>' + awayTrackedLegs.size + '</td></tr>';
+                    '<tr class="team-total-row away-total"><td>' + awayTeamName + '</td><td>' + (oppTotals.away.x01Legs || '-') + '</td><td>' + (oppTotals.away.attempts || '-') + '</td><td>' + (oppTotals.away.successfulDarts || '-') + '</td><td>' + awayOppPct + '</td><td>' + awayTrackedLegs.size + '</td></tr>' : '';
 
                 const oppRows = allPlayersSorted.map(name => {
                     const opp = playerOpportunity[name];
@@ -4519,12 +4539,12 @@
             // Table 4 - '01 100+ TURNS
             const hasTurns100Data = Object.keys(playerTurns100).some(name => playerTurns100[name].total > 0);
             if (hasTurns100Data) {
-                const allPlayersSorted = [...homePlayerNames, ...awayPlayerNames].filter(name => playerTurns100[name] && playerTurns100[name].total > 0);
+                const allPlayersSorted = filterVisibleNames([...homePlayerNames, ...awayPlayerNames].filter(name => playerTurns100[name] && playerTurns100[name].total > 0));
 
                 const turns100Totals = calcTeamTotals(playerTurns100, homePlayerNames, awayPlayerNames, ['pts', 'total', 'high', 'r100_119', 'r120_139', 'r140_159', 'r160_179', 'r180']);
-                const turns100TeamRows =
+                const turns100TeamRows = showTeamTotals ?
                     '<tr class="team-total-row home-total"><td>' + homeTeamName + '</td><td>' + (turns100Totals.home.pts || '-') + '</td><td>' + (turns100Totals.home.total || '-') + '</td><td>' + (turns100Totals.home.high || '-') + '</td><td>' + (turns100Totals.home.r100_119 || '-') + '</td><td>' + (turns100Totals.home.r120_139 || '-') + '</td><td>' + (turns100Totals.home.r140_159 || '-') + '</td><td>' + (turns100Totals.home.r160_179 || '-') + '</td><td>' + (turns100Totals.home.r180 || '-') + '</td></tr>' +
-                    '<tr class="team-total-row away-total"><td>' + awayTeamName + '</td><td>' + (turns100Totals.away.pts || '-') + '</td><td>' + (turns100Totals.away.total || '-') + '</td><td>' + (turns100Totals.away.high || '-') + '</td><td>' + (turns100Totals.away.r100_119 || '-') + '</td><td>' + (turns100Totals.away.r120_139 || '-') + '</td><td>' + (turns100Totals.away.r140_159 || '-') + '</td><td>' + (turns100Totals.away.r160_179 || '-') + '</td><td>' + (turns100Totals.away.r180 || '-') + '</td></tr>';
+                    '<tr class="team-total-row away-total"><td>' + awayTeamName + '</td><td>' + (turns100Totals.away.pts || '-') + '</td><td>' + (turns100Totals.away.total || '-') + '</td><td>' + (turns100Totals.away.high || '-') + '</td><td>' + (turns100Totals.away.r100_119 || '-') + '</td><td>' + (turns100Totals.away.r120_139 || '-') + '</td><td>' + (turns100Totals.away.r140_159 || '-') + '</td><td>' + (turns100Totals.away.r160_179 || '-') + '</td><td>' + (turns100Totals.away.r180 || '-') + '</td></tr>' : '';
 
                 const turns100Rows = allPlayersSorted.map(name => {
                     const data = playerTurns100[name];
@@ -4538,12 +4558,12 @@
             // Table 5 - '01 95+ TURNS
             const hasTurns95Data = Object.keys(playerTurns95).some(name => playerTurns95[name].total > 0);
             if (hasTurns95Data) {
-                const allPlayersSorted = [...homePlayerNames, ...awayPlayerNames].filter(name => playerTurns95[name] && playerTurns95[name].total > 0);
+                const allPlayersSorted = filterVisibleNames([...homePlayerNames, ...awayPlayerNames].filter(name => playerTurns95[name] && playerTurns95[name].total > 0));
 
                 const turns95Totals = calcTeamTotals(playerTurns95, homePlayerNames, awayPlayerNames, ['pts', 'total', 'high', 'r95_113', 'r114_132', 'r133_151', 'r152_170', 'r171_180']);
-                const turns95TeamRows =
+                const turns95TeamRows = showTeamTotals ?
                     '<tr class="team-total-row home-total"><td>' + homeTeamName + '</td><td>' + (turns95Totals.home.pts || '-') + '</td><td>' + (turns95Totals.home.total || '-') + '</td><td>' + (turns95Totals.home.high || '-') + '</td><td>' + (turns95Totals.home.r95_113 || '-') + '</td><td>' + (turns95Totals.home.r114_132 || '-') + '</td><td>' + (turns95Totals.home.r133_151 || '-') + '</td><td>' + (turns95Totals.home.r152_170 || '-') + '</td><td>' + (turns95Totals.home.r171_180 || '-') + '</td></tr>' +
-                    '<tr class="team-total-row away-total"><td>' + awayTeamName + '</td><td>' + (turns95Totals.away.pts || '-') + '</td><td>' + (turns95Totals.away.total || '-') + '</td><td>' + (turns95Totals.away.high || '-') + '</td><td>' + (turns95Totals.away.r95_113 || '-') + '</td><td>' + (turns95Totals.away.r114_132 || '-') + '</td><td>' + (turns95Totals.away.r133_151 || '-') + '</td><td>' + (turns95Totals.away.r152_170 || '-') + '</td><td>' + (turns95Totals.away.r171_180 || '-') + '</td></tr>';
+                    '<tr class="team-total-row away-total"><td>' + awayTeamName + '</td><td>' + (turns95Totals.away.pts || '-') + '</td><td>' + (turns95Totals.away.total || '-') + '</td><td>' + (turns95Totals.away.high || '-') + '</td><td>' + (turns95Totals.away.r95_113 || '-') + '</td><td>' + (turns95Totals.away.r114_132 || '-') + '</td><td>' + (turns95Totals.away.r133_151 || '-') + '</td><td>' + (turns95Totals.away.r152_170 || '-') + '</td><td>' + (turns95Totals.away.r171_180 || '-') + '</td></tr>' : '';
 
                 const turns95Rows = allPlayersSorted.map(name => {
                     const data = playerTurns95[name];
@@ -4562,15 +4582,15 @@
             // Table 1 - CRICKET CLOSEOUTS
             const hasCricketCloseoutData = Object.keys(playerCricketCloseouts).length > 0;
             if (hasCricketCloseoutData) {
-                const allPlayersSorted = [...homePlayerNames, ...awayPlayerNames].filter(name => playerCricketCloseouts[name]);
+                const allPlayersSorted = filterVisibleNames([...homePlayerNames, ...awayPlayerNames].filter(name => playerCricketCloseouts[name]));
 
                 const closeoutTotals = calcTeamTotals(playerCricketCloseouts, homePlayerNames, awayPlayerNames, ['9m', '8m', '7m', '6m', '5m']);
                 const homeCloseoutTotal = (closeoutTotals.home['5m'] || 0) + (closeoutTotals.home['6m'] || 0) + (closeoutTotals.home['7m'] || 0) + (closeoutTotals.home['8m'] || 0) + (closeoutTotals.home['9m'] || 0);
                 const awayCloseoutTotal = (closeoutTotals.away['5m'] || 0) + (closeoutTotals.away['6m'] || 0) + (closeoutTotals.away['7m'] || 0) + (closeoutTotals.away['8m'] || 0) + (closeoutTotals.away['9m'] || 0);
 
-                const closeoutTeamRows =
+                const closeoutTeamRows = showTeamTotals ?
                     '<tr class="team-total-row home-total"><td>' + homeTeamName + '</td><td>' + (closeoutTotals.home['9m'] || '-') + '</td><td>' + (closeoutTotals.home['8m'] || '-') + '</td><td>' + (closeoutTotals.home['7m'] || '-') + '</td><td>' + (closeoutTotals.home['6m'] || '-') + '</td><td>' + (closeoutTotals.home['5m'] || '-') + '</td><td>' + (homeCloseoutTotal || '-') + '</td></tr>' +
-                    '<tr class="team-total-row away-total"><td>' + awayTeamName + '</td><td>' + (closeoutTotals.away['9m'] || '-') + '</td><td>' + (closeoutTotals.away['8m'] || '-') + '</td><td>' + (closeoutTotals.away['7m'] || '-') + '</td><td>' + (closeoutTotals.away['6m'] || '-') + '</td><td>' + (closeoutTotals.away['5m'] || '-') + '</td><td>' + (awayCloseoutTotal || '-') + '</td></tr>';
+                    '<tr class="team-total-row away-total"><td>' + awayTeamName + '</td><td>' + (closeoutTotals.away['9m'] || '-') + '</td><td>' + (closeoutTotals.away['8m'] || '-') + '</td><td>' + (closeoutTotals.away['7m'] || '-') + '</td><td>' + (closeoutTotals.away['6m'] || '-') + '</td><td>' + (closeoutTotals.away['5m'] || '-') + '</td><td>' + (awayCloseoutTotal || '-') + '</td></tr>' : '';
 
                 const closeoutRows = allPlayersSorted.map(name => {
                     const data = playerCricketCloseouts[name];
@@ -4585,15 +4605,15 @@
             // Table 2 - CRICKET 5M+ TURNS
             const hasMarkTurnsData = Object.keys(playerMarkTurns).some(name => playerMarkTurns[name].count5plus > 0);
             if (hasMarkTurnsData) {
-                const allPlayersSorted = [...homePlayerNames, ...awayPlayerNames].filter(name => playerMarkTurns[name] && playerMarkTurns[name].count5plus > 0);
+                const allPlayersSorted = filterVisibleNames([...homePlayerNames, ...awayPlayerNames].filter(name => playerMarkTurns[name] && playerMarkTurns[name].count5plus > 0));
 
                 const markTurnsTotals = calcTeamTotals(playerMarkTurns, homePlayerNames, awayPlayerNames, ['highMarkTotal', 'count5plus', 'totalThrows', 'm5', 'm6', 'm7', 'm8', 'm9']);
                 const homeMarkPct = markTurnsTotals.home.totalThrows > 0 ? Math.round((markTurnsTotals.home.count5plus / markTurnsTotals.home.totalThrows) * 100) + '%' : '-';
                 const awayMarkPct = markTurnsTotals.away.totalThrows > 0 ? Math.round((markTurnsTotals.away.count5plus / markTurnsTotals.away.totalThrows) * 100) + '%' : '-';
 
-                const markTurnsTeamRows =
+                const markTurnsTeamRows = showTeamTotals ?
                     '<tr class="team-total-row home-total"><td>' + homeTeamName + '</td><td>' + (markTurnsTotals.home.highMarkTotal || '-') + '</td><td>' + (markTurnsTotals.home.count5plus || '-') + '</td><td>' + homeMarkPct + '</td><td>' + (markTurnsTotals.home.m5 || '-') + '</td><td>' + (markTurnsTotals.home.m6 || '-') + '</td><td>' + (markTurnsTotals.home.m7 || '-') + '</td><td>' + (markTurnsTotals.home.m8 || '-') + '</td><td>' + (markTurnsTotals.home.m9 || '-') + '</td></tr>' +
-                    '<tr class="team-total-row away-total"><td>' + awayTeamName + '</td><td>' + (markTurnsTotals.away.highMarkTotal || '-') + '</td><td>' + (markTurnsTotals.away.count5plus || '-') + '</td><td>' + awayMarkPct + '</td><td>' + (markTurnsTotals.away.m5 || '-') + '</td><td>' + (markTurnsTotals.away.m6 || '-') + '</td><td>' + (markTurnsTotals.away.m7 || '-') + '</td><td>' + (markTurnsTotals.away.m8 || '-') + '</td><td>' + (markTurnsTotals.away.m9 || '-') + '</td></tr>';
+                    '<tr class="team-total-row away-total"><td>' + awayTeamName + '</td><td>' + (markTurnsTotals.away.highMarkTotal || '-') + '</td><td>' + (markTurnsTotals.away.count5plus || '-') + '</td><td>' + awayMarkPct + '</td><td>' + (markTurnsTotals.away.m5 || '-') + '</td><td>' + (markTurnsTotals.away.m6 || '-') + '</td><td>' + (markTurnsTotals.away.m7 || '-') + '</td><td>' + (markTurnsTotals.away.m8 || '-') + '</td><td>' + (markTurnsTotals.away.m9 || '-') + '</td></tr>' : '';
 
                 const markTurnsRows = allPlayersSorted.map(name => {
                     const data = playerMarkTurns[name];
@@ -4608,12 +4628,12 @@
             // Table 3 - CRICKET BULLS
             const hasBullsData = Object.keys(playerBulls).some(name => playerBulls[name].allBulls > 0);
             if (hasBullsData) {
-                const allPlayersSorted = [...homePlayerNames, ...awayPlayerNames].filter(name => playerBulls[name] && playerBulls[name].allBulls > 0);
+                const allPlayersSorted = filterVisibleNames([...homePlayerNames, ...awayPlayerNames].filter(name => playerBulls[name] && playerBulls[name].allBulls > 0));
 
                 const bullsTotals = calcTeamTotals(playerBulls, homePlayerNames, awayPlayerNames, ['allBulls', 'b3', 'b4', 'b5', 'b6']);
-                const bullsTeamRows =
+                const bullsTeamRows = showTeamTotals ?
                     '<tr class="team-total-row home-total"><td>' + homeTeamName + '</td><td>' + (bullsTotals.home.allBulls || '-') + '</td><td>' + (bullsTotals.home.b3 || '-') + '</td><td>' + (bullsTotals.home.b4 || '-') + '</td><td>' + (bullsTotals.home.b5 || '-') + '</td><td>' + (bullsTotals.home.b6 || '-') + '</td></tr>' +
-                    '<tr class="team-total-row away-total"><td>' + awayTeamName + '</td><td>' + (bullsTotals.away.allBulls || '-') + '</td><td>' + (bullsTotals.away.b3 || '-') + '</td><td>' + (bullsTotals.away.b4 || '-') + '</td><td>' + (bullsTotals.away.b5 || '-') + '</td><td>' + (bullsTotals.away.b6 || '-') + '</td></tr>';
+                    '<tr class="team-total-row away-total"><td>' + awayTeamName + '</td><td>' + (bullsTotals.away.allBulls || '-') + '</td><td>' + (bullsTotals.away.b3 || '-') + '</td><td>' + (bullsTotals.away.b4 || '-') + '</td><td>' + (bullsTotals.away.b5 || '-') + '</td><td>' + (bullsTotals.away.b6 || '-') + '</td></tr>' : '';
 
                 const bullsRows = allPlayersSorted.map(name => {
                     const data = playerBulls[name];
@@ -4627,12 +4647,12 @@
             // Table 4 - MARKSMAN COUNTS
             const hasMarksmanData = Object.keys(playerMarksman).some(name => playerMarksman[name].triples > 0 || playerMarksman[name].dBulls > 0 || playerMarksman[name].hatTricks > 0);
             if (hasMarksmanData) {
-                const allPlayersSorted = [...homePlayerNames, ...awayPlayerNames].filter(name => playerMarksman[name] && (playerMarksman[name].triples > 0 || playerMarksman[name].dBulls > 0 || playerMarksman[name].hatTricks > 0));
+                const allPlayersSorted = filterVisibleNames([...homePlayerNames, ...awayPlayerNames].filter(name => playerMarksman[name] && (playerMarksman[name].triples > 0 || playerMarksman[name].dBulls > 0 || playerMarksman[name].hatTricks > 0)));
 
                 const marksmanTotals = calcTeamTotals(playerMarksman, homePlayerNames, awayPlayerNames, ['triples', 'dBulls', 'hatTricks']);
-                const marksmanTeamRows =
+                const marksmanTeamRows = showTeamTotals ?
                     '<tr class="team-total-row home-total"><td>' + homeTeamName + '</td><td>' + (marksmanTotals.home.triples || '-') + '</td><td>' + (marksmanTotals.home.dBulls || '-') + '</td><td>' + (marksmanTotals.home.hatTricks || '-') + '</td></tr>' +
-                    '<tr class="team-total-row away-total"><td>' + awayTeamName + '</td><td>' + (marksmanTotals.away.triples || '-') + '</td><td>' + (marksmanTotals.away.dBulls || '-') + '</td><td>' + (marksmanTotals.away.hatTricks || '-') + '</td></tr>';
+                    '<tr class="team-total-row away-total"><td>' + awayTeamName + '</td><td>' + (marksmanTotals.away.triples || '-') + '</td><td>' + (marksmanTotals.away.dBulls || '-') + '</td><td>' + (marksmanTotals.away.hatTricks || '-') + '</td></tr>' : '';
 
                 const marksmanRows = allPlayersSorted.map(name => {
                     const data = playerMarksman[name];
@@ -4677,14 +4697,18 @@
                 '<button class="perf-subtab-btn" onclick="switchLeaderSubtab(\'cricket\')">CRICKET</button>' +
                 '</div>';
 
+            const leaderFilterFn = (p) => selectedFilterPlayers.length === 0 || selectedFilterPlayers.includes(p.name);
             const x01Players = Object.values(agg.players)
                 .filter(p => p.x01.legs > 0)
-                .map(p => ({ ...p, side: agg.homeNames.has(p.name) ? 'home' : 'away' }));
+                .map(p => ({ ...p, side: agg.homeNames.has(p.name) ? 'home' : 'away' }))
+                .filter(leaderFilterFn);
             const cricketPlayers = Object.values(agg.players)
                 .filter(p => p.cricket.legs > 0)
-                .map(p => ({ ...p, side: agg.homeNames.has(p.name) ? 'home' : 'away' }));
+                .map(p => ({ ...p, side: agg.homeNames.has(p.name) ? 'home' : 'away' }))
+                .filter(leaderFilterFn);
             const allPlayers = Object.values(agg.players)
-                .map(p => ({ ...p, side: agg.homeNames.has(p.name) ? 'home' : 'away' }));
+                .map(p => ({ ...p, side: agg.homeNames.has(p.name) ? 'home' : 'away' }))
+                .filter(leaderFilterFn);
 
             const hasX01 = x01Players.length > 0;
             const hasCricket = cricketPlayers.length > 0;
@@ -5050,6 +5074,7 @@
         }
 
         function teamTotalRow(teamName, side, cells) {
+            if (selectedFilterPlayers.length > 0) return '';
             var cls = side === 'home' ? 'home-total' : 'away-total';
             return '<tr class="team-total-row ' + cls + '"><td class="rank-col"></td><td class="name-col">' + teamName + '</td>' + cells + '</tr>';
         }
