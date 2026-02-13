@@ -597,7 +597,7 @@ exports.leaveChannel = functions.https.onRequest((req, res) => {
  *   attachments?
  * }
  */
-exports.sendChatMessage = functions.https.onRequest((req, res) => {
+exports.sendChannelMessage = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
             const {
@@ -1441,7 +1441,7 @@ exports.onChatMessageCreated = onDocumentCreated(
  * POST /deleteChatMessage
  * Body: { player_pin, channel_id, message_id }
  */
-exports.deleteChatMessage = functions.https.onRequest((req, res) => {
+exports.deleteChannelMessage = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
             const { player_pin, channel_id, message_id } = req.body;
@@ -1506,7 +1506,7 @@ exports.deleteChatMessage = functions.https.onRequest((req, res) => {
  * POST /editChatMessage
  * Body: { player_pin, channel_id, message_id, new_content }
  */
-exports.editChatMessage = functions.https.onRequest((req, res) => {
+exports.editChannelMessage = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
             const { player_pin, channel_id, message_id, new_content } = req.body;

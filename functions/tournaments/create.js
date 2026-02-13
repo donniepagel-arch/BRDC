@@ -285,9 +285,13 @@ exports.updateTournamentSettings = functions.https.onRequest(async (req, res) =>
             // Format settings
             'format', 'max_players', 'game_type', 'entry_fee', 'status',
             'best_of', 'checkout', 'in_rule', 'out_rule',
+            // Venue settings
+            'venue_board_count',
             // Matchmaker specific
             'winners_best_of', 'losers_best_of', 'breakup_cutoff', 'breakup_enabled',
-            'partner_matching', 'matchmaker_enabled'
+            'partner_matching', 'matchmaker_enabled',
+            'winners_game_type', 'losers_game_type', 'grand_finals_best_of',
+            'entry_type', 'mingle_cutoff', 'savage_summaries_enabled', 'nudge_limit'
         ];
 
         // Build update object with only allowed fields

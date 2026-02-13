@@ -5,7 +5,7 @@
 
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
-const cors = require('cors')({origin: true});
+const cors = require('cors')({origin: ['https://brdc-v2.web.app', 'https://brdc-v2.firebaseapp.com']});
 
 admin.initializeApp();
 
@@ -14,7 +14,7 @@ db.settings({ ignoreUndefinedProperties: true });
 
 // Tournament Functions
 const { createTournament, addBotToTournament, updateTournamentSettings, deleteTournament } = require('./tournaments/create');
-const { generateBracket, generateDoubleEliminationBracket } = require('./tournaments/brackets');
+const { generateBracket, generateDoubleEliminationBracket, swapBracketPositions, regenerateBracket } = require('./tournaments/brackets');
 const { submitMatchResult, recalculateTournamentStats, submitDoubleElimMatchResult, startDoubleElimMatch } = require('./tournaments/matches');
 
 // Export tournament functions
@@ -24,6 +24,8 @@ exports.updateTournamentSettings = updateTournamentSettings;
 exports.deleteTournament = deleteTournament;
 exports.generateBracket = generateBracket;
 exports.generateDoubleEliminationBracket = generateDoubleEliminationBracket;
+exports.swapBracketPositions = swapBracketPositions;
+exports.regenerateBracket = regenerateBracket;
 exports.submitMatchResult = submitMatchResult;
 exports.recalculateTournamentStats = recalculateTournamentStats;
 exports.submitDoubleElimMatchResult = submitDoubleElimMatchResult;
@@ -48,6 +50,13 @@ Object.assign(exports, captainFunctions);
 // Bot Player Management Functions (legacy - keeping for backwards compatibility)
 const botFunctions = require('./bots');
 Object.assign(exports, botFunctions);
+
+// 🔒 SECURE AUTHENTICATION FUNCTIONS (NEW - Enhanced Security)
+const secureAuth = require('./src/secure-auth');
+exports.securePlayerLogin = secureAuth.securePlayerLogin;
+exports.validateSession = secureAuth.validateSession;
+exports.secureLogout = secureAuth.secureLogout;
+exports.cleanupExpiredSessions = secureAuth.cleanupExpiredSessions;
 
 // Global Player Authentication & Registration
 const globalAuthFunctions = require('./global-auth');
@@ -100,6 +109,14 @@ Object.assign(exports, friendsFunctions);
 const onlinePlayFunctions = require('./online-play');
 Object.assign(exports, onlinePlayFunctions);
 
+// REMOVED: One-time migration function - see git history
+// const { fixPartloPagel } = require('./fix-partlo-pagel');
+// exports.fixPartloPagel = fixPartloPagel;
+
+// REMOVED: One-time migration function - see git history
+// const { recalculateMatchScore } = require('./recalculate-match-score');
+// exports.recalculateMatchScore = recalculateMatchScore;
+
 // Mini Tournaments (Phase 5 Social Platform - quick brackets in scorer)
 const miniTournamentFunctions = require('./mini-tournaments');
 Object.assign(exports, miniTournamentFunctions);
@@ -118,13 +135,25 @@ Object.assign(exports, statsUnificationFunctions);
 const draftFunctions = require('./draft');
 Object.assign(exports, draftFunctions);
 
-// Match Import Functions (temporary - for DartConnect data import)
-const importMatchFunctions = require('./import-matches');
-Object.assign(exports, importMatchFunctions);
+// REMOVED: One-time migration function - see git history
+// const cleanupFunctions = require('./cleanup-league');
+// Object.assign(exports, cleanupFunctions);
 
-// Test Import Functions (temporary - verify imported data)
+// Import match functions - selectively export only actively-used functions
+// (migration functions like consolidatePlayerIds, migrateLeagueToGlobalIds etc. removed)
+const importMatchFunctions = require('./import-matches');
+exports.importMatchData = importMatchFunctions.importMatchData;
+exports.updateImportedMatchStats = importMatchFunctions.updateImportedMatchStats;
+exports.recalculateAllLeagueStats = importMatchFunctions.recalculateAllLeagueStats;
+exports.listMatches = importMatchFunctions.listMatches;
+exports.findMatch = importMatchFunctions.findMatch;
+// getMatchDetails is in test-import.js (kept for admin debugging)
 const testImportFunctions = require('./test-import');
-Object.assign(exports, testImportFunctions);
+exports.getMatchDetails = testImportFunctions.getMatchDetails;
+
+// REMOVED: One-time migration function - see git history
+// const testImportFunctions = require('./test-import');
+// Object.assign(exports, testImportFunctions);
 
 // Phase functions (legacy - keeping for backwards compatibility)
 const phase12 = require('./phase-1-2');
@@ -157,29 +186,106 @@ Object.assign(exports, chatChallengesFunctions);
 const chatSystemFunctions = require('./chat-system');
 Object.assign(exports, chatSystemFunctions);
 
-// Populate Match Data (one-time data import)
-const populateMatchDataFunctions = require('./populate-match-data');
-Object.assign(exports, populateMatchDataFunctions);
+// REMOVED: One-time migration function - see git history
+// const populateMatchDataFunctions = require('./populate-match-data');
+// Object.assign(exports, populateMatchDataFunctions);
 
-// Week 1 Match Data (Yasenchak vs Kull, etc.)
-const populateWeek1Functions = require('./populate-week1-matches');
-Object.assign(exports, populateWeek1Functions);
+// REMOVED: One-time migration function - see git history
+// const populateWeek1Functions = require('./populate-week1-matches');
+// Object.assign(exports, populateWeek1Functions);
 
-// Partlo vs Olschansky Match Data
-const populatePartloFunctions = require('./populate-partlo-match');
-Object.assign(exports, populatePartloFunctions);
+// REMOVED: One-time migration function - see git history
+// const populatePartloFunctions = require('./populate-partlo-match');
+// Object.assign(exports, populatePartloFunctions);
 
-// Massimiani vs Ragnoni Match Data
-const populateMassimianiFunctions = require('./populate-massimiani-match');
-Object.assign(exports, populateMassimianiFunctions);
+// REMOVED: One-time migration function - see git history
+// const populateMassimianiFunctions = require('./populate-massimiani-match');
+// Object.assign(exports, populateMassimianiFunctions);
 
-// Mezlak vs Russano Match Data
-const populateMezlakFunctions = require('./populate-mezlak-match');
-Object.assign(exports, populateMezlakFunctions);
+// REMOVED: One-time migration function - see git history
+// const populateMezlakFunctions = require('./populate-mezlak-match');
+// Object.assign(exports, populateMezlakFunctions);
 
 // Matchmaker Tournaments (partner matching, mixed doubles, breakup mechanics, heartbreaker)
 const matchmakerFunctions = require('./matchmaker');
 Object.assign(exports, matchmakerFunctions);
+
+// Player notification endpoint (callable function for sending push notifications)
+exports.sendPlayerNotification = functions.https.onCall(async (data, context) => {
+    const { player_id, title, body, link, type, data: notifData } = data;
+
+    if (!player_id || !title) {
+        throw new functions.https.HttpsError('invalid-argument', 'Missing player_id or title');
+    }
+
+    try {
+        // Get FCM token from fcm_tokens collection
+        const tokenDoc = await admin.firestore().collection('fcm_tokens').doc(player_id).get();
+
+        if (!tokenDoc.exists || !tokenDoc.data().token) {
+            // Also check player document for fcm_token
+            const playerDoc = await admin.firestore().collection('players').doc(player_id).get();
+            if (!playerDoc.exists || !playerDoc.data().fcm_token) {
+                return { success: false, reason: 'no_token' };
+            }
+
+            // Use token from player doc
+            const message = {
+                token: playerDoc.data().fcm_token,
+                notification: { title, body: body || '' },
+                data: {
+                    title,
+                    body: body || '',
+                    type: type || 'general',
+                    ...(notifData || {}),
+                    link: link || ''
+                },
+                webpush: {
+                    notification: {
+                        title,
+                        body: body || '',
+                        icon: '/images/gold_logo.png',
+                        badge: '/images/gold_logo.png',
+                        vibrate: [200, 100, 200, 100, 200]
+                    },
+                    fcmOptions: { link: link || '/' }
+                }
+            };
+
+            await admin.messaging().send(message);
+            return { success: true };
+        }
+
+        // Use token from fcm_tokens collection
+        const message = {
+            token: tokenDoc.data().token,
+            notification: { title, body: body || '' },
+            data: {
+                title,
+                body: body || '',
+                type: type || 'general',
+                ...(notifData || {}),
+                link: link || ''
+            },
+            webpush: {
+                notification: {
+                    title,
+                    body: body || '',
+                    icon: '/images/gold_logo.png',
+                    badge: '/images/gold_logo.png',
+                    vibrate: [200, 100, 200, 100, 200]
+                },
+                fcmOptions: { link: link || '/' }
+            }
+        };
+
+        await admin.messaging().send(message);
+        return { success: true };
+    } catch (error) {
+        console.error('Send notification error:', error);
+        return { success: false, reason: error.message };
+    }
+});
 
 // Notable Performances (homepage featured performances)
 const notablePerformancesFunctions = require('./notable-performances');
@@ -203,39 +309,7 @@ Object.assign(exports, postsFunctions);
 // TOURNAMENT DAY OPERATIONS (REFACTORED)
 // ===================================================================
 
-// Check in a single player
-exports.checkInPlayer = functions.https.onRequest((req, res) => {
-  cors(req, res, async () => {
-    try {
-      const { tournamentId, playerId, playerName } = req.body;
-
-      const tournamentRef = db.collection('tournaments').doc(tournamentId);
-      const tournamentDoc = await tournamentRef.get();
-
-      if (!tournamentDoc.exists) {
-        return res.status(404).json({ error: 'Tournament not found' });
-      }
-
-      // Get existing player data or create new
-      const tournament = tournamentDoc.data();
-      const existingPlayer = tournament.players?.[playerId] || {};
-
-      await tournamentRef.update({
-        [`players.${playerId}`]: {
-          ...existingPlayer,
-          name: playerName || existingPlayer.name || playerId,
-          checkedIn: true,
-          checkInTime: admin.firestore.FieldValue.serverTimestamp()
-        }
-      });
-
-      res.json({ success: true, message: 'Player checked in successfully' });
-    } catch (error) {
-      console.error('Error checking in player:', error);
-      res.status(500).json({ error: error.message });
-    }
-  });
-});
+// checkInPlayer is exported from matchmaker.js (supports registration-based check-in)
 
 // Bulk check-in multiple players
 exports.bulkCheckIn = functions.https.onRequest((req, res) => {
@@ -1637,15 +1711,55 @@ exports.getPlayerStatsFiltered = functions.https.onRequest((req, res) => {
           break;
 
         case 'social':
-          // Social/online play stats - not tracked in league stats collections
-          // For now, return empty stats as online play stats aren't aggregated yet
-          stats.source = 'social';
+          try {
+            const pickupStatsDoc = await db.collection('players').doc(playerId)
+              .collection('pickup_stats').doc('aggregate').get();
+            if (pickupStatsDoc.exists) {
+              const ps = pickupStatsDoc.data();
+              stats.x01_games_played = ps.x01_legs_played || 0;
+              stats.x01_games_won = ps.x01_legs_won || 0;
+              stats.x01_darts = ps.x01_total_darts || 0;
+              stats.x01_points = ps.x01_total_points || 0;
+              stats.x01_three_dart_avg = ps.x01_total_darts > 0
+                ? parseFloat(((ps.x01_total_points || 0) / ps.x01_total_darts * 3).toFixed(2)) : 0;
+              stats.x01_first_nine_avg = ps.x01_first9_darts > 0
+                ? parseFloat(((ps.x01_first9_points || 0) / ps.x01_first9_darts * 3).toFixed(2)) : 0;
+              stats.x01_tons_100 = ps.x01_ton_00 || 0;
+              stats.x01_tons_120 = ps.x01_ton_20 || 0;
+              stats.x01_tons_140 = ps.x01_ton_40 || 0;
+              stats.x01_tons_160 = ps.x01_ton_60 || 0;
+              stats.x01_tons_180 = ps.x01_ton_80 || 0;
+              stats.x01_checkouts = ps.x01_checkouts_hit || 0;
+              stats.x01_checkout_opps = ps.x01_checkout_attempts || 0;
+              stats.x01_checkout_pct = ps.x01_checkout_attempts > 0
+                ? parseFloat(((ps.x01_checkouts_hit || 0) / ps.x01_checkout_attempts * 100).toFixed(1)) : 0;
+              stats.x01_high_checkout = ps.x01_highest_checkout || 0;
+              stats.cricket_games_played = ps.cricket_legs_played || 0;
+              stats.cricket_games_won = ps.cricket_legs_won || 0;
+              stats.cricket_mpr = ps.cricket_total_darts > 0
+                ? parseFloat(((ps.cricket_total_marks || 0) / (ps.cricket_total_darts / 3)).toFixed(2)) : 0;
+              stats.cricket_total_marks = ps.cricket_total_marks || 0;
+              stats.cricket_total_darts = ps.cricket_total_darts || 0;
+              stats.games_played = (ps.x01_legs_played || 0) + (ps.cricket_legs_played || 0);
+              stats.games_won = (ps.x01_legs_won || 0) + (ps.cricket_legs_won || 0);
+            }
+            stats.source = 'social';
+          } catch (error) {
+            console.error('Error loading social stats:', error);
+            stats.source = 'social';
+          }
           break;
 
         case 'combined':
         default:
           // Combined: aggregate all available stats
-          // Start with league stats (most comprehensive)
+          // FIRST: Try player.stats or player.unified_stats on the player doc
+          const playerDocStats = player.stats || player.unified_stats;
+          if (playerDocStats && (playerDocStats.x01_total_darts > 0 || playerDocStats.cricket_total_darts > 0 || playerDocStats.x01_legs_played > 0)) {
+            aggregateStats(stats, playerDocStats);
+          }
+
+          // THEN: Add league stats from known involvements
           for (const leagueId of leagueIds) {
             const leagueStats = await getLeagueStats(leagueId);
             if (leagueStats) {
@@ -1653,12 +1767,78 @@ exports.getPlayerStatsFiltered = functions.https.onRequest((req, res) => {
             }
           }
 
-          // If no league stats found, check unified_stats on player doc
+          // LAST RESORT: If still no stats, search ALL leagues for this player
           if (stats.x01_legs_played === 0 && stats.cricket_legs_played === 0) {
-            const unifiedStats = player.unified_stats || player.stats;
-            if (unifiedStats) {
-              aggregateStats(stats, unifiedStats);
+            const allLeagues = await db.collection('leagues').get();
+            for (const leagueDoc of allLeagues.docs) {
+              try {
+                // Find player in this league by PIN first, then name
+                let leaguePlayerDoc = searchPin ? await db.collection('leagues')
+                  .doc(leagueDoc.id)
+                  .collection('players')
+                  .where('pin', '==', searchPin)
+                  .limit(1)
+                  .get() : { empty: true };
+
+                if (leaguePlayerDoc.empty) {
+                  leaguePlayerDoc = await db.collection('leagues')
+                    .doc(leagueDoc.id)
+                    .collection('players')
+                    .where('name', '==', searchName)
+                    .limit(1)
+                    .get();
+                }
+
+                if (!leaguePlayerDoc.empty) {
+                  const leaguePlayerId = leaguePlayerDoc.docs[0].id;
+                  const statsDoc = await db.collection('leagues')
+                    .doc(leagueDoc.id)
+                    .collection('stats')
+                    .doc(leaguePlayerId)
+                    .get();
+
+                  if (statsDoc.exists) {
+                    const foundStats = statsDoc.data();
+                    if (foundStats.x01_legs_played > 0 || foundStats.cricket_legs_played > 0) {
+                      aggregateStats(stats, foundStats);
+                      break; // Found stats, stop searching
+                    }
+                  }
+                }
+              } catch (e) {
+                // Continue to next league
+              }
             }
+          }
+
+          // Include social/pickup stats in combined
+          try {
+            const pickupDoc = await db.collection('players').doc(playerId)
+              .collection('pickup_stats').doc('aggregate').get();
+            if (pickupDoc.exists) {
+              const ps = pickupDoc.data();
+              stats.x01_darts = (stats.x01_darts || 0) + (ps.x01_total_darts || 0);
+              stats.x01_points = (stats.x01_points || 0) + (ps.x01_total_points || 0);
+              stats.x01_games_played = (stats.x01_games_played || 0) + (ps.x01_legs_played || 0);
+              stats.x01_games_won = (stats.x01_games_won || 0) + (ps.x01_legs_won || 0);
+              stats.x01_tons_100 = (stats.x01_tons_100 || 0) + (ps.x01_ton_00 || 0);
+              stats.x01_tons_120 = (stats.x01_tons_120 || 0) + (ps.x01_ton_20 || 0);
+              stats.x01_tons_140 = (stats.x01_tons_140 || 0) + (ps.x01_ton_40 || 0);
+              stats.x01_tons_160 = (stats.x01_tons_160 || 0) + (ps.x01_ton_60 || 0);
+              stats.x01_tons_180 = (stats.x01_tons_180 || 0) + (ps.x01_ton_80 || 0);
+              stats.x01_checkouts = (stats.x01_checkouts || 0) + (ps.x01_checkouts_hit || 0);
+              stats.x01_checkout_opps = (stats.x01_checkout_opps || 0) + (ps.x01_checkout_attempts || 0);
+              stats.cricket_games_played = (stats.cricket_games_played || 0) + (ps.cricket_legs_played || 0);
+              stats.cricket_games_won = (stats.cricket_games_won || 0) + (ps.cricket_legs_won || 0);
+              stats.cricket_total_marks = (stats.cricket_total_marks || 0) + (ps.cricket_total_marks || 0);
+              stats.cricket_total_darts = (stats.cricket_total_darts || 0) + (ps.cricket_total_darts || 0);
+              // Recalculate combined averages
+              if (stats.x01_darts > 0) stats.x01_three_dart_avg = parseFloat((stats.x01_points / stats.x01_darts * 3).toFixed(2));
+              if (stats.cricket_total_darts > 0) stats.cricket_mpr = parseFloat((stats.cricket_total_marks / (stats.cricket_total_darts / 3)).toFixed(2));
+              if ((stats.x01_checkout_opps || 0) > 0) stats.x01_checkout_pct = parseFloat((stats.x01_checkouts / stats.x01_checkout_opps * 100).toFixed(1));
+            }
+          } catch (error) {
+            console.error('Error adding pickup stats to combined:', error);
           }
 
           stats.source = 'combined';

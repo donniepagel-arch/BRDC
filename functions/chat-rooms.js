@@ -2255,14 +2255,18 @@ exports.createAllLeagueChatRooms = functions.https.onRequest((req, res) => {
                     .get();
 
                 if (existingTeamChat.empty) {
-                    const participantIds = team.player_ids || [];
+                    // Get team players by querying players with matching team_id
+                    const teamPlayersSnap = await db.collection('leagues').doc(league_id)
+                        .collection('players').where('team_id', '==', teamId).get();
+                    const participantIds = teamPlayersSnap.docs.map(d => d.id);
                     if (team.captain_id && !participantIds.includes(team.captain_id)) {
                         participantIds.push(team.captain_id);
                     }
 
+                    const teamName = team.team_name || team.name || 'Unknown Team';
                     const teamChatRef = await db.collection('chat_rooms').add({
                         type: 'team',
-                        name: `${team.name} Team Chat`,
+                        name: `${teamName} Team Chat`,
                         league_id: league_id,
                         team_id: teamId,
                         match_id: null,
@@ -2279,7 +2283,7 @@ exports.createAllLeagueChatRooms = functions.https.onRequest((req, res) => {
                     await teamChatRef.collection('messages').add({
                         sender_id: 'system',
                         sender_name: 'System',
-                        text: `Welcome to ${team.name} team chat!`,
+                        text: `Welcome to ${teamName} team chat!`,
                         timestamp: admin.firestore.FieldValue.serverTimestamp(),
                         type: 'system',
                         pinned: false
@@ -2287,7 +2291,7 @@ exports.createAllLeagueChatRooms = functions.https.onRequest((req, res) => {
 
                     results.team_chats.push({
                         team_id: teamId,
-                        team_name: team.name,
+                        team_name: teamName,
                         room_id: teamChatRef.id
                     });
                 } else {

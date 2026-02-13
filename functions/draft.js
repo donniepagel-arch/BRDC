@@ -87,6 +87,94 @@ function generateStandardDraftOrder(teams, rounds) {
 }
 
 /**
+ * Sync all player involvements for a league
+ * Updates global player records with league involvement information
+ */
+async function syncPlayerInvolvements(leagueId) {
+    try {
+        // Get league info
+        const leagueDoc = await db.collection('leagues').doc(leagueId).get();
+        if (!leagueDoc.exists) {
+            console.error(`League ${leagueId} not found`);
+            return;
+        }
+        const leagueData = leagueDoc.data();
+
+        // Get all league players
+        const playersSnap = await db.collection('leagues').doc(leagueId).collection('players').get();
+
+        let syncCount = 0;
+        const syncPromises = [];
+
+        for (const playerDoc of playersSnap.docs) {
+            const playerData = playerDoc.data();
+            const playerId = playerDoc.id;
+
+            // Skip if player has no team (not drafted yet)
+            if (!playerData.team_id) {
+                continue;
+            }
+
+            // Get team info
+            const teamDoc = await db.collection('leagues').doc(leagueId).collection('teams').doc(playerData.team_id).get();
+            const teamData = teamDoc.exists ? teamDoc.data() : {};
+
+            // Find global player by PIN or email
+            let globalPlayerRef = null;
+
+            if (playerData.pin) {
+                const globalByPin = await db.collection('players').where('pin', '==', playerData.pin).limit(1).get();
+                if (!globalByPin.empty) {
+                    globalPlayerRef = globalByPin.docs[0].ref;
+                }
+            }
+
+            if (!globalPlayerRef && playerData.email) {
+                const globalByEmail = await db.collection('players').where('email', '==', playerData.email.toLowerCase()).limit(1).get();
+                if (!globalByEmail.empty) {
+                    globalPlayerRef = globalByEmail.docs[0].ref;
+                }
+            }
+
+            if (globalPlayerRef) {
+                const syncPromise = (async () => {
+                    const globalPlayerDoc = await globalPlayerRef.get();
+                    const globalPlayerData = globalPlayerDoc.data();
+
+                    const involvements = globalPlayerData.involvements || { leagues: [], tournaments: [], directing: [], captaining: [] };
+                    const existingLeagueIndex = involvements.leagues.findIndex(l => l.id === leagueId);
+
+                    if (existingLeagueIndex >= 0) {
+                        involvements.leagues[existingLeagueIndex].team_id = playerData.team_id;
+                        involvements.leagues[existingLeagueIndex].team_name = teamData.name || teamData.team_name;
+                    } else {
+                        involvements.leagues.push({
+                            id: leagueId,
+                            name: leagueData.league_name,
+                            team_id: playerData.team_id,
+                            team_name: teamData.name || teamData.team_name,
+                            role: 'player'
+                        });
+                    }
+
+                    await globalPlayerRef.update({ involvements });
+                    syncCount++;
+                })();
+
+                syncPromises.push(syncPromise);
+            }
+        }
+
+        await Promise.all(syncPromises);
+        console.log(`Synced involvements for ${syncCount} players in league ${leagueId}`);
+
+    } catch (error) {
+        console.error(`Error syncing player involvements for league ${leagueId}:`, error);
+        throw error;
+    }
+}
+
+/**
  * Initialize Draft
  * Sets up the draft state with team order and configuration
  */
@@ -293,6 +381,60 @@ exports.makeDraftPick = functions.https.onRequest(async (req, res) => {
             position: position,
             drafted_at: admin.firestore.FieldValue.serverTimestamp()
         });
+
+        // Update global player's involvements.leagues array for dashboard visibility
+        try {
+            // Try to find global player by PIN or email
+            let globalPlayerRef = null;
+
+            if (playerData.pin) {
+                const globalByPin = await db.collection('players').where('pin', '==', playerData.pin).limit(1).get();
+                if (!globalByPin.empty) {
+                    globalPlayerRef = globalByPin.docs[0].ref;
+                }
+            }
+
+            if (!globalPlayerRef && playerData.email) {
+                const globalByEmail = await db.collection('players').where('email', '==', playerData.email.toLowerCase()).limit(1).get();
+                if (!globalByEmail.empty) {
+                    globalPlayerRef = globalByEmail.docs[0].ref;
+                }
+            }
+
+            if (globalPlayerRef) {
+                const globalPlayerDoc = await globalPlayerRef.get();
+                const globalPlayerData = globalPlayerDoc.data();
+
+                // Get league info for involvements
+                const leagueDoc = await db.collection('leagues').doc(league_id).get();
+                const leagueData = leagueDoc.data();
+
+                // Check if league already in involvements
+                const involvements = globalPlayerData.involvements || { leagues: [], tournaments: [], directing: [], captaining: [] };
+                const existingLeagueIndex = involvements.leagues.findIndex(l => l.id === league_id);
+
+                if (existingLeagueIndex >= 0) {
+                    // Update existing involvement with team info
+                    involvements.leagues[existingLeagueIndex].team_id = currentTeamId;
+                    involvements.leagues[existingLeagueIndex].team_name = teamData.name || teamData.team_name;
+                } else {
+                    // Add new league involvement
+                    involvements.leagues.push({
+                        id: league_id,
+                        name: leagueData.league_name,
+                        team_id: currentTeamId,
+                        team_name: teamData.name || teamData.team_name,
+                        role: 'player'
+                    });
+                }
+
+                await globalPlayerRef.update({ involvements });
+                console.log(`Updated global player involvements for ${playerData.name}`);
+            }
+        } catch (invError) {
+            console.warn(`Could not update global player involvements: ${invError.message}`);
+            // Don't fail the draft pick if involvement update fails
+        }
 
         // Calculate new deadline
         const newDeadline = admin.firestore.Timestamp.fromDate(
@@ -755,6 +897,9 @@ exports.completeDraft = functions.https.onRequest(async (req, res) => {
             return res.status(403).json({ success: false, error: 'Director access required' });
         }
 
+        // Sync all player involvements before completing
+        await syncPlayerInvolvements(league_id);
+
         // Update draft state
         await db.collection('leagues').doc(league_id).collection('draft').doc('current').update({
             status: 'completed',
@@ -769,10 +914,43 @@ exports.completeDraft = functions.https.onRequest(async (req, res) => {
             draft_completed_at: admin.firestore.FieldValue.serverTimestamp()
         });
 
-        res.json({ success: true, message: 'Draft completed' });
+        res.json({ success: true, message: 'Draft completed and player involvements synced' });
 
     } catch (error) {
         console.error('Error completing draft:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * Sync Player Involvements (Standalone Fix Function)
+ * Manually sync all player involvements for a league
+ * Useful for fixing existing leagues where involvements weren't created during draft
+ */
+exports.syncLeaguePlayerInvolvements = functions.https.onRequest(async (req, res) => {
+    setCorsHeaders(res);
+    if (req.method === 'OPTIONS') return res.status(204).send('');
+
+    try {
+        const { league_id, pin } = req.body;
+
+        if (!league_id || !pin) {
+            return res.status(400).json({ success: false, error: 'Missing required fields' });
+        }
+
+        // Verify director access
+        const access = await verifyLeagueAccess(league_id, pin);
+        if (!access.valid || !access.isDirector) {
+            return res.status(403).json({ success: false, error: 'Director access required' });
+        }
+
+        // Sync all player involvements
+        await syncPlayerInvolvements(league_id);
+
+        res.json({ success: true, message: 'Player involvements synced successfully' });
+
+    } catch (error) {
+        console.error('Error syncing player involvements:', error);
         res.status(500).json({ success: false, error: error.message });
     }
 });

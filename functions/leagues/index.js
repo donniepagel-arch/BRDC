@@ -5665,13 +5665,74 @@ exports.rescheduleMatch = functions.https.onRequest(async (req, res) => {
         const homeTeamName = homeTeamDoc.exists ? homeTeamDoc.data().team_name : 'Unknown';
         const awayTeamName = awayTeamDoc.exists ? awayTeamDoc.data().team_name : 'Unknown';
 
-        // Optionally notify captains (placeholder - would need notification system integration)
+        // Optionally notify captains
         let notificationSent = false;
         if (notify_captains) {
-            // TODO: Integrate with notification system
-            // This would send SMS/push notifications to team captains
-            console.log(`Would notify captains of ${homeTeamName} and ${awayTeamName} about reschedule`);
-            notificationSent = true;
+            try {
+                // Look up captain phone numbers
+                const homeCaptainId = homeTeamDoc.exists ? homeTeamDoc.data().captain_id : null;
+                const awayCaptainId = awayTeamDoc.exists ? awayTeamDoc.data().captain_id : null;
+
+                const captainPhones = [];
+
+                if (homeCaptainId) {
+                    const captainDoc = await db.collection('players').doc(homeCaptainId).get();
+                    if (captainDoc.exists && captainDoc.data().phone) {
+                        captainPhones.push({ name: homeTeamName, phone: captainDoc.data().phone });
+                    }
+                }
+                if (awayCaptainId) {
+                    const captainDoc = await db.collection('players').doc(awayCaptainId).get();
+                    if (captainDoc.exists && captainDoc.data().phone) {
+                        captainPhones.push({ name: awayTeamName, phone: captainDoc.data().phone });
+                    }
+                }
+
+                // Send SMS to each captain
+                const twilioSid = process.env.TWILIO_ACCOUNT_SID;
+                const twilioToken = process.env.TWILIO_AUTH_TOKEN;
+                const twilioPhone = process.env.TWILIO_PHONE_NUMBER;
+
+                if (twilioSid && twilioToken && twilioPhone && captainPhones.length > 0) {
+                    const twilio = require('twilio')(twilioSid, twilioToken);
+                    const newDateStr = new Date(new_match_date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+
+                    for (const captain of captainPhones) {
+                        try {
+                            const formattedPhone = captain.phone.replace(/\D/g, '');
+                            const e164Phone = formattedPhone.startsWith('1') ? `+${formattedPhone}` : `+1${formattedPhone}`;
+                            const msg = `BRDC: Your Week ${matchData.week || ''} match (${homeTeamName} vs ${awayTeamName}) has been rescheduled to ${newDateStr}. Check brdc-v2.web.app for details.`;
+
+                            await twilio.messages.create({
+                                body: msg,
+                                from: twilioPhone,
+                                to: e164Phone
+                            });
+
+                            await db.collection('notifications').add({
+                                type: 'sms',
+                                to: e164Phone,
+                                message: msg,
+                                context: 'match_reschedule',
+                                league_id,
+                                match_id,
+                                status: 'sent',
+                                sent_at: admin.firestore.FieldValue.serverTimestamp()
+                            });
+
+                            console.log(`Reschedule SMS sent to ${captain.name} captain at ${e164Phone}`);
+                        } catch (smsErr) {
+                            console.error(`Reschedule SMS failed for ${captain.name} captain:`, smsErr.message);
+                        }
+                    }
+                    notificationSent = captainPhones.length > 0;
+                } else {
+                    console.log('Twilio not configured or no captain phones found');
+                }
+            } catch (notifyErr) {
+                console.error('Captain notification error:', notifyErr);
+                // Don't fail the reschedule if notifications fail
+            }
         }
 
         // Add to audit log

@@ -104,6 +104,22 @@ exports.adminClearData = functions.https.onRequest(async (req, res) => {
         }
 
         const db = admin.firestore();
+
+        // Rate limiting: prevent running more than once per hour
+        const lastClear = await db.collection('admin_audit_log').doc('last_clear_data').get();
+        if (lastClear.exists) {
+            const lastTime = lastClear.data().timestamp?.toDate();
+            if (lastTime && (Date.now() - lastTime.getTime()) < 3600000) {
+                return res.status(429).json({ success: false, error: 'Rate limited. Try again later.' });
+            }
+        }
+
+        // Audit log: record the action before executing
+        await db.collection('admin_audit_log').doc('last_clear_data').set({
+            timestamp: admin.firestore.FieldValue.serverTimestamp(),
+            ip: req.ip || req.headers['x-forwarded-for'] || 'unknown',
+            action: 'clear_all_data'
+        });
         const batch = db.batch();
         let deleteCount = 0;
 
@@ -293,8 +309,6 @@ exports.adminGetPlayers = functions.https.onRequest(async (req, res) => {
         const players = [];
         playersSnap.forEach(doc => {
             const data = doc.data();
-            // Skip bots
-            if (data.isBot === true) return;
             players.push({
                 id: doc.id,
                 name: data.name || `${data.first_name || ''} ${data.last_name || ''}`.trim(),
@@ -302,7 +316,9 @@ exports.adminGetPlayers = functions.https.onRequest(async (req, res) => {
                 phone: data.phone,
                 pin: data.pin,
                 games_played: data.games_played || 0,
-                created_at: data.created_at
+                created_at: data.created_at,
+                is_bot: data.isBot === true,
+                has_contact: !!(data.email || data.phone)
             });
         });
 
@@ -352,6 +368,12 @@ exports.adminUpdatePlayer = functions.https.onRequest(async (req, res) => {
         if (updates.email !== undefined) updateData.email = updates.email.trim();
         if (updates.phone !== undefined) updateData.phone = updates.phone.trim();
         if (updates.player_pin) updateData.pin = updates.player_pin.trim();
+
+        // Role fields
+        if (updates.is_master_admin !== undefined) updateData.is_master_admin = updates.is_master_admin;
+        if (updates.is_admin !== undefined) updateData.is_admin = updates.is_admin;
+        if (updates.is_director !== undefined) updateData.is_director = updates.is_director;
+        if (updates.is_captain !== undefined) updateData.is_captain = updates.is_captain;
 
         await playerRef.update(updateData);
 
@@ -1744,6 +1766,149 @@ exports.adminMarkWeekCompleted = functions.https.onRequest(async (req, res) => {
 
     } catch (error) {
         console.error('Mark week completed error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * Update a league player (admin only)
+ */
+exports.adminUpdateLeaguePlayer = functions.https.onRequest(async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+    if (req.method === 'OPTIONS') return res.status(204).send('');
+
+    try {
+        const { pin, league_id, player_id, updates } = req.body;
+
+        if (!verifyAdminPin(pin)) {
+            return res.status(401).json({ success: false, error: 'Invalid admin PIN' });
+        }
+
+        if (!league_id || !player_id) {
+            return res.status(400).json({ success: false, error: 'league_id and player_id required' });
+        }
+
+        const db = admin.firestore();
+        const playerRef = db.collection('leagues').doc(league_id).collection('players').doc(player_id);
+
+        const playerDoc = await playerRef.get();
+        if (!playerDoc.exists) {
+            return res.status(404).json({ success: false, error: 'League player not found' });
+        }
+
+        // Build update object
+        const updateData = {
+            updated_at: admin.firestore.FieldValue.serverTimestamp()
+        };
+
+        if (updates.pin) updateData.pin = updates.pin;
+        if (updates.name) updateData.name = updates.name;
+        if (updates.phone) updateData.phone = updates.phone;
+        if (updates.is_master_admin !== undefined) updateData.is_master_admin = updates.is_master_admin;
+        if (updates.is_captain !== undefined) updateData.is_captain = updates.is_captain;
+
+        await playerRef.update(updateData);
+
+        res.json({ success: true, message: 'League player updated' });
+
+    } catch (error) {
+        console.error('Admin update league player error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * Search for players by phone or PIN (admin only)
+ * Searches both global players and league players
+ */
+exports.adminSearchPlayers = functions.https.onRequest(async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+    if (req.method === 'OPTIONS') return res.status(204).send('');
+
+    try {
+        const { pin, search_term } = req.body;
+
+        if (!verifyAdminPin(pin)) {
+            return res.status(401).json({ success: false, error: 'Invalid admin PIN' });
+        }
+
+        if (!search_term) {
+            return res.status(400).json({ success: false, error: 'search_term required' });
+        }
+
+        const db = admin.firestore();
+        const results = { global: [], league: [] };
+
+        // Search global players
+        console.log('Searching global players for:', search_term);
+        const globalSnap = await db.collection('players').get();
+        globalSnap.forEach(doc => {
+            const p = doc.data();
+            const phoneMatch = p.phone && p.phone.includes(search_term);
+            const pinMatch = p.pin && p.pin.includes(search_term);
+            const nameMatch = p.name && p.name.toLowerCase().includes(search_term.toLowerCase());
+
+            if (phoneMatch || pinMatch || nameMatch) {
+                results.global.push({
+                    id: doc.id,
+                    name: p.name,
+                    pin: p.pin,
+                    phone: p.phone,
+                    email: p.email,
+                    is_master_admin: p.is_master_admin || false,
+                    is_admin: p.is_admin || false,
+                    is_director: p.is_director || false,
+                    is_captain: p.is_captain || false,
+                    league_id: p.league_id,
+                    team_id: p.team_id,
+                    involvements: p.involvements
+                });
+            }
+        });
+
+        // Search league players
+        console.log('Searching league players...');
+        const leaguesSnap = await db.collection('leagues').get();
+        for (const league of leaguesSnap.docs) {
+            const leagueName = league.data().name || league.id;
+            const playersSnap = await db.collection('leagues').doc(league.id).collection('players').get();
+
+            playersSnap.forEach(doc => {
+                const p = doc.data();
+                const phoneMatch = p.phone && p.phone.includes(search_term);
+                const pinMatch = p.pin && p.pin.includes(search_term);
+                const nameMatch = p.name && p.name.toLowerCase().includes(search_term.toLowerCase());
+
+                if (phoneMatch || pinMatch || nameMatch) {
+                    results.league.push({
+                        league_id: league.id,
+                        league_name: leagueName,
+                        player_id: doc.id,
+                        name: p.name,
+                        pin: p.pin,
+                        phone: p.phone,
+                        is_master_admin: p.is_master_admin || false,
+                        is_captain: p.is_captain || false,
+                        team_id: p.team_id,
+                        position: p.position,
+                        preferred_level: p.preferred_level,
+                        skill_level: p.skill_level
+                    });
+                }
+            });
+        }
+
+        console.log('Found', results.global.length, 'global and', results.league.length, 'league players');
+        res.json({ success: true, results });
+
+    } catch (error) {
+        console.error('Admin search players error:', error);
         res.status(500).json({ success: false, error: error.message });
     }
 });

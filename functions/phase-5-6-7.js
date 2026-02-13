@@ -364,9 +364,62 @@ exports.registerTeam = functions.https.onRequest(async (req, res) => {
             registrations.push({ id: regRef.id, ...regData });
         }
 
-        // TODO: Send notifications to players
-        // - Captain confirmation if needed
-        // - Registration links for new players
+        // Send SMS notifications to roster members
+        const leagueName = league.league_name || 'your league';
+        for (const reg of registrations) {
+            if (!reg.phone) continue;
+            try {
+                const formattedPhone = reg.phone.replace(/\D/g, '');
+                const e164Phone = formattedPhone.startsWith('1') ? `+${formattedPhone}` : `+1${formattedPhone}`;
+                let msg;
+                if (reg.is_captain) {
+                    msg = `BRDC: You're registered as captain of "${team_name}" for ${leagueName}! Your PIN: ${reg.pin || 'check your email'}. Login at brdc-v2.web.app`;
+                } else if (reg.needs_registration) {
+                    msg = `BRDC: You've been added to team "${team_name}" for ${leagueName}. Your PIN: ${reg.pin}. Login at brdc-v2.web.app`;
+                } else {
+                    msg = `BRDC: You've been added to team "${team_name}" for ${leagueName}. Login at brdc-v2.web.app`;
+                }
+
+                try {
+                    const twilioClient = require('twilio')(
+                        process.env.TWILIO_ACCOUNT_SID,
+                        process.env.TWILIO_AUTH_TOKEN
+                    );
+                    await twilioClient.messages.create({
+                        body: msg,
+                        from: process.env.TWILIO_PHONE_NUMBER,
+                        to: e164Phone
+                    });
+
+                    await db.collection('notifications').add({
+                        type: 'sms',
+                        to: e164Phone,
+                        message: msg,
+                        context: 'team_registration',
+                        league_id,
+                        team_id: teamRef.id,
+                        status: 'sent',
+                        sent_at: admin.firestore.FieldValue.serverTimestamp()
+                    });
+                } catch (twilioErr) {
+                    console.error(`Twilio SMS failed for ${reg.full_name}:`, twilioErr.message);
+                    // Log failed attempt
+                    await db.collection('notifications').add({
+                        type: 'sms',
+                        to: e164Phone,
+                        message: msg,
+                        context: 'team_registration',
+                        league_id,
+                        team_id: teamRef.id,
+                        status: 'failed',
+                        error: twilioErr.message,
+                        sent_at: admin.firestore.FieldValue.serverTimestamp()
+                    });
+                }
+            } catch (smsErr) {
+                console.error(`SMS processing failed for ${reg.full_name}:`, smsErr.message);
+            }
+        }
 
         res.json({
             success: true,
@@ -461,7 +514,51 @@ exports.registerFreeAgent = functions.https.onRequest(async (req, res) => {
 
         const regRef = await db.collection('leagues').doc(league_id).collection('registrations').add(regData);
 
-        // TODO: Send confirmation notification
+        // Send confirmation SMS to free agent
+        if (phone) {
+            try {
+                const formattedPhone = phone.replace(/\D/g, '');
+                const e164Phone = formattedPhone.startsWith('1') ? `+${formattedPhone}` : `+1${formattedPhone}`;
+                const msg = `BRDC: You're registered as a free agent for ${leagueName}. Teams can now invite you! Your PIN: ${playerPin || 'check your account'}. Login at brdc-v2.web.app`;
+
+                try {
+                    const twilioClient = require('twilio')(
+                        process.env.TWILIO_ACCOUNT_SID,
+                        process.env.TWILIO_AUTH_TOKEN
+                    );
+                    await twilioClient.messages.create({
+                        body: msg,
+                        from: process.env.TWILIO_PHONE_NUMBER,
+                        to: e164Phone
+                    });
+
+                    await db.collection('notifications').add({
+                        type: 'sms',
+                        to: e164Phone,
+                        message: msg,
+                        context: 'free_agent_registration',
+                        league_id,
+                        status: 'sent',
+                        sent_at: admin.firestore.FieldValue.serverTimestamp()
+                    });
+                } catch (twilioErr) {
+                    console.error('Twilio SMS failed for free agent:', twilioErr.message);
+                    // Log failed attempt
+                    await db.collection('notifications').add({
+                        type: 'sms',
+                        to: e164Phone,
+                        message: msg,
+                        context: 'free_agent_registration',
+                        league_id,
+                        status: 'failed',
+                        error: twilioErr.message,
+                        sent_at: admin.firestore.FieldValue.serverTimestamp()
+                    });
+                }
+            } catch (smsErr) {
+                console.error('Free agent SMS processing failed:', smsErr.message);
+            }
+        }
 
         res.json({
             success: true,
@@ -635,7 +732,54 @@ exports.sendTeamInvite = functions.https.onRequest(async (req, res) => {
             updated_at: admin.firestore.FieldValue.serverTimestamp()
         });
 
-        // TODO: Send notification to free agent (email/SMS)
+        // Send SMS notification to free agent about team invite
+        if (freeAgent.phone) {
+            try {
+                const formattedPhone = freeAgent.phone.replace(/\D/g, '');
+                const e164Phone = formattedPhone.startsWith('1') ? `+${formattedPhone}` : `+1${formattedPhone}`;
+                const teamName = team.name || team.team_name || 'A team';
+                const msg = `BRDC: ${teamName} has invited you to join their team! Login at brdc-v2.web.app to accept or decline.`;
+
+                try {
+                    const twilioClient = require('twilio')(
+                        process.env.TWILIO_ACCOUNT_SID,
+                        process.env.TWILIO_AUTH_TOKEN
+                    );
+                    await twilioClient.messages.create({
+                        body: msg,
+                        from: process.env.TWILIO_PHONE_NUMBER,
+                        to: e164Phone
+                    });
+
+                    await db.collection('notifications').add({
+                        type: 'sms',
+                        to: e164Phone,
+                        message: msg,
+                        context: 'team_invite',
+                        league_id,
+                        team_id,
+                        status: 'sent',
+                        sent_at: admin.firestore.FieldValue.serverTimestamp()
+                    });
+                } catch (twilioErr) {
+                    console.error('Twilio SMS failed for team invite:', twilioErr.message);
+                    // Log failed attempt
+                    await db.collection('notifications').add({
+                        type: 'sms',
+                        to: e164Phone,
+                        message: msg,
+                        context: 'team_invite',
+                        league_id,
+                        team_id,
+                        status: 'failed',
+                        error: twilioErr.message,
+                        sent_at: admin.firestore.FieldValue.serverTimestamp()
+                    });
+                }
+            } catch (smsErr) {
+                console.error('Team invite SMS processing failed:', smsErr.message);
+            }
+        }
 
         res.json({
             success: true,
@@ -1143,15 +1287,15 @@ exports.registerFillin = functions.https.onRequest(async (req, res) => {
         if (send_welcome_sms && phone) {
             try {
                 const twilioClient = require('twilio')(
-                    functions.config().twilio?.sid,
-                    functions.config().twilio?.token
+                    process.env.TWILIO_ACCOUNT_SID,
+                    process.env.TWILIO_AUTH_TOKEN
                 );
                 const formattedPhone = phone.replace(/\D/g, '');
                 const e164Phone = formattedPhone.startsWith('1') ? `+${formattedPhone}` : `+1${formattedPhone}`;
 
                 await twilioClient.messages.create({
                     body: `Welcome to BRDC! You're signed up as a sub for ${league.league_name || league.name}. Your PIN is ${playerPin}. Captains will text you when they need a fill-in.`,
-                    from: functions.config().twilio?.phone,
+                    from: process.env.TWILIO_PHONE_NUMBER,
                     to: e164Phone
                 });
             } catch (smsError) {
@@ -2039,6 +2183,8 @@ exports.sendBulkSMS = functions.https.onRequest(async (req, res) => {
                     });
                     messageSid = result.sid;
                     status = 'sent';
+                    // Delay between sends to avoid carrier rate-limit violations
+                    await new Promise(r => setTimeout(r, 1500));
                 } else {
                     status = 'twilio_not_configured';
                 }
@@ -2235,6 +2381,8 @@ exports.notifyLeaguePlayers = functions.https.onRequest(async (req, res) => {
                     });
                     results.sent++;
                     results.details.push({ name: player.full_name || player.name, phone: formattedPhone, status: 'sent' });
+                    // Delay between sends to avoid carrier rate-limit violations
+                    await new Promise(r => setTimeout(r, 1500));
                 } else {
                     console.log('SMS (simulated):', { to: formattedPhone, message });
                     results.sent++;
@@ -2442,6 +2590,8 @@ exports.sendCustomLeagueMessage = functions.https.onRequest(async (req, res) => 
                     });
                     results.sent++;
                     results.details.push({ name: fullName, phone: formattedPhone, status: 'sent' });
+                    // Delay between sends to avoid carrier rate-limit violations
+                    await new Promise(r => setTimeout(r, 1500));
                 } else {
                     console.log('SMS (simulated):', { to: formattedPhone, message: personalizedMessage });
                     results.sent++;
@@ -2644,7 +2794,9 @@ exports.getTeamScheduleEnhanced = functions.https.onRequest(async (req, res) => 
                     name: playerNames[idx] || 'Unknown',
                     level: playerLevels[idx] || '',
                     x01_three_dart_avg: x01Avg,
-                    cricket_mpr: mpr
+                    avg_3da: x01Avg,
+                    cricket_mpr: mpr,
+                    mpr: mpr
                 };
             });
         };
@@ -2719,10 +2871,10 @@ exports.getTeamScheduleEnhanced = functions.https.onRequest(async (req, res) => 
                 home_score: m.home_score || 0,
                 away_score: m.away_score || 0,
                 // For completed matches, include match stats if available
-                match_stats: m.completed ? (m.player_stats || null) : null
+                match_stats: (m.completed || m.status === 'completed') ? (m.player_stats || null) : null
             };
 
-            if (m.completed) {
+            if (m.completed || m.status === 'completed') {
                 // Calculate if we won
                 const myScore = isHome ? m.home_score : m.away_score;
                 const theirScore = isHome ? m.away_score : m.home_score;
@@ -2983,7 +3135,12 @@ exports.getCaptainTeamData = functions.https.onRequest(async (req, res) => {
                 mpr = (stats.cricket.total_marks / stats.cricket.total_rounds).toFixed(2);
             }
 
-            return { x01_three_dart_avg: x01Avg, cricket_mpr: mpr };
+            return {
+                x01_three_dart_avg: x01Avg,
+                avg_3da: x01Avg,
+                cricket_mpr: mpr,
+                mpr: mpr
+            };
         };
 
         // Source 1: registrations collection
@@ -3005,7 +3162,9 @@ exports.getCaptainTeamData = functions.https.onRequest(async (req, res) => {
                     email: p.email,
                     preferred_level: p.preferred_level,
                     x01_three_dart_avg: playerStats.x01_three_dart_avg,
-                    cricket_mpr: playerStats.cricket_mpr
+                    avg_3da: playerStats.avg_3da,
+                    cricket_mpr: playerStats.cricket_mpr,
+                    mpr: playerStats.mpr
                 });
             }
         });
@@ -3030,7 +3189,9 @@ exports.getCaptainTeamData = functions.https.onRequest(async (req, res) => {
                         email: p.email,
                         preferred_level: p.preferred_level,
                         x01_three_dart_avg: playerStats.x01_three_dart_avg,
-                        cricket_mpr: playerStats.cricket_mpr
+                        avg_3da: playerStats.avg_3da,
+                        cricket_mpr: playerStats.cricket_mpr,
+                        mpr: playerStats.mpr
                     });
                 }
             });
@@ -3050,7 +3211,9 @@ exports.getCaptainTeamData = functions.https.onRequest(async (req, res) => {
                         is_captain: p.is_captain || false,
                         preferred_level: p.level || p.preferred_level,
                         x01_three_dart_avg: playerStats.x01_three_dart_avg,
-                        cricket_mpr: playerStats.cricket_mpr
+                        avg_3da: playerStats.avg_3da,
+                        cricket_mpr: playerStats.cricket_mpr,
+                        mpr: playerStats.mpr
                     });
                 }
             }
@@ -3147,7 +3310,9 @@ exports.getCaptainTeamData = functions.https.onRequest(async (req, res) => {
                     is_captain: p.is_captain || false,
                     preferred_level: p.preferred_level,
                     x01_three_dart_avg: x01Avg,
-                    cricket_mpr: mpr
+                    avg_3da: x01Avg,
+                    cricket_mpr: mpr,
+                    mpr: mpr
                 });
             }
         });
@@ -3421,17 +3586,16 @@ exports.sendEmail = functions.https.onRequest(async (req, res) => {
     try {
         const { to, subject, body } = req.body;
         
-        // TODO: Add SendGrid or similar email service
-        // const sgMail = require('@sendgrid/mail');
-        // sgMail.setApiKey(functions.config().sendgrid.key);
-        
-        // await sgMail.send({
-        //     to: to,
-        //     from: 'noreply@burningriverdarts.com',
-        //     subject: subject,
-        //     html: body
-        // });
-        
+        const sgMail = require('@sendgrid/mail');
+        sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+
+        await sgMail.send({
+            to: to,
+            from: process.env.FROM_EMAIL || 'noreply@burningriverdarts.com',
+            subject: subject,
+            html: body
+        });
+
         // Log notification
         await admin.firestore().collection('notifications').add({
             type: 'email',
@@ -3441,10 +3605,10 @@ exports.sendEmail = functions.https.onRequest(async (req, res) => {
             status: 'sent',
             sent_at: admin.firestore.FieldValue.serverTimestamp()
         });
-        
+
         res.json({
             success: true,
-            message: 'Email sent successfully (SendGrid integration pending)'
+            message: 'Email sent successfully'
         });
         
     } catch (error) {
@@ -3498,7 +3662,8 @@ exports.notifyMatchAssignment = functions.https.onRequest(async (req, res) => {
             notifications.push({
                 type: 'sms',
                 to: p1.phone,
-                message: `Your match is on Board ${match.board}! vs ${match.player2?.name}`
+                message: `Your match is on Board ${match.board}! vs ${match.player2?.name}`,
+                player_id: match.player1?.id
             });
         }
 
@@ -3506,14 +3671,74 @@ exports.notifyMatchAssignment = functions.https.onRequest(async (req, res) => {
             notifications.push({
                 type: 'sms',
                 to: p2.phone,
-                message: `Your match is on Board ${match.board}! vs ${match.player1?.name}`
+                message: `Your match is on Board ${match.board}! vs ${match.player1?.name}`,
+                player_id: match.player2?.id
             });
+        }
+
+        // Actually send the SMS notifications
+        let sentCount = 0;
+        let failedCount = 0;
+        const db = admin.firestore();
+
+        for (const notification of notifications) {
+            if (notification.type === 'sms' && notification.to) {
+                try {
+                    const formattedPhone = notification.to.replace(/\D/g, '');
+                    const e164Phone = formattedPhone.startsWith('1') ? `+${formattedPhone}` : `+1${formattedPhone}`;
+
+                    try {
+                        const twilioClient = require('twilio')(
+                            process.env.TWILIO_ACCOUNT_SID,
+                            process.env.TWILIO_AUTH_TOKEN
+                        );
+                        await twilioClient.messages.create({
+                            body: notification.message,
+                            from: process.env.TWILIO_PHONE_NUMBER,
+                            to: e164Phone
+                        });
+                        sentCount++;
+
+                        await db.collection('notifications').add({
+                            type: 'sms',
+                            to: e164Phone,
+                            message: notification.message,
+                            context: 'board_assignment',
+                            tournament_id,
+                            match_id,
+                            player_id: notification.player_id,
+                            status: 'sent',
+                            sent_at: admin.firestore.FieldValue.serverTimestamp()
+                        });
+                    } catch (twilioErr) {
+                        console.error('Twilio SMS failed for board assignment:', twilioErr.message);
+                        failedCount++;
+                        // Log failed attempt
+                        await db.collection('notifications').add({
+                            type: 'sms',
+                            to: e164Phone,
+                            message: notification.message,
+                            context: 'board_assignment',
+                            tournament_id,
+                            match_id,
+                            player_id: notification.player_id,
+                            status: 'failed',
+                            error: twilioErr.message,
+                            sent_at: admin.firestore.FieldValue.serverTimestamp()
+                        });
+                    }
+                } catch (smsErr) {
+                    console.error('Board assignment SMS processing failed:', smsErr.message);
+                    failedCount++;
+                }
+            }
         }
 
         res.json({
             success: true,
-            notifications_sent: notifications.length,
-            message: 'Match assignment notifications sent (Twilio integration pending)',
+            notifications_sent: sentCount,
+            notifications_failed: failedCount,
+            message: `Match assignment notifications: ${sentCount} sent, ${failedCount} failed`,
             notifications: notifications
         });
 
@@ -3970,6 +4195,47 @@ exports.startRound = functions.https.onRequest(async (req, res) => {
 
     } catch (error) {
         console.error('Error starting round:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * Get match availability status for all players
+ */
+exports.getMatchAvailability = functions.https.onRequest(async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+    if (req.method === 'OPTIONS') return res.status(204).send('');
+
+    try {
+        const { league_id, match_id } = req.body;
+
+        if (!league_id || !match_id) {
+            return res.status(400).json({ success: false, error: 'league_id and match_id required' });
+        }
+
+        const db = admin.firestore();
+
+        // Get the match document
+        const matchDoc = await db.collection('leagues').doc(league_id)
+            .collection('matches').doc(match_id).get();
+
+        if (!matchDoc.exists) {
+            return res.status(404).json({ success: false, error: 'Match not found' });
+        }
+
+        const match = matchDoc.data();
+        const availability = match.player_availability || {};
+
+        res.json({
+            success: true,
+            availability: availability
+        });
+
+    } catch (error) {
+        console.error('Error getting match availability:', error);
         res.status(500).json({ success: false, error: error.message });
     }
 });

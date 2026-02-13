@@ -189,11 +189,27 @@ function generateWinnersBracketMatches(teams, bracketSize, totalRounds) {
     const matches = [];
     let matchNum = 1;
     const firstRoundMatches = bracketSize / 2;
+    const byeCount = bracketSize - teams.length;
+    const fullMatchCount = firstRoundMatches - byeCount;
 
-    // Round 1 - place teams
+    // Round 1 - distribute teams so full matches come first, then byes
+    // Full matches get 2 teams each, bye matches get 1 team each
+    // Example: 6 teams in 8-bracket → 2 full matches + 2 byes (1 team each)
+    let teamIdx = 0;
     for (let i = 0; i < firstRoundMatches; i++) {
-        const team1 = teams[i * 2] || null;
-        const team2 = teams[i * 2 + 1] || null;
+        let team1 = null;
+        let team2 = null;
+
+        if (i < fullMatchCount) {
+            // Full match - both teams present
+            team1 = teams[teamIdx++] || null;
+            team2 = teams[teamIdx++] || null;
+        } else {
+            // Bye match - one team, auto-advances
+            team1 = teams[teamIdx++] || null;
+            team2 = null;
+        }
+
         const isBye = !team1 || !team2;
 
         matches.push({
@@ -360,12 +376,13 @@ function getFeederMatchNumber(round, position, slot, firstRoundMatches) {
 
 /**
  * Auto-advance teams that have a bye (opponent is null)
+ * Places the advancing team into the next round's match slot
  * Returns count of byes processed
  */
 function autoAdvanceByes(winnersMatches) {
     let byeCount = 0;
 
-    winnersMatches.forEach((match, idx) => {
+    winnersMatches.forEach((match) => {
         if (match.round === 1 && match.status === 'bye') {
             // One team has a bye - they auto-advance
             const advancingTeam = match.team1 || match.team2;
@@ -376,6 +393,28 @@ function autoAdvanceByes(winnersMatches) {
                 match.status = 'completed';
                 match.completed_at = new Date().toISOString();
                 byeCount++;
+
+                // Place the advancing team into the next round match
+                const nextPosition = Math.floor(match.position / 2);
+                const nextMatch = winnersMatches.find(m =>
+                    m.round === 2 && m.position === nextPosition
+                );
+
+                if (nextMatch) {
+                    const isSlot1 = match.position % 2 === 0;
+                    if (isSlot1) {
+                        nextMatch.team1_id = advancingId;
+                        nextMatch.team1 = advancingTeam;
+                    } else {
+                        nextMatch.team2_id = advancingId;
+                        nextMatch.team2 = advancingTeam;
+                    }
+
+                    // If both teams are now present, match is ready
+                    if (nextMatch.team1_id && nextMatch.team2_id) {
+                        nextMatch.status = 'pending';
+                    }
+                }
             }
         }
     });
@@ -690,7 +729,7 @@ exports.regenerateBracket = functions.https.onRequest(async (req, res) => {
     if (req.method === 'OPTIONS') return res.status(204).send('');
 
     try {
-        const { tournament_id, director_pin } = req.body;
+        const { tournament_id, director_pin, seed_order } = req.body;
 
         if (!tournament_id) {
             return res.status(400).json({ success: false, error: 'Missing tournament_id' });
@@ -723,9 +762,10 @@ exports.regenerateBracket = functions.https.onRequest(async (req, res) => {
             return res.status(400).json({ success: false, error: 'No bracket found' });
         }
 
-        // Check for completed matches
+        // Check for real completed matches (not just auto-advanced byes)
+        // A real completed match has both teams AND actual scores
         const hasCompletedMatches = bracket.winners.some(m =>
-            m.round === 1 && m.status === 'completed' && m.status !== 'bye'
+            m.round === 1 && m.status === 'completed' && m.team1 && m.team2 && m.scores
         );
 
         if (hasCompletedMatches) {
@@ -751,20 +791,42 @@ exports.regenerateBracket = functions.https.onRequest(async (req, res) => {
             return res.status(400).json({ success: false, error: 'Not enough teams to regenerate' });
         }
 
-        // Reshuffle teams
-        const shuffled = [...teams].sort(() => Math.random() - 0.5);
+        // Use director's seed order if provided, otherwise random shuffle
+        let shuffled;
+        if (seed_order && Array.isArray(seed_order) && seed_order.length > 0) {
+            shuffled = seed_order.map(id => teams.find(t => t.id === id)).filter(Boolean);
+            // Append any teams not in seed_order (safety net)
+            teams.forEach(t => { if (!shuffled.find(s => s.id === t.id)) shuffled.push(t); });
+        } else {
+            shuffled = [...teams].sort(() => Math.random() - 0.5);
+        }
 
         // Calculate bracket structure
         const bracketSize = Math.pow(2, Math.ceil(Math.log2(shuffled.length)));
         const firstRoundMatches = bracketSize / 2;
+        const byeCount = bracketSize - shuffled.length;
+        const fullMatchCount = firstRoundMatches - byeCount;
+
+        // Distribute teams: full matches first, bye matches at end
+        // Each bye match gets exactly 1 team (not zero)
+        let teamIdx = 0;
+        const round1Placements = [];
+        for (let i = 0; i < firstRoundMatches; i++) {
+            if (i < fullMatchCount) {
+                round1Placements.push({ team1: shuffled[teamIdx++] || null, team2: shuffled[teamIdx++] || null });
+            } else {
+                round1Placements.push({ team1: shuffled[teamIdx++] || null, team2: null });
+            }
+        }
 
         // Regenerate round 1 matches
         let matchNum = 1;
         bracket.winners = bracket.winners.map(match => {
             if (match.round === 1) {
                 const pos = match.position;
-                const team1 = shuffled[pos * 2] || null;
-                const team2 = shuffled[pos * 2 + 1] || null;
+                const placement = round1Placements[pos] || { team1: null, team2: null };
+                const team1 = placement.team1;
+                const team2 = placement.team2;
                 const isBye = !team1 || !team2;
 
                 return {
@@ -845,6 +907,9 @@ exports.regenerateBracket = functions.https.onRequest(async (req, res) => {
         bracket.current_lc_round = 0;
         bracket.wc_complete = false;
         bracket.lc_complete = false;
+
+        // Auto-advance byes to Round 2 (places bye winners into next round slots)
+        autoAdvanceByes(bracket.winners);
 
         // Save regenerated bracket
         await tournamentRef.update({

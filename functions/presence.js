@@ -576,7 +576,7 @@ exports.getMatchViewers = functions.https.onRequest((req, res) => {
 /**
  * Set typing status in a chat room
  */
-exports.setTypingStatus = functions.https.onRequest((req, res) => {
+exports.setPresenceTypingStatus = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
             const { player_pin, room_id, is_typing } = req.body;

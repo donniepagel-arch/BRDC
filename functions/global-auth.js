@@ -15,7 +15,7 @@ const TWILIO_PHONE = process.env.TWILIO_PHONE_NUMBER;
 
 // SendGrid setup for emails (backup)
 const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
-const FROM_EMAIL = process.env.FROM_EMAIL || 'noreply@brdc-darts.com';
+const FROM_EMAIL = process.env.FROM_EMAIL || 'noreply@burningriverdarts.com';
 
 let twilioClient = null;
 let sgMail = null;
@@ -225,13 +225,10 @@ exports.registerGlobalPlayer = functions.https.onRequest(async (req, res) => {
 
         const playerRef = await db.collection('players').add(playerData);
 
-        // Return PIN to user (they need to save it!)
+        // Return success to user (PIN delivered via message only, not as separate field)
         res.json({
             success: true,
             player_id: playerRef.id,
-            pin: fullPin,
-            chosen_pin: chosenPin,
-            phone_last4: phoneLast4,
             message: `Welcome ${name}! Your 8-digit PIN is ${fullPin}. Save this - you'll use it to login. (Format: ${phoneLast4} + ${chosenPin})`
         });
 
@@ -331,7 +328,6 @@ exports.registerPlayer = functions.https.onRequest(async (req, res) => {
         res.json({
             success: true,
             player_id: playerRef.id,
-            pin: fullPin,
             message: `Welcome ${fullName}! Your 8-digit PIN is ${fullPin}. Save this - you'll use it to login.`
         });
 
@@ -427,6 +423,40 @@ exports.globalLogin = functions.https.onRequest(async (req, res) => {
             last_login: admin.firestore.FieldValue.serverTimestamp()
         });
 
+        // Check captain status - A level players are considered captains
+        let isCaptain = player.is_captain === true;
+        if (!isCaptain && player.team_id && leagueId) {
+            // Check if player is the team's captain_id or is level A
+            try {
+                const teamDoc = await db.collection('leagues').doc(leagueId)
+                    .collection('teams').doc(player.team_id).get();
+                if (teamDoc.exists) {
+                    const team = teamDoc.data();
+                    isCaptain = team.captain_id === playerDoc.id ||
+                               player.skill_level === 'A' ||
+                               player.preferred_level === 'A' ||
+                               player.position === 1;
+                }
+            } catch (e) {
+                console.error('Error checking captain status:', e);
+            }
+        }
+
+        // Check director status
+        let isDirector = player.is_director === true || player.is_admin === true;
+        if (!isDirector && leagueId) {
+            try {
+                const leagueDoc = await db.collection('leagues').doc(leagueId).get();
+                if (leagueDoc.exists) {
+                    const league = leagueDoc.data();
+                    isDirector = league.director_id === playerDoc.id ||
+                                (league.directors && league.directors.includes(playerDoc.id));
+                }
+            } catch (e) {
+                console.error('Error checking director status:', e);
+            }
+        }
+
         // Build response (don't send PIN back)
         const responsePlayer = {
             id: playerDoc.id,
@@ -445,7 +475,12 @@ exports.globalLogin = functions.https.onRequest(async (req, res) => {
             source_type: sourceType,
             league_id: leagueId,
             team_id: player.team_id || null,
-            position: player.position || null
+            position: player.position || null,
+            // Role flags for sidebar menu
+            is_captain: isCaptain,
+            is_director: isDirector,
+            is_admin: player.is_admin || player.is_master_admin || false,
+            is_master_admin: player.is_master_admin || false
         };
 
         res.json({
@@ -544,9 +579,7 @@ exports.recoverPin = functions.https.onRequest(async (req, res) => {
 
         res.json({
             success: true,
-            message: 'If an account exists with this email, your 8-digit PIN has been sent.',
-            // For testing only - remove in production
-            debug: process.env.FUNCTIONS_EMULATOR ? { pin: player.pin, chosen_pin: player.chosen_pin, phone_last4: player.phone_last4 } : undefined
+            message: 'If an account exists with this email, your 8-digit PIN has been sent.'
         });
 
     } catch (error) {
@@ -786,6 +819,66 @@ exports.getDashboardData = functions.https.onRequest(async (req, res) => {
             }
         }
 
+        // Check captain status for sidebar menu - A level players are considered captains
+        let isCaptain = player.is_captain === true;
+
+        // Determine league ID to check - use playerLeagueId or player's league_id field
+        const checkLeagueId = playerLeagueId || player.league_id;
+
+        if (!isCaptain && player.team_id && checkLeagueId) {
+            try {
+                const teamDoc = await db.collection('leagues').doc(checkLeagueId)
+                    .collection('teams').doc(player.team_id).get();
+                if (teamDoc.exists) {
+                    const team = teamDoc.data();
+                    isCaptain = team.captain_id === playerDoc.id ||
+                               player.skill_level === 'A' ||
+                               player.preferred_level === 'A' ||
+                               player.position === 1;
+                }
+            } catch (e) {
+                console.log('Error checking captain status:', e.message);
+            }
+        }
+
+        // Also check involvements for captain role
+        if (!isCaptain && involvements.captaining && involvements.captaining.length > 0) {
+            isCaptain = true;
+        }
+
+        // Check director status for sidebar menu
+        let isDirector = player.is_director === true || player.is_admin === true;
+
+        // Check from involvements first
+        if (!isDirector && involvements.directing && involvements.directing.length > 0) {
+            isDirector = true;
+        }
+
+        if (!isDirector && checkLeagueId) {
+            try {
+                const leagueDocCheck = await db.collection('leagues').doc(checkLeagueId).get();
+                if (leagueDocCheck.exists) {
+                    const league = leagueDocCheck.data();
+                    isDirector = league.director_id === playerDoc.id ||
+                                (league.directors && league.directors.includes(playerDoc.id));
+                }
+            } catch (e) {
+                console.log('Error checking director status:', e.message);
+            }
+        }
+
+        // Debug logging
+        console.log('Role check for', player.name, ':', {
+            isCaptain,
+            isDirector,
+            is_admin: player.is_admin,
+            is_master_admin: player.is_master_admin,
+            checkLeagueId,
+            team_id: player.team_id,
+            involvements_captaining: involvements.captaining?.length || 0,
+            involvements_directing: involvements.directing?.length || 0
+        });
+
         // Build dashboard data
         const dashboard = {
             player: {
@@ -804,7 +897,12 @@ exports.getDashboardData = functions.https.onRequest(async (req, res) => {
                 source_type: sourceType,
                 league_id: playerLeagueId,
                 team_id: player.team_id || null,
-                position: player.position || null
+                position: player.position || null,
+                // Role flags for sidebar menu
+                is_captain: isCaptain,
+                is_director: isDirector,
+                is_admin: player.is_admin || player.is_master_admin || false,
+                is_master_admin: player.is_master_admin || false
             },
             roles: {
                 directing: [],
@@ -1035,20 +1133,21 @@ exports.getDashboardData = functions.https.onRequest(async (req, res) => {
                                 });
                             }
 
-                            // Also add to playing_on if not already there
-                            const alreadyPlaying = dashboard.roles.playing_on?.some(
-                                p => p.league_id === leagueDoc.id && p.team_id === leaguePlayer.team_id
+                            // Also add to playing if not already there (schedule needs this)
+                            const alreadyPlaying = dashboard.roles.playing.some(
+                                p => (p.id === leagueDoc.id || p.league_id === leagueDoc.id) && p.team_id === leaguePlayer.team_id
                             );
                             if (!alreadyPlaying) {
-                                if (!dashboard.roles.playing_on) dashboard.roles.playing_on = [];
-                                const teamData = teamDoc.exists ? teamDoc.data() : {};
-                                dashboard.roles.playing_on.push({
+                                dashboard.roles.playing.push({
+                                    type: 'league',
+                                    id: leagueDoc.id,
                                     league_id: leagueDoc.id,
-                                    league_name: league.league_name,
+                                    name: league.league_name,
                                     team_id: leaguePlayer.team_id,
                                     team_name: teamName,
                                     status: league.status,
-                                    record: `${teamData.wins || 0}-${teamData.losses || 0}`
+                                    season: league.season,
+                                    position: leaguePlayer.position
                                 });
                             }
                         }
@@ -1271,7 +1370,7 @@ exports.generateNewPin = functions.https.onRequest(async (req, res) => {
                 pin: retryPin,
                 updated_at: admin.firestore.FieldValue.serverTimestamp()
             });
-            return res.json({ success: true, new_pin: retryPin });
+            return res.json({ success: true, player_id, message: 'New PIN has been set. Check your email or SMS for the new PIN.' });
         }
 
         await playerRef.update({
@@ -1281,7 +1380,8 @@ exports.generateNewPin = functions.https.onRequest(async (req, res) => {
 
         res.json({
             success: true,
-            new_pin: newPin
+            player_id,
+            message: 'New PIN has been set. Check your email or SMS for the new PIN.'
         });
 
     } catch (error) {
@@ -1616,9 +1716,6 @@ exports.createBotPlayer = functions.https.onRequest(async (req, res) => {
             success: true,
             player_id: botRef.id,
             name: name,
-            pin: pin,
-            chosen_pin: chosenPin,
-            phone_last4: '0000',
             difficulty: botDifficulty,
             message: `Bot "${name}" created with 8-digit PIN ${pin} (0000 + ${chosenPin})`
         });
@@ -1933,7 +2030,6 @@ exports.registerNewPlayer = functions.https.onRequest(async (req, res) => {
         res.json({
             success: true,
             player_id: playerRef.id,
-            pin: pin,
             message: `Welcome ${fullName}! Your PIN is ${pin}. Save this - you'll use it to login.`
         });
 
@@ -2045,8 +2141,7 @@ exports.registerPlayerSimple = functions.https.onRequest(async (req, res) => {
             success: true,
             player: {
                 id: playerRef.id,
-                name: fullName,
-                pin: pin
+                name: fullName
             },
             message: `Welcome ${fullName}! Your PIN has been sent via text.`
         });

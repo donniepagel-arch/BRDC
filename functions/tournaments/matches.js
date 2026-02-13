@@ -268,7 +268,7 @@ exports.submitDoubleElimMatchResult = functions.https.onRequest(async (req, res)
             winner_id,
             loser_id,
             status: 'completed',
-            completed_at: admin.firestore.FieldValue.serverTimestamp(),
+            completed_at: admin.firestore.Timestamp.now(),
             ...(game_stats && { stats: game_stats })
         };
 
@@ -416,6 +416,69 @@ exports.submitDoubleElimMatchResult = functions.https.onRequest(async (req, res)
                 : (tournament.winners_game_type || 'cricket');
 
             await processTournamentMatchStats(tournament_id, updatedMatch, game_stats, format);
+        }
+
+        // Write heartbroken doc so mingle/bracket pages can find it
+        // (Previously only triggered from director dashboard — now works from scorer too)
+        if (heartbreakerTriggered && loser && loser_id) {
+            try {
+                const heartbrokenRef = tournamentRef.collection('heartbroken').doc(loser_id);
+                const existing = await heartbrokenRef.get();
+                if (!existing.exists) {
+                    // Find the winning team name for the "lost to" display
+                    const winnerTeamName = winner?.team_name || winner?.name || 'Unknown';
+                    await heartbrokenRef.set({
+                        team_name: loser.team_name || loser.name || 'Unknown',
+                        player1: loser.player1 || null,
+                        player2: loser.player2 || null,
+                        lost_to_team_name: winnerTeamName,
+                        heartbroken_at: admin.firestore.FieldValue.serverTimestamp()
+                    });
+                    console.log(`Heartbroken doc created for team ${loser_id}`);
+                }
+            } catch (hbErr) {
+                console.error('Error creating heartbroken doc:', hbErr.message);
+            }
+        }
+
+        // Send heartbreaker notifications when team loses in Winners Bracket
+        if (heartbreakerTriggered && loser && loser_id) {
+            const playerIds = [];
+            if (loser.player1?.player_id) playerIds.push(loser.player1.player_id);
+            if (loser.player2?.player_id) playerIds.push(loser.player2.player_id);
+
+            if (playerIds.length > 0) {
+                const title = `💔 Heartbreaker!`;
+                const body = `Your team lost in the Winners Bracket. Time to decide — break up or stay together?`;
+
+                // Fire-and-forget: don't await, don't block response
+                Promise.all(playerIds.map(async (pid) => {
+                    try {
+                        const tokenDoc = await admin.firestore().collection('fcm_tokens').doc(pid).get();
+                        if (tokenDoc.exists && tokenDoc.data().token) {
+                            const link = `/pages/matchmaker-mingle.html?id=${tournament_id}&player_id=${pid}&team_id=${loser_id}`;
+                            const message = {
+                                token: tokenDoc.data().token,
+                                notification: { title, body },
+                                data: { title, body, type: 'heartbreaker', tournament_id, team_id: loser_id, link },
+                                webpush: {
+                                    notification: {
+                                        title, body,
+                                        icon: '/images/gold_logo.png',
+                                        badge: '/images/gold_logo.png',
+                                        vibrate: [200, 100, 200, 100, 200]
+                                    },
+                                    fcmOptions: { link }
+                                }
+                            };
+                            await admin.messaging().send(message);
+                            console.log(`Heartbreaker notification sent to player ${pid}`);
+                        }
+                    } catch (err) {
+                        console.log(`Failed to notify heartbroken player ${pid}:`, err.message);
+                    }
+                })).catch(err => console.error('Heartbreaker notification error:', err));
+            }
         }
 
         res.json({
@@ -658,14 +721,18 @@ exports.startDoubleElimMatch = functions.https.onRequest(async (req, res) => {
         // Find and update match
         let found = false;
         let mingleEnded = false;
+        let matchData = null;
+        let matchBracketType = null;
 
         ['winners', 'losers'].forEach(bracketType => {
             const idx = bracket[bracketType].findIndex(m => m.id === match_id);
             if (idx !== -1) {
                 bracket[bracketType][idx].status = 'in_progress';
-                bracket[bracketType][idx].started_at = admin.firestore.FieldValue.serverTimestamp();
+                bracket[bracketType][idx].started_at = admin.firestore.Timestamp.now();
                 if (board) bracket[bracketType][idx].board = board;
                 found = true;
+                matchData = bracket[bracketType][idx];
+                matchBracketType = bracketType;
 
                 // Check if this triggers mingle end
                 if (bracketType === 'winners' && bracket[bracketType][idx].round === 2) {
@@ -680,6 +747,57 @@ exports.startDoubleElimMatch = functions.https.onRequest(async (req, res) => {
         }
 
         await tournamentRef.update({ bracket });
+
+        // Send push notifications to players in the match (fire-and-forget)
+        if (matchData) {
+            const playerIds = [];
+            [matchData.team1, matchData.team2].forEach(team => {
+                if (!team) return;
+                if (team.player1?.player_id) playerIds.push(team.player1.player_id);
+                if (team.player2?.player_id) playerIds.push(team.player2.player_id);
+            });
+
+            if (playerIds.length > 0) {
+                const gameType = matchBracketType === 'winners'
+                    ? (tournament.winners_game_type || 'cricket').toUpperCase()
+                    : (tournament.losers_game_type || '501').toUpperCase();
+                const boardText = board ? ` — Board ${board}` : '';
+                const team1Name = matchData.team1?.team_name || matchData.team1?.name || 'Team 1';
+                const team2Name = matchData.team2?.team_name || matchData.team2?.name || 'Team 2';
+                const bracketLabel = matchBracketType === 'winners' ? 'Winners' : 'Losers';
+
+                const title = `Your Match Is Starting!`;
+                const body = `${team1Name} vs ${team2Name}\n${bracketLabel} Bracket — ${gameType}${boardText}`;
+                const link = `/pages/matchmaker-bracket.html?id=${tournament_id}`;
+
+                // Fire-and-forget: don't await, don't block response
+                Promise.all(playerIds.map(async (pid) => {
+                    try {
+                        const tokenDoc = await admin.firestore().collection('fcm_tokens').doc(pid).get();
+                        if (tokenDoc.exists && tokenDoc.data().token) {
+                            const message = {
+                                token: tokenDoc.data().token,
+                                notification: { title, body },
+                                data: { title, body, type: 'match_start', tournament_id, match_id, link },
+                                webpush: {
+                                    notification: {
+                                        title, body,
+                                        icon: '/images/gold_logo.png',
+                                        badge: '/images/gold_logo.png',
+                                        vibrate: [200, 100, 200, 100, 200]
+                                    },
+                                    fcmOptions: { link }
+                                }
+                            };
+                            await admin.messaging().send(message);
+                            console.log(`Match start notification sent to player ${pid}`);
+                        }
+                    } catch (err) {
+                        console.log(`Failed to notify player ${pid}:`, err.message);
+                    }
+                })).catch(err => console.error('Notification batch error:', err));
+            }
+        }
 
         res.json({
             success: true,

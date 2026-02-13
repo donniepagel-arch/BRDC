@@ -760,17 +760,34 @@ exports.importMatchData = functions.https.onRequest(async (req, res) => {
         const homeScore = needsSwap ? matchData.final_score.away : matchData.final_score.home;
         const awayScore = needsSwap ? matchData.final_score.home : matchData.final_score.away;
 
+        const matchWinner = homeScore > awayScore ? 'home' : awayScore > homeScore ? 'away' : 'tie';
         const updateData = {
             games: firestoreGames,
             home_score: homeScore,
             away_score: awayScore,
+            winner: matchWinner,
             total_darts: matchData.total_darts,
             total_legs: matchData.total_legs,
+            total_sets: matchData.total_sets || firestoreGames.length,
             status: 'completed',
             updated_at: admin.firestore.FieldValue.serverTimestamp(),
             import_source: 'dartconnect_rtf',
             teams_swapped: needsSwap
         };
+
+        // Add timing metadata if available
+        if (matchData.start_time) {
+            updateData.start_time = new Date(matchData.start_time);
+        }
+        if (matchData.end_time) {
+            updateData.end_time = new Date(matchData.end_time);
+        }
+        if (matchData.game_time_minutes != null) {
+            updateData.game_time_minutes = matchData.game_time_minutes;
+        }
+        if (matchData.match_length_minutes != null) {
+            updateData.match_length_minutes = matchData.match_length_minutes;
+        }
 
         await matchRef.update(updateData);
 
@@ -973,6 +990,7 @@ exports.fixMatchScores = functions.https.onRequest(async (req, res) => {
             await matchRef.update({
                 home_score: homeScore,
                 away_score: awayScore,
+                winner: homeScore > awayScore ? 'home' : awayScore > homeScore ? 'away' : 'tie',
                 games: fixedGames,
                 score_corrected: true,
                 corrected_at: admin.firestore.FieldValue.serverTimestamp()
@@ -1048,6 +1066,7 @@ exports.updateToSetScores = functions.https.onRequest(async (req, res) => {
             await matchesRef.doc(matchId).update({
                 home_score: homeScore,
                 away_score: awayScore,
+                winner: homeScore > awayScore ? 'home' : awayScore > homeScore ? 'away' : 'tie',
                 score_type: 'sets'
             });
 
@@ -1111,6 +1130,547 @@ exports.updateToSetScores = functions.https.onRequest(async (req, res) => {
     }
 });
 
+// Default player mapping from names to IDs (can be overridden via API)
+const DEFAULT_PLAYER_IDS = {
+            // M. Pagel team
+            'Matt Pagel': 'maH2vUZbuVLBbBQwoIqW',
+            'Matthew Pagel': 'maH2vUZbuVLBbBQwoIqW',  // RTF full name variant
+            'Joe Peters': 'pERxbhcN3VNAvu6wFN9o',
+            'John Linden': '06IoctkB8mTTSPBGRbu5',
+            'Dave Bonness': 'nDPDqXbEBJvUgGl2iXF3',
+            'David Bonness': 'nDPDqXbEBJvUgGl2iXF3',
+            // D. Pagel team
+            'Donnie Pagel': 'X2DMb9bP4Q8fy9yr5Fam',
+            'Jennifer Malek': '7Hj4KWNpm0GviTYbwfbM',
+            'Jenn Malek': '7Hj4KWNpm0GviTYbwfbM',  // RTF variant
+            'Jenn M': '7Hj4KWNpm0GviTYbwfbM',
+            'Matthew Wentz': 'TJ3uwMdslbtpjtq17xW4',
+            'Matt Wentz': 'TJ3uwMdslbtpjtq17xW4',  // RTF short variant
+            'Christian Ketchum': '89RkfFLOhvUwV83ZS5J4',
+            'Christian Ketchem': '89RkfFLOhvUwV83ZS5J4',  // RTF typo variant
+            // N. Kull team
+            'Nathan Kull': 'bsAlnR7Ii1pWmMvsWzrS',
+            'Nate Kull': 'bsAlnR7Ii1pWmMvsWzrS',
+            'Michael Jarvis': '7GH1SWRR3dAyAVxgMqvf',
+            'Mike Jarvis': '7GH1SWRR3dAyAVxgMqvf',  // RTF short variant
+            'Stephanie Kull': '4sly23nOXhC475q95R4L',
+            'Steph Kull': '4sly23nOXhC475q95R4L',
+            // K. Yasenchak team
+            'Kevin Yasenchak': 'dr4ML1i9ZeMI7SNisX6E',
+            'Kevin Y': 'dr4ML1i9ZeMI7SNisX6E',  // RTF abbreviation
+            'Brian Smith': 'bIv2rga3jBSvzsQ2khne',
+            'Brian S': 'bIv2rga3jBSvzsQ2khne',  // RTF abbreviation
+            'Cesar Andino': 'Dag2lYDtqoo4kc3cRHHa',
+            'Cesar A': 'Dag2lYDtqoo4kc3cRHHa',  // RTF abbreviation
+            // D. Partlo team
+            'Dan Partlo': 'xtgPtBokzUj3nli61AKq',
+            'Joe Donley': 'JxFXNWdd2dFMja3rI0jf',
+            'Kevin Mckelvey': 'Gmxl5I2CtVXYns4b4AeU',
+            'Kevin McKelvey': 'Gmxl5I2CtVXYns4b4AeU',  // RTF capital K variant
+            // E. Olschansky team
+            'Eddie Olschansky': 'wLMJoz1GylfVCMM32nWm',
+            'Eddie Olschanskey': 'wLMJoz1GylfVCMM32nWm',  // RTF typo variant
+            'Eddie O': 'wLMJoz1GylfVCMM32nWm',  // RTF abbreviation
+            'Jeff Boss': 'Tj1LsOtRiJwHW4r4sgWa',
+            'Michael Gonzalez': 'FfODZtkFiGUEzptzD8tH',
+            'Mike Gonzalez': 'FfODZtkFiGUEzptzD8tH',
+            'Mike Gonzales': 'FfODZtkFiGUEzptzD8tH',  // RTF variant
+            'Mike Gonz': 'FfODZtkFiGUEzptzD8tH',  // RTF abbreviation
+            // J. Ragnoni team
+            'John Ragnoni': 'SwnH8GUBmrcdmOAs07Vp',
+            'Marc Tate': 'ZwdiN0qfmIY5MMCOLJps',
+            'David Brunner': 'ctnV5Je72HAIyVpE5zjS',
+            'Dave Brunner': 'ctnV5Je72HAIyVpE5zjS',
+            'Derek Fess': 'vVR4AOITXYzhR2H4GqzI',
+            'Derek': 'vVR4AOITXYzhR2H4GqzI',  // RTF first name only
+            'DF': 'vVR4AOITXYzhR2H4GqzI',  // RTF initials
+            'Josh Kelly': '34GDgRRFk0uFmOvyykHE',
+            'Joshua kelly': '34GDgRRFk0uFmOvyykHE',  // RTF lowercase variant
+            'JK': '34GDgRRFk0uFmOvyykHE',  // RTF initials
+            // Neon Nightmares (T. Massimiani) team
+            'Tony Massimiani': 'gqhzEQLifL402lQwDMpH',
+            'TM': 'gqhzEQLifL402lQwDMpH',  // RTF initials
+            'Dominick Russano': 'pL9CGc688ZpxbPKJ11cZ',
+            'Dom Russano': 'pL9CGc688ZpxbPKJ11cZ',
+            'DR': 'pL9CGc688ZpxbPKJ11cZ',  // RTF initials
+            'Chris Benco': 'rZ57ofUYFXPSrrhyBVkz',
+            'Chris B': 'rZ57ofUYFXPSrrhyBVkz',  // RTF abbreviation
+            // N. Mezlak team
+            'Nick Mezlak': 'yGcBLDcTwgHtWmZEg3TG',
+            'Cory Jacobs': '8f52A1dwRB4eIU5UyQZo',
+            'Dillon Ulisses': 'dFmalrT5BMdaTOUUVTOZ',
+            'Dillon U': 'dFmalrT5BMdaTOUUVTOZ',  // RTF abbreviation
+            'Dillon Ullises': 'dFmalrT5BMdaTOUUVTOZ',  // RTF misspelling
+            // D. Russano team
+            'Danny Russano': 'gmZ8d6De0ZlqPVV0V9Q6',
+            'Chris Russano': 'NJgDQ0d4RzpDVuCnqYZO',
+            'Eric Duale': 'NCeaIaMXsXVN135pX91L',
+            'Eric D': 'NCeaIaMXsXVN135pX91L',
+            'Eric': 'NCeaIaMXsXVN135pX91L',  // RTF first name only
+            // Fill-ins / Alternates
+            'Luke Kollias': 'mFyX9sv1l95V0czECUKu',
+            'Anthony Donley': 'YHCbJsXKYjFMPk5Wk7kd'
+};
+
+// Canonical display names per player ID (used for consistent stat doc names)
+const DEFAULT_CANONICAL_NAMES = {
+            'maH2vUZbuVLBbBQwoIqW': 'Matt Pagel',
+            'pERxbhcN3VNAvu6wFN9o': 'Joe Peters',
+            '06IoctkB8mTTSPBGRbu5': 'John Linden',
+            'nDPDqXbEBJvUgGl2iXF3': 'Dave Bonness',
+            'X2DMb9bP4Q8fy9yr5Fam': 'Donnie Pagel',
+            '7Hj4KWNpm0GviTYbwfbM': 'Jennifer Malek',
+            'TJ3uwMdslbtpjtq17xW4': 'Matthew Wentz',
+            '89RkfFLOhvUwV83ZS5J4': 'Christian Ketchum',
+            'bsAlnR7Ii1pWmMvsWzrS': 'Nathan Kull',
+            '7GH1SWRR3dAyAVxgMqvf': 'Michael Jarvis',
+            '4sly23nOXhC475q95R4L': 'Stephanie Kull',
+            'dr4ML1i9ZeMI7SNisX6E': 'Kevin Yasenchak',
+            'bIv2rga3jBSvzsQ2khne': 'Brian Smith',
+            'Dag2lYDtqoo4kc3cRHHa': 'Cesar Andino',
+            'xtgPtBokzUj3nli61AKq': 'Dan Partlo',
+            'JxFXNWdd2dFMja3rI0jf': 'Joe Donley',
+            'Gmxl5I2CtVXYns4b4AeU': 'Kevin McKelvey',
+            'wLMJoz1GylfVCMM32nWm': 'Eddie Olschansky',
+            'Tj1LsOtRiJwHW4r4sgWa': 'Jeff Boss',
+            'FfODZtkFiGUEzptzD8tH': 'Michael Gonzalez',
+            'SwnH8GUBmrcdmOAs07Vp': 'John Ragnoni',
+            'ZwdiN0qfmIY5MMCOLJps': 'Marc Tate',
+            'ctnV5Je72HAIyVpE5zjS': 'David Brunner',
+            'vVR4AOITXYzhR2H4GqzI': 'Derek Fess',
+            '34GDgRRFk0uFmOvyykHE': 'Josh Kelly',
+            'gqhzEQLifL402lQwDMpH': 'Tony Massimiani',
+            'pL9CGc688ZpxbPKJ11cZ': 'Dominick Russano',
+            'rZ57ofUYFXPSrrhyBVkz': 'Chris Benco',
+            'yGcBLDcTwgHtWmZEg3TG': 'Nick Mezlak',
+            '8f52A1dwRB4eIU5UyQZo': 'Cory Jacobs',
+            'dFmalrT5BMdaTOUUVTOZ': 'Dillon Ulisses',
+            'gmZ8d6De0ZlqPVV0V9Q6': 'Danny Russano',
+            'NJgDQ0d4RzpDVuCnqYZO': 'Chris Russano',
+            'NCeaIaMXsXVN135pX91L': 'Eric Duale',
+            'mFyX9sv1l95V0czECUKu': 'Luke Kollias',
+            'YHCbJsXKYjFMPk5Wk7kd': 'Anthony Donley'
+};
+
+// Helper: create empty stats object with all tracked fields
+function createEmptyMatchStats(playerId, playerName, CANONICAL_NAMES) {
+            return {
+                player_id: playerId,
+                player_name: CANONICAL_NAMES[playerId] || playerName,
+                // Basic X01
+                x01_legs_played: 0,
+                x01_legs_won: 0,
+                x01_total_darts: 0,
+                x01_total_points: 0,
+                x01_three_dart_avg: 0,
+                // Tons tracking (by range)
+                x01_ton_80: 0,  // 180
+                x01_ton_60: 0,  // 160-179
+                x01_ton_40: 0,  // 140-159
+                x01_ton_20: 0,  // 120-139
+                x01_ton_00: 0,  // 100-119
+                x01_tons: 0,    // Total 100+
+                x01_high_score: 0,
+                // First 9
+                x01_first9_darts: 0,
+                x01_first9_points: 0,
+                // Checkout tracking
+                x01_checkouts_hit: 0,
+                x01_checkout_attempts: 0,
+                x01_total_checkout_points: 0,
+                x01_high_checkout: 0,
+                x01_best_leg: 999,
+                // Checkout by range
+                x01_co_80_hits: 0, x01_co_80_attempts: 0,
+                x01_co_120_hits: 0, x01_co_120_attempts: 0,
+                x01_co_140_hits: 0, x01_co_140_attempts: 0,
+                x01_co_161_hits: 0, x01_co_161_attempts: 0,
+                // With/against darts (cork)
+                x01_legs_with_darts: 0, x01_legs_with_darts_won: 0,
+                x01_legs_against_darts: 0, x01_legs_against_darts_won: 0,
+                // Basic Cricket
+                cricket_legs_played: 0,
+                cricket_legs_won: 0,
+                cricket_total_darts: 0,
+                cricket_total_marks: 0,
+                cricket_mpr: 0,
+                // Cricket mark rounds
+                cricket_nine_mark_rounds: 0,
+                cricket_eight_mark_rounds: 0,
+                cricket_seven_mark_rounds: 0,
+                cricket_six_mark_rounds: 0,
+                cricket_five_mark_rounds: 0,
+                cricket_high_mark_round: 0,
+                cricket_hat_tricks: 0,
+                // Cricket with/against darts
+                cricket_legs_with_darts: 0, cricket_legs_with_darts_won: 0,
+                cricket_legs_against_darts: 0, cricket_legs_against_darts_won: 0,
+                // Game-level
+                games_played: 0,
+                games_won: 0
+            };
+}
+
+// Helper: process X01 leg throws using two-pass approach
+// Pass 1: compute actual scores from side-level remaining differences
+// Pass 2: group by player and accumulate stats
+function processX01LegThrows(leg, statsUpdates, getPlayerId, detailedOnly = false) {
+    const throws = leg.throws || [];
+    if (throws.length === 0) return;
+
+    const format = leg.format;
+    const gameValue = parseInt(format) || 501;
+
+    // FIRST PASS: compute actual per-round scores from side-level remaining
+    const sideLastRemaining = { home: gameValue, away: gameValue };
+    const processedThrows = [];
+
+    throws.forEach((throwData) => {
+        const processed = {};
+        ['home', 'away'].forEach(side => {
+            const throwInfo = throwData[side];
+            if (!throwInfo || !throwInfo.player) { processed[side] = null; return; }
+
+            const remaining = throwInfo.remaining;
+            const rawScore = throwInfo.score || 0;
+            const remainingAtStart = sideLastRemaining[side];
+            let actualScore;
+
+            if (remaining !== undefined && remaining !== null) {
+                actualScore = remainingAtStart - remaining;
+                sideLastRemaining[side] = remaining;
+            } else {
+                actualScore = (rawScore > 0 && rawScore <= 180) ? rawScore : null;
+            }
+
+            if (actualScore !== null && (actualScore > 180 || actualScore < 0)) {
+                actualScore = null;
+            }
+
+            processed[side] = { ...throwInfo, actualScore, remainingAtStart, side };
+        });
+        processedThrows.push(processed);
+    });
+
+    // Determine winner
+    let winningPlayerId = null;
+    const lastProcessed = processedThrows[processedThrows.length - 1];
+    if (lastProcessed) {
+        ['home', 'away'].forEach(side => {
+            if (lastProcessed[side] && lastProcessed[side].remaining === 0) {
+                winningPlayerId = getPlayerId(lastProcessed[side].player);
+            }
+        });
+    }
+
+    // Cork inference: determine who threw first from final round
+    let corkSide = null;
+    if (lastProcessed) {
+        const hasHome = lastProcessed.home !== null;
+        const hasAway = lastProcessed.away !== null;
+        if (hasHome && !hasAway) {
+            corkSide = 'home'; // only home threw last round = home had cork
+        } else if (hasAway && !hasHome) {
+            corkSide = 'away';
+        } else if (hasHome && hasAway) {
+            // Both threw: winner threw second, loser had cork
+            if (lastProcessed.home.remaining === 0) corkSide = 'away';
+            else if (lastProcessed.away.remaining === 0) corkSide = 'home';
+        }
+    }
+
+    // SECOND PASS: group by player and accumulate
+    const playerThrowsMap = {};
+    processedThrows.forEach(throwData => {
+        ['home', 'away'].forEach(side => {
+            const info = throwData[side];
+            if (!info) return;
+            const playerId = getPlayerId(info.player);
+            if (!playerId) return;
+            if (!playerThrowsMap[playerId]) playerThrowsMap[playerId] = [];
+            playerThrowsMap[playerId].push(info);
+        });
+    });
+
+    Object.keys(playerThrowsMap).forEach(playerId => {
+        const pThrows = playerThrowsMap[playerId];
+        if (!statsUpdates[playerId]) return;
+        const stats = statsUpdates[playerId];
+
+        // Basic counters: only when NOT detailedOnly (i.e., no player_stats available)
+        if (!detailedOnly) stats.x01_legs_played++;
+        let totalDarts = 0;
+        let totalPoints = 0;
+        let first9Points = 0;
+
+        pThrows.forEach((throwInfo, idx) => {
+            const actualScore = throwInfo.actualScore;
+            const remaining = throwInfo.remaining;
+            const isCheckout = (remaining === 0);
+            const checkoutDarts = throwInfo.checkout_darts || 3;
+            const remainingAtStart = throwInfo.remainingAtStart;
+
+            let dartsThisRound = isCheckout ? checkoutDarts : 3;
+            totalDarts += dartsThisRound;
+            if (actualScore !== null) totalPoints += actualScore;
+
+            // First 9 (first 3 of this player's throws)
+            if (idx < 3 && actualScore !== null) first9Points += actualScore;
+
+            // Tons tracking
+            if (actualScore !== null) {
+                if (actualScore >= 180) stats.x01_ton_80++;
+                else if (actualScore >= 160) stats.x01_ton_60++;
+                else if (actualScore >= 140) stats.x01_ton_40++;
+                else if (actualScore >= 120) stats.x01_ton_20++;
+                else if (actualScore >= 100) stats.x01_ton_00++;
+                if (actualScore >= 100) stats.x01_tons++;
+                if (actualScore > stats.x01_high_score) stats.x01_high_score = actualScore;
+            }
+
+            // Checkout tracking
+            if (remainingAtStart != null && remainingAtStart <= 170) {
+                stats.x01_checkout_attempts++;
+                if (remainingAtStart >= 161) {
+                    stats.x01_co_161_attempts++;
+                    if (isCheckout) stats.x01_co_161_hits++;
+                } else if (remainingAtStart >= 140) {
+                    stats.x01_co_140_attempts++;
+                    if (isCheckout) stats.x01_co_140_hits++;
+                } else if (remainingAtStart >= 120) {
+                    stats.x01_co_120_attempts++;
+                    if (isCheckout) stats.x01_co_120_hits++;
+                } else if (remainingAtStart >= 80) {
+                    stats.x01_co_80_attempts++;
+                    if (isCheckout) stats.x01_co_80_hits++;
+                }
+            }
+
+            if (isCheckout) {
+                stats.x01_checkouts_hit++;
+                stats.x01_total_checkout_points += remainingAtStart;
+                if (remainingAtStart > stats.x01_high_checkout) stats.x01_high_checkout = remainingAtStart;
+                if (totalDarts < stats.x01_best_leg) stats.x01_best_leg = totalDarts;
+            }
+        });
+
+        // Basic totals: only when NOT detailedOnly
+        if (!detailedOnly) {
+            stats.x01_total_darts += totalDarts;
+            stats.x01_total_points += totalPoints;
+            if (playerId === winningPlayerId) stats.x01_legs_won++;
+        }
+        stats.x01_first9_darts += Math.min(pThrows.length * 3, 9);
+        stats.x01_first9_points += first9Points;
+
+        // With/against darts tracking
+        if (corkSide) {
+            const playerSide = pThrows[0].side;
+            if (playerSide === corkSide) {
+                stats.x01_legs_with_darts++;
+                if (playerId === winningPlayerId) stats.x01_legs_with_darts_won++;
+            } else {
+                stats.x01_legs_against_darts++;
+                if (playerId === winningPlayerId) stats.x01_legs_against_darts_won++;
+            }
+        }
+    });
+}
+
+// Helper: process Cricket leg throws
+function processCricketLegThrows(leg, statsUpdates, getPlayerId, detailedOnly = false) {
+    const throws = leg.throws || [];
+    if (throws.length === 0) return;
+
+    const winningSide = leg.winner;
+    let winningPlayerId = null;
+    const lastThrow = throws[throws.length - 1];
+    if (lastThrow && winningSide) {
+        const winnerName = lastThrow[winningSide]?.player;
+        if (winnerName) winningPlayerId = getPlayerId(winnerName);
+    }
+
+    // Cork inference: determine who threw first from final round
+    let corkSide = null;
+    if (lastThrow) {
+        const hasHome = lastThrow.home && lastThrow.home.player;
+        const hasAway = lastThrow.away && lastThrow.away.player;
+        if (hasHome && !hasAway) {
+            corkSide = 'home';
+        } else if (hasAway && !hasHome) {
+            corkSide = 'away';
+        } else if (hasHome && hasAway) {
+            // Both threw: the closing side threw second, other had cork
+            const homeClosedOut = lastThrow.home.closed_out || lastThrow.home.closeout;
+            const awayClosedOut = lastThrow.away.closed_out || lastThrow.away.closeout;
+            if (homeClosedOut) corkSide = 'away';
+            else if (awayClosedOut) corkSide = 'home';
+            else if (winningSide === 'home') corkSide = 'away';
+            else if (winningSide === 'away') corkSide = 'home';
+        }
+    }
+
+    const playerThrowsMap = {};
+    throws.forEach(throwData => {
+        ['home', 'away'].forEach(side => {
+            const throwInfo = throwData[side];
+            if (!throwInfo || !throwInfo.player) return;
+            const playerId = getPlayerId(throwInfo.player);
+            if (!playerId) return;
+            if (!playerThrowsMap[playerId]) playerThrowsMap[playerId] = [];
+            playerThrowsMap[playerId].push({ ...throwInfo, side });
+        });
+    });
+
+    Object.keys(playerThrowsMap).forEach(playerId => {
+        const pThrows = playerThrowsMap[playerId];
+        if (!statsUpdates[playerId]) return;
+        const stats = statsUpdates[playerId];
+
+        if (!detailedOnly) stats.cricket_legs_played++;
+        let totalDarts = 0;
+        let totalMarks = 0;
+
+        pThrows.forEach(throwInfo => {
+            const marks = throwInfo.marks || 0;
+            const closeout = throwInfo.closed_out || throwInfo.closeout || false;
+            const closeoutDarts = throwInfo.closeout_darts || 3;
+
+            totalDarts += closeout ? closeoutDarts : 3;
+            totalMarks += marks;
+
+            // Mark rounds tracking
+            if (marks === 9) stats.cricket_nine_mark_rounds++;
+            else if (marks === 8) stats.cricket_eight_mark_rounds++;
+            else if (marks === 7) stats.cricket_seven_mark_rounds++;
+            else if (marks === 6) stats.cricket_six_mark_rounds++;
+            else if (marks === 5) stats.cricket_five_mark_rounds++;
+
+            if (marks > stats.cricket_high_mark_round) stats.cricket_high_mark_round = marks;
+
+            // Hat tricks (3+ bull marks)
+            const hitLower = (throwInfo.hit || '').toLowerCase();
+            const bullCount = (hitLower.match(/\bb\b|bull/g) || []).length;
+            if (bullCount >= 3) stats.cricket_hat_tricks++;
+        });
+
+        if (!detailedOnly) {
+            stats.cricket_total_darts += totalDarts;
+            stats.cricket_total_marks += totalMarks;
+            if (playerId === winningPlayerId) stats.cricket_legs_won++;
+        }
+
+        // With/against darts tracking
+        if (corkSide) {
+            const playerSide = pThrows[0].side;
+            if (playerSide === corkSide) {
+                stats.cricket_legs_with_darts++;
+                if (playerId === winningPlayerId) stats.cricket_legs_with_darts_won++;
+            } else {
+                stats.cricket_legs_against_darts++;
+                if (playerId === winningPlayerId) stats.cricket_legs_against_darts_won++;
+            }
+        }
+    });
+}
+
+// Process match games and return stats updates object
+// This is the shared processing logic used by both updateImportedMatchStats and recalculateAllLeagueStats
+function processMatchGamesForStats(games, PLAYER_IDS, CANONICAL_NAMES) {
+    const statsUpdates = {};
+    const getPlayerId = (name) => PLAYER_IDS[name] || null;
+
+    for (const game of games) {
+        const homePlayerNames = (game.home_players || []).map(p => typeof p === 'string' ? p : p.name);
+        const awayPlayerNames = (game.away_players || []).map(p => typeof p === 'string' ? p : p.name);
+        // Ensure all players in this game have stat entries
+        [...homePlayerNames, ...awayPlayerNames].forEach(playerName => {
+            const playerId = PLAYER_IDS[playerName];
+            if (playerId && !statsUpdates[playerId]) {
+                statsUpdates[playerId] = createEmptyMatchStats(playerId, playerName, CANONICAL_NAMES);
+            }
+        });
+
+        // Process each leg: player_stats for basic counts, throws for detailed stats
+        for (const leg of (game.legs || [])) {
+            // Use leg-level format first, fall back to game-level (mixed format sets have cricket legs in 501 games)
+            const legFormat = leg.format || game.format || '';
+            const isX01 = legFormat === '501' || legFormat === '301' || legFormat === '701';
+            const hasThrows = (leg.throws || []).length > 0;
+            const playerStats = leg.player_stats || {};
+            const hasPlayerStats = Object.keys(playerStats).length > 0;
+
+            // ALWAYS use player_stats for basic stats (darts, points, legs) when available
+            // player_stats is the authoritative source — correct for both singles and doubles
+            if (hasPlayerStats) {
+                for (const [playerName, pStats] of Object.entries(playerStats)) {
+                    const playerId = PLAYER_IDS[playerName];
+                    if (!playerId || !statsUpdates[playerId]) continue;
+
+                    const ps = statsUpdates[playerId];
+                    const isHome = homePlayerNames.includes(playerName);
+                    const isWinner = (leg.winner === 'home' && isHome) || (leg.winner === 'away' && !isHome);
+
+                    if (isX01) {
+                        // Skip bad data: darts counted but no points (import artifact from doubles legs)
+                        if ((pStats.darts || 0) > 0 && (pStats.points || 0) === 0) continue;
+                        ps.x01_legs_played++;
+                        ps.x01_total_darts += pStats.darts || 0;
+                        ps.x01_total_points += pStats.points || 0;
+                        if (isWinner) {
+                            ps.x01_legs_won++;
+                            if (pStats.checkout && pStats.checkout > ps.x01_high_checkout) {
+                                ps.x01_high_checkout = pStats.checkout;
+                            }
+                        }
+                    } else {
+                        ps.cricket_legs_played++;
+                        ps.cricket_total_marks += pStats.marks || 0;
+                        let dartCount = pStats.darts || 0;
+                        if (isWinner && leg.closeout_darts && leg.closeout_darts < 3) {
+                            const rounds = leg.winning_round || Math.ceil(dartCount / 3);
+                            if (dartCount === rounds * 3) dartCount -= (3 - leg.closeout_darts);
+                        }
+                        ps.cricket_total_darts += dartCount;
+                        if (isWinner) ps.cricket_legs_won++;
+                    }
+                }
+            }
+
+            // Use throws for detailed stats (tons, checkouts, first-9, mark rounds, etc.)
+            // If player_stats exists, pass detailedOnly=true to skip basic counters
+            // If no player_stats, throws provide everything (fallback)
+            if (hasThrows) {
+                const detailedOnly = hasPlayerStats;
+                if (isX01) {
+                    processX01LegThrows(leg, statsUpdates, getPlayerId, detailedOnly);
+                } else {
+                    processCricketLegThrows(leg, statsUpdates, getPlayerId, detailedOnly);
+                }
+            }
+        }
+
+        // Update games played/won
+        const gameWinner = game.winner;
+        for (const playerName of homePlayerNames) {
+            const playerId = PLAYER_IDS[playerName];
+            if (playerId && statsUpdates[playerId]) {
+                statsUpdates[playerId].games_played++;
+                if (gameWinner === 'home') statsUpdates[playerId].games_won++;
+            }
+        }
+        for (const playerName of awayPlayerNames) {
+            const playerId = PLAYER_IDS[playerName];
+            if (playerId && statsUpdates[playerId]) {
+                statsUpdates[playerId].games_played++;
+                if (gameWinner === 'away') statsUpdates[playerId].games_won++;
+            }
+        }
+    }
+
+    return statsUpdates;
+}
+
 /**
  * Update player stats from imported match data
  * Processes all games and legs from an imported match
@@ -1149,217 +1709,111 @@ exports.updateImportedMatchStats = functions.https.onRequest(async (req, res) =>
         const match = matchDoc.data();
         const games = match.games || [];
 
-        // Player mapping from names to IDs
-        const PLAYER_IDS = playerMapping || {
-            // M. Pagel team
-            'Matt Pagel': 'maH2vUZbuVLBbBQwoIqW',
-            'Joe Peters': 'pERxbhcN3VNAvu6wFN9o',
-            'John Linden': '06IoctkB8mTTSPBGRbu5',
-            // D. Pagel team
-            'Donnie Pagel': 'X2DMb9bP4Q8fy9yr5Fam',
-            'Jennifer Malek': '7Hj4KWNpm0GviTYbwfbM',
-            'Jenn M': '7Hj4KWNpm0GviTYbwfbM',
-            'Matthew Wentz': 'TJ3uwMdslbtpjtq17xW4',
-            'Matt Wentz': 'TJ3uwMdslbtpjtq17xW4',  // RTF short variant
-            'Christian Ketchem': '89RkfFLOhvUwV83ZS5J4',
-            'Christian Ketchum': '89RkfFLOhvUwV83ZS5J4',
-            // N. Kull team
-            'Nathan Kull': 'bsAlnR7Ii1pWmMvsWzrS',
-            'Nate Kull': 'bsAlnR7Ii1pWmMvsWzrS',
-            'Michael Jarvis': '7GH1SWRR3dAyAVxgMqvf',
-            'Stephanie Kull': '4sly23nOXhC475q95R4L',
-            'Steph Kull': '4sly23nOXhC475q95R4L',
-            // K. Yasenchak team
-            'Kevin Yasenchak': 'dr4ML1i9ZeMI7SNisX6E',
-            'Kevin Y': 'dr4ML1i9ZeMI7SNisX6E',  // RTF abbreviation
-            'Brian Smith': 'bIv2rga3jBSvzsQ2khne',
-            'Brian S': 'bIv2rga3jBSvzsQ2khne',  // RTF abbreviation
-            'Cesar Andino': 'Dag2lYDtqoo4kc3cRHHa',
-            'Cesar A': 'Dag2lYDtqoo4kc3cRHHa',  // RTF abbreviation
-            // D. Partlo team
-            'Dan Partlo': 'xtgPtBokzUj3nli61AKq',
-            'Joe Donley': 'JxFXNWdd2dFMja3rI0jf',
-            'Kevin Mckelvey': 'Gmxl5I2CtVXYns4b4AeU',
-            'Kevin McKelvey': 'Gmxl5I2CtVXYns4b4AeU',  // RTF capital K variant
-            // E. Olschansky team
-            'Eddie Olschansky': 'wLMJoz1GylfVCMM32nWm',
-            'Eddie Olschanskey': 'wLMJoz1GylfVCMM32nWm',  // RTF typo variant
-            'Eddie O': 'wLMJoz1GylfVCMM32nWm',  // RTF abbreviation
-            'Jeff Boss': 'Tj1LsOtRiJwHW4r4sgWa',
-            'Michael Gonzalez': 'FfODZtkFiGUEzptzD8tH',
-            'Mike Gonzalez': 'FfODZtkFiGUEzptzD8tH',
-            'Mike Gonzales': 'FfODZtkFiGUEzptzD8tH',  // RTF variant
-            // J. Ragnoni team
-            'John Ragnoni': 'SwnH8GUBmrcdmOAs07Vp',
-            'Marc Tate': 'ZwdiN0qfmIY5MMCOLJps',
-            'David Brunner': 'ctnV5Je72HAIyVpE5zjS',
-            'Dave Brunner': 'ctnV5Je72HAIyVpE5zjS',
-            'Derek Fess': 'vVR4AOITXYzhR2H4GqzI',
-            'Derek': 'vVR4AOITXYzhR2H4GqzI',  // RTF first name only
-            'DF': 'vVR4AOITXYzhR2H4GqzI',  // RTF initials
-            'Josh Kelly': '34GDgRRFk0uFmOvyykHE',
-            'Joshua kelly': '34GDgRRFk0uFmOvyykHE',  // RTF lowercase variant
-            'JK': '34GDgRRFk0uFmOvyykHE',  // RTF initials
-            // Neon Nightmares (T. Massimiani) team
-            'Tony Massimiani': 'gqhzEQLifL402lQwDMpH',
-            'TM': 'gqhzEQLifL402lQwDMpH',  // RTF initials
-            'Dominick Russano': 'pL9CGc688ZpxbPKJ11cZ',
-            'Dom Russano': 'pL9CGc688ZpxbPKJ11cZ',
-            'DR': 'pL9CGc688ZpxbPKJ11cZ',  // RTF initials
-            'Chris Benco': 'rZ57ofUYFXPSrrhyBVkz',
-            'Chris B': 'rZ57ofUYFXPSrrhyBVkz',  // RTF abbreviation
-            // N. Mezlak team
-            'Nick Mezlak': 'yGcBLDcTwgHtWmZEg3TG',
-            'Cory Jacobs': '8f52A1dwRB4eIU5UyQZo',
-            'Dillon Ulisses': 'dFmalrT5BMdaTOUUVTOZ',
-            'Dillon U': 'dFmalrT5BMdaTOUUVTOZ',  // RTF abbreviation
-            'Dillon Ullises': 'dFmalrT5BMdaTOUUVTOZ',  // RTF misspelling
-            // D. Russano team
-            'Danny Russano': 'gmZ8d6De0ZlqPVV0V9Q6',
-            'Chris Russano': 'NJgDQ0d4RzpDVuCnqYZO',
-            'Eric Duale': 'NCeaIaMXsXVN135pX91L',
-            'Eric D': 'NCeaIaMXsXVN135pX91L',
-            'Eric': 'NCeaIaMXsXVN135pX91L',  // RTF first name only
-            // Fill-ins / Alternates
-            'Luke Kollias': 'mFyX9sv1l95V0czECUKu'
-        };
+        // Use provided mapping or default
+        const PLAYER_IDS = playerMapping || DEFAULT_PLAYER_IDS;
+        const CANONICAL_NAMES = DEFAULT_CANONICAL_NAMES;
 
-        const statsUpdates = {};
+        // Process match games
+        const statsUpdates = processMatchGamesForStats(games, PLAYER_IDS, CANONICAL_NAMES);
         const results = [];
-
-        for (const game of games) {
-            const homePlayerNames = (game.home_players || []).map(p => typeof p === 'string' ? p : p.name);
-            const awayPlayerNames = (game.away_players || []).map(p => typeof p === 'string' ? p : p.name);
-
-            for (const leg of (game.legs || [])) {
-                const playerStats = leg.player_stats || {};
-                const format = leg.format;
-                const isX01 = format === '501' || format === '301' || format === '701';
-
-                for (const [playerName, stats] of Object.entries(playerStats)) {
-                    const playerId = PLAYER_IDS[playerName];
-                    if (!playerId) continue;
-
-                    if (!statsUpdates[playerId]) {
-                        statsUpdates[playerId] = {
-                            player_id: playerId,
-                            player_name: playerName,
-                            x01_legs_played: 0,
-                            x01_legs_won: 0,
-                            x01_total_darts: 0,
-                            x01_total_points: 0,
-                            x01_high_checkout: 0,
-                            cricket_legs_played: 0,
-                            cricket_legs_won: 0,
-                            cricket_total_marks: 0,
-                            cricket_total_darts: 0,
-                            games_played: 0,
-                            games_won: 0
-                        };
-                    }
-
-                    const ps = statsUpdates[playerId];
-                    const isHome = homePlayerNames.includes(playerName);
-                    const isWinner = (leg.winner === 'home' && isHome) || (leg.winner === 'away' && !isHome);
-
-                    if (isX01) {
-                        ps.x01_legs_played++;
-                        ps.x01_total_darts += stats.darts || 0;
-                        ps.x01_total_points += stats.points || 0;
-
-                        if (isWinner) {
-                            ps.x01_legs_won++;
-                            if (stats.checkout && stats.checkout > ps.x01_high_checkout) {
-                                ps.x01_high_checkout = stats.checkout;
-                            }
-                        }
-                    } else {
-                        // Cricket
-                        ps.cricket_legs_played++;
-                        ps.cricket_total_marks += stats.marks || 0;
-
-                        // Adjust dart count for closeout if this player won and closeout_darts is specified
-                        let dartCount = stats.darts || 0;
-                        if (isWinner && leg.closeout_darts && leg.closeout_darts < 3) {
-                            // The stats.darts may have been calculated assuming 3 darts per round
-                            // Adjust by the difference (3 - actual closeout darts)
-                            // Only adjust if it looks like it wasn't already adjusted
-                            const rounds = leg.winning_round || Math.ceil(dartCount / 3);
-                            const expectedFullDarts = rounds * 3;
-                            if (dartCount === expectedFullDarts) {
-                                dartCount -= (3 - leg.closeout_darts);
-                            }
-                        }
-                        ps.cricket_total_darts += dartCount;
-
-                        if (isWinner) {
-                            ps.cricket_legs_won++;
-                        }
-                    }
-                }
-            }
-
-            // Update games played/won
-            const gameWinner = game.winner;
-            for (const playerName of homePlayerNames) {
-                const playerId = PLAYER_IDS[playerName];
-                if (playerId && statsUpdates[playerId]) {
-                    statsUpdates[playerId].games_played++;
-                    if (gameWinner === 'home') {
-                        statsUpdates[playerId].games_won++;
-                    }
-                }
-            }
-            for (const playerName of awayPlayerNames) {
-                const playerId = PLAYER_IDS[playerName];
-                if (playerId && statsUpdates[playerId]) {
-                    statsUpdates[playerId].games_played++;
-                    if (gameWinner === 'away') {
-                        statsUpdates[playerId].games_won++;
-                    }
-                }
-            }
-        }
 
         // Write stats to Firestore
         const statsRef = db.collection('leagues').doc(leagueId).collection('stats');
 
+        // Helper: add two stat values (sum for counters)
+        const addStat = (existing, key, newVal) => (existing[key] || 0) + (newVal || 0);
+        // Helper: take max of two stat values
+        const maxStat = (existing, key, newVal) => Math.max(existing[key] || 0, newVal || 0);
+        // Helper: take min of two stat values (for best leg)
+        const minStat = (existing, key, newVal) => {
+            const e = existing[key] || 999;
+            const n = newVal || 999;
+            return Math.min(e, n);
+        };
+
         for (const [playerId, stats] of Object.entries(statsUpdates)) {
             const existingDoc = await statsRef.doc(playerId).get();
+
+            // Clean up best_leg sentinel
+            if (stats.x01_best_leg === 999) stats.x01_best_leg = 0;
 
             // Calculate averages
             if (stats.x01_total_darts > 0) {
                 stats.x01_three_dart_avg = parseFloat(((stats.x01_total_points / stats.x01_total_darts) * 3).toFixed(2));
             }
             if (stats.cricket_total_darts > 0) {
-                stats.cricket_mpr = parseFloat(((stats.cricket_total_marks / stats.cricket_total_darts) * 3).toFixed(2));
+                stats.cricket_mpr = parseFloat(((stats.cricket_total_marks / (stats.cricket_total_darts / 3))).toFixed(2));
             }
 
             if (existingDoc.exists) {
-                // Merge with existing
                 const existing = existingDoc.data();
                 const merged = {
-                    x01_legs_played: (existing.x01_legs_played || 0) + stats.x01_legs_played,
-                    x01_legs_won: (existing.x01_legs_won || 0) + stats.x01_legs_won,
-                    x01_total_darts: (existing.x01_total_darts || 0) + stats.x01_total_darts,
-                    x01_total_points: (existing.x01_total_points || 0) + stats.x01_total_points,
-                    x01_high_checkout: Math.max(existing.x01_high_checkout || 0, stats.x01_high_checkout),
-                    cricket_legs_played: (existing.cricket_legs_played || 0) + stats.cricket_legs_played,
-                    cricket_legs_won: (existing.cricket_legs_won || 0) + stats.cricket_legs_won,
-                    cricket_total_marks: (existing.cricket_total_marks || 0) + stats.cricket_total_marks,
-                    cricket_total_darts: (existing.cricket_total_darts || 0) + stats.cricket_total_darts,
-                    games_played: (existing.games_played || 0) + stats.games_played,
-                    games_won: (existing.games_won || 0) + stats.games_won,
+                    // X01 basic
+                    x01_legs_played: addStat(existing, 'x01_legs_played', stats.x01_legs_played),
+                    x01_legs_won: addStat(existing, 'x01_legs_won', stats.x01_legs_won),
+                    x01_total_darts: addStat(existing, 'x01_total_darts', stats.x01_total_darts),
+                    x01_total_points: addStat(existing, 'x01_total_points', stats.x01_total_points),
+                    // Tons
+                    x01_ton_80: addStat(existing, 'x01_ton_80', stats.x01_ton_80),
+                    x01_ton_60: addStat(existing, 'x01_ton_60', stats.x01_ton_60),
+                    x01_ton_40: addStat(existing, 'x01_ton_40', stats.x01_ton_40),
+                    x01_ton_20: addStat(existing, 'x01_ton_20', stats.x01_ton_20),
+                    x01_ton_00: addStat(existing, 'x01_ton_00', stats.x01_ton_00),
+                    x01_tons: addStat(existing, 'x01_tons', stats.x01_tons),
+                    x01_high_score: maxStat(existing, 'x01_high_score', stats.x01_high_score),
+                    // First 9
+                    x01_first9_darts: addStat(existing, 'x01_first9_darts', stats.x01_first9_darts),
+                    x01_first9_points: addStat(existing, 'x01_first9_points', stats.x01_first9_points),
+                    // Checkout
+                    x01_checkouts_hit: addStat(existing, 'x01_checkouts_hit', stats.x01_checkouts_hit),
+                    x01_checkout_attempts: addStat(existing, 'x01_checkout_attempts', stats.x01_checkout_attempts),
+                    x01_total_checkout_points: addStat(existing, 'x01_total_checkout_points', stats.x01_total_checkout_points),
+                    x01_high_checkout: maxStat(existing, 'x01_high_checkout', stats.x01_high_checkout),
+                    x01_best_leg: minStat(existing, 'x01_best_leg', stats.x01_best_leg),
+                    // Checkout by range
+                    x01_co_80_hits: addStat(existing, 'x01_co_80_hits', stats.x01_co_80_hits),
+                    x01_co_80_attempts: addStat(existing, 'x01_co_80_attempts', stats.x01_co_80_attempts),
+                    x01_co_120_hits: addStat(existing, 'x01_co_120_hits', stats.x01_co_120_hits),
+                    x01_co_120_attempts: addStat(existing, 'x01_co_120_attempts', stats.x01_co_120_attempts),
+                    x01_co_140_hits: addStat(existing, 'x01_co_140_hits', stats.x01_co_140_hits),
+                    x01_co_140_attempts: addStat(existing, 'x01_co_140_attempts', stats.x01_co_140_attempts),
+                    x01_co_161_hits: addStat(existing, 'x01_co_161_hits', stats.x01_co_161_hits),
+                    x01_co_161_attempts: addStat(existing, 'x01_co_161_attempts', stats.x01_co_161_attempts),
+                    // Cricket basic
+                    cricket_legs_played: addStat(existing, 'cricket_legs_played', stats.cricket_legs_played),
+                    cricket_legs_won: addStat(existing, 'cricket_legs_won', stats.cricket_legs_won),
+                    cricket_total_marks: addStat(existing, 'cricket_total_marks', stats.cricket_total_marks),
+                    cricket_total_darts: addStat(existing, 'cricket_total_darts', stats.cricket_total_darts),
+                    // Cricket mark rounds
+                    cricket_nine_mark_rounds: addStat(existing, 'cricket_nine_mark_rounds', stats.cricket_nine_mark_rounds),
+                    cricket_eight_mark_rounds: addStat(existing, 'cricket_eight_mark_rounds', stats.cricket_eight_mark_rounds),
+                    cricket_seven_mark_rounds: addStat(existing, 'cricket_seven_mark_rounds', stats.cricket_seven_mark_rounds),
+                    cricket_six_mark_rounds: addStat(existing, 'cricket_six_mark_rounds', stats.cricket_six_mark_rounds),
+                    cricket_five_mark_rounds: addStat(existing, 'cricket_five_mark_rounds', stats.cricket_five_mark_rounds),
+                    cricket_high_mark_round: maxStat(existing, 'cricket_high_mark_round', stats.cricket_high_mark_round),
+                    cricket_hat_tricks: addStat(existing, 'cricket_hat_tricks', stats.cricket_hat_tricks),
+                    // With/against darts (cork)
+                    x01_legs_with_darts: addStat(existing, 'x01_legs_with_darts', stats.x01_legs_with_darts),
+                    x01_legs_with_darts_won: addStat(existing, 'x01_legs_with_darts_won', stats.x01_legs_with_darts_won),
+                    x01_legs_against_darts: addStat(existing, 'x01_legs_against_darts', stats.x01_legs_against_darts),
+                    x01_legs_against_darts_won: addStat(existing, 'x01_legs_against_darts_won', stats.x01_legs_against_darts_won),
+                    cricket_legs_with_darts: addStat(existing, 'cricket_legs_with_darts', stats.cricket_legs_with_darts),
+                    cricket_legs_with_darts_won: addStat(existing, 'cricket_legs_with_darts_won', stats.cricket_legs_with_darts_won),
+                    cricket_legs_against_darts: addStat(existing, 'cricket_legs_against_darts', stats.cricket_legs_against_darts),
+                    cricket_legs_against_darts_won: addStat(existing, 'cricket_legs_against_darts_won', stats.cricket_legs_against_darts_won),
+                    // Game-level
+                    games_played: addStat(existing, 'games_played', stats.games_played),
+                    games_won: addStat(existing, 'games_won', stats.games_won),
                     matches_played: (existing.matches_played || 0) + 1,
                     updated_at: admin.firestore.FieldValue.serverTimestamp()
                 };
 
-                // Recalculate averages
+                // Recalculate averages from merged totals
                 if (merged.x01_total_darts > 0) {
                     merged.x01_three_dart_avg = parseFloat(((merged.x01_total_points / merged.x01_total_darts) * 3).toFixed(2));
                 }
                 if (merged.cricket_total_darts > 0) {
-                    merged.cricket_mpr = parseFloat(((merged.cricket_total_marks / merged.cricket_total_darts) * 3).toFixed(2));
+                    merged.cricket_mpr = parseFloat((merged.cricket_total_marks / (merged.cricket_total_darts / 3)).toFixed(2));
                 }
 
                 await statsRef.doc(playerId).update(merged);
@@ -1872,6 +2326,204 @@ exports.syncPlayerNames = functions.https.onRequest(async (req, res) => {
 
     } catch (error) {
         console.error('Sync player names error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * Clear all stats documents for a league (used before full recalculation)
+ */
+exports.clearLeagueStats = functions.https.onRequest(async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    if (req.method === 'OPTIONS') {
+        res.set('Access-Control-Allow-Methods', 'POST');
+        res.set('Access-Control-Allow-Headers', 'Content-Type');
+        res.status(204).send('');
+        return;
+    }
+
+    try {
+        const { leagueId } = req.body;
+        if (!leagueId) {
+            res.status(400).json({ error: 'Missing leagueId' });
+            return;
+        }
+
+        const statsRef = db.collection('leagues').doc(leagueId).collection('stats');
+        const snap = await statsRef.get();
+        const count = snap.size;
+
+        if (count === 0) {
+            res.json({ success: true, deleted: 0 });
+            return;
+        }
+
+        // Delete in batches of 500
+        const batches = [];
+        let batch = db.batch();
+        let batchCount = 0;
+
+        snap.forEach(doc => {
+            batch.delete(doc.ref);
+            batchCount++;
+            if (batchCount === 500) {
+                batches.push(batch);
+                batch = db.batch();
+                batchCount = 0;
+            }
+        });
+
+        if (batchCount > 0) {
+            batches.push(batch);
+        }
+
+        for (const b of batches) {
+            await b.commit();
+        }
+
+        res.json({ success: true, deleted: count });
+    } catch (error) {
+        console.error('Clear league stats error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * Recalculate ALL player stats for a league from scratch.
+ * Clears all existing stats, then processes every completed match.
+ * This is idempotent - safe to run multiple times.
+ */
+exports.recalculateAllLeagueStats = functions.https.onRequest(async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    if (req.method === 'OPTIONS') {
+        res.set('Access-Control-Allow-Methods', 'POST');
+        res.set('Access-Control-Allow-Headers', 'Content-Type');
+        res.status(204).send('');
+        return;
+    }
+
+    if (req.method !== 'POST') {
+        res.status(405).json({ error: 'Method not allowed' });
+        return;
+    }
+
+    try {
+        const { leagueId } = req.body;
+        if (!leagueId) {
+            res.status(400).json({ error: 'Missing leagueId' });
+            return;
+        }
+
+        const PLAYER_IDS = DEFAULT_PLAYER_IDS;
+        const CANONICAL_NAMES = DEFAULT_CANONICAL_NAMES;
+
+        // Step 1: Clear all existing stats
+        const statsRef = db.collection('leagues').doc(leagueId).collection('stats');
+        const existingStats = await statsRef.get();
+        const deleteBatch = db.batch();
+        existingStats.forEach(doc => deleteBatch.delete(doc.ref));
+        if (!existingStats.empty) await deleteBatch.commit();
+        console.log(`Cleared ${existingStats.size} existing stat docs`);
+
+        // Step 2: Get all completed matches with game data
+        const matchesSnap = await db.collection('leagues').doc(leagueId).collection('matches')
+            .where('status', '==', 'completed').get();
+
+        console.log(`Processing ${matchesSnap.size} completed matches`);
+
+        // Step 3: Process each match and accumulate stats
+        const cumulativeStats = {};  // playerId -> cumulative stats
+        let matchesProcessed = 0;
+
+        for (const matchDoc of matchesSnap.docs) {
+            const match = matchDoc.data();
+            const games = match.games || [];
+            if (games.length === 0) continue;
+
+            const matchStats = processMatchGamesForStats(games, PLAYER_IDS, CANONICAL_NAMES);
+
+            // Merge match stats into cumulative
+            for (const [playerId, stats] of Object.entries(matchStats)) {
+                if (!cumulativeStats[playerId]) {
+                    cumulativeStats[playerId] = createEmptyMatchStats(playerId, stats.player_name, CANONICAL_NAMES);
+                    cumulativeStats[playerId].matches_played = 0;
+                }
+
+                const cum = cumulativeStats[playerId];
+                // Add all counter fields
+                const addFields = [
+                    'x01_legs_played', 'x01_legs_won', 'x01_total_darts', 'x01_total_points',
+                    'x01_ton_80', 'x01_ton_60', 'x01_ton_40', 'x01_ton_20', 'x01_ton_00', 'x01_tons',
+                    'x01_first9_darts', 'x01_first9_points',
+                    'x01_checkouts_hit', 'x01_checkout_attempts', 'x01_total_checkout_points',
+                    'x01_co_80_hits', 'x01_co_80_attempts',
+                    'x01_co_120_hits', 'x01_co_120_attempts',
+                    'x01_co_140_hits', 'x01_co_140_attempts',
+                    'x01_co_161_hits', 'x01_co_161_attempts',
+                    'x01_legs_with_darts', 'x01_legs_with_darts_won',
+                    'x01_legs_against_darts', 'x01_legs_against_darts_won',
+                    'cricket_legs_played', 'cricket_legs_won', 'cricket_total_darts', 'cricket_total_marks',
+                    'cricket_nine_mark_rounds', 'cricket_eight_mark_rounds',
+                    'cricket_seven_mark_rounds', 'cricket_six_mark_rounds', 'cricket_five_mark_rounds',
+                    'cricket_hat_tricks',
+                    'cricket_legs_with_darts', 'cricket_legs_with_darts_won',
+                    'cricket_legs_against_darts', 'cricket_legs_against_darts_won',
+                    'games_played', 'games_won'
+                ];
+                addFields.forEach(f => { cum[f] = (cum[f] || 0) + (stats[f] || 0); });
+
+                // Max fields
+                cum.x01_high_score = Math.max(cum.x01_high_score || 0, stats.x01_high_score || 0);
+                cum.x01_high_checkout = Math.max(cum.x01_high_checkout || 0, stats.x01_high_checkout || 0);
+                cum.cricket_high_mark_round = Math.max(cum.cricket_high_mark_round || 0, stats.cricket_high_mark_round || 0);
+
+                // Min fields (best leg)
+                const curBest = cum.x01_best_leg || 999;
+                const newBest = stats.x01_best_leg || 999;
+                cum.x01_best_leg = Math.min(curBest, newBest);
+
+                cum.matches_played++;
+            }
+
+            matchesProcessed++;
+        }
+
+        // Step 4: Calculate averages and write to Firestore
+        const results = [];
+        for (const [playerId, stats] of Object.entries(cumulativeStats)) {
+            // Clean up best_leg sentinel
+            if (stats.x01_best_leg === 999) stats.x01_best_leg = 0;
+
+            // Calculate averages
+            if (stats.x01_total_darts > 0) {
+                stats.x01_three_dart_avg = parseFloat(((stats.x01_total_points / stats.x01_total_darts) * 3).toFixed(2));
+            }
+            if (stats.cricket_total_darts > 0) {
+                stats.cricket_mpr = parseFloat((stats.cricket_total_marks / (stats.cricket_total_darts / 3)).toFixed(2));
+            }
+
+            stats.created_at = admin.firestore.FieldValue.serverTimestamp();
+            stats.updated_at = admin.firestore.FieldValue.serverTimestamp();
+            await statsRef.doc(playerId).set(stats);
+
+            results.push({
+                playerId,
+                playerName: stats.player_name,
+                x01Avg: stats.x01_three_dart_avg || 0,
+                cricketMpr: stats.cricket_mpr || 0,
+                matchesPlayed: stats.matches_played
+            });
+        }
+
+        res.json({
+            success: true,
+            matchesProcessed,
+            playersUpdated: results.length,
+            stats: results
+        });
+
+    } catch (error) {
+        console.error('Recalculate all league stats error:', error);
         res.status(500).json({ error: error.message });
     }
 });

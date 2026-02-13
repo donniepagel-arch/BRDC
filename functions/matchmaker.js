@@ -418,6 +418,33 @@ exports.matchmakerDrawPartners = functions.https.onRequest(async (req, res) => {
 });
 
 /**
+ * Map round number to round name based on total rounds
+ */
+function getRoundName(round, totalRounds) {
+    const roundsFromEnd = totalRounds - round;
+    if (roundsFromEnd === 0) return 'finals';
+    if (roundsFromEnd === 1) return 'semifinals';
+    if (roundsFromEnd === 2) return 'quarterfinals';
+    if (roundsFromEnd === 3) return 'round_of_16';
+    return `round_${round}`;
+}
+
+/**
+ * Check if breakups are still allowed based on bracket progress
+ */
+function breakupsAllowed(breakupCutoff, currentWCRound, totalWCRounds) {
+    const currentRoundName = getRoundName(currentWCRound, totalWCRounds);
+    const cutoffOrder = ['round_of_16', 'quarterfinals', 'semifinals', 'finals', 'grand_finals'];
+    const configuredIdx = cutoffOrder.indexOf(breakupCutoff);
+    const currentIdx = cutoffOrder.indexOf(currentRoundName);
+    // If current round is past cutoff, disallow
+    if (configuredIdx >= 0 && currentIdx > configuredIdx) {
+        return false;
+    }
+    return true;
+}
+
+/**
  * Trigger a breakup when dropping to losers bracket
  * Player requests to be re-matched with another breakup player
  */
@@ -451,7 +478,21 @@ exports.matchmakerBreakup = functions.https.onRequest(async (req, res) => {
 
         // Check if breakups are still allowed (not past cutoff round)
         const breakupCutoff = tournament.breakup_cutoff || 'quarterfinals';
-        // TODO: Check current bracket round against cutoff
+
+        const bracketDoc = await tournamentRef.collection('bracket').doc('current').get();
+        if (bracketDoc.exists) {
+            const bracketData = bracketDoc.data();
+            const currentWCRound = bracketData.current_wc_round || 1;
+            const totalWCRounds = bracketData.winners_rounds || 4;
+
+            if (!breakupsAllowed(breakupCutoff, currentWCRound, totalWCRounds)) {
+                const currentRoundName = getRoundName(currentWCRound, totalWCRounds);
+                return res.status(403).json({
+                    success: false,
+                    error: `Team breakups are not allowed past ${breakupCutoff}. Tournament is currently at ${currentRoundName}.`
+                });
+            }
+        }
 
         // Get the team
         const teamRef = tournamentRef.collection('teams').doc(team_id);
@@ -776,29 +817,33 @@ exports.triggerHeartbreaker = functions.https.onRequest(async (req, res) => {
         const player1_id = team.player1?.player_id;
         const player2_id = team.player2?.player_id;
 
-        // Generate savage summaries for both players
-        const summary_player1 = generateSavageSummary(
-            { ...match_stats, partner_id: player2_id, partner_name: team.player2?.name },
-            player1_id
-        );
-
-        const summary_player2 = generateSavageSummary(
-            { ...match_stats, partner_id: player1_id, partner_name: team.player1?.name },
-            player2_id
-        );
+        // Generate savage summaries for both players (if match_stats provided)
+        let summary_player1 = null;
+        let summary_player2 = null;
+        if (match_stats) {
+            summary_player1 = generateSavageSummary(
+                { ...match_stats, partner_id: player2_id, partner_name: team.player2?.name },
+                player1_id
+            );
+            summary_player2 = generateSavageSummary(
+                { ...match_stats, partner_id: player1_id, partner_name: team.player1?.name },
+                player2_id
+            );
+        }
 
         // Add to heartbroken collection
         const heartbrokenRef = tournamentRef.collection('heartbroken').doc(team_id);
-        await heartbrokenRef.set({
+        const heartbrokenData = {
             team_name: team.team_name,
             player1: team.player1,
             player2: team.player2,
-            lost_to_team_name: match_stats.opponent_team_name || 'Unknown',
-            match_stats: match_stats,
-            savage_summary_player1: summary_player1,
-            savage_summary_player2: summary_player2,
+            lost_to_team_name: (match_stats && match_stats.opponent_team_name) || 'Unknown',
             heartbroken_at: admin.firestore.FieldValue.serverTimestamp()
-        });
+        };
+        if (match_stats) heartbrokenData.match_stats = match_stats;
+        if (summary_player1) heartbrokenData.savage_summary_player1 = summary_player1;
+        if (summary_player2) heartbrokenData.savage_summary_player2 = summary_player2;
+        await heartbrokenRef.set(heartbrokenData);
 
         res.json({
             success: true,
@@ -906,6 +951,7 @@ exports.getHeartbrokenTeams = functions.https.onRequest(async (req, res) => {
     try {
         const tournament_id = req.query.tournament_id || req.body.tournament_id;
         const player_id = req.query.player_id || req.body.player_id;
+        const director_pin = req.query.director_pin || req.body.director_pin;
 
         if (!tournament_id) {
             return res.status(400).json({ success: false, error: 'Missing tournament_id' });
@@ -913,6 +959,13 @@ exports.getHeartbrokenTeams = functions.https.onRequest(async (req, res) => {
 
         const tournamentRef = db.collection('tournaments').doc(tournament_id);
         const heartbrokenSnap = await tournamentRef.collection('heartbroken').get();
+
+        // Check if requester is the director (need player IDs for notifications)
+        let is_director = false;
+        if (director_pin) {
+            const tournamentDoc = await tournamentRef.get();
+            is_director = tournamentDoc.exists && tournamentDoc.data().director_pin === director_pin;
+        }
 
         const teams = [];
         let your_team_id = null;
@@ -927,15 +980,31 @@ exports.getHeartbrokenTeams = functions.https.onRequest(async (req, res) => {
             }
 
             // Include team info but NEVER breakup decisions
-            teams.push({
+            const teamData = {
+                id: doc.id,
                 team_id: doc.id,
                 team_name: team.team_name,
-                player1_name: team.player1?.name,
-                player2_name: team.player2?.name,
-                lost_to: team.lost_to_team_name,
+                lost_to_team_name: team.lost_to_team_name,
                 heartbroken_at: team.heartbroken_at
-                // NEVER include breakup_decisions or any decision data
-            });
+            };
+
+            // If director, include player IDs for notifications (but NOT decisions)
+            if (is_director) {
+                teamData.player1 = {
+                    player_id: team.player1?.player_id,
+                    name: team.player1?.name
+                };
+                teamData.player2 = {
+                    player_id: team.player2?.player_id,
+                    name: team.player2?.name
+                };
+            } else {
+                // For players, only include names (no IDs for privacy)
+                teamData.player1_name = team.player1?.name;
+                teamData.player2_name = team.player2?.name;
+            }
+
+            teams.push(teamData);
         });
 
         res.json({
@@ -1303,7 +1372,7 @@ exports.createHeartbreakerTournament = functions.https.onRequest(async (req, res
             nudge_limit: 3,
 
             // Venue settings
-            boards_available: data.boards_available || 12,
+            venue_board_count: data.boards_available || data.venue_board_count || 12,
 
             // Standard tournament fields
             max_players: data.max_players || 32,
@@ -1337,7 +1406,7 @@ exports.createHeartbreakerTournament = functions.https.onRequest(async (req, res
                 losers_game: '501 (best of 1)',
                 mingle_cutoff: 'wc_r2_last_start',
                 savage_summaries: true,
-                boards_available: tournamentData.boards_available
+                venue_board_count: tournamentData.venue_board_count
             }
         });
 
@@ -2105,6 +2174,146 @@ exports.findPlayerRegistration = functions.https.onRequest(async (req, res) => {
 
     } catch (error) {
         console.error('Find player registration error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * Delete a matchmaker registration
+ * If the registration was matched:
+ * - Unmatch the paired registration
+ * - Delete the team document
+ * Decrement the tournament registration counts
+ */
+exports.deleteMatchmakerRegistration = functions.https.onRequest(async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+    if (req.method === 'OPTIONS') return res.status(204).send('');
+
+    try {
+        const { tournament_id, registration_id, player_id, director_pin } = req.body;
+
+        if (!tournament_id || !registration_id) {
+            return res.status(400).json({
+                success: false,
+                error: 'Missing required fields: tournament_id, registration_id'
+            });
+        }
+
+        if (!player_id && !director_pin) {
+            return res.status(400).json({
+                success: false,
+                error: 'Must provide either player_id or director_pin'
+            });
+        }
+
+        const tournamentRef = db.collection('tournaments').doc(tournament_id);
+        const tournamentDoc = await tournamentRef.get();
+
+        if (!tournamentDoc.exists) {
+            return res.status(404).json({ success: false, error: 'Tournament not found' });
+        }
+
+        const tournament = tournamentDoc.data();
+
+        const regRef = tournamentRef.collection('registrations').doc(registration_id);
+        const regDoc = await regRef.get();
+
+        if (!regDoc.exists) {
+            return res.status(404).json({ success: false, error: 'Registration not found' });
+        }
+
+        const reg = regDoc.data();
+
+        // Auth: either director PIN or player ownership
+        let authorized = false;
+
+        if (director_pin) {
+            // Director-initiated delete
+            if (tournament.director_pin === director_pin) {
+                authorized = true;
+            }
+        }
+
+        if (!authorized && player_id) {
+            // Player self-delete - verify ownership
+            if (reg.type === 'single' && reg.player?.player_id === player_id) {
+                authorized = true;
+            } else if ((reg.type === 'team' || reg.type === 'matched_team' || reg.type === 'cupid_matched_team')) {
+                if (reg.player1?.player_id === player_id || reg.player2?.player_id === player_id) {
+                    authorized = true;
+                }
+            }
+        }
+
+        if (!authorized) {
+            return res.status(403).json({
+                success: false,
+                error: 'Not authorized to delete this registration'
+            });
+        }
+
+        // If this is a matched single registration, unmatch the paired registration
+        if (reg.matched && reg.matched_with && reg.team_id) {
+            const pairedRegRef = tournamentRef.collection('registrations').doc(reg.matched_with);
+            const pairedRegDoc = await pairedRegRef.get();
+
+            if (pairedRegDoc.exists) {
+                // Set paired registration back to unmatched
+                await pairedRegRef.update({
+                    matched: false,
+                    matched_with: null,
+                    team_id: null
+                });
+
+                console.log(`Unmatched paired registration: ${reg.matched_with}`);
+            }
+
+            // Delete the team document if it exists
+            const teamRef = tournamentRef.collection('teams').doc(reg.team_id);
+            const teamDoc = await teamRef.get();
+
+            if (teamDoc.exists) {
+                await teamRef.delete();
+                console.log(`Deleted team: ${reg.team_id}`);
+            }
+        }
+
+        // Determine which count to decrement
+        let countField = null;
+        if (reg.type === 'team' || reg.type === 'matched_team' || reg.type === 'cupid_matched_team') {
+            countField = 'registration_counts.teams';
+        } else if (reg.type === 'single') {
+            const gender = reg.player?.gender;
+            if (gender === 'M') {
+                countField = 'registration_counts.singles_male';
+            } else if (gender === 'F') {
+                countField = 'registration_counts.singles_female';
+            }
+        }
+
+        // Delete the registration document
+        await regRef.delete();
+
+        // Decrement the registration count
+        if (countField) {
+            await tournamentRef.update({
+                [countField]: admin.firestore.FieldValue.increment(-1)
+            });
+        }
+
+        console.log(`Deleted registration: ${registration_id}, decremented ${countField}`);
+
+        res.json({
+            success: true,
+            message: 'Registration deleted successfully',
+            registration_id: registration_id
+        });
+
+    } catch (error) {
+        console.error('Delete matchmaker registration error:', error);
         res.status(500).json({ success: false, error: error.message });
     }
 });

@@ -285,7 +285,8 @@ exports.getConversations = functions.https.onRequest((req, res) => {
             res.json({
                 success: true,
                 conversations: conversations,
-                player_id: player.id
+                player_id: player.id,
+                player_name: player.name || 'Player'
             });
 
         } catch (error) {
@@ -374,6 +375,7 @@ exports.getConversationMessages = functions.https.onRequest((req, res) => {
                 messages: messages.reverse(), // Return in chronological order
                 conversation: {
                     id: conversation_id,
+                    current_player_id: player.id,
                     other_participant: {
                         id: otherParticipantId,
                         name: conversationData.participant_names?.[otherParticipantId] || 'Unknown',

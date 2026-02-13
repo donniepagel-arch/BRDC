@@ -10,7 +10,7 @@ const TWILIO_SID = process.env.TWILIO_ACCOUNT_SID;
 const TWILIO_TOKEN = process.env.TWILIO_AUTH_TOKEN;
 const TWILIO_PHONE = process.env.TWILIO_PHONE_NUMBER;
 const SENDGRID_KEY = process.env.SENDGRID_API_KEY;
-const FROM_EMAIL = process.env.FROM_EMAIL || 'noreply@brdc-darts.com';
+const FROM_EMAIL = process.env.FROM_EMAIL || 'noreply@burningriverdarts.com';
 
 let twilioClient = null;
 let sgMail = null;

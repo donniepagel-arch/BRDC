@@ -945,13 +945,21 @@ exports.getUserPosts = functions.https.onRequest((req, res) => {
             const postsSnap = await postsQuery.get();
 
             const posts = [];
-            postsSnap.docs.slice(0, postLimit).forEach(doc => {
+            // Cache author friends lists to avoid repeated Firestore reads
+            const friendsCache = {};
+            for (const doc of postsSnap.docs.slice(0, postLimit)) {
                 const post = doc.data();
 
                 // Filter by visibility if not the post author
                 if (post.visibility === 'friends' && requesterId !== user_id) {
-                    // TODO: Check if requester is a friend
-                    return;
+                    // Check if requester is in the post author's friends list
+                    if (!friendsCache[post.author_id]) {
+                        const authorDoc = await db.collection('players').doc(post.author_id).get();
+                        friendsCache[post.author_id] = authorDoc.exists ? (authorDoc.data().friends || []) : [];
+                    }
+                    if (!friendsCache[post.author_id].includes(requesterId)) {
+                        continue; // Not a friend, skip this post
+                    }
                 }
 
                 posts.push({
@@ -966,7 +974,7 @@ exports.getUserPosts = functions.https.onRequest((req, res) => {
                     comment_count: post.comment_count || 0,
                     created_at: post.created_at?.toDate?.()?.toISOString() || null
                 });
-            });
+            }
 
             const hasMore = postsSnap.docs.length > postLimit;
             const nextCursor = hasMore ? posts[posts.length - 1]?.id : null;

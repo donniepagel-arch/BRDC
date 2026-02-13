@@ -11,6 +11,7 @@ if (!admin.apps.length) {
 }
 
 const db = admin.firestore();
+const bucket = admin.storage().bucket();
 
 /**
  * Save feedback/debug report
@@ -31,11 +32,46 @@ exports.submitFeedback = functions.https.onRequest(async (req, res) => {
             user_agent,     // Browser info
             screen_size,    // Screen dimensions
             url,            // Full URL
-            player_id       // Optional: logged in player ID
+            player_id,      // Optional: logged in player ID
+            screenshot      // Optional: screenshot data URL
         } = req.body;
 
         if (!message || !message.trim()) {
             return res.status(400).json({ error: 'Message is required' });
+        }
+
+        let screenshotUrl = null;
+
+        // Handle screenshot upload if provided
+        if (screenshot && screenshot.startsWith('data:image/png;base64,')) {
+            try {
+                // Extract base64 data
+                const base64Data = screenshot.replace(/^data:image\/png;base64,/, '');
+                const buffer = Buffer.from(base64Data, 'base64');
+
+                // Generate unique filename
+                const timestamp = Date.now();
+                const filename = `feedback-screenshots/${timestamp}.png`;
+
+                // Upload to Firebase Storage
+                const file = bucket.file(filename);
+                await file.save(buffer, {
+                    metadata: {
+                        contentType: 'image/png',
+                        cacheControl: 'public, max-age=31536000'
+                    }
+                });
+
+                // Make it publicly accessible
+                await file.makePublic();
+
+                // Get public URL
+                screenshotUrl = `https://storage.googleapis.com/${bucket.name}/${filename}`;
+
+            } catch (screenshotError) {
+                console.error('Error uploading screenshot:', screenshotError);
+                // Continue anyway - screenshot is optional
+            }
         }
 
         const feedbackRef = await db.collection('feedback').add({
@@ -45,6 +81,7 @@ exports.submitFeedback = functions.https.onRequest(async (req, res) => {
             screen_size: screen_size || null,
             url: url || null,
             player_id: player_id || null,
+            screenshot_url: screenshotUrl,
             status: 'new',
             created_at: admin.firestore.FieldValue.serverTimestamp()
         });
@@ -52,6 +89,7 @@ exports.submitFeedback = functions.https.onRequest(async (req, res) => {
         res.json({
             success: true,
             feedback_id: feedbackRef.id,
+            screenshot_url: screenshotUrl,
             message: 'Feedback submitted successfully'
         });
 

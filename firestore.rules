@@ -25,6 +25,12 @@ service cloud.firestore {
       allow read, write: if false; // Only cloud functions
     }
 
+    // 🔒 User sessions - SECURE (NEW)
+    // Session tokens managed entirely by cloud functions
+    match /sessions/{sessionId} {
+      allow read, write: if false; // Only cloud functions can access
+    }
+
     // Login attempts - private
     match /login_attempts/{attemptId} {
       allow read, write: if false; // Only cloud functions
@@ -39,7 +45,8 @@ service cloud.firestore {
     match /tournaments/{tournamentId} {
       allow read: if true;
       allow create: if hasValidData();
-      allow update, delete: if false; // Only cloud functions
+      allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['tv_display_mode']);
+      allow delete: if false; // Only cloud functions
     }
 
     // Tournament subcollections
@@ -61,6 +68,35 @@ service cloud.firestore {
     }
 
     match /tournaments/{tournamentId}/brackets/{bracketId} {
+      allow read: if true;
+      allow write: if false; // Only cloud functions
+    }
+
+    match /tournaments/{tournamentId}/stats/{statId} {
+      allow read: if true;
+      allow write: if false; // Only cloud functions
+    }
+
+    // Tournament teams (Heartbreaker matchmaker)
+    match /tournaments/{tournamentId}/teams/{teamId} {
+      allow read: if true;
+      allow write: if false; // Only cloud functions
+    }
+
+    // Heartbroken teams after Winners Bracket loss
+    match /tournaments/{tournamentId}/heartbroken/{docId} {
+      allow read: if true;
+      allow write: if false; // Only cloud functions
+    }
+
+    // Anonymous breakup decisions (per-player, secret)
+    match /tournaments/{tournamentId}/breakup_decisions/{decisionId} {
+      allow read: if true;
+      allow write: if false; // Only cloud functions
+    }
+
+    // Breakup pool (players available for re-matching)
+    match /tournaments/{tournamentId}/breakup_pool/{docId} {
       allow read: if true;
       allow write: if false; // Only cloud functions
     }
@@ -472,14 +508,24 @@ service cloud.firestore {
     }
 
     // FCM tokens for push notifications
+    // NOTE: This app uses PIN-based auth, not Firebase Auth, so request.auth
+    // is not available. Validation ensures only well-formed token docs are written.
     match /fcm_tokens/{tokenId} {
       allow read: if true;
-      allow write: if true;  // Allow clients to save their tokens
+      allow write: if request.resource.data.keys().hasAll(['token', 'player_id'])
+                   && request.resource.data.token is string
+                   && request.resource.data.token.size() > 0
+                   && request.resource.data.player_id is string
+                   && request.resource.data.player_id.size() > 0;
     }
 
     // Player FCM tokens subcollection
+    // NOTE: PIN-based auth - no request.auth available. Validate token shape.
     match /players/{playerId}/fcm_tokens/{tokenId} {
-      allow read, write: if true;  // Allow clients to manage their tokens
+      allow read: if true;
+      allow write: if request.resource.data.keys().hasAll(['token'])
+                   && request.resource.data.token is string
+                   && request.resource.data.token.size() > 0;
     }
   }
 }
