@@ -271,6 +271,9 @@ function groupThrowsByRound(throws, homeTeam, awayTeam) {
             // Cricket flags
             if (t.closed_out) currentRound.home.closed_out = true;
             if (t.closeout_darts) currentRound.home.closeout_darts = t.closeout_darts;
+            // Dart detail flags
+            if (t.bulls) currentRound.home.bulls = t.bulls;
+            if (t.triples) currentRound.home.triples = t.triples;
         } else if (team === 'away') {
             currentRound.away = { player: canonName, hit: t.hit, score: t.score, marks: t.marks, remaining: t.remaining };
             // X01 flags
@@ -280,6 +283,9 @@ function groupThrowsByRound(throws, homeTeam, awayTeam) {
             // Cricket flags
             if (t.closed_out) currentRound.away.closed_out = true;
             if (t.closeout_darts) currentRound.away.closeout_darts = t.closeout_darts;
+            // Dart detail flags
+            if (t.bulls) currentRound.away.bulls = t.bulls;
+            if (t.triples) currentRound.away.triples = t.triples;
         }
     });
 
@@ -537,9 +543,19 @@ const MATCHES = [
 ];
 
 async function main() {
-    console.log(`Starting all imports for League: ${LEAGUE_ID}`);
+    const weekFilter = process.argv[2] ? parseInt(process.argv[2]) : null;
+    const matchesToRun = weekFilter
+        ? MATCHES.filter(m => m.name.includes(`Week ${weekFilter}`))
+        : MATCHES;
+
+    if (weekFilter) {
+        console.log(`Starting imports for League: ${LEAGUE_ID} (Week ${weekFilter} only — ${matchesToRun.length} matches)`);
+    } else {
+        console.log(`Starting all imports for League: ${LEAGUE_ID} (${matchesToRun.length} matches)`);
+    }
+
     const results = [];
-    for (const match of MATCHES) {
+    for (const match of matchesToRun) {
         results.push(await importMatch(match));
     }
     console.log('\n=== IMPORT SUMMARY ===');
