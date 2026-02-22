@@ -11,7 +11,9 @@ service cloud.firestore {
     // All reads go through cloud functions (playerLogin, getPlayerProfile, etc.)
     match /players/{playerId} {
       allow read: if false;  // SECURITY: Block direct reads - PINs must not be exposed
-      allow write: if false; // Only cloud functions can write
+      allow create, delete: if false; // Only cloud functions
+      // Allow clients to update ONLY non-sensitive photo fields (URLs are not sensitive)
+      allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['photo_url', 'photos']);
     }
 
     // Bots collection

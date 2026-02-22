@@ -83,7 +83,7 @@ function generateMatchPin() {
 function setCorsHeaders(res) {
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 }
 
 // ============================================================================
@@ -2531,7 +2531,17 @@ exports.generateSchedule = functions.https.onRequest(async (req, res) => {
 
         const n = teamsCopy.length;
         const rounds = (n - 1) * 2; // Double round-robin
-        const startDate = new Date(league.start_date);
+        // Parse start_date as local date components to avoid UTC/DST timezone shifts
+        const sdParts = league.start_date.split('-').map(Number);
+        const startDate = new Date(sdParts[0], sdParts[1] - 1, sdParts[2]);
+
+        // Timezone-safe date formatting
+        const formatLocalDate = (d) => {
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${y}-${m}-${day}`;
+        };
 
         let week = 1;
 
@@ -2554,7 +2564,7 @@ exports.generateSchedule = functions.https.onRequest(async (req, res) => {
 
                     matches.push({
                         week: week,
-                        match_date: matchDate.toISOString().split('T')[0],
+                        match_date: formatLocalDate(matchDate),
                         home_team_id: homeTeam.id,
                         home_team_name: homeTeam.team_name,
                         away_team_id: awayTeam.id,
@@ -2590,7 +2600,7 @@ exports.generateSchedule = functions.https.onRequest(async (req, res) => {
 
                     matches.push({
                         week: week,
-                        match_date: matchDate.toISOString().split('T')[0],
+                        match_date: formatLocalDate(matchDate),
                         home_team_id: homeTeam.id,
                         home_team_name: homeTeam.team_name,
                         away_team_id: awayTeam.id,
@@ -2681,8 +2691,16 @@ exports.importSchedule = functions.https.onRequest(async (req, res) => {
             await deleteBatch.commit();
         }
 
-        // Calculate dates for each week
-        const scheduleStartDate = new Date(start_date);
+        // Calculate dates for each week - parse as local date to avoid UTC/DST shifts
+        const sdParts = start_date.split('-').map(Number);
+        const scheduleStartDate = new Date(sdParts[0], sdParts[1] - 1, sdParts[2]);
+
+        const formatLocalDate = (d) => {
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${y}-${m}-${day}`;
+        };
 
         // Create new matches
         const createBatch = db.batch();
@@ -2702,7 +2720,7 @@ exports.importSchedule = functions.https.onRequest(async (req, res) => {
 
             createBatch.set(matchRef, {
                 week: match.week,
-                match_date: matchDate.toISOString().split('T')[0],
+                match_date: formatLocalDate(matchDate),
                 home_team_id: match.home_team_id,
                 home_team_name: homeTeam ? homeTeam.team_name : match.home_team_name,
                 away_team_id: match.away_team_id,
@@ -3642,7 +3660,7 @@ exports.submitGameResult = functions.https.onRequest(async (req, res) => {
     if (req.method === 'OPTIONS') return res.status(204).send('');
 
     try {
-        const { league_id, match_id, game_number, winner, home_legs_won, away_legs_won, admin_pin, game_stats } = req.body;
+        const { league_id, match_id, game_number, winner, home_legs_won, away_legs_won, admin_pin, game_stats, status, home_players, away_players } = req.body;
 
         // Verify admin (optional - can also use match_pin)
         const leagueDoc = await db.collection('leagues').doc(league_id).get();
@@ -3661,19 +3679,73 @@ exports.submitGameResult = functions.https.onRequest(async (req, res) => {
         }
 
         const match = matchDoc.data();
-        const games = match.games;
+        const games = match.games || [];
         const gameIndex = game_number - 1;
 
-        if (gameIndex < 0 || gameIndex >= games.length) {
+        if (gameIndex < 0) {
             return res.status(400).json({ success: false, error: 'Invalid game number' });
         }
 
-        // Update game
+        // Auto-expand games array if needed (match-hub launches scorers without calling startMatch)
+        while (games.length <= gameIndex) {
+            games.push({
+                game_number: games.length + 1,
+                status: 'pending',
+                winner: null,
+                home_legs_won: 0,
+                away_legs_won: 0
+            });
+        }
+
+        // Handle in-progress leg saves (crash recovery - saves after each leg within a set)
+        if (status === 'in_progress') {
+            // Don't overwrite a completed game with in-progress data (race condition guard)
+            if (games[gameIndex].status === 'completed') {
+                return res.json({
+                    success: true,
+                    game_number: game_number,
+                    status: 'already_completed',
+                    message: `Game ${game_number} already completed, skipping in-progress save`
+                });
+            }
+            games[gameIndex].status = 'in_progress';
+            games[gameIndex].home_legs_won = home_legs_won || 0;
+            games[gameIndex].away_legs_won = away_legs_won || 0;
+            games[gameIndex].updated_at = new Date().toISOString();
+            if (game_stats) {
+                games[gameIndex].in_progress_stats = game_stats;
+            }
+
+            const matchUpdate = { games };
+            if (match.status === 'scheduled') {
+                matchUpdate.status = 'in_progress';
+                matchUpdate.started_at = admin.firestore.FieldValue.serverTimestamp();
+            }
+            await matchRef.update(matchUpdate);
+
+            return res.json({
+                success: true,
+                game_number: game_number,
+                status: 'in_progress',
+                message: `Game ${game_number} leg progress saved`
+            });
+        }
+
+        // Update game (completed)
         games[gameIndex].status = 'completed';
         games[gameIndex].winner = winner;
         games[gameIndex].home_legs_won = home_legs_won || (winner === 'home' ? 2 : 1);
         games[gameIndex].away_legs_won = away_legs_won || (winner === 'away' ? 2 : 1);
         games[gameIndex].completed_at = new Date().toISOString();
+
+        // Store player rosters (needed for stat processing)
+        if (home_players) games[gameIndex].home_players = home_players;
+        if (away_players) games[gameIndex].away_players = away_players;
+
+        // Store format from game_stats for stat processing
+        if (game_stats && game_stats.game_type) {
+            games[gameIndex].format = game_stats.game_type;
+        }
 
         // Store comprehensive game stats (DartConnect compatible)
         if (game_stats) {
@@ -3690,11 +3762,31 @@ exports.submitGameResult = functions.https.onRequest(async (req, res) => {
             }
         });
 
-        await matchRef.update({
+        // Build update
+        const matchUpdate = {
             games: games,
             home_score: homeScore,
             away_score: awayScore
-        });
+        };
+
+        // Set in_progress when first game is submitted (regardless of game number)
+        if (match.status === 'scheduled') {
+            matchUpdate.status = 'in_progress';
+            matchUpdate.started_at = admin.firestore.FieldValue.serverTimestamp();
+        }
+
+        // Auto-finalize: check if all expected games are completed
+        const expectedGames = league.games_per_match || 9;
+        const completedGames = games.filter(g => g.status === 'completed').length;
+        const matchFinalized = completedGames >= expectedGames;
+        if (matchFinalized) {
+            matchUpdate.status = 'completed';
+            matchUpdate.completed_at = admin.firestore.FieldValue.serverTimestamp();
+            matchUpdate.winner = homeScore > awayScore ? 'home' : awayScore > homeScore ? 'away' : 'tie';
+            matchUpdate.match_pin = null; // Clear PIN
+        }
+
+        await matchRef.update(matchUpdate);
 
         // Process player stats if game_stats includes leg data
         if (game_stats && game_stats.legs && game_stats.legs.length > 0) {
@@ -3702,12 +3794,70 @@ exports.submitGameResult = functions.https.onRequest(async (req, res) => {
             await processGameStats(league_id, game, { ...game_stats, winner });
         }
 
+        // Update team standings when match is auto-finalized
+        if (matchFinalized) {
+            try {
+                const matchWinner = matchUpdate.winner;
+                const batch = db.batch();
+                const homeTeamRef = db.collection('leagues').doc(league_id)
+                    .collection('teams').doc(match.home_team_id);
+                const awayTeamRef = db.collection('leagues').doc(league_id)
+                    .collection('teams').doc(match.away_team_id);
+
+                if (matchWinner === 'home') {
+                    batch.update(homeTeamRef, {
+                        wins: admin.firestore.FieldValue.increment(1),
+                        points: admin.firestore.FieldValue.increment(2),
+                        games_won: admin.firestore.FieldValue.increment(homeScore),
+                        games_lost: admin.firestore.FieldValue.increment(awayScore)
+                    });
+                    batch.update(awayTeamRef, {
+                        losses: admin.firestore.FieldValue.increment(1),
+                        games_won: admin.firestore.FieldValue.increment(awayScore),
+                        games_lost: admin.firestore.FieldValue.increment(homeScore)
+                    });
+                } else if (matchWinner === 'away') {
+                    batch.update(awayTeamRef, {
+                        wins: admin.firestore.FieldValue.increment(1),
+                        points: admin.firestore.FieldValue.increment(2),
+                        games_won: admin.firestore.FieldValue.increment(awayScore),
+                        games_lost: admin.firestore.FieldValue.increment(homeScore)
+                    });
+                    batch.update(homeTeamRef, {
+                        losses: admin.firestore.FieldValue.increment(1),
+                        games_won: admin.firestore.FieldValue.increment(homeScore),
+                        games_lost: admin.firestore.FieldValue.increment(awayScore)
+                    });
+                } else {
+                    batch.update(homeTeamRef, {
+                        ties: admin.firestore.FieldValue.increment(1),
+                        points: admin.firestore.FieldValue.increment(1),
+                        games_won: admin.firestore.FieldValue.increment(homeScore),
+                        games_lost: admin.firestore.FieldValue.increment(awayScore)
+                    });
+                    batch.update(awayTeamRef, {
+                        ties: admin.firestore.FieldValue.increment(1),
+                        points: admin.firestore.FieldValue.increment(1),
+                        games_won: admin.firestore.FieldValue.increment(awayScore),
+                        games_lost: admin.firestore.FieldValue.increment(homeScore)
+                    });
+                }
+                await batch.commit();
+                console.log(`Match auto-finalized: ${matchUpdate.winner} wins ${homeScore}-${awayScore}`);
+            } catch (standingsErr) {
+                console.error('Error updating team standings:', standingsErr);
+            }
+        }
+
         res.json({
             success: true,
             game_number: game_number,
             winner: winner,
             match_score: { home: homeScore, away: awayScore },
-            message: `Game ${game_number} result recorded`
+            match_finalized: matchFinalized,
+            message: matchFinalized
+                ? `Game ${game_number} recorded. Match finalized: ${matchUpdate.winner} wins ${homeScore}-${awayScore}`
+                : `Game ${game_number} result recorded`
         });
 
     } catch (error) {

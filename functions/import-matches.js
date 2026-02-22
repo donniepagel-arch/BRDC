@@ -23,7 +23,7 @@ exports.createGlobalPlayersFromRosters = functions.https.onRequest(async (req, r
     res.set('Access-Control-Allow-Origin', '*');
     if (req.method === 'OPTIONS') {
         res.set('Access-Control-Allow-Methods', 'POST');
-        res.set('Access-Control-Allow-Headers', 'Content-Type');
+        res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
         res.status(204).send('');
         return;
     }
@@ -153,7 +153,7 @@ exports.consolidatePlayerIds = functions.https.onRequest(async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
     if (req.method === 'OPTIONS') {
         res.set('Access-Control-Allow-Methods', 'POST');
-        res.set('Access-Control-Allow-Headers', 'Content-Type');
+        res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
         res.status(204).send('');
         return;
     }
@@ -365,7 +365,7 @@ exports.lookupPlayersByEmail = functions.https.onRequest(async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
     if (req.method === 'OPTIONS') {
         res.set('Access-Control-Allow-Methods', 'POST');
-        res.set('Access-Control-Allow-Headers', 'Content-Type');
+        res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
         res.status(204).send('');
         return;
     }
@@ -435,7 +435,7 @@ exports.migrateLeagueToGlobalIds = functions.https.onRequest(async (req, res) =>
     res.set('Access-Control-Allow-Origin', '*');
     if (req.method === 'OPTIONS') {
         res.set('Access-Control-Allow-Methods', 'POST');
-        res.set('Access-Control-Allow-Headers', 'Content-Type');
+        res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
         res.status(204).send('');
         return;
     }
@@ -668,7 +668,7 @@ exports.importMatchData = functions.https.onRequest(async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
     if (req.method === 'OPTIONS') {
         res.set('Access-Control-Allow-Methods', 'POST');
-        res.set('Access-Control-Allow-Headers', 'Content-Type');
+        res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
         res.status(204).send('');
         return;
     }
@@ -907,7 +907,7 @@ exports.fixMatchScores = functions.https.onRequest(async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
     if (req.method === 'OPTIONS') {
         res.set('Access-Control-Allow-Methods', 'POST');
-        res.set('Access-Control-Allow-Headers', 'Content-Type');
+        res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
         res.status(204).send('');
         return;
     }
@@ -1022,7 +1022,7 @@ exports.updateToSetScores = functions.https.onRequest(async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
     if (req.method === 'OPTIONS') {
         res.set('Access-Control-Allow-Methods', 'POST');
-        res.set('Access-Control-Allow-Headers', 'Content-Type');
+        res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
         res.status(204).send('');
         return;
     }
@@ -1679,7 +1679,7 @@ exports.updateImportedMatchStats = functions.https.onRequest(async (req, res) =>
     res.set('Access-Control-Allow-Origin', '*');
     if (req.method === 'OPTIONS') {
         res.set('Access-Control-Allow-Methods', 'POST');
-        res.set('Access-Control-Allow-Headers', 'Content-Type');
+        res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
         res.status(204).send('');
         return;
     }
@@ -1859,7 +1859,7 @@ exports.setPlayerStatsFromPerformance = functions.https.onRequest(async (req, re
     res.set('Access-Control-Allow-Origin', '*');
     if (req.method === 'OPTIONS') {
         res.set('Access-Control-Allow-Methods', 'POST');
-        res.set('Access-Control-Allow-Headers', 'Content-Type');
+        res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
         res.status(204).send('');
         return;
     }
@@ -2259,7 +2259,7 @@ exports.syncPlayerNames = functions.https.onRequest(async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
     if (req.method === 'OPTIONS') {
         res.set('Access-Control-Allow-Methods', 'POST');
-        res.set('Access-Control-Allow-Headers', 'Content-Type');
+        res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
         res.status(204).send('');
         return;
     }
@@ -2337,7 +2337,7 @@ exports.clearLeagueStats = functions.https.onRequest(async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
     if (req.method === 'OPTIONS') {
         res.set('Access-Control-Allow-Methods', 'POST');
-        res.set('Access-Control-Allow-Headers', 'Content-Type');
+        res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
         res.status(204).send('');
         return;
     }
@@ -2397,7 +2397,7 @@ exports.recalculateAllLeagueStats = functions.https.onRequest(async (req, res) =
     res.set('Access-Control-Allow-Origin', '*');
     if (req.method === 'OPTIONS') {
         res.set('Access-Control-Allow-Methods', 'POST');
-        res.set('Access-Control-Allow-Headers', 'Content-Type');
+        res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
         res.status(204).send('');
         return;
     }

@@ -1,86 +1,11 @@
 /**
  * Admin Functions
- * Secure admin operations with PIN authentication
+ * Secure admin operations with Firebase Auth authentication
  */
 
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
-
-// Admin PIN from environment variable (set in .env file)
-const ADMIN_PIN = process.env.ADMIN_PIN;
-
-/**
- * Verify admin PIN
- */
-function verifyAdminPin(pin) {
-    if (!ADMIN_PIN) {
-        console.error('ADMIN_PIN not configured in environment');
-        return false;
-    }
-    // Normalize PIN (remove dashes)
-    const normalizedPin = pin ? pin.replace(/-/g, '') : '';
-    return normalizedPin === ADMIN_PIN;
-}
-
-/**
- * Admin login - verify PIN and return admin token
- */
-exports.adminLogin = functions.https.onRequest(async (req, res) => {
-    res.set('Access-Control-Allow-Origin', '*');
-    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
-
-    if (req.method === 'OPTIONS') return res.status(204).send('');
-
-    try {
-        const { pin } = req.body;
-
-        if (!verifyAdminPin(pin)) {
-            return res.status(401).json({ success: false, error: 'Invalid admin PIN' });
-        }
-
-        // Generate session token
-        const sessionToken = require('crypto').randomBytes(32).toString('hex');
-        const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
-
-        // Store session
-        await admin.firestore().collection('admin_sessions').doc(sessionToken).set({
-            created_at: admin.firestore.FieldValue.serverTimestamp(),
-            expires_at: expiresAt,
-            active: true
-        });
-
-        res.json({
-            success: true,
-            token: sessionToken,
-            expires_at: expiresAt.toISOString()
-        });
-
-    } catch (error) {
-        console.error('Admin login error:', error);
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
-
-/**
- * Verify admin session token
- */
-async function verifyAdminSession(token) {
-    if (!token) return false;
-
-    try {
-        const sessionDoc = await admin.firestore().collection('admin_sessions').doc(token).get();
-        if (!sessionDoc.exists) return false;
-
-        const session = sessionDoc.data();
-        if (!session.active) return false;
-        if (session.expires_at.toDate() < new Date()) return false;
-
-        return true;
-    } catch (e) {
-        return false;
-    }
-}
+const { verifyFirebaseAuth } = require('./src/firebase-auth-helper');
 
 /**
  * Clear all data except bots
@@ -93,10 +18,14 @@ exports.adminClearData = functions.https.onRequest(async (req, res) => {
     if (req.method === 'OPTIONS') return res.status(204).send('');
 
     try {
-        const { pin, confirm } = req.body;
+        const { confirm } = req.body;
 
-        if (!verifyAdminPin(pin)) {
-            return res.status(401).json({ success: false, error: 'Invalid admin PIN' });
+        const authPlayer = await verifyFirebaseAuth(req);
+        if (!authPlayer) {
+            return res.status(401).json({ success: false, error: 'Unauthorized' });
+        }
+        if (!authPlayer.is_admin && !authPlayer.is_master_admin) {
+            return res.status(403).json({ success: false, error: 'Admin access required' });
         }
 
         if (confirm !== 'DELETE_ALL_DATA') {
@@ -188,15 +117,19 @@ exports.adminClearData = functions.https.onRequest(async (req, res) => {
 exports.adminDeleteLeague = functions.https.onRequest(async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
     if (req.method === 'OPTIONS') return res.status(204).send('');
 
     try {
-        const { pin, league_id } = req.body;
+        const { league_id } = req.body;
 
-        if (!verifyAdminPin(pin)) {
-            return res.status(401).json({ success: false, error: 'Invalid admin PIN' });
+        const authPlayer = await verifyFirebaseAuth(req);
+        if (!authPlayer) {
+            return res.status(401).json({ success: false, error: 'Unauthorized' });
+        }
+        if (!authPlayer.is_admin && !authPlayer.is_master_admin) {
+            return res.status(403).json({ success: false, error: 'Admin access required' });
         }
 
         if (!league_id) {
@@ -238,15 +171,19 @@ exports.adminDeleteLeague = functions.https.onRequest(async (req, res) => {
 exports.adminDeleteTournament = functions.https.onRequest(async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
     if (req.method === 'OPTIONS') return res.status(204).send('');
 
     try {
-        const { pin, tournament_id } = req.body;
+        const { tournament_id } = req.body;
 
-        if (!verifyAdminPin(pin)) {
-            return res.status(401).json({ success: false, error: 'Invalid admin PIN' });
+        const authPlayer = await verifyFirebaseAuth(req);
+        if (!authPlayer) {
+            return res.status(401).json({ success: false, error: 'Unauthorized' });
+        }
+        if (!authPlayer.is_admin && !authPlayer.is_master_admin) {
+            return res.status(403).json({ success: false, error: 'Admin access required' });
         }
 
         if (!tournament_id) {
@@ -288,15 +225,17 @@ exports.adminDeleteTournament = functions.https.onRequest(async (req, res) => {
 exports.adminGetPlayers = functions.https.onRequest(async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
     if (req.method === 'OPTIONS') return res.status(204).send('');
 
     try {
-        const { pin } = req.body;
-
-        if (!verifyAdminPin(pin)) {
-            return res.status(401).json({ success: false, error: 'Invalid admin PIN' });
+        const authPlayer = await verifyFirebaseAuth(req);
+        if (!authPlayer) {
+            return res.status(401).json({ success: false, error: 'Unauthorized' });
+        }
+        if (!authPlayer.is_admin && !authPlayer.is_master_admin) {
+            return res.status(403).json({ success: false, error: 'Admin access required' });
         }
 
         const db = admin.firestore();
@@ -336,15 +275,19 @@ exports.adminGetPlayers = functions.https.onRequest(async (req, res) => {
 exports.adminUpdatePlayer = functions.https.onRequest(async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
     if (req.method === 'OPTIONS') return res.status(204).send('');
 
     try {
-        const { pin, player_id, updates } = req.body;
+        const { player_id, updates } = req.body;
 
-        if (!verifyAdminPin(pin)) {
-            return res.status(401).json({ success: false, error: 'Invalid admin PIN' });
+        const authPlayer = await verifyFirebaseAuth(req);
+        if (!authPlayer) {
+            return res.status(401).json({ success: false, error: 'Unauthorized' });
+        }
+        if (!authPlayer.is_admin && !authPlayer.is_master_admin) {
+            return res.status(403).json({ success: false, error: 'Admin access required' });
         }
 
         if (!player_id) {
@@ -391,15 +334,19 @@ exports.adminUpdatePlayer = functions.https.onRequest(async (req, res) => {
 exports.adminDeletePlayer = functions.https.onRequest(async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
     if (req.method === 'OPTIONS') return res.status(204).send('');
 
     try {
-        const { pin, player_id } = req.body;
+        const { player_id } = req.body;
 
-        if (!verifyAdminPin(pin)) {
-            return res.status(401).json({ success: false, error: 'Invalid admin PIN' });
+        const authPlayer = await verifyFirebaseAuth(req);
+        if (!authPlayer) {
+            return res.status(401).json({ success: false, error: 'Unauthorized' });
+        }
+        if (!authPlayer.is_admin && !authPlayer.is_master_admin) {
+            return res.status(403).json({ success: false, error: 'Admin access required' });
         }
 
         if (!player_id) {
@@ -435,15 +382,19 @@ exports.adminDeletePlayer = functions.https.onRequest(async (req, res) => {
 exports.adminFixPlayerPin = functions.https.onRequest(async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
     if (req.method === 'OPTIONS') return res.status(204).send('');
 
     try {
-        const { pin, player_name, send_sms } = req.body;
+        const { player_name, send_sms } = req.body;
 
-        if (!verifyAdminPin(pin)) {
-            return res.status(401).json({ success: false, error: 'Invalid admin PIN' });
+        const authPlayer = await verifyFirebaseAuth(req);
+        if (!authPlayer) {
+            return res.status(401).json({ success: false, error: 'Unauthorized' });
+        }
+        if (!authPlayer.is_admin && !authPlayer.is_master_admin) {
+            return res.status(403).json({ success: false, error: 'Admin access required' });
         }
 
         if (!player_name) {
@@ -564,15 +515,17 @@ async function sendPinUpdateSMS(phone, name, newPin) {
 exports.adminGetDashboard = functions.https.onRequest(async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
     if (req.method === 'OPTIONS') return res.status(204).send('');
 
     try {
-        const { pin } = req.body;
-
-        if (!verifyAdminPin(pin)) {
-            return res.status(401).json({ success: false, error: 'Invalid admin PIN' });
+        const authPlayer = await verifyFirebaseAuth(req);
+        if (!authPlayer) {
+            return res.status(401).json({ success: false, error: 'Unauthorized' });
+        }
+        if (!authPlayer.is_admin && !authPlayer.is_master_admin) {
+            return res.status(403).json({ success: false, error: 'Admin access required' });
         }
 
         const db = admin.firestore();
@@ -653,15 +606,19 @@ exports.adminGetDashboard = functions.https.onRequest(async (req, res) => {
 exports.adminRegisterSelf = functions.https.onRequest(async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
     if (req.method === 'OPTIONS') return res.status(204).send('');
 
     try {
-        const { pin, name, email, phone } = req.body;
+        const { name, email, phone } = req.body;
 
-        if (!verifyAdminPin(pin)) {
-            return res.status(401).json({ success: false, error: 'Invalid admin PIN' });
+        const authPlayer = await verifyFirebaseAuth(req);
+        if (!authPlayer) {
+            return res.status(401).json({ success: false, error: 'Unauthorized' });
+        }
+        if (!authPlayer.is_admin && !authPlayer.is_master_admin) {
+            return res.status(403).json({ success: false, error: 'Admin access required' });
         }
 
         if (!name || !email || !phone) {
@@ -673,16 +630,13 @@ exports.adminRegisterSelf = functions.https.onRequest(async (req, res) => {
         const phoneClean = phone.replace(/\D/g, '');
         const phoneLast4 = phoneClean.slice(-4);
 
-        // Check if admin player already exists
-        const existingPlayer = await db.collection('players')
-            .where('pin', '==', ADMIN_PIN)
-            .limit(1)
-            .get();
+        // Check if admin player already exists by ID
+        const existingPlayerRef = db.collection('players').doc(authPlayer.id);
+        const existingPlayerDoc = await existingPlayerRef.get();
 
-        if (!existingPlayer.empty) {
+        if (existingPlayerDoc.exists) {
             // Update existing
-            const playerDoc = existingPlayer.docs[0];
-            await playerDoc.ref.update({
+            await existingPlayerRef.update({
                 name: name.trim(),
                 email: emailLower,
                 phone: phoneClean,
@@ -692,9 +646,8 @@ exports.adminRegisterSelf = functions.https.onRequest(async (req, res) => {
 
             return res.json({
                 success: true,
-                player_id: playerDoc.id,
-                message: 'Admin profile updated',
-                pin: ADMIN_PIN
+                player_id: authPlayer.id,
+                message: 'Admin profile updated'
             });
         }
 
@@ -705,10 +658,9 @@ exports.adminRegisterSelf = functions.https.onRequest(async (req, res) => {
             phone: phoneClean,
             phone_last4: phoneLast4,
             zip: null,
-            pin: ADMIN_PIN,
-            chosen_pin: '2911',
             isBot: false,
             isAdmin: true,
+            is_admin: true,
             created_at: admin.firestore.FieldValue.serverTimestamp(),
             updated_at: admin.firestore.FieldValue.serverTimestamp(),
             stats: {
@@ -725,13 +677,12 @@ exports.adminRegisterSelf = functions.https.onRequest(async (req, res) => {
             }
         };
 
-        const playerRef = await db.collection('players').add(playerData);
+        await existingPlayerRef.set(playerData);
 
         res.json({
             success: true,
-            player_id: playerRef.id,
-            pin: ADMIN_PIN,
-            message: `Admin player "${name}" created with PIN ${ADMIN_PIN}`
+            player_id: authPlayer.id,
+            message: `Admin player "${name}" created`
         });
 
     } catch (error) {
@@ -746,15 +697,19 @@ exports.adminRegisterSelf = functions.https.onRequest(async (req, res) => {
 exports.adminUpdateLeague = functions.https.onRequest(async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
     if (req.method === 'OPTIONS') return res.status(204).send('');
 
     try {
-        const { pin, league_id, updates } = req.body;
+        const { league_id, updates } = req.body;
 
-        if (!verifyAdminPin(pin)) {
-            return res.status(401).json({ success: false, error: 'Invalid admin PIN' });
+        const authPlayer = await verifyFirebaseAuth(req);
+        if (!authPlayer) {
+            return res.status(401).json({ success: false, error: 'Unauthorized' });
+        }
+        if (!authPlayer.is_admin && !authPlayer.is_master_admin) {
+            return res.status(403).json({ success: false, error: 'Admin access required' });
         }
 
         if (!league_id) {
@@ -797,15 +752,19 @@ exports.adminUpdateLeague = functions.https.onRequest(async (req, res) => {
 exports.adminUpdateTournament = functions.https.onRequest(async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
     if (req.method === 'OPTIONS') return res.status(204).send('');
 
     try {
-        const { pin, tournament_id, updates } = req.body;
+        const { tournament_id, updates } = req.body;
 
-        if (!verifyAdminPin(pin)) {
-            return res.status(401).json({ success: false, error: 'Invalid admin PIN' });
+        const authPlayer = await verifyFirebaseAuth(req);
+        if (!authPlayer) {
+            return res.status(401).json({ success: false, error: 'Unauthorized' });
+        }
+        if (!authPlayer.is_admin && !authPlayer.is_master_admin) {
+            return res.status(403).json({ success: false, error: 'Admin access required' });
         }
 
         if (!tournament_id) {
@@ -848,15 +807,17 @@ exports.adminUpdateTournament = functions.https.onRequest(async (req, res) => {
 exports.adminGetMembers = functions.https.onRequest(async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
     if (req.method === 'OPTIONS') return res.status(204).send('');
 
     try {
-        const { pin } = req.body;
-
-        if (!verifyAdminPin(pin)) {
-            return res.status(401).json({ success: false, error: 'Invalid admin PIN' });
+        const authPlayer = await verifyFirebaseAuth(req);
+        if (!authPlayer) {
+            return res.status(401).json({ success: false, error: 'Unauthorized' });
+        }
+        if (!authPlayer.is_admin && !authPlayer.is_master_admin) {
+            return res.status(403).json({ success: false, error: 'Admin access required' });
         }
 
         const db = admin.firestore();
@@ -905,15 +866,19 @@ exports.adminGetMembers = functions.https.onRequest(async (req, res) => {
 exports.adminUpdateMemberPermissions = functions.https.onRequest(async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
     if (req.method === 'OPTIONS') return res.status(204).send('');
 
     try {
-        const { pin, player_id, permissions } = req.body;
+        const { player_id, permissions } = req.body;
 
-        if (!verifyAdminPin(pin)) {
-            return res.status(401).json({ success: false, error: 'Invalid admin PIN' });
+        const authPlayer = await verifyFirebaseAuth(req);
+        if (!authPlayer) {
+            return res.status(401).json({ success: false, error: 'Unauthorized' });
+        }
+        if (!authPlayer.is_admin && !authPlayer.is_master_admin) {
+            return res.status(403).json({ success: false, error: 'Admin access required' });
         }
 
         if (!player_id) {
@@ -955,47 +920,15 @@ exports.adminUpdateMemberPermissions = functions.https.onRequest(async (req, res
 exports.getMemberPermissions = functions.https.onRequest(async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
     if (req.method === 'OPTIONS') return res.status(204).send('');
 
     try {
-        const { player_pin } = req.body;
-
-        if (!player_pin) {
-            return res.status(400).json({ success: false, error: 'player_pin required' });
+        const authPlayer = await verifyFirebaseAuth(req);
+        if (!authPlayer) {
+            return res.status(401).json({ success: false, error: 'Unauthorized' });
         }
-
-        const db = admin.firestore();
-
-        // Normalize PIN
-        const normalizedPin = player_pin.replace(/-/g, '');
-
-        // Check if admin
-        if (normalizedPin === ADMIN_PIN) {
-            return res.json({
-                success: true,
-                isAdmin: true,
-                permissions: {
-                    can_create_leagues: true,
-                    can_create_tournaments: true,
-                    max_tournament_players: 999,
-                    max_tournament_events: 99
-                }
-            });
-        }
-
-        // Find player by PIN
-        const playerSnap = await db.collection('players')
-            .where('pin', '==', normalizedPin)
-            .limit(1)
-            .get();
-
-        if (playerSnap.empty) {
-            return res.status(404).json({ success: false, error: 'Player not found' });
-        }
-
-        const player = playerSnap.docs[0].data();
 
         // Default permissions
         const defaultPerms = {
@@ -1005,15 +938,17 @@ exports.getMemberPermissions = functions.https.onRequest(async (req, res) => {
             max_tournament_events: 2
         };
 
+        const isAdmin = authPlayer.is_admin || authPlayer.is_master_admin || authPlayer.isAdmin || false;
+
         res.json({
             success: true,
-            isAdmin: player.isAdmin || false,
-            permissions: player.isAdmin ? {
+            isAdmin,
+            permissions: isAdmin ? {
                 can_create_leagues: true,
                 can_create_tournaments: true,
                 max_tournament_players: 999,
                 max_tournament_events: 99
-            } : (player.permissions || defaultPerms)
+            } : (authPlayer.permissions || defaultPerms)
         });
 
     } catch (error) {
@@ -1028,15 +963,17 @@ exports.getMemberPermissions = functions.https.onRequest(async (req, res) => {
 exports.adminGetFeedback = functions.https.onRequest(async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
     if (req.method === 'OPTIONS') return res.status(204).send('');
 
     try {
-        const { pin } = req.body;
-
-        if (!verifyAdminPin(pin)) {
-            return res.status(401).json({ success: false, error: 'Invalid admin PIN' });
+        const authPlayer = await verifyFirebaseAuth(req);
+        if (!authPlayer) {
+            return res.status(401).json({ success: false, error: 'Unauthorized' });
+        }
+        if (!authPlayer.is_admin && !authPlayer.is_master_admin) {
+            return res.status(403).json({ success: false, error: 'Admin access required' });
         }
 
         const db = admin.firestore();
@@ -1064,15 +1001,19 @@ exports.adminGetFeedback = functions.https.onRequest(async (req, res) => {
 exports.adminUpdateFeedback = functions.https.onRequest(async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
     if (req.method === 'OPTIONS') return res.status(204).send('');
 
     try {
-        const { pin, feedback_id, status } = req.body;
+        const { feedback_id, status } = req.body;
 
-        if (!verifyAdminPin(pin)) {
-            return res.status(401).json({ success: false, error: 'Invalid admin PIN' });
+        const authPlayer = await verifyFirebaseAuth(req);
+        if (!authPlayer) {
+            return res.status(401).json({ success: false, error: 'Unauthorized' });
+        }
+        if (!authPlayer.is_admin && !authPlayer.is_master_admin) {
+            return res.status(403).json({ success: false, error: 'Admin access required' });
         }
 
         if (!feedback_id) {
@@ -1104,15 +1045,19 @@ exports.adminUpdateFeedback = functions.https.onRequest(async (req, res) => {
 exports.adminAddFeedback = functions.https.onRequest(async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
     if (req.method === 'OPTIONS') return res.status(204).send('');
 
     try {
-        const { pin, page, message } = req.body;
+        const { page, message } = req.body;
 
-        if (!verifyAdminPin(pin)) {
-            return res.status(401).json({ success: false, error: 'Invalid admin PIN' });
+        const authPlayer = await verifyFirebaseAuth(req);
+        if (!authPlayer) {
+            return res.status(401).json({ success: false, error: 'Unauthorized' });
+        }
+        if (!authPlayer.is_admin && !authPlayer.is_master_admin) {
+            return res.status(403).json({ success: false, error: 'Admin access required' });
         }
 
         if (!message) {
@@ -1142,15 +1087,19 @@ exports.adminAddFeedback = functions.https.onRequest(async (req, res) => {
 exports.adminDeleteFeedback = functions.https.onRequest(async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
     if (req.method === 'OPTIONS') return res.status(204).send('');
 
     try {
-        const { pin, feedback_id } = req.body;
+        const { feedback_id } = req.body;
 
-        if (!verifyAdminPin(pin)) {
-            return res.status(401).json({ success: false, error: 'Invalid admin PIN' });
+        const authPlayer = await verifyFirebaseAuth(req);
+        if (!authPlayer) {
+            return res.status(401).json({ success: false, error: 'Unauthorized' });
+        }
+        if (!authPlayer.is_admin && !authPlayer.is_master_admin) {
+            return res.status(403).json({ success: false, error: 'Admin access required' });
         }
 
         if (!feedback_id) {
@@ -1175,15 +1124,19 @@ exports.adminDeleteFeedback = functions.https.onRequest(async (req, res) => {
 exports.adminResetLeague = functions.https.onRequest(async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
     if (req.method === 'OPTIONS') return res.status(204).send('');
 
     try {
-        const { pin, league_id, league_name } = req.body;
+        const { league_id, league_name } = req.body;
 
-        if (!verifyAdminPin(pin)) {
-            return res.status(401).json({ success: false, error: 'Invalid admin PIN' });
+        const authPlayer = await verifyFirebaseAuth(req);
+        if (!authPlayer) {
+            return res.status(401).json({ success: false, error: 'Unauthorized' });
+        }
+        if (!authPlayer.is_admin && !authPlayer.is_master_admin) {
+            return res.status(403).json({ success: false, error: 'Admin access required' });
         }
 
         const db = admin.firestore();
@@ -1292,15 +1245,19 @@ exports.adminResetLeague = functions.https.onRequest(async (req, res) => {
 exports.adminCreateBotFromPlayer = functions.https.onRequest(async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
     if (req.method === 'OPTIONS') return res.status(204).send('');
 
     try {
-        const { pin, player_id, league_id, bot_name } = req.body;
+        const { player_id, league_id, bot_name } = req.body;
 
-        if (!verifyAdminPin(pin)) {
-            return res.status(401).json({ success: false, error: 'Invalid admin PIN' });
+        const authPlayer = await verifyFirebaseAuth(req);
+        if (!authPlayer) {
+            return res.status(401).json({ success: false, error: 'Unauthorized' });
+        }
+        if (!authPlayer.is_admin && !authPlayer.is_master_admin) {
+            return res.status(403).json({ success: false, error: 'Admin access required' });
         }
 
         if (!player_id) {
@@ -1503,15 +1460,19 @@ exports.adminCreateBotFromPlayer = functions.https.onRequest(async (req, res) =>
 exports.adminImportLeagueStats = functions.https.onRequest(async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
     if (req.method === 'OPTIONS') return res.status(204).send('');
 
     try {
-        const { pin, league_id, stats } = req.body;
+        const { league_id, stats } = req.body;
 
-        if (!verifyAdminPin(pin)) {
-            return res.status(401).json({ success: false, error: 'Invalid admin PIN' });
+        const authPlayer = await verifyFirebaseAuth(req);
+        if (!authPlayer) {
+            return res.status(401).json({ success: false, error: 'Unauthorized' });
+        }
+        if (!authPlayer.is_admin && !authPlayer.is_master_admin) {
+            return res.status(403).json({ success: false, error: 'Admin access required' });
         }
 
         if (!league_id) {
@@ -1563,15 +1524,19 @@ exports.adminImportLeagueStats = functions.https.onRequest(async (req, res) => {
 exports.adminImportMatchData = functions.https.onRequest(async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
     if (req.method === 'OPTIONS') return res.status(204).send('');
 
     try {
-        const { pin, league_id, match_id, match_data } = req.body;
+        const { league_id, match_id, match_data } = req.body;
 
-        if (!verifyAdminPin(pin)) {
-            return res.status(401).json({ success: false, error: 'Invalid admin PIN' });
+        const authPlayer = await verifyFirebaseAuth(req);
+        if (!authPlayer) {
+            return res.status(401).json({ success: false, error: 'Unauthorized' });
+        }
+        if (!authPlayer.is_admin && !authPlayer.is_master_admin) {
+            return res.status(403).json({ success: false, error: 'Admin access required' });
         }
 
         if (!league_id || !match_id) {
@@ -1623,15 +1588,19 @@ exports.adminImportMatchData = functions.https.onRequest(async (req, res) => {
 exports.adminCheckMatches = functions.https.onRequest(async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
     if (req.method === 'OPTIONS') return res.status(204).send('');
 
     try {
-        const { pin, league_id } = req.body;
+        const { league_id } = req.body;
 
-        if (!verifyAdminPin(pin)) {
-            return res.status(401).json({ success: false, error: 'Invalid admin PIN' });
+        const authPlayer = await verifyFirebaseAuth(req);
+        if (!authPlayer) {
+            return res.status(401).json({ success: false, error: 'Unauthorized' });
+        }
+        if (!authPlayer.is_admin && !authPlayer.is_master_admin) {
+            return res.status(403).json({ success: false, error: 'Admin access required' });
         }
 
         if (!league_id) {
@@ -1712,15 +1681,19 @@ exports.adminCheckMatches = functions.https.onRequest(async (req, res) => {
 exports.adminMarkWeekCompleted = functions.https.onRequest(async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
     if (req.method === 'OPTIONS') return res.status(204).send('');
 
     try {
-        const { pin, league_id, week } = req.body;
+        const { league_id, week } = req.body;
 
-        if (!verifyAdminPin(pin)) {
-            return res.status(401).json({ success: false, error: 'Invalid admin PIN' });
+        const authPlayer = await verifyFirebaseAuth(req);
+        if (!authPlayer) {
+            return res.status(401).json({ success: false, error: 'Unauthorized' });
+        }
+        if (!authPlayer.is_admin && !authPlayer.is_master_admin) {
+            return res.status(403).json({ success: false, error: 'Admin access required' });
         }
 
         if (!league_id || week === undefined) {
@@ -1776,15 +1749,19 @@ exports.adminMarkWeekCompleted = functions.https.onRequest(async (req, res) => {
 exports.adminUpdateLeaguePlayer = functions.https.onRequest(async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
     if (req.method === 'OPTIONS') return res.status(204).send('');
 
     try {
-        const { pin, league_id, player_id, updates } = req.body;
+        const { league_id, player_id, updates } = req.body;
 
-        if (!verifyAdminPin(pin)) {
-            return res.status(401).json({ success: false, error: 'Invalid admin PIN' });
+        const authPlayer = await verifyFirebaseAuth(req);
+        if (!authPlayer) {
+            return res.status(401).json({ success: false, error: 'Unauthorized' });
+        }
+        if (!authPlayer.is_admin && !authPlayer.is_master_admin) {
+            return res.status(403).json({ success: false, error: 'Admin access required' });
         }
 
         if (!league_id || !player_id) {
@@ -1827,15 +1804,19 @@ exports.adminUpdateLeaguePlayer = functions.https.onRequest(async (req, res) => 
 exports.adminSearchPlayers = functions.https.onRequest(async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
     if (req.method === 'OPTIONS') return res.status(204).send('');
 
     try {
-        const { pin, search_term } = req.body;
+        const { search_term } = req.body;
 
-        if (!verifyAdminPin(pin)) {
-            return res.status(401).json({ success: false, error: 'Invalid admin PIN' });
+        const authPlayer = await verifyFirebaseAuth(req);
+        if (!authPlayer) {
+            return res.status(401).json({ success: false, error: 'Unauthorized' });
+        }
+        if (!authPlayer.is_admin && !authPlayer.is_master_admin) {
+            return res.status(403).json({ success: false, error: 'Admin access required' });
         }
 
         if (!search_term) {

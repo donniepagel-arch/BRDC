@@ -69,71 +69,6 @@
             overflow: hidden;
         }
 
-        /* ========== HEADER BAR ========== */
-        .header-bar {
-            background: var(--bg-panel);
-            border-bottom: 3px solid var(--pink);
-            padding: 10px 16px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            flex-shrink: 0;
-        }
-
-        .header-logo { width: 32px; height: 32px; }
-
-        .header-title {
-            font-family: 'Bebas Neue', cursive;
-            font-size: 20px;
-            letter-spacing: 2px;
-            color: var(--pink);
-            flex: 1;
-        }
-
-        .live-badge {
-            background: var(--red);
-            color: white;
-            padding: 4px 10px;
-            border-radius: 12px;
-            font-weight: 800;
-            font-size: 11px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            animation: pulseLive 1.5s ease-in-out infinite;
-        }
-
-        .live-dot {
-            width: 8px;
-            height: 8px;
-            background: white;
-            border-radius: 50%;
-            animation: blink 1s ease-in-out infinite;
-        }
-
-        @keyframes pulseLive {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-        }
-
-        @keyframes blink {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.3; }
-        }
-
-        .viewer-count {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 12px;
-            color: var(--text-dim);
-            background: rgba(0,0,0,0.3);
-            padding: 6px 12px;
-            border-radius: 16px;
-        }
-
-        .viewer-count .icon { font-size: 14px; }
-
         .header-btn {
             background: var(--bg-card);
             border: 2px solid var(--text-dim);
@@ -874,22 +809,6 @@
     <div id="liveMatchApp" class="live-match-app" style="display: none;">
         <!-- Main Panel: Scoreboard + Match Details -->
         <div class="main-panel">
-            <!-- Header Bar -->
-            <header class="header-bar">
-                <img src="/images/gold_logo.png" alt="BRDC" class="header-logo" onerror="this.style.display='none'">
-                <div class="header-title">LIVE MATCH</div>
-                <div class="live-badge" id="liveBadge">
-                    <span class="live-dot"></span>
-                    LIVE
-                </div>
-                <div class="viewer-count" id="viewerCount">
-                    <span class="icon">👁️</span>
-                    <span id="viewerNumber">0</span> watching
-                </div>
-                <button class="header-btn" onclick="goToMatchHub()">Full Report</button>
-                <button class="header-btn mobile-chat-btn-inline" onclick="toggleChat()" style="display: none;">💬</button>
-            </header>
-
             <!-- Scoreboard Section -->
             <div class="scoreboard-section">
                 <div class="scoreboard-card">
@@ -1230,12 +1149,14 @@
             const statusEl = document.getElementById('matchStatus');
             if (match.status === 'completed') {
                 statusEl.textContent = 'FINAL';
-                document.getElementById('liveBadge').style.display = 'none';
+                const liveBadgeEl = document.getElementById('liveBadge');
+                if (liveBadgeEl) liveBadgeEl.style.display = 'none';
             } else if (match.status === 'in_progress') {
                 statusEl.textContent = 'In Progress';
             } else {
                 statusEl.textContent = 'Scheduled';
-                document.getElementById('liveBadge').style.display = 'none';
+                const liveBadgeEl2 = document.getElementById('liveBadge');
+                if (liveBadgeEl2) liveBadgeEl2.style.display = 'none';
             }
 
             // Calculate team averages from current players
@@ -1747,7 +1668,8 @@
                 } else {
                     viewerCount = 0;
                 }
-                document.getElementById('viewerNumber').textContent = viewerCount;
+                const viewerNumEl = document.getElementById('viewerNumber');
+                if (viewerNumEl) viewerNumEl.textContent = viewerCount;
             });
         }
 
@@ -1819,7 +1741,7 @@
     <script src="/js/display-helpers.js"></script>
     <script src="/js/presence.js"></script>
     <script src="/js/nav-menu.js"></script>
-<script src="/components/brdc-navigation-init.js"></script>
+<script src="/components/brdc-navigation-init.js?v=13"></script>
 <script>initBRDCNavigation({ page: 'live-match' });</script>
 </body>
 </html>

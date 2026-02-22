@@ -5,7 +5,7 @@
 
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
-const cors = require('cors')({origin: ['https://brdc-v2.web.app', 'https://brdc-v2.firebaseapp.com']});
+const cors = require('cors')({origin: ['https://brdc-v2.web.app', 'https://brdc-v2.firebaseapp.com', 'https://burningriverdarts.com', 'https://www.burningriverdarts.com']});
 
 admin.initializeApp();
 
@@ -633,18 +633,12 @@ function cleanUndefined(obj) {
   return obj;
 }
 
-// Helper to verify director PIN and get player ID
-async function verifyDirectorPin(pin) {
-  const playersSnapshot = await db.collection('players')
-    .where('pin', '==', pin)
-    .limit(1)
-    .get();
+// Helper to verify director identity via Firebase Auth and get player ID
+const { verifyFirebaseAuth } = require('./src/firebase-auth-helper');
 
-  if (playersSnapshot.empty) {
-    return null;
-  }
-
-  return playersSnapshot.docs[0].id;
+async function verifyDirectorPin(req) {
+  const player = await verifyFirebaseAuth(req);
+  return player ? player.id : null;
 }
 
 // ===== LEAGUE TEMPLATES =====
@@ -655,7 +649,7 @@ exports.saveLeagueTemplate = functions.https.onRequest((req, res) => {
       const { pin, director_pin, template_name, template_data } = req.body;
       const authPin = pin || director_pin;
 
-      const playerId = await verifyDirectorPin(authPin);
+      const playerId = await verifyDirectorPin(req);
       if (!playerId) {
         return res.status(401).json({ success: false, error: 'Invalid PIN' });
       }
@@ -685,7 +679,7 @@ exports.getLeagueTemplates = functions.https.onRequest((req, res) => {
 
       console.log('getLeagueTemplates called with PIN:', authPin ? 'provided' : 'missing');
 
-      const playerId = await verifyDirectorPin(authPin);
+      const playerId = await verifyDirectorPin(req);
       console.log('Verified player_id:', playerId);
 
       if (!playerId) {
@@ -723,7 +717,7 @@ exports.getLeagueTemplate = functions.https.onRequest((req, res) => {
       const { pin, director_pin, template_id } = req.body;
       const authPin = pin || director_pin;
 
-      const playerId = await verifyDirectorPin(authPin);
+      const playerId = await verifyDirectorPin(req);
       if (!playerId) {
         return res.status(401).json({ success: false, error: 'Invalid PIN' });
       }
@@ -752,7 +746,7 @@ exports.deleteLeagueTemplate = functions.https.onRequest((req, res) => {
       const { pin, director_pin, template_id } = req.body;
       const authPin = pin || director_pin;
 
-      const playerId = await verifyDirectorPin(authPin);
+      const playerId = await verifyDirectorPin(req);
       if (!playerId) {
         return res.status(401).json({ success: false, error: 'Invalid PIN' });
       }
@@ -783,7 +777,7 @@ exports.saveLeagueDraft = functions.https.onRequest((req, res) => {
       const { pin, director_pin, draft_data } = req.body;
       const authPin = pin || director_pin;
 
-      const playerId = await verifyDirectorPin(authPin);
+      const playerId = await verifyDirectorPin(req);
       if (!playerId) {
         return res.status(401).json({ success: false, error: 'Invalid PIN' });
       }
@@ -824,7 +818,7 @@ exports.getLeagueDraft = functions.https.onRequest((req, res) => {
       const { pin, director_pin } = req.body;
       const authPin = pin || director_pin;
 
-      const playerId = await verifyDirectorPin(authPin);
+      const playerId = await verifyDirectorPin(req);
       if (!playerId) {
         return res.status(401).json({ success: false, error: 'Invalid PIN' });
       }
@@ -860,7 +854,7 @@ exports.deleteLeagueDraft = functions.https.onRequest((req, res) => {
       const { pin, director_pin } = req.body;
       const authPin = pin || director_pin;
 
-      const playerId = await verifyDirectorPin(authPin);
+      const playerId = await verifyDirectorPin(req);
       if (!playerId) {
         return res.status(401).json({ success: false, error: 'Invalid PIN' });
       }
@@ -890,7 +884,7 @@ exports.saveTournamentTemplate = functions.https.onRequest((req, res) => {
       const { pin, director_pin, template_name, template_data } = req.body;
       const authPin = pin || director_pin;
 
-      const playerId = await verifyDirectorPin(authPin);
+      const playerId = await verifyDirectorPin(req);
       if (!playerId) {
         return res.status(401).json({ success: false, error: 'Invalid PIN' });
       }
@@ -920,7 +914,7 @@ exports.getTournamentTemplates = functions.https.onRequest((req, res) => {
 
       console.log('getTournamentTemplates called with PIN:', authPin ? 'provided' : 'missing');
 
-      const playerId = await verifyDirectorPin(authPin);
+      const playerId = await verifyDirectorPin(req);
       console.log('Verified player_id:', playerId);
 
       if (!playerId) {
@@ -958,7 +952,7 @@ exports.getTournamentTemplate = functions.https.onRequest((req, res) => {
       const { pin, director_pin, template_id } = req.body;
       const authPin = pin || director_pin;
 
-      const playerId = await verifyDirectorPin(authPin);
+      const playerId = await verifyDirectorPin(req);
       if (!playerId) {
         return res.status(401).json({ success: false, error: 'Invalid PIN' });
       }
@@ -987,7 +981,7 @@ exports.deleteTournamentTemplate = functions.https.onRequest((req, res) => {
       const { pin, director_pin, template_id } = req.body;
       const authPin = pin || director_pin;
 
-      const playerId = await verifyDirectorPin(authPin);
+      const playerId = await verifyDirectorPin(req);
       if (!playerId) {
         return res.status(401).json({ success: false, error: 'Invalid PIN' });
       }
@@ -1018,7 +1012,7 @@ exports.saveTournamentDraft = functions.https.onRequest((req, res) => {
       const { pin, director_pin, draft_data } = req.body;
       const authPin = pin || director_pin;
 
-      const playerId = await verifyDirectorPin(authPin);
+      const playerId = await verifyDirectorPin(req);
       if (!playerId) {
         return res.status(401).json({ success: false, error: 'Invalid PIN' });
       }
@@ -1059,7 +1053,7 @@ exports.getTournamentDraft = functions.https.onRequest((req, res) => {
       const { pin, director_pin } = req.body;
       const authPin = pin || director_pin;
 
-      const playerId = await verifyDirectorPin(authPin);
+      const playerId = await verifyDirectorPin(req);
       if (!playerId) {
         return res.status(401).json({ success: false, error: 'Invalid PIN' });
       }
@@ -1095,7 +1089,7 @@ exports.deleteTournamentDraft = functions.https.onRequest((req, res) => {
       const { pin, director_pin } = req.body;
       const authPin = pin || director_pin;
 
-      const playerId = await verifyDirectorPin(authPin);
+      const playerId = await verifyDirectorPin(req);
       if (!playerId) {
         return res.status(401).json({ success: false, error: 'Invalid PIN' });
       }
@@ -1168,7 +1162,9 @@ exports.updateMatchDates = functions.https.onRequest((req, res) => {
 
       console.log('Updating match dates for league:', league_id, 'with start_date:', useStartDate);
 
-      const newStartDate = new Date(useStartDate);
+      // Parse start_date as local date components to avoid UTC/DST timezone shifts
+      const dateParts = useStartDate.split('-').map(Number);
+      const newStartDate = new Date(dateParts[0], dateParts[1] - 1, dateParts[2]);
       if (isNaN(newStartDate.getTime())) {
         return res.status(400).json({ success: false, error: 'Invalid start_date format' });
       }
@@ -1203,14 +1199,22 @@ exports.updateMatchDates = functions.https.onRequest((req, res) => {
 
       let currentDate = new Date(newStartDate);
 
+      // Timezone-safe date formatting (no UTC conversion that causes DST shifts)
+      const formatLocalDate = (d) => {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+      };
+
       for (const week of weeks) {
         // Skip blackout dates
-        let dateStr = currentDate.toISOString().split('T')[0];
+        let dateStr = formatLocalDate(currentDate);
         while (blackoutDates.has(dateStr)) {
           console.log(`Week ${week}: Skipping blackout date ${dateStr}`);
           skippedWeeks++;
           currentDate.setDate(currentDate.getDate() + 7);
-          dateStr = currentDate.toISOString().split('T')[0];
+          dateStr = formatLocalDate(currentDate);
         }
 
         // Update all matches for this week
@@ -1338,7 +1342,7 @@ exports.updatePlayerTeam = functions.https.onRequest((req, res) => {
 exports.markPlayersAsFillins = functions.https.onRequest(async (req, res) => {
   res.set('Access-Control-Allow-Origin', '*');
   res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.set('Access-Control-Allow-Headers', 'Content-Type');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (req.method === 'OPTIONS') return res.status(204).send('');
 
@@ -1392,7 +1396,7 @@ exports.markPlayersAsFillins = functions.https.onRequest(async (req, res) => {
 exports.addFillinsToMatchLineup = functions.https.onRequest(async (req, res) => {
   res.set('Access-Control-Allow-Origin', '*');
   res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.set('Access-Control-Allow-Headers', 'Content-Type');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (req.method === 'OPTIONS') return res.status(204).send('');
 
@@ -1479,7 +1483,7 @@ exports.addFillinsToMatchLineup = functions.https.onRequest(async (req, res) => 
 exports.listLeagueMatches = functions.https.onRequest(async (req, res) => {
   res.set('Access-Control-Allow-Origin', '*');
   res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.set('Access-Control-Allow-Headers', 'Content-Type');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (req.method === 'OPTIONS') return res.status(204).send('');
 
@@ -1855,6 +1859,66 @@ exports.getPlayerStatsFiltered = functions.https.onRequest((req, res) => {
     } catch (error) {
       console.error('Error getting filtered stats:', error);
       res.status(500).json({ success: false, error: error.message });
+    }
+  });
+});
+
+/**
+ * Create a custom group chat room
+ * POST /createGroupChatRoom
+ * Body: { player_pin, name, participant_ids: [playerId, ...] }
+ */
+exports.createGroupChatRoom = functions.https.onRequest((req, res) => {
+  cors(req, res, async () => {
+    if (req.method !== 'POST') return res.status(405).json({ success: false, error: 'Method not allowed' });
+
+    try {
+      const { player_pin, name, participant_ids } = req.body;
+
+      if (!player_pin || !name || !participant_ids || !participant_ids.length) {
+        return res.status(400).json({ success: false, error: 'Missing required fields' });
+      }
+
+      // Look up the creator by PIN
+      const playerQuery = await admin.firestore()
+        .collection('players')
+        .where('pin', '==', player_pin)
+        .limit(1)
+        .get();
+
+      if (playerQuery.empty) {
+        return res.status(401).json({ success: false, error: 'Invalid PIN' });
+      }
+
+      const creatorDoc = playerQuery.docs[0];
+      const creatorId = creatorDoc.id;
+      const creatorName = creatorDoc.data().name || 'Unknown';
+
+      // Build full participants list (creator + selected)
+      const allParticipants = [...new Set([creatorId, ...participant_ids])];
+
+      // Create the room
+      const roomRef = admin.firestore().collection('chat_rooms').doc();
+      await roomRef.set({
+        name: name.trim(),
+        type: 'group',
+        participants: allParticipants,
+        created_by: creatorId,
+        created_by_name: creatorName,
+        created_at: admin.firestore.FieldValue.serverTimestamp(),
+        last_message: null,
+        unread_counts: {}
+      });
+
+      return res.json({
+        success: true,
+        room_id: roomRef.id,
+        name: name.trim()
+      });
+
+    } catch (error) {
+      console.error('createGroupChatRoom error:', error);
+      return res.status(500).json({ success: false, error: error.message });
     }
   });
 });

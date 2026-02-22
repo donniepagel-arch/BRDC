@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="manifest" href="/manifest.json">
     <title>Director Dashboard - Matchmaker</title>
     <link rel="icon" type="image/png" href="/images/favicon.png">
     <style>
@@ -30,36 +31,6 @@
             min-height: 100vh;
             min-height: 100dvh;
             color: var(--text-light);
-        }
-
-        .header-bar {
-            background: var(--bg-panel);
-            border-bottom: 3px solid var(--pink);
-            padding: 16px 20px;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-        }
-
-        .back-btn {
-            background: rgba(255,255,255,0.1);
-            color: white;
-            border: 2px solid rgba(255,255,255,0.3);
-            padding: 10px 16px;
-            font-weight: 700;
-            cursor: pointer;
-            border-radius: 6px;
-        }
-
-        .header-title {
-            font-family: 'Bebas Neue', cursive;
-            font-size: 24px;
-            letter-spacing: 2px;
-            color: var(--pink);
-            flex: 1;
         }
 
         .container { max-width: 1200px; margin: 0 auto; padding: 30px 20px; }
@@ -115,6 +86,53 @@
             color: var(--danger);
             margin-top: 15px;
             font-weight: 600;
+        }
+
+        .login-divider {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 16px 0 4px;
+        }
+        .login-divider::before,
+        .login-divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: #333;
+        }
+        .login-divider span {
+            color: #555;
+            font-size: 12px;
+            font-family: 'Inter', sans-serif;
+            white-space: nowrap;
+        }
+        .btn-google {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            width: 100%;
+            padding: 12px 20px;
+            background: #fff;
+            color: #333;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-family: 'Inter', sans-serif;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+            margin-top: 8px;
+            transition: box-shadow 0.15s ease, transform 0.15s ease;
+        }
+        .btn-google:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+            transform: translateY(-1px);
+        }
+        .btn-google:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
         }
 
         /* Dashboard */
@@ -1127,17 +1145,21 @@
     </style>
 </head>
 <body>
-    <div class="header-bar">
-        <button class="back-btn" onclick="goBack()" aria-label="Go back">BACK</button>
-        <span class="header-title">MATCHMAKER DIRECTOR</span>
-    </div>
-
-    <!-- PIN Entry -->
+    <!-- Login Entry -->
     <div class="pin-container" id="pinContainer">
         <div class="pin-title">DIRECTOR LOGIN</div>
-        <input type="text" class="pin-input" id="pinInput" placeholder="••••••••" maxlength="8" inputmode="numeric" pattern="[0-9]*" autocomplete="off" onkeyup="if(event.key==='Enter')verifyPin()">
+        <input type="email" class="pin-input" id="emailInput" placeholder="your@email.com" autocomplete="email" style="letter-spacing:normal; font-size:18px;" onkeyup="if(event.key==='Enter')document.getElementById('passwordInput').focus()">
+        <input type="password" class="pin-input" id="passwordInput" placeholder="Password" autocomplete="current-password" style="letter-spacing:normal; font-size:18px;" onkeyup="if(event.key==='Enter')verifyPin()">
         <button class="pin-btn" onclick="verifyPin()">ENTER</button>
-        <div class="pin-error hidden" id="pinError">Invalid PIN</div>
+        <div style="text-align:center; margin-top: 12px;">
+            <a href="#" onclick="forgotPassword(); return false;" style="color: var(--text-dim, #888); font-size: 13px; text-decoration: none;">Forgot password?</a>
+        </div>
+        <div class="pin-error hidden" id="pinError">Invalid email or password</div>
+        <div class="login-divider"><span>OR</span></div>
+        <button type="button" class="btn-google" onclick="loginWithGoogle()">
+            <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.08 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-3.59-13.46-8.86l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+            Sign in with Google
+        </button>
     </div>
 
     <!-- Dashboard -->
@@ -1904,7 +1926,7 @@
     </div>
 
     <script type="module">
-        import { db, doc, getDoc, collection, getDocs, updateDoc, onSnapshot, callFunction } from '/js/firebase-config.js';
+        import { db, doc, getDoc, collection, getDocs, updateDoc, onSnapshot, callFunction, auth, signInWithEmailAndPassword, sendPasswordResetEmail, signInWithPopup, GoogleAuthProvider } from '/js/firebase-config.js';
 
         function goBack() {
             if (window.history.length > 1) {
@@ -1934,12 +1956,12 @@
             document.getElementById('publicViewLink').href = `/pages/matchmaker-view.html?id=${tournamentId}`;
             document.getElementById('viewBracketLink').href = `/pages/matchmaker-bracket.html?id=${tournamentId}`;
 
-            // Check for stored PIN
-            const storedPin = sessionStorage.getItem(`matchmaker_pin_${tournamentId}`);
-            if (storedPin) {
-                directorPin = storedPin;
+            // Check for active session
+            const storedSession = sessionStorage.getItem(`matchmaker_session_${tournamentId}`);
+            if (storedSession && auth.currentUser) {
+                directorPin = 'authenticated'; // Keep for legacy API calls; auth token handles actual authorization
                 await loadTournament();
-                if (tournamentData && tournamentData.director_pin === directorPin) {
+                if (tournamentData) {
                     showDashboard();
                 }
             }
@@ -1960,16 +1982,97 @@
         }
 
         window.verifyPin = async function() {
-            const pin = document.getElementById('pinInput').value;
-            if (!pin) return;
+            const email = document.getElementById('emailInput').value.trim();
+            const password = document.getElementById('passwordInput').value;
+            if (!email || !password) return;
 
-            await loadTournament();
+            document.getElementById('pinError').classList.add('hidden');
 
-            if (tournamentData && tournamentData.director_pin === pin) {
-                directorPin = pin;
-                sessionStorage.setItem(`matchmaker_pin_${tournamentId}`, pin);
-                showDashboard();
-            } else {
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+                const sessionData = await callFunction('getPlayerSession', {});
+                if (!sessionData.success) {
+                    document.getElementById('pinError').textContent = 'Login failed. Please try again.';
+                    document.getElementById('pinError').classList.remove('hidden');
+                    return;
+                }
+                const player = sessionData.player;
+                if (!player.is_director && !player.is_admin) {
+                    document.getElementById('pinError').textContent = 'Access denied. Director account required.';
+                    document.getElementById('pinError').classList.remove('hidden');
+                    return;
+                }
+
+                localStorage.setItem('brdc_session', JSON.stringify(player));
+                localStorage.removeItem('brdc_player_pin');
+                directorPin = 'authenticated'; // Keep for legacy API calls; auth token handles actual authorization
+
+                await loadTournament();
+                if (tournamentData) {
+                    sessionStorage.setItem(`matchmaker_session_${tournamentId}`, '1');
+                    showDashboard();
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+                    document.getElementById('pinError').textContent = 'Invalid email or password.';
+                } else {
+                    document.getElementById('pinError').textContent = 'Login error. Please try again.';
+                }
+                document.getElementById('pinError').classList.remove('hidden');
+            }
+        };
+
+        window.forgotPassword = async function() {
+            const email = document.getElementById('emailInput').value.trim();
+            if (!email) {
+                document.getElementById('pinError').textContent = 'Enter your email address first, then click Forgot password.';
+                document.getElementById('pinError').classList.remove('hidden');
+                return;
+            }
+            try {
+                await sendPasswordResetEmail(auth, email);
+                document.getElementById('pinError').textContent = 'Password reset email sent! Check your inbox.';
+                document.getElementById('pinError').classList.remove('hidden');
+            } catch (e) {
+                document.getElementById('pinError').textContent = 'Could not send reset email. Check the address and try again.';
+                document.getElementById('pinError').classList.remove('hidden');
+            }
+        };
+
+        window.loginWithGoogle = async function() {
+            document.getElementById('pinError').classList.add('hidden');
+            try {
+                const provider = new GoogleAuthProvider();
+                await signInWithPopup(auth, provider);
+                const sessionData = await callFunction('getPlayerSession', {});
+                if (!sessionData.success) {
+                    document.getElementById('pinError').textContent = 'Login failed. Please try again.';
+                    document.getElementById('pinError').classList.remove('hidden');
+                    return;
+                }
+                const player = sessionData.player;
+                if (!player.is_director && !player.is_admin) {
+                    document.getElementById('pinError').textContent = 'Access denied. Director account required.';
+                    document.getElementById('pinError').classList.remove('hidden');
+                    return;
+                }
+
+                localStorage.setItem('brdc_session', JSON.stringify(player));
+                localStorage.removeItem('brdc_player_pin');
+                directorPin = 'authenticated';
+
+                await loadTournament();
+                if (tournamentData) {
+                    sessionStorage.setItem(`matchmaker_session_${tournamentId}`, '1');
+                    showDashboard();
+                }
+            } catch (error) {
+                if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') return;
+                let msg = 'Google sign-in failed. Please try again.';
+                if (error.code === 'auth/popup-blocked') msg = 'Popup was blocked. Please allow popups for this site and try again.';
+                else if (error.message) msg = error.message;
+                document.getElementById('pinError').textContent = msg;
                 document.getElementById('pinError').classList.remove('hidden');
             }
         };
@@ -4225,7 +4328,7 @@
         <div class="spinner"></div>
         <div class="loader-text" id="loaderText">Checking in...</div>
     </div>
-    <script src="/components/brdc-navigation-init.js"></script>
+    <script src="/components/brdc-navigation-init.js?v=13"></script>
     <script>initBRDCNavigation({ page: 'matchmaker-director' });</script>
 </body>
 </html>

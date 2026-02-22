@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="manifest" href="/manifest.json">
     <title>Knockout Bracket - BRDC</title>
     <link rel="icon" type="image/png" href="/images/favicon.png">
     <meta name="mobile-web-app-capable" content="yes">
@@ -52,25 +53,6 @@
             z-index: -1;
         }
 
-        .header-bar {
-            background: var(--bg-panel);
-            border-bottom: 3px solid var(--pink);
-            padding: 16px 20px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
-        }
-
-        .header-left {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-
         .back-btn {
             background: rgba(255,255,255,0.1);
             color: white;
@@ -92,19 +74,6 @@
         .back-btn:active {
             background: rgba(255,255,255,0.2);
             transform: scale(0.98);
-        }
-
-        .header-title {
-            font-family: 'Bebas Neue', cursive;
-            font-size: 24px;
-            letter-spacing: 2px;
-            color: var(--pink);
-        }
-
-        .header-info {
-            font-size: 12px;
-            color: var(--teal);
-            font-weight: 600;
         }
 
         .container {
@@ -241,16 +210,6 @@
                 grid-template-columns: 1fr;
             }
 
-            .header-bar {
-                padding: 12px 15px;
-                flex-wrap: wrap;
-                gap: 10px;
-            }
-
-            .header-title {
-                font-size: 20px;
-            }
-
             .view-toggle {
                 order: 3;
                 width: 100%;
@@ -284,15 +243,6 @@
         }
 
         @media (max-width: 400px) {
-            .header-left {
-                gap: 10px;
-            }
-
-            .header-title {
-                font-size: 18px;
-                letter-spacing: 1px;
-            }
-
             .back-btn {
                 padding: 8px 10px;
                 font-size: 12px;
@@ -678,20 +628,6 @@
     </style>
 </head>
 <body>
-    <div class="header-bar">
-        <div class="header-left">
-            <button class="back-btn" onclick="goBack()" aria-label="Go back">← BACK</button>
-            <div>
-                <div class="header-title" id="knockoutTitle">KNOCKOUT</div>
-                <div class="header-info" id="knockoutInfo">Loading...</div>
-            </div>
-        </div>
-        <div class="view-toggle" id="viewToggle" style="display: none;">
-            <button class="view-btn active" data-view="list" onclick="setView('list')">LIST</button>
-            <button class="view-btn" data-view="tree" onclick="setView('tree')">TREE</button>
-        </div>
-    </div>
-
     <div class="container">
         <!-- Loading State -->
         <div id="loadingState" class="loading">
@@ -862,9 +798,11 @@
 
         // Render knockout
         function renderKnockout() {
-            // Update header
-            document.getElementById('knockoutTitle').textContent = currentKnockout.name.toUpperCase();
-            document.getElementById('knockoutInfo').textContent =
+            // Update header title elements if present
+            const titleEl = document.getElementById('knockoutTitle');
+            if (titleEl) titleEl.textContent = currentKnockout.name.toUpperCase();
+            const infoEl = document.getElementById('knockoutInfo');
+            if (infoEl) infoEl.textContent =
                 `${currentKnockout.format.toUpperCase()} • Best of ${currentKnockout.best_of}`;
 
             bracketStarted = hasBracketStarted();
@@ -873,7 +811,8 @@
             document.getElementById('shuffleSection').style.display = bracketStarted ? 'none' : 'block';
 
             // Show view toggle when bracket is active
-            document.getElementById('viewToggle').style.display = bracketStarted ? 'flex' : 'none';
+            const viewToggleEl = document.getElementById('viewToggle');
+            if (viewToggleEl) viewToggleEl.style.display = bracketStarted ? 'flex' : 'none';
 
             // Show champion if complete
             if (currentKnockout.champion) {
@@ -1233,8 +1172,10 @@
                 if (result.success && result.knockouts && result.knockouts.length > 0) {
                     document.getElementById('loadingState').style.display = 'none';
                     document.getElementById('activeKnockoutsState').style.display = 'block';
-                    document.getElementById('knockoutTitle').textContent = 'SELECT BRACKET';
-                    document.getElementById('knockoutInfo').textContent = `${result.knockouts.length} active`;
+                    const ktEl = document.getElementById('knockoutTitle');
+                    if (ktEl) ktEl.textContent = 'SELECT BRACKET';
+                    const kiEl = document.getElementById('knockoutInfo');
+                    if (kiEl) kiEl.textContent = `${result.knockouts.length} active`;
 
                     const list = document.getElementById('activeKnockoutsList');
                     list.innerHTML = result.knockouts.map(ko => `
@@ -1274,7 +1215,7 @@
         }
     </script>
 <script src="/js/nav-menu.js"></script>
-<script src="/components/brdc-navigation-init.js"></script>
+<script src="/components/brdc-navigation-init.js?v=13"></script>
 <script>initBRDCNavigation({ page: 'knockout' });</script>
 </body>
 </html>

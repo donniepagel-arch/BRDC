@@ -6,20 +6,9 @@
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 const cors = require('cors')({origin: true});
+const { verifyFirebaseAuth } = require('./src/firebase-auth-helper');
 
 const db = admin.firestore();
-
-// Helper: Verify player PIN
-async function verifyPlayer(pin) {
-    if (!pin) return null;
-    const playersSnapshot = await db.collection('players')
-        .where('pin', '==', pin)
-        .limit(1)
-        .get();
-
-    if (playersSnapshot.empty) return null;
-    return { id: playersSnapshot.docs[0].id, ...playersSnapshot.docs[0].data() };
-}
 
 /**
  * Create a quick mini tournament
@@ -28,7 +17,6 @@ exports.createMiniTournament = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
             const {
-                player_pin,
                 name,
                 game_type,
                 game_settings,
@@ -36,7 +24,7 @@ exports.createMiniTournament = functions.https.onRequest((req, res) => {
                 bracket_type
             } = req.body;
 
-            if (!player_pin || !players || !Array.isArray(players)) {
+            if (!players || !Array.isArray(players)) {
                 return res.status(400).json({ success: false, error: 'Missing required fields' });
             }
 
@@ -44,9 +32,9 @@ exports.createMiniTournament = functions.https.onRequest((req, res) => {
                 return res.status(400).json({ success: false, error: 'Must have 2-8 players' });
             }
 
-            const creator = await verifyPlayer(player_pin);
+            const creator = await verifyFirebaseAuth(req);
             if (!creator) {
-                return res.status(401).json({ success: false, error: 'Invalid PIN' });
+                return res.status(401).json({ success: false, error: 'Unauthorized' });
             }
 
             const creatorName = creator.name || `${creator.first_name} ${creator.last_name}`;
@@ -215,15 +203,15 @@ exports.getMiniTournament = functions.https.onRequest((req, res) => {
 exports.recordMiniTournamentMatch = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { player_pin, tournament_id, match_number, winner_name, winner_id, match_data } = req.body;
+            const { tournament_id, match_number, winner_name, winner_id, match_data } = req.body;
 
-            if (!player_pin || !tournament_id || !match_number || !winner_name) {
+            if (!tournament_id || !match_number || !winner_name) {
                 return res.status(400).json({ success: false, error: 'Missing required fields' });
             }
 
-            const player = await verifyPlayer(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
-                return res.status(401).json({ success: false, error: 'Invalid PIN' });
+                return res.status(401).json({ success: false, error: 'Unauthorized' });
             }
 
             const tournamentDoc = await db.collection('mini_tournaments').doc(tournament_id).get();
@@ -342,15 +330,11 @@ exports.recordMiniTournamentMatch = functions.https.onRequest((req, res) => {
 exports.getMiniTournamentHistory = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { player_pin, limit: resultLimit } = req.body;
+            const { limit: resultLimit } = req.body;
 
-            if (!player_pin) {
-                return res.status(400).json({ success: false, error: 'Missing player_pin' });
-            }
-
-            const player = await verifyPlayer(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
-                return res.status(401).json({ success: false, error: 'Invalid PIN' });
+                return res.status(401).json({ success: false, error: 'Unauthorized' });
             }
 
             const playerName = player.name || `${player.first_name} ${player.last_name}`;
@@ -386,15 +370,15 @@ exports.getMiniTournamentHistory = functions.https.onRequest((req, res) => {
 exports.searchPlayersForMiniTournament = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { player_pin, query: searchQuery } = req.body;
+            const { query: searchQuery } = req.body;
 
-            if (!player_pin || !searchQuery) {
+            if (!searchQuery) {
                 return res.status(400).json({ success: false, error: 'Missing required fields' });
             }
 
-            const player = await verifyPlayer(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
-                return res.status(401).json({ success: false, error: 'Invalid PIN' });
+                return res.status(401).json({ success: false, error: 'Unauthorized' });
             }
 
             const searchLower = searchQuery.toLowerCase();
@@ -435,9 +419,9 @@ exports.searchPlayersForMiniTournament = functions.https.onRequest((req, res) =>
 exports.createQuickBracket = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { player_pin, size, chat_room_id } = req.body;
+            const { size, chat_room_id } = req.body;
 
-            if (!player_pin || !size) {
+            if (!size) {
                 return res.status(400).json({ success: false, error: 'Missing required fields' });
             }
 
@@ -445,9 +429,9 @@ exports.createQuickBracket = functions.https.onRequest((req, res) => {
                 return res.status(400).json({ success: false, error: 'Size must be 2-8' });
             }
 
-            const player = await verifyPlayer(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
-                return res.status(401).json({ success: false, error: 'Invalid PIN' });
+                return res.status(401).json({ success: false, error: 'Unauthorized' });
             }
 
             const playerName = player.name || `${player.first_name} ${player.last_name}`;
@@ -543,15 +527,15 @@ exports.createQuickBracket = functions.https.onRequest((req, res) => {
 exports.updateBracketPlayers = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { player_pin, tournament_id, players } = req.body;
+            const { tournament_id, players } = req.body;
 
-            if (!player_pin || !tournament_id || !players) {
+            if (!tournament_id || !players) {
                 return res.status(400).json({ success: false, error: 'Missing required fields' });
             }
 
-            const player = await verifyPlayer(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
-                return res.status(401).json({ success: false, error: 'Invalid PIN' });
+                return res.status(401).json({ success: false, error: 'Unauthorized' });
             }
 
             const tournamentDoc = await db.collection('mini_tournaments').doc(tournament_id).get();

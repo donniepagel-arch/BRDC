@@ -31,49 +31,6 @@
             z-index: -1;
         }
 
-        .header-bar {
-            background: var(--bg-panel, #16213e);
-            border-bottom: 3px solid var(--pink, #FF469A);
-            padding: 16px 20px;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
-        }
-
-        .back-btn {
-            background: rgba(255,255,255,0.1);
-            border: 2px solid rgba(255,255,255,0.3);
-            color: white;
-            padding: 8px 16px;
-            border-radius: 6px;
-            font-weight: 700;
-            font-size: 12px;
-            cursor: pointer;
-            transition: all 0.15s;
-        }
-
-        .back-btn:hover {
-            background: rgba(255,255,255,0.2);
-            border-color: var(--pink, #FF469A);
-        }
-
-        .header-logo {
-            width: 40px;
-            height: 40px;
-        }
-
-        .header-title {
-            font-family: 'Bebas Neue', cursive;
-            font-size: 28px;
-            letter-spacing: 3px;
-            color: var(--pink, #FF469A);
-            flex: 1;
-        }
-
         .login-page {
             min-height: 100vh;
             min-height: 100dvh;
@@ -1035,9 +992,6 @@
         }
 
         @media (max-width: 480px) {
-            .header-bar { padding: 12px 15px; gap: 10px; }
-            .header-title { font-size: 22px; }
-            .back-btn { padding: 10px 14px; min-height: 44px; }
             .main-tab { padding: 12px 10px; font-size: 14px; min-height: 44px; }
             .lobby-container { padding: 12px; }
             .online-player { padding: 10px 6px; }
@@ -1060,9 +1014,24 @@
 
             <div id="loginForm">
                 <div class="login-title">DARTS HUB</div>
-                <p style="color: var(--text-dim, #8a8aa3); margin-bottom: 20px; font-size: 14px;">Enter your PIN to join the lobby</p>
-                <input type="text" id="pinInput" class="form-input" placeholder="........" maxlength="8" inputmode="numeric" pattern="[0-9]*" autocomplete="off" style="-webkit-text-security: disc;">
+                <p style="color: var(--text-dim, #8a8aa3); margin-bottom: 20px; font-size: 14px;">Sign in to join the lobby</p>
+                <div style="margin-bottom: 12px; text-align: left;">
+                    <label for="emailInput" style="display:block; font-size:12px; color:var(--text-dim,#888); margin-bottom:6px;">Email</label>
+                    <input type="email" class="form-input" id="emailInput" placeholder="your@email.com" autocomplete="email" style="letter-spacing:0;">
+                </div>
+                <div style="margin-bottom: 12px; text-align: left;">
+                    <label for="passwordInput" style="display:block; font-size:12px; color:var(--text-dim,#888); margin-bottom:6px;">Password</label>
+                    <input type="password" class="form-input" id="passwordInput" placeholder="Password" autocomplete="current-password" style="letter-spacing:0;">
+                </div>
                 <button id="loginBtn" class="login-btn" onclick="login()">LOGIN</button>
+                <div style="text-align:center; margin-top: 10px;">
+                    <a href="#" onclick="forgotPassword(); return false;" style="color: var(--text-dim,#888); font-size: 13px; text-decoration: none;">Forgot password?</a>
+                </div>
+                <div class="login-divider"><span>OR</span></div>
+                <button type="button" class="btn-google" onclick="loginWithGoogle()">
+                    <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.08 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-3.59-13.46-8.86l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+                    Sign in with Google
+                </button>
             </div>
 
             <div id="registerForm" style="display: none;">
@@ -1081,12 +1050,6 @@
 
     <!-- Main Content -->
     <div id="mainContent" class="main-content">
-        <div class="header-bar">
-            <button class="back-btn" onclick="goBack()" aria-label="Go back">← BACK</button>
-            <img src="/images/gold_logo.png" alt="BRDC" class="header-logo">
-            <span class="header-title">DARTS HUB</span>
-        </div>
-
         <!-- Main Tabs -->
         <div class="main-tabs" role="tablist" aria-label="Message sections">
             <button type="button" class="main-tab active" role="tab" aria-selected="true" data-tab="lobby" onclick="switchTab('lobby')">
@@ -1256,6 +1219,7 @@
     <!-- Fallback for when module fails to load -->
     <script>
         window.login = function() { toastWarning('Still loading... please wait a moment and try again.'); };
+        window.forgotPassword = function() { toastWarning('Still loading... please wait a moment and try again.'); };
         window.register = function() { toastWarning('Still loading... please wait a moment and try again.'); };
         window.showLoginTab = function() {};
         setTimeout(function() {
@@ -1266,7 +1230,7 @@
     </script>
 
     <script type="module">
-        import { db, collection, query, where, orderBy, onSnapshot, doc, setDoc, deleteDoc, callFunction, serverTimestamp } from '/js/firebase-config.js';
+        import { db, collection, query, where, orderBy, onSnapshot, doc, setDoc, deleteDoc, callFunction, serverTimestamp, auth, onAuthStateChanged, signInWithEmailAndPassword, sendPasswordResetEmail, signInWithPopup, GoogleAuthProvider } from '/js/firebase-config.js';
         window._moduleLoaded = true;
 
         function goBack() {
@@ -1306,7 +1270,7 @@
         let searchTimeout = null;
         let presenceInterval = null;
 
-        // Check for stored PIN
+        // Restore session via Firebase Auth
         async function init() {
             // Load push notifications module (fail-safe)
             try {
@@ -1316,49 +1280,50 @@
             } catch (e) {
                 console.warn('Push notifications not available:', e.message);
             }
-            let storedPin = safeStorage.getItem('brdc_player_pin');
 
-            // Fallback: check brdc_session (set by dashboard login)
-            if (!storedPin) {
-                try {
-                    const savedSession = safeStorage.getItem('brdc_session') || localStorage.getItem('brdc_session');
-                    if (savedSession) {
-                        const session = JSON.parse(savedSession);
-                        if (session && session.pin) {
-                            storedPin = session.pin.toUpperCase();
-                            safeStorage.setItem('brdc_player_pin', storedPin);
-                        }
-                    }
-                } catch (e) {
-                    console.warn('Session fallback failed:', e);
-                }
-            }
+            // Wait for Firebase Auth to resolve
+            const user = await new Promise(resolve => {
+                const unsubscribe = onAuthStateChanged(auth, u => { unsubscribe(); resolve(u); });
+                setTimeout(() => resolve(null), 5000);
+            });
 
-            if (storedPin) {
+            if (user) {
                 try {
-                    const result = await callFunction('getConversations', { player_pin: storedPin });
-                    if (result.success) {
-                        playerPin = storedPin;
+                    const result = await callFunction('getPlayerSession', {});
+                    if (result?.success) {
                         currentPlayer = {
-                            id: result.player_id,
-                            name: result.player_name || 'Player'
+                            id: result.player.id,
+                            name: result.player.name || 'Player'
                         };
+                        playerPin = null;
+                        const session = {
+                            player_id: result.player.id,
+                            name: result.player.name,
+                            source_type: 'global',
+                            league_id: result.player.league_id || null,
+                            is_admin: result.player.is_admin || false,
+                            is_master_admin: result.player.is_master_admin || false,
+                            is_director: result.player.is_director || false,
+                            is_captain: result.player.is_captain || false,
+                            involvements: result.player.involvements || {},
+                            logged_in_at: Date.now()
+                        };
+                        safeStorage.setItem('brdc_session', JSON.stringify(session));
                         document.getElementById('loginPage').style.display = 'none';
                         document.getElementById('mainContent').style.display = 'block';
                         initializeLobby();
                         return;
                     }
                 } catch (error) {
-                    console.error('Session check failed:', error);
-                    // Only remove PIN on definitive auth failures
-                    if (error?.code === 'not-found' || error?.message?.includes('Invalid') || error?.message?.includes('not found')) {
-                        safeStorage.removeItem('brdc_player_pin');
-                    }
+                    console.error('Session restore failed:', error);
                 }
             }
 
-            // Show login page (already visible by default, but ensure it's shown)
-            document.getElementById('pinInput').addEventListener('keyup', (e) => {
+            // Not authenticated — show login page
+            document.getElementById('emailInput')?.addEventListener('keyup', (e) => {
+                if (e.key === 'Enter') document.getElementById('passwordInput')?.focus();
+            });
+            document.getElementById('passwordInput')?.addEventListener('keyup', (e) => {
                 if (e.key === 'Enter') login();
             });
         }
@@ -1413,10 +1378,8 @@
                 });
 
                 if (result.success) {
-                    toastSuccess(`Registration successful!\n\nYour PIN: ${result.pin}\n\nSave this PIN to log in!`);
-                    document.getElementById('pinInput').value = result.pin;
+                    toastSuccess('Registration successful! Please log in with your email and password.');
                     showLoginTab('login');
-                    login();
                 } else {
                     toastError(result.error || 'Registration failed');
                 }
@@ -1427,30 +1390,109 @@
         };
 
         window.login = async function() {
-            const pin = document.getElementById('pinInput').value.trim();
-            if (!pin) return;
+            const email = (document.getElementById('emailInput')?.value || '').trim();
+            const password = document.getElementById('passwordInput')?.value || '';
+            const loginBtn = document.getElementById('loginBtn');
+
+            if (!email || !password) {
+                toastWarning('Please enter your email and password.');
+                return;
+            }
+            if (loginBtn) loginBtn.disabled = true;
 
             try {
-                const result = await callFunction('getConversations', { player_pin: pin });
+                await signInWithEmailAndPassword(auth, email, password);
 
-                if (result.success) {
-                    playerPin = pin;
-                    currentPlayer = {
-                        id: result.player_id,
-                        name: result.player_name || 'Player'
-                    };
-                    safeStorage.setItem('brdc_player_pin', pin);
+                const result = await callFunction('getPlayerSession', {});
+                if (!result?.success) throw new Error(result?.error || 'Login failed');
 
-                    document.getElementById('loginPage').style.display = 'none';
-                    document.getElementById('mainContent').style.display = 'block';
+                const player = result.player;
+                currentPlayer = {
+                    id: player.id,
+                    name: player.name || 'Player'
+                };
+                playerPin = null;
 
-                    initializeLobby();
-                } else {
-                    toastError('Invalid PIN');
-                }
-            } catch (error) {
-                console.error('Login error:', error);
-                toastError('Login failed. Please try again.');
+                const session = {
+                    player_id: player.id,
+                    name: player.name,
+                    source_type: 'global',
+                    league_id: player.league_id || null,
+                    is_admin: player.is_admin || false,
+                    is_master_admin: player.is_master_admin || false,
+                    is_director: player.is_director || false,
+                    is_captain: player.is_captain || false,
+                    involvements: player.involvements || {},
+                    logged_in_at: Date.now()
+                };
+                safeStorage.setItem('brdc_session', JSON.stringify(session));
+                safeStorage.removeItem('brdc_player_pin');
+
+                document.getElementById('loginPage').style.display = 'none';
+                document.getElementById('mainContent').style.display = 'block';
+
+                initializeLobby();
+            } catch (err) {
+                if (loginBtn) loginBtn.disabled = false;
+                let msg = 'Login failed. Please try again.';
+                if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') msg = 'Invalid email or password.';
+                else if (err.code === 'auth/too-many-requests') msg = 'Too many attempts. Try again later.';
+                else if (err.message) msg = err.message;
+                toastError(msg);
+            }
+        };
+
+        window.forgotPassword = async function() {
+            const email = (document.getElementById('emailInput')?.value || '').trim();
+            if (!email) { alert('Enter your email first.'); return; }
+            try {
+                await sendPasswordResetEmail(auth, email);
+                alert('Password reset email sent!');
+            } catch (err) {
+                alert('Could not send reset email. Try again.');
+            }
+        };
+
+        window.loginWithGoogle = async function() {
+            try {
+                const provider = new GoogleAuthProvider();
+                await signInWithPopup(auth, provider);
+
+                const result = await callFunction('getPlayerSession', {});
+                if (!result?.success) throw new Error(result?.error || 'Login failed');
+
+                const player = result.player;
+                currentPlayer = {
+                    id: player.id,
+                    name: player.name || 'Player'
+                };
+                playerPin = null;
+
+                const session = {
+                    player_id: player.id,
+                    name: player.name,
+                    source_type: 'global',
+                    league_id: player.league_id || null,
+                    is_admin: player.is_admin || false,
+                    is_master_admin: player.is_master_admin || false,
+                    is_director: player.is_director || false,
+                    is_captain: player.is_captain || false,
+                    involvements: player.involvements || {},
+                    logged_in_at: Date.now()
+                };
+                safeStorage.setItem('brdc_session', JSON.stringify(session));
+                safeStorage.removeItem('brdc_player_pin');
+
+                document.getElementById('loginPage').style.display = 'none';
+                document.getElementById('mainContent').style.display = 'block';
+
+                initializeLobby();
+            } catch (err) {
+                if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') return;
+                let msg = 'Google sign-in failed. Please try again.';
+                if (err.code === 'auth/popup-blocked') msg = 'Popup was blocked. Please allow popups for this site and try again.';
+                else if (err.message) msg = err.message;
+                toastError(msg);
             }
         };
 
@@ -1593,7 +1635,7 @@
 
         async function loadChannels() {
             try {
-                const result = await callFunction('getPlayerChatRooms', { player_pin: playerPin });
+                const result = await callFunction('getPlayerChatRooms', {});
                 if (result.success) {
                     renderChannels(result.rooms);
                 }
@@ -1679,7 +1721,7 @@
 
         async function loadConversations() {
             try {
-                const result = await callFunction('getConversations', { player_pin: playerPin });
+                const result = await callFunction('getConversations', {});
                 if (result.success) {
                     renderConversations(result.conversations);
                 }
@@ -1999,7 +2041,6 @@
             searchTimeout = setTimeout(async () => {
                 try {
                     const result = await callFunction('searchPlayersForChat', {
-                        player_pin: playerPin,
                         search_query: queryText
                     });
 
@@ -2097,7 +2138,7 @@
         });
     </script>
 <script src="/js/nav-menu.js"></script>
-<script src="/components/brdc-navigation-init.js"></script>
-<script>initBRDCNavigation({ page: 'messages' });</script>
+<script src="/components/brdc-navigation-init.js?v=13"></script>
+<script>initBRDCNavigation({ page: 'chat' });</script>
 </body>
 </html>

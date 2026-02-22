@@ -28,7 +28,8 @@ service firebase.storage {
                    && request.resource.contentType.matches('image/.*');
     }
 
-    match /players/{fileName} {
+    // Allow nested paths (e.g. players/{id}/gallery/{file})
+    match /players/{allPaths=**} {
       allow write: if request.resource.size < 5 * 1024 * 1024
                    && request.resource.contentType.matches('image/.*');
     }

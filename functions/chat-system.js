@@ -14,33 +14,9 @@ const { onDocumentCreated } = require('firebase-functions/v2/firestore');
 const { logger } = require('firebase-functions');
 const admin = require('firebase-admin');
 const cors = require('cors')({ origin: true });
+const { verifyFirebaseAuth } = require('./src/firebase-auth-helper');
 
 const db = admin.firestore();
-
-// ============================================================================
-// HELPER FUNCTIONS
-// ============================================================================
-
-/**
- * Verify player PIN and return player data
- * Uses ID-based lookup, never names
- */
-async function verifyPlayerPin(pin) {
-    if (!pin) return null;
-
-    const playersSnapshot = await db.collection('players')
-        .where('pin', '==', pin)
-        .limit(1)
-        .get();
-
-    if (playersSnapshot.empty) return null;
-
-    const doc = playersSnapshot.docs[0];
-    return {
-        id: doc.id,
-        ...doc.data()
-    };
-}
 
 /**
  * Check if player is a member of a channel
@@ -165,7 +141,6 @@ exports.createChatChannel = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
             const {
-                player_pin,
                 type,
                 name,
                 league_id,
@@ -177,17 +152,17 @@ exports.createChatChannel = functions.https.onRequest((req, res) => {
             } = req.body;
 
             // Validate required fields
-            if (!player_pin || !type) {
+            if (!type) {
                 return res.status(400).json({
                     success: false,
-                    error: 'Missing required fields: player_pin, type'
+                    error: 'Missing required fields: type'
                 });
             }
 
             // Verify player
-            const player = await verifyPlayerPin(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
-                return res.status(401).json({ success: false, error: 'Invalid PIN' });
+                return res.status(401).json({ success: false, error: 'Unauthorized' });
             }
 
             // Validate channel type
@@ -371,18 +346,18 @@ exports.createChatChannel = functions.https.onRequest((req, res) => {
 exports.joinChannel = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { player_pin, channel_id } = req.body;
+            const { channel_id } = req.body;
 
-            if (!player_pin || !channel_id) {
+            if (!channel_id) {
                 return res.status(400).json({
                     success: false,
-                    error: 'Missing required fields: player_pin, channel_id'
+                    error: 'Missing required fields: channel_id'
                 });
             }
 
-            const player = await verifyPlayerPin(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
-                return res.status(401).json({ success: false, error: 'Invalid PIN' });
+                return res.status(401).json({ success: false, error: 'Unauthorized' });
             }
 
             // Check if channel exists
@@ -502,18 +477,18 @@ exports.joinChannel = functions.https.onRequest((req, res) => {
 exports.leaveChannel = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { player_pin, channel_id } = req.body;
+            const { channel_id } = req.body;
 
-            if (!player_pin || !channel_id) {
+            if (!channel_id) {
                 return res.status(400).json({
                     success: false,
-                    error: 'Missing required fields: player_pin, channel_id'
+                    error: 'Missing required fields: channel_id'
                 });
             }
 
-            const player = await verifyPlayerPin(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
-                return res.status(401).json({ success: false, error: 'Invalid PIN' });
+                return res.status(401).json({ success: false, error: 'Unauthorized' });
             }
 
             const channelDoc = await db.collection('chat_channels').doc(channel_id).get();
@@ -601,7 +576,6 @@ exports.sendChannelMessage = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
             const {
-                player_pin,
                 channel_id,
                 content,
                 reply_to_message_id,
@@ -609,17 +583,17 @@ exports.sendChannelMessage = functions.https.onRequest((req, res) => {
             } = req.body;
 
             // Validate required fields
-            if (!player_pin || !channel_id || !content) {
+            if (!channel_id || !content) {
                 return res.status(400).json({
                     success: false,
-                    error: 'Missing required fields: player_pin, channel_id, content'
+                    error: 'Missing required fields: channel_id, content'
                 });
             }
 
             // Verify player
-            const player = await verifyPlayerPin(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
-                return res.status(401).json({ success: false, error: 'Invalid PIN' });
+                return res.status(401).json({ success: false, error: 'Unauthorized' });
             }
 
             // Check channel exists
@@ -774,23 +748,22 @@ exports.getChannelMessages = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
             const {
-                player_pin,
                 channel_id,
                 limit = 50,
                 before_message_id,
                 after_message_id
             } = req.body;
 
-            if (!player_pin || !channel_id) {
+            if (!channel_id) {
                 return res.status(400).json({
                     success: false,
-                    error: 'Missing required fields: player_pin, channel_id'
+                    error: 'Missing required fields: channel_id'
                 });
             }
 
-            const player = await verifyPlayerPin(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
-                return res.status(401).json({ success: false, error: 'Invalid PIN' });
+                return res.status(401).json({ success: false, error: 'Unauthorized' });
             }
 
             // Check player is a member
@@ -889,18 +862,18 @@ exports.getChannelMessages = functions.https.onRequest((req, res) => {
 exports.reactToMessage = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { player_pin, channel_id, message_id, emoji, remove = false } = req.body;
+            const { channel_id, message_id, emoji, remove = false } = req.body;
 
-            if (!player_pin || !channel_id || !message_id || !emoji) {
+            if (!channel_id || !message_id || !emoji) {
                 return res.status(400).json({
                     success: false,
-                    error: 'Missing required fields: player_pin, channel_id, message_id, emoji'
+                    error: 'Missing required fields: channel_id, message_id, emoji'
                 });
             }
 
-            const player = await verifyPlayerPin(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
-                return res.status(401).json({ success: false, error: 'Invalid PIN' });
+                return res.status(401).json({ success: false, error: 'Unauthorized' });
             }
 
             // Check player is a member
@@ -984,15 +957,11 @@ exports.reactToMessage = functions.https.onRequest((req, res) => {
 exports.updateChatPresence = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { player_pin, channel_id, status = 'online', device_type = 'unknown' } = req.body;
+            const { channel_id, status = 'online', device_type = 'unknown' } = req.body;
 
-            if (!player_pin) {
-                return res.status(400).json({ success: false, error: 'Missing player_pin' });
-            }
-
-            const player = await verifyPlayerPin(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
-                return res.status(401).json({ success: false, error: 'Invalid PIN' });
+                return res.status(401).json({ success: false, error: 'Unauthorized' });
             }
 
             const now = admin.firestore.FieldValue.serverTimestamp();
@@ -1050,18 +1019,18 @@ exports.updateChatPresence = functions.https.onRequest((req, res) => {
 exports.setTypingIndicator = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { player_pin, channel_id, is_typing = true } = req.body;
+            const { channel_id, is_typing = true } = req.body;
 
-            if (!player_pin || !channel_id) {
+            if (!channel_id) {
                 return res.status(400).json({
                     success: false,
-                    error: 'Missing required fields: player_pin, channel_id'
+                    error: 'Missing required fields: channel_id'
                 });
             }
 
-            const player = await verifyPlayerPin(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
-                return res.status(401).json({ success: false, error: 'Invalid PIN' });
+                return res.status(401).json({ success: false, error: 'Unauthorized' });
             }
 
             const typingRef = db.collection('chat_channels')
@@ -1101,15 +1070,11 @@ exports.setTypingIndicator = functions.https.onRequest((req, res) => {
 exports.getPlayerChannels = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { player_pin, type, league_id } = req.body;
+            const { type, league_id } = req.body;
 
-            if (!player_pin) {
-                return res.status(400).json({ success: false, error: 'Missing player_pin' });
-            }
-
-            const player = await verifyPlayerPin(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
-                return res.status(401).json({ success: false, error: 'Invalid PIN' });
+                return res.status(401).json({ success: false, error: 'Unauthorized' });
             }
 
             // Get all channel memberships for this player
@@ -1204,18 +1169,18 @@ exports.getPlayerChannels = functions.https.onRequest((req, res) => {
 exports.getChannelDetails = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { player_pin, channel_id } = req.body;
+            const { channel_id } = req.body;
 
-            if (!player_pin || !channel_id) {
+            if (!channel_id) {
                 return res.status(400).json({
                     success: false,
-                    error: 'Missing required fields: player_pin, channel_id'
+                    error: 'Missing required fields: channel_id'
                 });
             }
 
-            const player = await verifyPlayerPin(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
-                return res.status(401).json({ success: false, error: 'Invalid PIN' });
+                return res.status(401).json({ success: false, error: 'Unauthorized' });
             }
 
             const channelDoc = await db.collection('chat_channels').doc(channel_id).get();
@@ -1444,18 +1409,18 @@ exports.onChatMessageCreated = onDocumentCreated(
 exports.deleteChannelMessage = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { player_pin, channel_id, message_id } = req.body;
+            const { channel_id, message_id } = req.body;
 
-            if (!player_pin || !channel_id || !message_id) {
+            if (!channel_id || !message_id) {
                 return res.status(400).json({
                     success: false,
                     error: 'Missing required fields'
                 });
             }
 
-            const player = await verifyPlayerPin(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
-                return res.status(401).json({ success: false, error: 'Invalid PIN' });
+                return res.status(401).json({ success: false, error: 'Unauthorized' });
             }
 
             const messageRef = db.collection('chat_channels')
@@ -1509,18 +1474,18 @@ exports.deleteChannelMessage = functions.https.onRequest((req, res) => {
 exports.editChannelMessage = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { player_pin, channel_id, message_id, new_content } = req.body;
+            const { channel_id, message_id, new_content } = req.body;
 
-            if (!player_pin || !channel_id || !message_id || !new_content) {
+            if (!channel_id || !message_id || !new_content) {
                 return res.status(400).json({
                     success: false,
                     error: 'Missing required fields'
                 });
             }
 
-            const player = await verifyPlayerPin(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
-                return res.status(401).json({ success: false, error: 'Invalid PIN' });
+                return res.status(401).json({ success: false, error: 'Unauthorized' });
             }
 
             const messageRef = db.collection('chat_channels')
@@ -1602,18 +1567,18 @@ exports.editChannelMessage = functions.https.onRequest((req, res) => {
 exports.markChannelRead = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { player_pin, channel_id } = req.body;
+            const { channel_id } = req.body;
 
-            if (!player_pin || !channel_id) {
+            if (!channel_id) {
                 return res.status(400).json({
                     success: false,
                     error: 'Missing required fields'
                 });
             }
 
-            const player = await verifyPlayerPin(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
-                return res.status(401).json({ success: false, error: 'Invalid PIN' });
+                return res.status(401).json({ success: false, error: 'Unauthorized' });
             }
 
             const memberRef = db.collection('chat_channels')

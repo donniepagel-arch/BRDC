@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="manifest" href="/manifest.json">
     <title>League Director - BRDC</title>
     <link rel="icon" type="image/png" href="/images/favicon.png">
     <style>
@@ -49,50 +50,6 @@
                 radial-gradient(ellipse at 80% 80%, rgba(145, 215, 235, 0.06) 0%, transparent 50%);
             pointer-events: none;
             z-index: -1;
-        }
-
-        /* Header Bar */
-        .header-bar {
-            background: var(--bg-panel);
-            border-bottom: 3px solid var(--pink);
-            padding: 16px 20px;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
-        }
-
-        .back-btn {
-            background: rgba(255,255,255,0.1);
-            color: white;
-            border: 2px solid rgba(255,255,255,0.3);
-            padding: 10px 16px;
-            font-weight: 700;
-            cursor: pointer;
-            border-radius: 6px;
-            font-size: 14px;
-            transition: all 0.2s;
-        }
-
-        .back-btn:hover {
-            background: rgba(255,255,255,0.2);
-            border-color: var(--pink);
-        }
-
-        .header-logo {
-            width: 40px;
-            height: 40px;
-            
-        }
-
-        .header-title {
-            font-family: 'Bebas Neue', cursive;
-            font-size: 28px;
-            letter-spacing: 3px;
-            color: var(--pink);
         }
 
         /* Container */
@@ -428,6 +385,52 @@
             text-align: center;
             position: relative;
             border-radius: 16px;
+        }
+        .login-divider {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 16px 0 4px;
+        }
+        .login-divider::before,
+        .login-divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: #333;
+        }
+        .login-divider span {
+            color: #555;
+            font-size: 12px;
+            font-family: 'JetBrains Mono', monospace;
+            white-space: nowrap;
+        }
+        .btn-google {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            width: 100%;
+            padding: 12px 20px;
+            background: #fff;
+            color: #333;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-family: 'Inter', sans-serif;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+            margin-top: 8px;
+            transition: box-shadow 0.15s ease, transform 0.15s ease;
+        }
+        .btn-google:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+            transform: translateY(-1px);
+        }
+        .btn-google:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
         }
 
         .login-title {
@@ -1154,7 +1157,6 @@
         /* Responsive */
         @media (max-width: 768px) {
             .container { padding: 15px; }
-            .header-title { font-size: 20px; }
             .card-body, .sidebar-card { padding: 16px; }
             .match-teams { grid-template-columns: 1fr; gap: 16px; }
             .vs-circle { display: none; }
@@ -1205,25 +1207,31 @@
     <!-- Login Overlay (hidden initially) -->
     <div id="loginOverlay" class="login-overlay" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
         <div class="login-card">
-            <h1 class="login-title" id="loginTitle">🎯 LEAGUE DIRECTOR</h1>
-            <p class="login-subtitle" id="loginDesc">Enter your 8-digit PIN to access the dashboard</p>
-            <div class="pin-input">
-                <label for="pinInput" class="sr-only">Enter your 8-digit PIN</label>
-                <input type="text" id="pinInput" maxlength="8" class="pin-field" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="••••••••" aria-required="true" aria-describedby="loginDesc loginError">
+            <h1 class="login-title" id="loginTitle">LEAGUE DIRECTOR</h1>
+            <p class="login-subtitle" id="loginDesc">Sign in to access the dashboard</p>
+            <div style="margin-bottom: 12px; text-align: left;">
+                <label for="emailInput" style="display:block; font-size:12px; color:var(--text-dim); margin-bottom:6px;">Email</label>
+                <input type="email" id="emailInput" class="pin-field" autocomplete="email" placeholder="your@email.com" style="letter-spacing:0;" aria-required="true" aria-describedby="loginDesc loginError">
+            </div>
+            <div style="margin-bottom: 12px; text-align: left;">
+                <label for="passwordInput" style="display:block; font-size:12px; color:var(--text-dim); margin-bottom:6px;">Password</label>
+                <input type="password" id="passwordInput" class="pin-field" autocomplete="current-password" placeholder="Password" style="letter-spacing:0;" aria-required="true">
             </div>
             <button id="loginBtn" class="brdc-btn" style="width: 100%;">ENTER DASHBOARD</button>
             <p id="loginError" role="alert" aria-live="assertive" style="color: var(--pink); margin-top: 20px; display: none; font-weight: 600;"></p>
-            <p style="margin-top: 20px; font-size: 12px; color: var(--text-dim);">Use your player PIN or the admin PIN shown when you created the league</p>
+            <p style="text-align:center; margin-top: 12px;">
+                <a href="#" onclick="forgotPassword(); return false;" style="color: var(--text-dim); font-size: 13px; text-decoration: none;">Forgot password?</a>
+            </p>
+            <div class="login-divider"><span>OR</span></div>
+            <button type="button" class="btn-google" onclick="loginWithGoogle()">
+                <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.08 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-3.59-13.46-8.86l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+                Sign in with Google
+            </button>
         </div>
     </div>
 
     <!-- Main Dashboard -->
     <main id="dashboard" style="display: none;" role="main">
-        <header class="header-bar" role="banner">
-            <button class="back-btn" onclick="goBack()" aria-label="Go back to previous page">← BACK</button>
-            <img src="/images/gold_logo.png" alt="Burning River Dart Club" class="header-logo">
-            <h2 class="header-title">LEAGUE DIRECTOR</h2>
-        </header>
         <div class="brdc-card" style="max-width: 1400px; margin: 20px auto;">
             <div class="brdc-card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
                 <div>
@@ -2400,7 +2408,7 @@ Bob Wilson"></textarea>
     </div>
 
     <script type="module">
-        import { db, doc, getDoc, collection, query, where, getDocs, updateDoc, callFunction, showLoading, hideLoading } from '/js/firebase-config.js';
+        import { db, doc, getDoc, collection, query, where, getDocs, updateDoc, callFunction, showLoading, hideLoading, auth, signInWithEmailAndPassword, sendPasswordResetEmail, signInWithPopup, GoogleAuthProvider } from '/js/firebase-config.js';
 
         function goBack() {
             if (window.history.length > 1) {
@@ -2424,80 +2432,27 @@ Bob Wilson"></textarea>
 
         // Check for saved director session
         (async function checkSavedSession() {
-            // 1. Check for PIN in URL (from create-league success page)
-            const urlPin = urlParams.get('pin');
-            if (urlPin && urlPin.length === 8) {
+            // 1. Check for saved brdc_session with director/admin role
+            const savedSession = localStorage.getItem('brdc_session');
+            if (savedSession) {
                 try {
-                    const result = await callFunction('verifyLeaguePin', {
-                        league_id: leagueId || null,
-                        pin: urlPin
-                    });
-                    if (result.success) {
-                        leagueId = result.league_id;
-                        leagueData = { id: leagueId, ...result.league };
-                        window.history.replaceState({}, '', `?league_id=${leagueId}`);
-                        adminPin = urlPin;
+                    const session = JSON.parse(savedSession);
+                    if (session.player_id && (session.is_director || session.is_admin)) {
+                        // Load league data if we have a league_id
+                        const resolvedLeagueId = leagueId || session.league_id;
+                        if (resolvedLeagueId) {
+                            leagueId = resolvedLeagueId;
+                            const leagueDoc = await getDoc(doc(db, 'leagues', leagueId));
+                            if (leagueDoc.exists()) {
+                                leagueData = { id: leagueId, ...leagueDoc.data() };
+                                window.history.replaceState({}, '', `?league_id=${leagueId}`);
+                            }
+                        }
                         document.getElementById('initialLoader').style.display = 'none';
                         document.getElementById('loginOverlay').style.display = 'none';
                         document.getElementById('dashboard').style.display = 'block';
                         initDashboard();
                         return;
-                    }
-                } catch (e) {
-                    console.error('URL PIN verify error:', e);
-                }
-            }
-
-            // 2. Check for league-specific admin PIN in localStorage
-            if (leagueId) {
-                const leaguePin = localStorage.getItem('leagueAdminPin_' + leagueId);
-                if (leaguePin) {
-                    try {
-                        const session = JSON.parse(leaguePin);
-                        if (session.pin && (Date.now() - session.timestamp) < 7 * 24 * 60 * 60 * 1000) {
-                            const result = await callFunction('verifyLeaguePin', {
-                                league_id: leagueId,
-                                pin: session.pin
-                            });
-                            if (result.success) {
-                                leagueData = { id: leagueId, ...result.league };
-                                adminPin = session.pin;
-                                document.getElementById('initialLoader').style.display = 'none';
-                        document.getElementById('loginOverlay').style.display = 'none';
-                                document.getElementById('dashboard').style.display = 'block';
-                                initDashboard();
-                                return;
-                            }
-                        }
-                    } catch (e) {
-                        console.error('League PIN restore error:', e);
-                    }
-                }
-            }
-
-            // 3. Fall back to generic director session
-            const saved = localStorage.getItem('directorSession');
-            if (saved) {
-                try {
-                    const session = JSON.parse(saved);
-                    // Session valid for 7 days
-                    if (session.pin && (Date.now() - session.timestamp) < 7 * 24 * 60 * 60 * 1000) {
-                        // Try to auto-login with saved PIN
-                        const result = await callFunction('verifyLeaguePin', {
-                            league_id: leagueId || null,
-                            pin: session.pin
-                        });
-                        if (result.success) {
-                            leagueId = result.league_id;
-                            leagueData = { id: leagueId, ...result.league };
-                            window.history.replaceState({}, '', `?league_id=${leagueId}`);
-                            adminPin = session.pin;
-                            document.getElementById('initialLoader').style.display = 'none';
-                        document.getElementById('loginOverlay').style.display = 'none';
-                            document.getElementById('dashboard').style.display = 'block';
-                            initDashboard();
-                            return;
-                        }
                     }
                 } catch (e) {
                     console.error('Session restore error:', e);
@@ -2507,54 +2462,138 @@ Bob Wilson"></textarea>
             document.getElementById('initialLoader').style.display = 'none';
             document.getElementById('loginOverlay').style.display = 'flex';
             document.getElementById('loginOverlay').classList.add('active');
-            document.getElementById('pinInput').focus();
+            document.getElementById('emailInput').focus();
         })();
 
-        // PIN input handling
-        const pinInput = document.getElementById('pinInput');
-        pinInput.addEventListener('input', (e) => {
-            e.target.value = e.target.value.replace(/[^0-9]/g, '');
+        // Email/password input handling
+        document.getElementById('emailInput').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') document.getElementById('loginBtn').click();
         });
-        pinInput.addEventListener('keydown', (e) => {
+        document.getElementById('passwordInput').addEventListener('keydown', (e) => {
             if (e.key === 'Enter') document.getElementById('loginBtn').click();
         });
 
         document.getElementById('loginBtn').addEventListener('click', async () => {
-            const pin = pinInput.value.trim();
-            if (pin.length !== 8) { showLoginError('Enter 8-digit PIN'); return; }
+            const email = (document.getElementById('emailInput')?.value || '').trim();
+            const password = document.getElementById('passwordInput')?.value || '';
+
+            if (!email || !password) { showLoginError('Please enter your email and password.'); return; }
+
+            const btn = document.getElementById('loginBtn');
+            btn.disabled = true;
 
             try {
-                // Use Cloud Function to verify PIN (bypasses Firestore security rules)
-                const result = await callFunction('verifyLeaguePin', {
-                    league_id: leagueId || null,
-                    pin: pin
-                });
+                await signInWithEmailAndPassword(auth, email, password);
 
-                if (!result.success) {
-                    showLoginError(result.error || 'Invalid PIN');
+                const result = await callFunction('getPlayerSession', {});
+                if (!result?.success) throw new Error(result?.error || 'Login failed');
+
+                const player = result.player;
+
+                if (!player.is_director && !player.is_admin) {
+                    showLoginError('No director or admin role found for this account.');
+                    btn.disabled = false;
                     return;
                 }
 
-                leagueId = result.league_id;
-                leagueData = { id: leagueId, ...result.league };
-                window.history.replaceState({}, '', `?league_id=${leagueId}`);
+                leagueId = player.league_id || leagueId || null;
+                if (leagueId) {
+                    const leagueDoc = await getDoc(doc(db, 'leagues', leagueId));
+                    if (leagueDoc.exists()) {
+                        leagueData = { id: leagueId, ...leagueDoc.data() };
+                    }
+                    window.history.replaceState({}, '', `?league_id=${leagueId}`);
+                }
 
-                adminPin = pin;
-
-                // Save league-specific PIN (don't overwrite player session used for templates)
-                localStorage.setItem('leagueAdminPin_' + leagueId, JSON.stringify({
-                    pin: pin,
-                    timestamp: Date.now()
+                localStorage.setItem('brdc_session', JSON.stringify({
+                    player_id: player.id,
+                    name: player.name,
+                    source_type: player.source_type || 'global',
+                    league_id: player.league_id || null,
+                    is_admin: player.is_admin || false,
+                    is_master_admin: player.is_master_admin || false,
+                    is_director: player.is_director || false,
+                    is_captain: player.is_captain || false,
+                    involvements: player.involvements || {},
+                    logged_in_at: Date.now()
                 }));
+                localStorage.removeItem('brdc_player_pin');
 
                 document.getElementById('initialLoader').style.display = 'none';
-                        document.getElementById('loginOverlay').style.display = 'none';
+                document.getElementById('loginOverlay').style.display = 'none';
                 document.getElementById('dashboard').style.display = 'block';
                 initDashboard();
-            } catch (error) {
-                showLoginError('Error: ' + error.message);
+            } catch (err) {
+                let msg = 'Login failed.';
+                if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') msg = 'Invalid email or password.';
+                else if (err.code === 'auth/too-many-requests') msg = 'Too many attempts. Try again later.';
+                else if (err.message) msg = err.message;
+                showLoginError(msg);
+                btn.disabled = false;
             }
         });
+
+        window.forgotPassword = async function() {
+            const email = (document.getElementById('emailInput')?.value || '').trim();
+            if (!email) { alert('Enter your email first.'); return; }
+            try {
+                await sendPasswordResetEmail(auth, email);
+                alert('Password reset email sent!');
+            } catch (err) {
+                alert('Could not send reset email. Try again.');
+            }
+        };
+
+        window.loginWithGoogle = async function() {
+            document.getElementById('loginError').style.display = 'none';
+            try {
+                const provider = new GoogleAuthProvider();
+                await signInWithPopup(auth, provider);
+
+                const result = await callFunction('getPlayerSession', {});
+                if (!result?.success) throw new Error(result?.error || 'Login failed');
+
+                const player = result.player;
+                if (!player.is_director && !player.is_admin) {
+                    showLoginError('No director or admin role found for this account.');
+                    return;
+                }
+
+                leagueId = player.league_id || leagueId || null;
+                if (leagueId) {
+                    const leagueDoc = await getDoc(doc(db, 'leagues', leagueId));
+                    if (leagueDoc.exists()) {
+                        leagueData = { id: leagueId, ...leagueDoc.data() };
+                    }
+                    window.history.replaceState({}, '', `?league_id=${leagueId}`);
+                }
+
+                localStorage.setItem('brdc_session', JSON.stringify({
+                    player_id: player.id,
+                    name: player.name,
+                    source_type: player.source_type || 'global',
+                    league_id: player.league_id || null,
+                    is_admin: player.is_admin || false,
+                    is_master_admin: player.is_master_admin || false,
+                    is_director: player.is_director || false,
+                    is_captain: player.is_captain || false,
+                    involvements: player.involvements || {},
+                    logged_in_at: Date.now()
+                }));
+                localStorage.removeItem('brdc_player_pin');
+
+                document.getElementById('initialLoader').style.display = 'none';
+                document.getElementById('loginOverlay').style.display = 'none';
+                document.getElementById('dashboard').style.display = 'block';
+                initDashboard();
+            } catch (err) {
+                if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') return;
+                let msg = 'Google sign-in failed. Please try again.';
+                if (err.code === 'auth/popup-blocked') msg = 'Popup was blocked. Please allow popups for this site and try again.';
+                else if (err.message) msg = err.message;
+                showLoginError(msg);
+            }
+        };
 
         function showLoginError(msg) {
             const el = document.getElementById('loginError');
@@ -3783,7 +3822,10 @@ Bob Wilson"></textarea>
 
             // Cork & Start Rules
             document.getElementById('settingStartRules').value = leagueData.start_rules || leagueData.cork_rule || 'cork_every_leg';
-            document.getElementById('settingCorkOption').value = leagueData.cork_option || 'alternate_random_first_last';
+            // Map cork_order short values to cork_option select values
+            const corkOrderToOption = { home: 'home_team_option', away: 'away_team_option', alternate: 'alternate_random_first_last', winner: 'winner_option' };
+            const corkOptVal = leagueData.cork_option || corkOrderToOption[leagueData.cork_order] || 'alternate_random_first_last';
+            document.getElementById('settingCorkOption').value = corkOptVal;
             document.getElementById('settingCorkWinnerGets').value = leagueData.cork_winner_gets || 'choose-and-start';
 
             // Team Configuration
@@ -4205,14 +4247,18 @@ Bob Wilson"></textarea>
                 away_team_option: 'Away team option',
                 home_team_option: 'Home team option',
                 loser_option: 'Loser option',
-                winner_option: 'Winner option'
+                winner_option: 'Winner option',
+                home: 'Home team option',
+                away: 'Away team option',
+                alternate: 'Alternate option',
+                winner: 'Winner option'
             };
             const corkWinnerLabels = {
                 'choose-and-start': 'Choose game AND start',
                 'choose-only': 'Choose game only'
             };
             document.getElementById('displayStartRules').textContent = startRuleLabels[leagueData.start_rules || leagueData.cork_rule] || 'Cork every leg';
-            document.getElementById('displayCorkOption').textContent = corkOptionLabels[leagueData.cork_option] || 'Alternate';
+            document.getElementById('displayCorkOption').textContent = corkOptionLabels[leagueData.cork_order || leagueData.cork_option] || 'Alternate';
             document.getElementById('displayCorkWinnerGets').textContent = corkWinnerLabels[leagueData.cork_winner_gets] || 'Choose and start';
 
             // Team Configuration
@@ -4330,8 +4376,10 @@ Bob Wilson"></textarea>
             adminPin = null;
             document.getElementById('dashboard').style.display = 'none';
             document.getElementById('loginOverlay').style.display = 'flex';
-            pinInput.value = '';
-            pinInput.focus();
+            const emailInput = document.getElementById('emailInput');
+            if (emailInput) { emailInput.value = ''; emailInput.focus(); }
+            const passwordInput = document.getElementById('passwordInput');
+            if (passwordInput) passwordInput.value = '';
         };
 
         // ============================================================================
@@ -5722,7 +5770,7 @@ Bob Wilson"></textarea>
             }
         };
 
-        pinInput.focus();
+        document.getElementById('emailInput')?.focus();
     </script>
 
     <!-- Bulk Action Bar (fixed at bottom, slides up when players selected) -->
@@ -5816,7 +5864,7 @@ Bob Wilson"></textarea>
 
     <script src="/js/display-helpers.js"></script>
     <script src="/js/nav-menu.js"></script>
-    <script src="/components/brdc-navigation-init.js"></script>
+    <script src="/components/brdc-navigation-init.js?v=13"></script>
     <script>initBRDCNavigation({ page: 'league-director' });</script>
 </body>
 </html>

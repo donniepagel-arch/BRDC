@@ -19,7 +19,7 @@ let autoScrollInterval = null;
 let isCollapsed = false;
 let currentFilter = 'all';
 let dismissedMatches = new Set();
-let playerPin = null;
+let playerId = null;
 
 // ============================================================================
 // INITIALIZATION
@@ -34,7 +34,7 @@ export function initLiveTicker(containerId = 'liveTicker') {
         return;
     }
 
-    playerPin = localStorage.getItem('brdc_player_pin');
+    playerId = JSON.parse(localStorage.getItem('brdc_session') || '{}').player_id;
 
     // Create ticker if container doesn't exist
     tickerContainer = document.getElementById(containerId);
@@ -608,7 +608,6 @@ export async function openMatchOverlay(matchId) {
     try {
         // Get match details
         const result = await callFunction('getLiveMatchDetails', {
-            player_pin: playerPin,
             match_id: matchId
         });
 
@@ -1077,10 +1076,9 @@ async function loadTickerPreferences() {
     }
 
     // Try to load from server if logged in
-    if (playerPin) {
+    if (playerId) {
         try {
             const result = await callFunction('getTickerPreferences', {
-                player_pin: playerPin
             });
 
             if (result.success && result.preferences) {
@@ -1109,10 +1107,9 @@ async function saveTickerPreferences() {
     localStorage.setItem('brdc_ticker_prefs', JSON.stringify(prefs));
 
     // Save to server if logged in
-    if (playerPin) {
+    if (playerId) {
         try {
             await callFunction('updateTickerPreferences', {
-                player_pin: playerPin,
                 preferences: {
                     collapsed: isCollapsed,
                     filter: currentFilter,

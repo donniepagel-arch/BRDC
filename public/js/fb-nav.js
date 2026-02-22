@@ -65,38 +65,45 @@
 
     // Menu items configuration by section
     const MENU_ITEMS = {
-        play: [
-            { icon: '🎯', label: 'Scorer', href: '/pages/game-setup.html' }
-            // Hidden until functional:
-            // { icon: '🎮', label: 'VR-Darts', href: '/virtual-darts/index.html' },
-            // { icon: '📺', label: 'Live Scoreboard', href: '/pages/live-scoreboard.html' },
-            // { icon: '🎥', label: 'Stream Director', href: '/pages/stream-director.html' },
-            // { icon: '🎲', label: 'Online Play', href: '/pages/online-play.html' }
-        ],
-        discover: [
-            { icon: '👥', label: 'Friends', href: '/pages/friends.html' },
-            { icon: '📅', label: 'Events Hub', href: '/pages/events-hub.html' },
-            { icon: '👥', label: 'Members', href: '/pages/members.html' }
+        quickLinks: [
+            { icon: 'target', label: 'Scorer', href: '/pages/game-setup.html' },
+            { icon: 'users', label: 'Members', href: '/pages/members.html' },
+            { icon: 'shopping-bag', label: 'Dart Trader', href: '/pages/dart-trader.html' }
         ],
         manage: [
-            { icon: '👔', label: 'Captain Dashboard', href: '/pages/captain-dashboard.html', highlight: true }
+            { icon: 'clipboard', label: 'Captain Dashboard', href: '/pages/captain-dashboard.html', role: 'captain' },
+            { icon: 'settings', label: 'League Director', href: '/pages/league-director.html', role: 'director' },
+            { icon: 'shield', label: 'Site Admin', href: '/pages/admin.html', role: 'master_admin' }
         ],
-        admin: [
-            { icon: '🏆', label: 'Director Dashboard', href: '/pages/director-dashboard.html' }
-        ],
-        siteAdmin: [
-            { icon: '🛡️', label: 'Site Admin', href: '/pages/admin.html' }
-        ],
-        settings: [
-            { icon: '🚪', label: 'Logout', action: 'logout' }
+        bottom: [
+            { icon: 'log-out', label: 'Logout', action: 'logout' }
         ]
+    };
+
+    // Inline SVG icons (Lucide/Feather style, 20x20, stroke-based)
+    const SVG_ICONS = {
+        target: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>',
+        users: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+        'shopping-bag': '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>',
+        book: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>',
+        clipboard: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>',
+        settings: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
+        shield: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>',
+        'log-out': '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>',
+        trophy: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>',
+        medal: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.21 15 2.66 7.14a2 2 0 0 1 .13-2.2L4.4 2.8A2 2 0 0 1 6 2h12a2 2 0 0 1 1.6.8l1.6 2.14a2 2 0 0 1 .14 2.2L16.79 15"/><path d="M11 12 5.12 2.2"/><path d="m13 12 5.88-9.8"/><path d="M8 7h8"/><circle cx="12" cy="17" r="5"/><path d="M12 18v-2h-.5"/></svg>',
+        'chevron-down': '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>',
+        'chevron-right': '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>',
+        search: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>',
+        chat: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
+        home: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>'
     };
 
     // Footer tabs configuration
     const FOOTER_TABS = [
         { id: 'home', icon: '🏠', label: 'Home', href: '/pages/dashboard.html' },
         { id: 'events', icon: '📅', label: 'Events', href: '/pages/events-hub.html' },
-        { id: 'trader', icon: '💰', label: 'Trader', href: '/pages/dart-trader.html' },
+        { id: 'chat', icon: '💬', label: 'Chat', href: '/pages/messages.html' },
         { id: 'notifications', icon: '🔔', label: 'Alerts', action: 'notifications' },
         { id: 'profile', icon: '👤', label: 'Profile', href: '/pages/player-profile.html' }
     ];
@@ -151,6 +158,16 @@
             display: flex;
             align-items: center;
             gap: 12px;
+        }
+
+        .fb-sidebar-user-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            color: inherit;
+            flex: 1;
+            min-width: 0;
         }
 
         .fb-sidebar-avatar {
@@ -222,7 +239,7 @@
         }
 
         .fb-sidebar-section {
-            padding: 8px 16px 4px;
+            padding: 6px 16px 2px;
         }
 
         .fb-sidebar-section-title {
@@ -237,12 +254,12 @@
         .fb-sidebar-item {
             display: flex;
             align-items: center;
-            gap: 14px;
-            padding: 12px 16px;
+            gap: 12px;
+            padding: 10px 16px;
             color: ${CSS_VARS.textLight};
             text-decoration: none;
             border-radius: 8px;
-            margin: 2px 8px;
+            margin: 1px 8px;
             transition: background 0.15s;
             cursor: pointer;
         }
@@ -256,14 +273,29 @@
         }
 
         .fb-sidebar-item.active {
-            background: rgba(255, 70, 154, 0.2);
+            background: rgba(255, 70, 154, 0.15);
             color: ${CSS_VARS.pink};
+            border-left: 3px solid ${CSS_VARS.pink};
+            padding-left: 13px;
         }
 
         .fb-sidebar-item-icon {
-            font-size: 20px;
-            width: 24px;
-            text-align: center;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .fb-sidebar-item-icon svg {
+            width: 20px;
+            height: 20px;
+            stroke: currentColor;
+            fill: none;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
         }
 
         .fb-sidebar-item-label {
@@ -291,6 +323,20 @@
 
         .fb-sidebar-item.logout:hover {
             background: rgba(255, 70, 154, 0.2);
+        }
+
+        .fb-sidebar-item-detail {
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+        }
+        .fb-sidebar-item-sublabel {
+            font-size: 11px;
+            color: var(--yellow, #FDD835);
+            opacity: 0.8;
+        }
+        .fb-sidebar-item:hover .fb-sidebar-item-sublabel {
+            opacity: 1;
         }
 
         /* ===== FB FOOTER ===== */
@@ -889,6 +935,108 @@
             position: fixed;
             width: 100%;
         }
+
+        /* ===== ACCORDION SECTIONS ===== */
+        .fb-sidebar-accordion {
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .fb-sidebar-accordion-header {
+            display: flex;
+            align-items: center;
+            width: 100%;
+            padding: 10px 16px;
+            background: none;
+            border: none;
+            color: ${CSS_VARS.textDim};
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            cursor: pointer;
+            transition: color 0.2s;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .fb-sidebar-accordion-header:hover {
+            color: ${CSS_VARS.textLight};
+        }
+
+        .fb-sidebar-accordion-title {
+            flex: 1;
+            text-align: left;
+        }
+
+        .fb-sidebar-accordion-chevron {
+            display: flex;
+            align-items: center;
+        }
+
+        .fb-sidebar-accordion-chevron svg {
+            width: 16px;
+            height: 16px;
+            stroke: currentColor;
+            fill: none;
+            transition: transform 0.2s;
+        }
+
+        .fb-sidebar-badge {
+            background: ${CSS_VARS.pink};
+            color: white;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 1px 6px;
+            border-radius: 10px;
+            margin-right: 8px;
+        }
+
+        .fb-sidebar-accordion-body {
+            overflow: hidden;
+            transition: all 0.2s ease;
+        }
+
+        /* ===== SEARCH BAR ===== */
+        .fb-sidebar-search {
+            padding: 10px 16px 6px;
+            position: relative;
+        }
+
+        .fb-sidebar-search-input {
+            width: 100%;
+            padding: 8px 12px 8px 36px;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 8px;
+            color: ${CSS_VARS.textLight};
+            font-size: 13px;
+            outline: none;
+            transition: border-color 0.2s;
+            box-sizing: border-box;
+        }
+
+        .fb-sidebar-search-input:focus {
+            border-color: ${CSS_VARS.teal};
+        }
+
+        .fb-sidebar-search-input::placeholder {
+            color: ${CSS_VARS.textDim};
+        }
+
+        .fb-sidebar-search-icon {
+            position: absolute;
+            left: 28px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            pointer-events: none;
+        }
+
+        .fb-sidebar-search-icon svg {
+            width: 16px;
+            height: 16px;
+            stroke: ${CSS_VARS.textDim};
+            fill: none;
+        }
     `;
     document.head.appendChild(styles);
 
@@ -923,11 +1071,13 @@
             this.sidebar.className = 'fb-sidebar';
             this.sidebar.innerHTML = `
                 <div class="fb-sidebar-header">
-                    <div class="fb-sidebar-avatar" id="fbSidebarAvatar">?</div>
-                    <div class="fb-sidebar-user-info">
-                        <div class="fb-sidebar-user-name" id="fbSidebarUserName">Guest</div>
-                        <div class="fb-sidebar-user-role" id="fbSidebarUserRole">Player</div>
-                    </div>
+                    <a href="/pages/dashboard.html" class="fb-sidebar-user-link">
+                        <div class="fb-sidebar-avatar" id="fbSidebarAvatar">?</div>
+                        <div class="fb-sidebar-user-info">
+                            <div class="fb-sidebar-user-name" id="fbSidebarUserName">Guest</div>
+                            <div class="fb-sidebar-user-role" id="fbSidebarUserRole">Player</div>
+                        </div>
+                    </a>
                     <button class="fb-sidebar-close" aria-label="Close menu">&times;</button>
                 </div>
                 <div class="fb-sidebar-content" id="fbSidebarContent">
@@ -1051,8 +1201,8 @@
                 const name = this.player.name || 'Player';
                 const initials = name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
 
-                avatarEl.textContent = initials;
-                nameEl.textContent = name;
+                if (avatarEl) avatarEl.textContent = initials;
+                if (nameEl) nameEl.textContent = name;
 
                 // Determine role
                 let role = 'Player';
@@ -1063,12 +1213,18 @@
                 } else if (this.player.is_captain) {
                     role = 'Captain';
                 }
-                roleEl.textContent = role;
+                if (roleEl) roleEl.textContent = role;
 
-                // Avatar image if available
-                if (this.player.avatar_url) {
-                    avatarEl.innerHTML = `<img src="${this.player.avatar_url}" alt="${name}">`;
+                // Avatar image if available (photo_url is the canonical field; avatar_url is legacy)
+                const photoUrl = this.player.photo_url || this.player.avatar_url;
+                if (photoUrl && avatarEl) {
+                    avatarEl.innerHTML = `<img src="${photoUrl}" alt="${name}">`;
                 }
+            } else {
+                // Guest/default values
+                if (avatarEl) avatarEl.textContent = '?';
+                if (nameEl) nameEl.textContent = 'Guest';
+                if (roleEl) roleEl.textContent = 'Player';
             }
         }
 
@@ -1078,29 +1234,34 @@
 
             let html = '';
 
-            // Play section (always visible)
-            html += this.renderSection('Play', MENU_ITEMS.play);
+            // 1. Search bar
+            html += this.renderSearchBar();
 
-            // Manage section (captains only) - shown prominently near top
-            if (this.player && this.player.is_captain) {
-                html += this.renderSection('Manage', MENU_ITEMS.manage);
-            }
+            // 2. Dashboard link
+            const isHome = window.location.pathname.includes('dashboard');
+            html += `<div class="fb-sidebar-section fb-sidebar-dashboard">
+                <a href="/pages/dashboard.html" class="fb-sidebar-item ${isHome ? 'active' : ''}">
+                    <span class="fb-sidebar-item-icon">${SVG_ICONS.home}</span>
+                    <span class="fb-sidebar-item-label">Dashboard</span>
+                </a>
+            </div>`;
 
-            // Discover section (always visible)
-            html += this.renderSection('Discover', MENU_ITEMS.discover);
+            // 3. My Leagues placeholder (populated async by loadInvolvements)
+            html += '<div id="fbSidebarLeagues"></div>';
 
-            // Admin section (directors/admins only)
-            if (this.player && (this.player.is_director || this.player.is_admin || this.player.is_master_admin)) {
-                html += this.renderSection('Admin', MENU_ITEMS.admin);
-            }
+            // 3. My Tournaments placeholder (populated async)
+            html += '<div id="fbSidebarTournaments"></div>';
 
-            // Site Admin section (master admins only)
-            if (this.player && this.player.is_master_admin) {
-                html += this.renderSection('Site Admin', MENU_ITEMS.siteAdmin);
-            }
+            // 4. Quick Links (flat section)
+            html += this.renderFlatSection('Quick Links', MENU_ITEMS.quickLinks);
 
-            // Settings section (always visible)
-            html += this.renderSection('Settings', MENU_ITEMS.settings);
+            // 5. Manage (role-filtered) — rendered via placeholder only
+            // Roles may be discovered async (e.g. captain from involvements),
+            // so all Manage rendering goes through the single placeholder.
+            html += '<div id="fbSidebarManage"></div>';
+
+            // 6. Logout (always, at bottom with divider)
+            html += this.renderLogoutSection();
 
             contentEl.innerHTML = html;
 
@@ -1112,36 +1273,185 @@
                     this.handleAction(action);
                 });
             });
+
+            // Attach search handler
+            const searchInput = contentEl.querySelector('.fb-sidebar-search-input');
+            if (searchInput) {
+                searchInput.addEventListener('input', (e) => this.filterItems(e.target.value));
+                searchInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' && e.target.value.trim()) {
+                        // Open full search overlay
+                        this.close();
+                        if (window.FBNav && window.FBNav.search) {
+                            window.FBNav.search.open();
+                            setTimeout(() => {
+                                const searchEl = document.getElementById('fbSearchInput');
+                                if (searchEl) {
+                                    searchEl.value = e.target.value;
+                                    searchEl.dispatchEvent(new Event('input'));
+                                }
+                            }, 150);
+                        }
+                    }
+                });
+            }
+
+            // Load dynamic involvements
+            this.loadInvolvements();
         }
 
-        renderSection(title, items) {
+        hasRole(role) {
+            if (!this.player) return false;
+            switch (role) {
+                case 'captain': return this.player.is_captain ||
+                    (this.player.involvements?.leagues || []).some(l => l.role === 'captain');
+                case 'director': return this.player.is_director || this.player.is_admin || this.player.is_master_admin;
+                case 'master_admin': return this.player.is_master_admin;
+                default: return false;
+            }
+        }
+
+        renderSearchBar() {
+            return '<div class="fb-sidebar-search">' +
+                '<span class="fb-sidebar-search-icon">' + SVG_ICONS.search + '</span>' +
+                '<input type="text" class="fb-sidebar-search-input" placeholder="Search players, leagues...">' +
+                '</div>';
+        }
+
+        renderLogoutSection() {
+            const icon = SVG_ICONS['log-out'] || '';
+            return '<div class="fb-sidebar-section" style="border-top: 1px solid rgba(255,255,255,0.1); margin-top: 8px; padding-top: 8px;">' +
+                '<a class="fb-sidebar-item logout" data-action="logout">' +
+                '<span class="fb-sidebar-item-icon">' + icon + '</span>' +
+                '<span class="fb-sidebar-item-label">Logout</span>' +
+                '</a>' +
+                '</div>';
+        }
+
+        renderAccordionSection(title, items, expanded) {
+            const id = title.replace(/\s+/g, '-').toLowerCase();
+
+            // Check localStorage for saved state
+            try {
+                const saved = JSON.parse(localStorage.getItem('brdc_sidebar_accordions') || '{}');
+                if (saved[id] !== undefined) {
+                    expanded = saved[id];
+                }
+            } catch (e) {}
+
+            const actualDisplay = expanded ? 'block' : 'none';
+            const actualChevron = expanded ? SVG_ICONS['chevron-down'] : SVG_ICONS['chevron-right'];
+            const count = items.length;
+
+            let html = '<div class="fb-sidebar-accordion">' +
+                '<button class="fb-sidebar-accordion-header" data-accordion="' + id + '" aria-expanded="' + expanded + '">' +
+                '<span class="fb-sidebar-accordion-title">' + title + '</span>' +
+                '<span class="fb-sidebar-accordion-chevron" data-chevron="' + id + '">' + actualChevron + '</span>' +
+                '</button>' +
+                '<div class="fb-sidebar-accordion-body" id="accordion-' + id + '" style="display: ' + actualDisplay + ';">';
+
+            items.forEach(item => {
+                html += item;
+            });
+
+            html += '</div></div>';
+            return html;
+        }
+
+        attachAccordionHandlers(container) {
+            container.querySelectorAll('.fb-sidebar-accordion-header').forEach(header => {
+                header.addEventListener('click', () => {
+                    const id = header.dataset.accordion;
+                    const body = document.getElementById('accordion-' + id);
+                    if (!body) return;
+                    const isOpen = body.style.display !== 'none';
+
+                    body.style.display = isOpen ? 'none' : 'block';
+                    const chevron = header.querySelector('[data-chevron="' + id + '"]');
+                    if (chevron) {
+                        chevron.innerHTML = isOpen ? SVG_ICONS['chevron-right'] : SVG_ICONS['chevron-down'];
+                    }
+                    header.setAttribute('aria-expanded', String(!isOpen));
+
+                    // Save state
+                    try {
+                        const saved = JSON.parse(localStorage.getItem('brdc_sidebar_accordions') || '{}');
+                        saved[id] = !isOpen;
+                        localStorage.setItem('brdc_sidebar_accordions', JSON.stringify(saved));
+                    } catch (e) {}
+                });
+            });
+        }
+
+        filterItems(query) {
+            const lowerQuery = query.toLowerCase().trim();
+            const contentEl = document.getElementById('fbSidebarContent');
+            if (!contentEl) return;
+
+            // Filter sidebar items by label text
+            contentEl.querySelectorAll('.fb-sidebar-item').forEach(item => {
+                const label = item.querySelector('.fb-sidebar-item-label');
+                if (!label) return;
+                const text = label.textContent.toLowerCase();
+                if (!lowerQuery || text.includes(lowerQuery)) {
+                    item.style.display = '';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+
+            // Also show/hide accordion sections if all children hidden
+            contentEl.querySelectorAll('.fb-sidebar-accordion').forEach(accordion => {
+                const visibleItems = accordion.querySelectorAll('.fb-sidebar-item:not([style*="display: none"])');
+                const body = accordion.querySelector('.fb-sidebar-accordion-body');
+                if (lowerQuery && visibleItems.length > 0 && body) {
+                    body.style.display = 'block';
+                }
+                accordion.style.display = (lowerQuery && visibleItems.length === 0) ? 'none' : '';
+            });
+
+            // Show/hide flat sections
+            contentEl.querySelectorAll('.fb-sidebar-section').forEach(section => {
+                const visibleItems = section.querySelectorAll('.fb-sidebar-item:not([style*="display: none"])');
+                if (lowerQuery && visibleItems.length === 0) {
+                    section.style.display = 'none';
+                } else {
+                    section.style.display = '';
+                }
+            });
+        }
+
+        renderFlatSection(title, items) {
             const currentPath = window.location.pathname;
 
-            let html = `<div class="fb-sidebar-section">
-                <div class="fb-sidebar-section-title">${title}</div>`;
+            let html = '<div class="fb-sidebar-section">' +
+                '<div class="fb-sidebar-section-title">' + title + '</div>';
 
             items.forEach(item => {
                 const isActive = item.href && currentPath.includes(item.href.replace('/pages/', ''));
+                const icon = SVG_ICONS[item.icon] || '';
                 const isLogout = item.action === 'logout';
-                const isHighlight = item.highlight === true;
 
                 if (item.action) {
-                    html += `
-                        <a class="fb-sidebar-item ${isLogout ? 'logout' : ''}" data-action="${item.action}">
-                            <span class="fb-sidebar-item-icon">${item.icon}</span>
-                            <span class="fb-sidebar-item-label">${item.label}</span>
-                        </a>`;
+                    html += '<a class="fb-sidebar-item ' + (isLogout ? 'logout' : '') + '" data-action="' + item.action + '">' +
+                        '<span class="fb-sidebar-item-icon">' + icon + '</span>' +
+                        '<span class="fb-sidebar-item-label">' + item.label + '</span>' +
+                        '</a>';
                 } else {
-                    html += `
-                        <a href="${item.href}" class="fb-sidebar-item ${isActive ? 'active' : ''} ${isHighlight ? 'highlight' : ''}">
-                            <span class="fb-sidebar-item-icon">${item.icon}</span>
-                            <span class="fb-sidebar-item-label">${item.label}</span>
-                        </a>`;
+                    html += '<a href="' + item.href + '" class="fb-sidebar-item ' + (isActive ? 'active' : '') + '">' +
+                        '<span class="fb-sidebar-item-icon">' + icon + '</span>' +
+                        '<span class="fb-sidebar-item-label">' + item.label + '</span>' +
+                        '</a>';
                 }
             });
 
             html += '</div>';
             return html;
+        }
+
+        renderSection(title, items) {
+            // Legacy method kept for backward compatibility
+            return this.renderFlatSection(title, items);
         }
 
         handleAction(action) {
@@ -1152,6 +1462,129 @@
                     break;
                 default:
             }
+        }
+
+        async loadInvolvements() {
+            let session;
+            try {
+                session = JSON.parse(localStorage.getItem('brdc_session') || '{}');
+                if (!session.player_id) return;
+            } catch (e) { return; }
+
+            let involvements = session.involvements;
+
+            // If session doesn't have involvements, fetch via getPlayerInvolvements
+            if (!involvements || (!involvements.leagues?.length && !involvements.tournaments?.length)) {
+                try {
+                    const { callFunction } = await import('/js/firebase-config.js');
+                    const result = await callFunction('getPlayerInvolvements', {});
+                    if (result.success && result.player && result.player.involvements) {
+                        involvements = result.player.involvements;
+                        session.involvements = involvements;
+                        localStorage.setItem('brdc_session', JSON.stringify(session));
+                    }
+                } catch (err) {
+                    console.warn('[FBNav] Could not fetch involvements:', err);
+                }
+            }
+
+            if (!involvements) return;
+
+            const currentParams = new URLSearchParams(window.location.search);
+
+            // Render leagues as accordion
+            const leagues = involvements.leagues || [];
+            if (leagues.length > 0) {
+                const container = document.getElementById('fbSidebarLeagues');
+                if (container) {
+                    const leagueItems = leagues.map(item => {
+                        const href = '/pages/league-view.html?league_id=' + item.id;
+                        const isActive = currentParams.get('league_id') === item.id;
+                        const sublabel = item.team_name || '';
+                        return '<a href="' + href + '" class="fb-sidebar-item ' + (isActive ? 'active' : '') + '">' +
+                            '<span class="fb-sidebar-item-icon">' + SVG_ICONS.trophy + '</span>' +
+                            '<span class="fb-sidebar-item-detail">' +
+                            '<span class="fb-sidebar-item-label">' + this.escapeHtml(item.name) + '</span>' +
+                            (sublabel ? '<span class="fb-sidebar-item-sublabel">' + this.escapeHtml(sublabel) + '</span>' : '') +
+                            '</span></a>';
+                    });
+                    container.innerHTML = this.renderAccordionSection('My Leagues', leagueItems, true);
+                    this.attachAccordionHandlers(container);
+                }
+            }
+
+            // Render tournaments as accordion
+            const tournaments = involvements.tournaments || [];
+            if (tournaments.length > 0) {
+                const container = document.getElementById('fbSidebarTournaments');
+                if (container) {
+                    const tournamentItems = tournaments.map(item => {
+                        const href = '/pages/tournament-view.html?tournament_id=' + item.id;
+                        const isActive = currentParams.get('tournament_id') === item.id;
+                        const sublabel = item.event_name || item.status || '';
+                        return '<a href="' + href + '" class="fb-sidebar-item ' + (isActive ? 'active' : '') + '">' +
+                            '<span class="fb-sidebar-item-icon">' + SVG_ICONS.medal + '</span>' +
+                            '<span class="fb-sidebar-item-detail">' +
+                            '<span class="fb-sidebar-item-label">' + this.escapeHtml(item.name) + '</span>' +
+                            (sublabel ? '<span class="fb-sidebar-item-sublabel">' + this.escapeHtml(sublabel) + '</span>' : '') +
+                            '</span></a>';
+                    });
+                    container.innerHTML = this.renderAccordionSection('My Tournaments', tournamentItems, false);
+                    this.attachAccordionHandlers(container);
+                }
+            }
+
+            // Inject Manage section (single render point — combines sync roles + async captain discovery)
+            const hasCaptainRole = leagues.some(l => l.role === 'captain');
+            const manageContainer = document.getElementById('fbSidebarManage');
+            if (manageContainer && manageContainer.innerHTML.trim() === '') {
+                const manageItems = MENU_ITEMS.manage.filter(item => {
+                    if (item.role === 'captain') return hasCaptainRole || this.hasRole('captain');
+                    return this.hasRole(item.role);
+                });
+                if (manageItems.length > 0) {
+                    manageContainer.innerHTML = this.renderFlatSection('Manage', manageItems);
+                    // Attach action handlers
+                    manageContainer.querySelectorAll('[data-action]').forEach(el => {
+                        el.addEventListener('click', (e) => {
+                            e.preventDefault();
+                            this.handleAction(el.dataset.action);
+                        });
+                    });
+                }
+            }
+        }
+
+        renderInvolvementSection(title, items, type, icon) {
+            // Legacy method kept for backward compatibility
+            const currentParams = new URLSearchParams(window.location.search);
+            const paramKey = type === 'league' ? 'league_id' : 'tournament_id';
+
+            const itemsHtml = items.map(item => {
+                const href = type === 'league'
+                    ? '/pages/league-view.html?league_id=' + item.id
+                    : '/pages/tournament-view.html?tournament_id=' + item.id;
+                const isActive = currentParams.get(paramKey) === item.id;
+                const sublabel = type === 'league'
+                    ? (item.team_name || '')
+                    : (item.event_name || item.status || '');
+                const svgIcon = type === 'league' ? SVG_ICONS.trophy : SVG_ICONS.medal;
+                return '<a href="' + href + '" class="fb-sidebar-item ' + (isActive ? 'active' : '') + '">' +
+                    '<span class="fb-sidebar-item-icon">' + svgIcon + '</span>' +
+                    '<span class="fb-sidebar-item-detail">' +
+                    '<span class="fb-sidebar-item-label">' + this.escapeHtml(item.name) + '</span>' +
+                    (sublabel ? '<span class="fb-sidebar-item-sublabel">' + this.escapeHtml(sublabel) + '</span>' : '') +
+                    '</span></a>';
+            });
+
+            return this.renderAccordionSection(title, itemsHtml, type === 'league');
+        }
+
+        escapeHtml(str) {
+            if (!str) return '';
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
         }
 
         destroy() {
@@ -1449,15 +1882,16 @@
             if (!listEl) return;
 
             try {
-                const playerPin = localStorage.getItem('brdc_player_pin');
-                if (!playerPin) {
+                const session = JSON.parse(localStorage.getItem('brdc_session') || '{}');
+                const playerId = session.player_id;
+                if (!playerId) {
                     listEl.innerHTML = '<div class="fb-chat-empty">Log in to see messages</div>';
                     if (roomListEl) roomListEl.innerHTML = '<div class="fb-chat-empty">Log in to see rooms</div>';
                     return;
                 }
 
-                const chatCacheKey = `chat_conversations_${playerPin}`;
-                const roomCacheKey = `chat_rooms_${playerPin}`;
+                const chatCacheKey = `chat_conversations_${playerId}`;
+                const roomCacheKey = `chat_rooms_${playerId}`;
                 const chatCache = CacheHelper.get(chatCacheKey);
                 const roomCache = CacheHelper.get(roomCacheKey);
 
@@ -1482,7 +1916,6 @@
                 if (!chatCache || chatCache.isStale || chatCache.isExpired) {
                     try {
                         const convResult = await callFunction('getConversations', {
-                            player_pin: playerPin
                         });
 
                         if (convResult.success && convResult.conversations && convResult.conversations.length > 0) {
@@ -1511,7 +1944,6 @@
                 if (roomListEl && (!roomCache || roomCache.isStale || roomCache.isExpired)) {
                     try {
                         const roomsResult = await callFunction('getPlayerChatRooms', {
-                            player_pin: playerPin
                         });
 
                         if (roomsResult.success && roomsResult.rooms) {
@@ -1949,15 +2381,14 @@
             if (!listEl) return;
 
             try {
-                const playerPin = localStorage.getItem('brdc_player_pin');
-                if (!playerPin) {
+                const playerId = JSON.parse(localStorage.getItem('brdc_session') || '{}').player_id;
+                if (!playerId) {
                     listEl.innerHTML = '<div class="fb-notifications-empty">Log in to see notifications</div>';
                     return;
                 }
 
                 const { callFunction } = await import('/js/firebase-config.js');
                 const result = await callFunction('getNotifications', {
-                    player_pin: playerPin,
                     limit: 10
                 });
 
@@ -2049,11 +2480,11 @@
 
         async markAllAsRead() {
             try {
-                const playerPin = localStorage.getItem('brdc_player_pin');
-                if (!playerPin) return;
+                const playerId = JSON.parse(localStorage.getItem('brdc_session') || '{}').player_id;
+                if (!playerId) return;
 
                 const { callFunction } = await import('/js/firebase-config.js');
-                await callFunction('markAllNotificationsRead', { player_pin: playerPin });
+                await callFunction('markAllNotificationsRead', {});
 
                 // Update UI
                 this.notifications.forEach(n => n.read = true);
@@ -2084,8 +2515,8 @@
 
         if (path.includes('dashboard')) return 'home';
         if (path.includes('events-hub') || path.includes('community-events') || path.includes('event-view')) return 'events';
+        if (path.includes('message') || path.includes('conversation') || path.includes('chat-room')) return 'chat';
         if (path.includes('dart-trader')) return 'trader';
-        if (path.includes('messages')) return 'chat';
         if (path.includes('player-profile') || path.includes('settings')) return 'profile';
 
         return 'home';
@@ -2097,7 +2528,6 @@
     function logout() {
         // Clear all session data
         localStorage.removeItem('brdc_session');
-        localStorage.removeItem('brdc_player_pin');
         localStorage.removeItem('brdc_player_id');
         localStorage.removeItem('brdc_player_name');
         localStorage.removeItem('brdc_player');
@@ -2111,14 +2541,14 @@
      */
     async function loadBadgeCounts() {
         try {
-            const playerPin = localStorage.getItem('brdc_player_pin');
-            if (!playerPin) return;
+            const playerId = JSON.parse(localStorage.getItem('brdc_session') || '{}').player_id;
+            if (!playerId) return;
 
             const { callFunction } = await import('/js/firebase-config.js');
 
             // Load notification count
             try {
-                const notifResult = await callFunction('getUnreadNotificationCount', { player_pin: playerPin });
+                const notifResult = await callFunction('getUnreadNotificationCount', {});
                 if (notifResult.success && notifResult.count > 0 && window.FBNav.footer) {
                     window.FBNav.footer.setBadge('notifications', notifResult.count);
                 }
@@ -2128,7 +2558,7 @@
 
             // Load chat unread count
             try {
-                const chatResult = await callFunction('getUnreadCount', { player_pin: playerPin });
+                const chatResult = await callFunction('getUnreadCount', {});
                 if (chatResult.success && chatResult.total_unread > 0 && window.FBNav.footer) {
                     window.FBNav.footer.setBadge('chat', chatResult.total_unread);
                 }

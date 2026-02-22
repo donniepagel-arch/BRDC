@@ -18,10 +18,15 @@ When an item is completed, move it to the "Completed" section at the bottom with
 
 ## Pending Ideas
 
-### [2026-02-11] - Match-Hub Remaining Tabs (Performance, Award Counts, Leaderboard)
-Game Details tab is complete with: box score header, baseball line score (legs per set), set cards with combined averages, expandable throw detail with darts-used badges, green/red stat comparisons, winner/loser dimming throughout. Next: build out the Performance, Award Counts, and Leaderboard tabs using the DartConnect reference data in `temp/dc/`.
-Context: Match-hub page redesign — Game Details tab finished this session
-Priority: High
+### [2026-02-21] - Scorer Hub → Game Setup Redirect
+The Scorer Hub page isn't functional yet. The nav link for Scorer Hub should redirect to game-setup.html instead until the hub is built out.
+Context: User noticed scorer hub isn't working during Dart Trader session
+Priority: Medium
+
+### [2026-02-16] - UX Polish Pass Remaining Items
+Remaining from 4-page visual audit: dashboard match modal uses inline styles instead of shared card classes (partially addressed), match card border colors per event type (RULE 8 — teal for league, yellow for tournament), record badge vs standing badge size hierarchy.
+Context: Infrastructure/UX overhaul session completed most issues
+Priority: Low
 
 ### [2026-02-08] - D. Partlo vs N. Kull Week 4 Missing Set 9
 Match `pNJ5wKPIrHPQqXQv5Nhl` only has 8/9 sets. The RTF file (`temp/trips league/week 4/partlo v kull.rtf`) doesn't contain Set 9 (P3 Singles 501). Need to check with league director if the set was played but not recorded, or if the match ended early.
@@ -36,6 +41,21 @@ Priority: Medium
 ---
 
 ## Completed
+
+### [2026-02-16] - Match-Hub Remaining Tabs (Performance, Award Counts, Leaderboard)
+All 3 tabs fully functional: Performance shows player summary, '01/'Cricket leaders, all games tables. Awards shows checkout performance, opportunity tracking, 100+/95+ turns, cricket 5M+ turns, bulls, marksman counts. Leaders shows paginated performance/record views with X01 and Cricket sub-tabs.
+Context: Discovered already built during UX audit session
+Completed: 2026-02-16
+
+### [2026-02-16] - Throw Data Notable/Checkout/Closeout Flags Backfill
+Ran `scripts/backfill-throw-flags.js` to add 2,742 flags across 20 matches (418 legs). Enables RULE 20 cricket closeout indicators (★ CLOSED) and X01 checkout indicators (★ OUT) on match-hub leg card headers.
+Context: Import pipeline supported flags but existing data predated the feature
+Completed: 2026-02-16
+
+### [2026-02-16] - Infrastructure & UX Overhaul (4-Page Audit)
+CSS extraction (3 pages), breadcrumbs→back buttons (13 pages, Facebook mobile pattern), CSS variable standardization (12 vars), captain-dashboard nav integration, accessibility pass (4 pages), RULE 20 indicators, pre-match state, level badge standardization, match card 7-column grid (RULE 9), tab label shortening, empty state standardization, button loading/skeleton pattern sharing.
+Context: Full visual/usability audit of dashboard, league-view, match-hub, captain-dashboard
+Completed: 2026-02-16
 
 ### [2026-02-10] - SendGrid Email Integration
 Installed `@sendgrid/mail`, configured API key and `FROM_EMAIL=noreply@burningriverdarts.com` in functions/.env. Domain authenticated via Cloudflare DNS (DKIM + return path). Fixed TODO in phase-5-6-7.js `sendEmail` function. Updated fallback FROM_EMAIL in all 4 notification files from `brdc-darts.com` to `burningriverdarts.com`. All email functions now send real emails (were previously simulated).

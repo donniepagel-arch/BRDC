@@ -6,6 +6,7 @@
 const functions = require('firebase-functions');
 const { onDocumentCreated, onDocumentUpdated } = require('firebase-functions/v2/firestore');
 const admin = require('firebase-admin');
+const { verifyFirebaseAuth } = require('./src/firebase-auth-helper');
 
 // Initialize if not already done
 if (!admin.apps.length) {
@@ -456,16 +457,15 @@ exports.broadcastNotification = functions.https.onRequest(async (req, res) => {
     const cors = require('cors')({ origin: true });
 
     cors(req, res, async () => {
-        const { player_ids, title, body, type, data, admin_pin } = req.body;
+        const { player_ids, title, body, type, data } = req.body;
 
         // Verify admin
-        if (!admin_pin) {
-            return res.status(401).json({ error: 'Admin PIN required' });
+        const authPlayer = await verifyFirebaseAuth(req);
+        if (!authPlayer) {
+            return res.status(401).json({ error: 'Unauthorized' });
         }
-
-        const adminDoc = await db.collection('settings').doc('admin').get();
-        if (!adminDoc.exists || adminDoc.data().pin !== admin_pin) {
-            return res.status(403).json({ error: 'Invalid admin PIN' });
+        if (!authPlayer.is_admin && !authPlayer.is_master_admin) {
+            return res.status(403).json({ error: 'Admin access required' });
         }
 
         if (!player_ids || !Array.isArray(player_ids) || !title) {
@@ -550,31 +550,18 @@ exports.updateFCMToken = functions.https.onRequest(async (req, res) => {
     const cors = require('cors')({ origin: true });
 
     cors(req, res, async () => {
-        const { player_id, player_pin, fcm_token } = req.body;
+        const { fcm_token } = req.body;
 
         if (!fcm_token) {
             return res.status(400).json({ error: 'fcm_token required' });
         }
 
         try {
-            let playerId = player_id;
-
-            // If PIN provided, look up player
-            if (!playerId && player_pin) {
-                const playerSnap = await db.collection('players')
-                    .where('pin', '==', player_pin.toUpperCase())
-                    .limit(1)
-                    .get();
-
-                if (playerSnap.empty) {
-                    return res.status(404).json({ error: 'Player not found' });
-                }
-                playerId = playerSnap.docs[0].id;
+            const authPlayer = await verifyFirebaseAuth(req);
+            if (!authPlayer) {
+                return res.status(401).json({ error: 'Unauthorized' });
             }
-
-            if (!playerId) {
-                return res.status(400).json({ error: 'player_id or player_pin required' });
-            }
+            const playerId = authPlayer.id;
 
             // Update player document
             await db.collection('players').doc(playerId).update({
@@ -605,23 +592,14 @@ exports.updateNotificationPreferences = functions.https.onRequest(async (req, re
     const cors = require('cors')({ origin: true });
 
     cors(req, res, async () => {
-        const { player_pin, preferences } = req.body;
-
-        if (!player_pin) {
-            return res.status(400).json({ error: 'player_pin required' });
-        }
+        const { preferences } = req.body;
 
         try {
-            const playerSnap = await db.collection('players')
-                .where('pin', '==', player_pin.toUpperCase())
-                .limit(1)
-                .get();
-
-            if (playerSnap.empty) {
-                return res.status(404).json({ error: 'Player not found' });
+            const authPlayer = await verifyFirebaseAuth(req);
+            if (!authPlayer) {
+                return res.status(401).json({ error: 'Unauthorized' });
             }
-
-            const playerId = playerSnap.docs[0].id;
+            const playerId = authPlayer.id;
 
             // Update preferences
             await db.collection('players').doc(playerId).update({

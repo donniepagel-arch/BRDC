@@ -16,7 +16,7 @@ const admin = require('firebase-admin');
 exports.checkInPlayer = functions.https.onRequest(async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     
     if (req.method === 'OPTIONS') return res.status(204).send('');
     
@@ -60,7 +60,7 @@ exports.checkInPlayer = functions.https.onRequest(async (req, res) => {
 exports.bulkCheckIn = functions.https.onRequest(async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     
     if (req.method === 'OPTIONS') return res.status(204).send('');
     
@@ -113,7 +113,7 @@ exports.bulkCheckIn = functions.https.onRequest(async (req, res) => {
 exports.addWalkIn = functions.https.onRequest(async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     
     if (req.method === 'OPTIONS') return res.status(204).send('');
     
@@ -195,7 +195,7 @@ exports.addWalkIn = functions.https.onRequest(async (req, res) => {
 exports.submitLeagueMatchScore = functions.https.onRequest(async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     
     if (req.method === 'OPTIONS') return res.status(204).send('');
     
@@ -307,7 +307,7 @@ exports.submitLeagueMatchScore = functions.https.onRequest(async (req, res) => {
 exports.getTournamentSummary = functions.https.onRequest(async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     
     if (req.method === 'OPTIONS') return res.status(204).send('');
     
@@ -405,7 +405,7 @@ exports.getTournamentSummary = functions.https.onRequest(async (req, res) => {
 exports.undoCheckIn = functions.https.onRequest(async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     
     if (req.method === 'OPTIONS') return res.status(204).send('');
     

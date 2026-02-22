@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="manifest" href="/manifest.json">
     <title>Draft Room - BRDC</title>
     <link rel="icon" type="image/png" href="/images/favicon.png">
     <script src="/js/brdc-toast.js"></script>
@@ -43,56 +44,6 @@
                 radial-gradient(ellipse at 80% 80%, rgba(145, 215, 235, 0.06) 0%, transparent 50%);
             pointer-events: none;
             z-index: -1;
-        }
-
-        /* Header Bar */
-        .header-bar {
-            background: var(--bg-panel);
-            border-bottom: 3px solid var(--pink);
-            padding: 16px 20px;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
-        }
-
-        .back-btn {
-            background: rgba(255,255,255,0.1);
-            border: 2px solid rgba(255,255,255,0.3);
-            color: white;
-            padding: 8px 16px;
-            border-radius: 6px;
-            font-weight: 700;
-            font-size: 12px;
-            cursor: pointer;
-            transition: all 0.15s;
-        }
-
-        .back-btn:hover {
-            background: rgba(255,255,255,0.2);
-            border-color: var(--pink);
-        }
-
-        .header-logo {
-            width: 40px;
-            height: 40px;
-        }
-
-        .header-title {
-            font-family: 'Bebas Neue', cursive;
-            font-size: 28px;
-            letter-spacing: 3px;
-            color: var(--pink);
-        }
-
-        .header-status {
-            margin-left: auto;
-            display: flex;
-            align-items: center;
-            gap: 12px;
         }
 
         .status-badge {
@@ -794,6 +745,53 @@
             display: none;
         }
 
+        .login-divider {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 16px 0 4px;
+        }
+        .login-divider::before,
+        .login-divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: #333;
+        }
+        .login-divider span {
+            color: #555;
+            font-size: 12px;
+            font-family: 'JetBrains Mono', monospace;
+            white-space: nowrap;
+        }
+        .btn-google {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            width: 100%;
+            padding: 12px 20px;
+            background: #fff;
+            color: #333;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-family: 'Inter', sans-serif;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+            margin-top: 8px;
+            transition: box-shadow 0.15s ease, transform 0.15s ease;
+        }
+        .btn-google:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+            transform: translateY(-1px);
+        }
+        .btn-google:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
         /* Main Content */
         .main-content {
             display: none;
@@ -819,26 +817,27 @@
             <div class="login-form-title">CAPTAIN LOGIN</div>
             <div class="login-error hidden" id="loginError" role="alert"></div>
             <div class="form-group">
-                <label class="form-label">Your 8-Digit PIN</label>
-                <input type="text" class="form-input" id="pinInput" placeholder="••••••••" maxlength="8" inputmode="numeric" pattern="[0-9]*" autocomplete="off" style="-webkit-text-security: disc;">
+                <label class="form-label" for="emailInput">Email</label>
+                <input type="email" class="form-input" id="emailInput" placeholder="your@email.com" autocomplete="email">
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="passwordInput">Password</label>
+                <input type="password" class="form-input" id="passwordInput" placeholder="Password" autocomplete="current-password">
             </div>
             <button class="login-btn" onclick="login()">ENTER DRAFT</button>
+            <div style="text-align:center; margin-top: 12px;">
+                <a href="#" onclick="forgotPassword(); return false;" style="color: var(--text-dim, #888); font-size: 13px; text-decoration: none;">Forgot password?</a>
+            </div>
+            <div class="login-divider"><span>OR</span></div>
+            <button type="button" class="btn-google" onclick="loginWithGoogle()">
+                <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.08 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-3.59-13.46-8.86l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+                Sign in with Google
+            </button>
         </div>
     </div>
 
     <!-- Main Content -->
     <div class="main-content" id="mainContent">
-        <!-- Header -->
-        <div class="header-bar">
-            <button class="back-btn" onclick="goBack()" aria-label="Go back">BACK</button>
-            <img src="/images/gold_logo.png" alt="BRDC" class="header-logo">
-            <div class="header-title">DRAFT ROOM</div>
-            <div class="header-status">
-                <span id="leagueName" style="color: var(--teal); font-weight: 600;"></span>
-                <span class="status-badge pending" id="draftStatus">PENDING</span>
-            </div>
-        </div>
-
         <div class="container">
             <!-- Timer Section -->
             <div class="card" style="margin-bottom: 20px;">
@@ -968,50 +967,120 @@
 
         // Login function
         async function login() {
-            const pin = document.getElementById('pinInput').value.trim();
-            if (pin.length !== 8) {
-                showError('Please enter a valid 8-digit PIN');
+            const email = document.getElementById('emailInput').value.trim();
+            const password = document.getElementById('passwordInput').value;
+            if (!email || !password) {
+                showError('Please enter your email and password');
                 return;
             }
 
             showLoading(true);
 
             try {
-                // Check if user is a player in this league
-                const response = await fetch(`${API_BASE}/captainLogin`, {
+                // Sign in with Firebase Auth
+                await firebase.auth().signInWithEmailAndPassword(email, password);
+                const idToken = await firebase.auth().currentUser.getIdToken();
+
+                // Get player session from cloud function
+                const response = await fetch(`${API_BASE}/getPlayerSession`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ league_id: leagueId, pin })
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${idToken}`
+                    },
+                    body: JSON.stringify({})
                 });
 
                 const data = await response.json();
 
                 if (data.success) {
                     currentUser = data.player;
-                    myTeamId = data.team?.id || null;
-                    isDirector = data.is_captain || false;
+                    myTeamId = data.player?.team_id || null;
+                    isDirector = data.player?.is_captain || data.player?.is_director || data.player?.is_admin || false;
 
-                    // Also check if they're the league director
-                    const leagueDoc = await db.collection('leagues').doc(leagueId).get();
-                    const leagueData = leagueDoc.data();
-                    if (leagueData.director_pin === pin || leagueData.admin_pin === pin) {
-                        isDirector = true;
-                    }
+                    localStorage.setItem('brdc_session', JSON.stringify(data.player));
+                    localStorage.removeItem('brdc_player_pin');
 
-                    sessionStorage.setItem('draft_pin', pin);
                     sessionStorage.setItem('draft_user', JSON.stringify(currentUser));
                     sessionStorage.setItem('draft_team_id', myTeamId || '');
                     sessionStorage.setItem('draft_is_director', isDirector);
 
                     enterDraftRoom();
                 } else {
-                    showError(data.error || 'Invalid PIN');
+                    showError(data.error || 'Login failed. Please try again.');
                 }
             } catch (error) {
                 console.error('Login error:', error);
-                showError('Connection error. Please try again.');
+                if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+                    showError('Invalid email or password.');
+                } else if (error.code === 'auth/too-many-requests') {
+                    showError('Too many attempts. Please try again later.');
+                } else {
+                    showError('Connection error. Please try again.');
+                }
             }
 
+            showLoading(false);
+        }
+
+        async function forgotPassword() {
+            const email = document.getElementById('emailInput').value.trim();
+            if (!email) {
+                showError('Enter your email address first, then click Forgot password.');
+                return;
+            }
+            try {
+                await firebase.auth().sendPasswordResetEmail(email);
+                showError('Password reset email sent! Check your inbox.');
+            } catch (e) {
+                showError('Could not send reset email. Check the address and try again.');
+            }
+        }
+
+        async function loginWithGoogle() {
+            showLoading(true);
+            try {
+                const provider = new firebase.auth.GoogleAuthProvider();
+                await firebase.auth().signInWithPopup(provider);
+                const idToken = await firebase.auth().currentUser.getIdToken();
+
+                const response = await fetch(`${API_BASE}/getPlayerSession`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${idToken}`
+                    },
+                    body: JSON.stringify({})
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    currentUser = data.player;
+                    myTeamId = data.player?.team_id || null;
+                    isDirector = data.player?.is_captain || data.player?.is_director || data.player?.is_admin || false;
+
+                    localStorage.setItem('brdc_session', JSON.stringify(data.player));
+                    localStorage.removeItem('brdc_player_pin');
+
+                    sessionStorage.setItem('draft_user', JSON.stringify(currentUser));
+                    sessionStorage.setItem('draft_team_id', myTeamId || '');
+                    sessionStorage.setItem('draft_is_director', isDirector);
+
+                    enterDraftRoom();
+                } else {
+                    showError(data.error || 'Login failed. Please try again.');
+                }
+            } catch (error) {
+                if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
+                    showLoading(false);
+                    return;
+                }
+                let msg = 'Google sign-in failed. Please try again.';
+                if (error.code === 'auth/popup-blocked') msg = 'Popup was blocked. Please allow popups for this site and try again.';
+                else if (error.message) msg = error.message;
+                showError(msg);
+            }
             showLoading(false);
         }
 
@@ -1385,17 +1454,19 @@
             if (!confirm(`Draft ${playerName}?`)) return;
 
             showLoading(true);
-            const pin = sessionStorage.getItem('draft_pin');
+            const idToken = await getAuthToken();
 
             try {
                 const response = await fetch(`${API_BASE}/makeDraftPick`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(idToken ? { 'Authorization': `Bearer ${idToken}` } : {})
+                    },
                     body: JSON.stringify({
                         league_id: leagueId,
                         player_id: playerId,
-                        team_id: isDirector ? (draftState.pick_order[draftState.current_pick_index]) : myTeamId,
-                        pin
+                        team_id: isDirector ? (draftState.pick_order[draftState.current_pick_index]) : myTeamId
                     })
                 });
 
@@ -1416,15 +1487,17 @@
             if (!confirm('Start the draft? Make sure all teams are ready.')) return;
 
             showLoading(true);
-            const pin = sessionStorage.getItem('draft_pin');
+            const idToken = await getAuthToken();
 
             try {
                 const response = await fetch(`${API_BASE}/initializeDraft`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(idToken ? { 'Authorization': `Bearer ${idToken}` } : {})
+                    },
                     body: JSON.stringify({
                         league_id: leagueId,
-                        pin,
                         time_per_pick: 60,
                         snake_draft: true,
                         auto_pick_enabled: true
@@ -1445,13 +1518,16 @@
 
         async function pauseDraft() {
             showLoading(true);
-            const pin = sessionStorage.getItem('draft_pin');
+            const idToken = await getAuthToken();
 
             try {
                 const response = await fetch(`${API_BASE}/pauseDraft`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ league_id: leagueId, pin })
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(idToken ? { 'Authorization': `Bearer ${idToken}` } : {})
+                    },
+                    body: JSON.stringify({ league_id: leagueId })
                 });
 
                 const data = await response.json();
@@ -1468,13 +1544,16 @@
 
         async function resumeDraft() {
             showLoading(true);
-            const pin = sessionStorage.getItem('draft_pin');
+            const idToken = await getAuthToken();
 
             try {
                 const response = await fetch(`${API_BASE}/resumeDraft`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ league_id: leagueId, pin })
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(idToken ? { 'Authorization': `Bearer ${idToken}` } : {})
+                    },
+                    body: JSON.stringify({ league_id: leagueId })
                 });
 
                 const data = await response.json();
@@ -1493,13 +1572,16 @@
             if (!confirm('Undo the last pick? This cannot be undone.')) return;
 
             showLoading(true);
-            const pin = sessionStorage.getItem('draft_pin');
+            const idToken = await getAuthToken();
 
             try {
                 const response = await fetch(`${API_BASE}/undoDraftPick`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ league_id: leagueId, pin })
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(idToken ? { 'Authorization': `Bearer ${idToken}` } : {})
+                    },
+                    body: JSON.stringify({ league_id: leagueId })
                 });
 
                 const data = await response.json();
@@ -1517,13 +1599,16 @@
         async function forcePick() {
             // Auto-pick for current team
             showLoading(true);
-            const pin = sessionStorage.getItem('draft_pin');
+            const idToken = await getAuthToken();
 
             try {
                 const response = await fetch(`${API_BASE}/autoPick`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ league_id: leagueId, pin })
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(idToken ? { 'Authorization': `Bearer ${idToken}` } : {})
+                    },
+                    body: JSON.stringify({ league_id: leagueId })
                 });
 
                 const data = await response.json();
@@ -1544,20 +1629,34 @@
             window.location.href = `/pages/league-view.html?league_id=${leagueId}`;
         }
 
+        // Helper: get Firebase Auth ID token for API calls
+        async function getAuthToken() {
+            const user = firebase.auth().currentUser;
+            if (!user) return null;
+            return await user.getIdToken();
+        }
+
         // Check for stored session
         window.onload = function() {
-            const storedPin = sessionStorage.getItem('draft_pin');
             const storedUser = sessionStorage.getItem('draft_user');
 
-            if (storedPin && storedUser) {
-                currentUser = JSON.parse(storedUser);
-                myTeamId = sessionStorage.getItem('draft_team_id') || null;
-                isDirector = sessionStorage.getItem('draft_is_director') === 'true';
-                enterDraftRoom();
+            if (storedUser) {
+                // Check Firebase Auth state before trusting stored session
+                firebase.auth().onAuthStateChanged(function(user) {
+                    if (user && storedUser) {
+                        currentUser = JSON.parse(storedUser);
+                        myTeamId = sessionStorage.getItem('draft_team_id') || null;
+                        isDirector = sessionStorage.getItem('draft_is_director') === 'true';
+                        enterDraftRoom();
+                    }
+                });
             }
 
-            // Handle Enter key on PIN input
-            document.getElementById('pinInput').addEventListener('keypress', function(e) {
+            // Handle Enter key on email/password inputs
+            document.getElementById('emailInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') document.getElementById('passwordInput').focus();
+            });
+            document.getElementById('passwordInput').addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') login();
             });
         };
@@ -1569,7 +1668,7 @@
         };
     </script>
 <script src="/js/display-helpers.js"></script>
-<script src="/components/brdc-navigation-init.js"></script>
+<script src="/components/brdc-navigation-init.js?v=13"></script>
 <script>initBRDCNavigation({ page: 'draft-room' });</script>
 </body>
 </html>

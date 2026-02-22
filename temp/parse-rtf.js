@@ -141,6 +141,37 @@ function getCricketNotable(marks) {
     return null;
 }
 
+// Count bull marks from cricket hit notation (SB=1, DB=2 each)
+function countBulls(hitStr) {
+    if (!hitStr || hitStr === '∅' || hitStr === 'X' || hitStr === '-') return 0;
+    let bulls = 0;
+    const hits = hitStr.split(',').map(h => h.trim());
+    for (const hit of hits) {
+        if (!hit) continue;
+        const multiplierMatch = hit.match(/x(\d+)$/);
+        const multiplier = multiplierMatch ? parseInt(multiplierMatch[1]) : 1;
+        const baseHit = hit.replace(/x\d+$/, '');
+        if (baseHit === 'DB') bulls += 2 * multiplier;
+        else if (baseHit === 'SB') bulls += 1 * multiplier;
+    }
+    return bulls;
+}
+
+// Count triple darts from cricket hit notation (T20, T19, etc.)
+function countTriples(hitStr) {
+    if (!hitStr || hitStr === '∅' || hitStr === 'X' || hitStr === '-') return 0;
+    let triples = 0;
+    const hits = hitStr.split(',').map(h => h.trim());
+    for (const hit of hits) {
+        if (!hit) continue;
+        const multiplierMatch = hit.match(/x(\d+)$/);
+        const multiplier = multiplierMatch ? parseInt(multiplierMatch[1]) : 1;
+        const baseHit = hit.replace(/x\d+$/, '');
+        if (baseHit.startsWith('T') && !baseHit.startsWith('TB')) triples += multiplier;
+    }
+    return triples;
+}
+
 // Parse cricket hit notation to count marks
 function parseHitNotation(hitStr) {
     if (!hitStr || hitStr === '∅' || hitStr === 'X' || hitStr === '-') return 0;
@@ -669,6 +700,9 @@ function parseCricketLeg(lines, options = {}) {
                 const notable = getCricketNotable(marks);
                 if (notable) throwData.notable = notable;
 
+                throwData.bulls = countBulls(hit);
+                throwData.triples = countTriples(hit);
+
                 throws.push(throwData);
 
                 if (!playerStats[player]) {
@@ -777,6 +811,9 @@ function parseCricketLeg(lines, options = {}) {
             const notable = getCricketNotable(marks);
             if (notable) throwData.notable = notable;
 
+            throwData.bulls = countBulls(homeHit);
+            throwData.triples = countTriples(homeHit);
+
             throws.push(throwData);
             lastHomeThrow = { player: homePlayer, round, darts: 3 };
 
@@ -801,6 +838,9 @@ function parseCricketLeg(lines, options = {}) {
             // Add notable flag for cricket
             const notable = getCricketNotable(marks);
             if (notable) throwData.notable = notable;
+
+            throwData.bulls = countBulls(awayHit);
+            throwData.triples = countTriples(awayHit);
 
             throws.push(throwData);
             lastAwayThrow = { player: awayPlayer, round, darts: 3 };

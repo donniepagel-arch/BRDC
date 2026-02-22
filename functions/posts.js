@@ -6,6 +6,7 @@
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 const cors = require('cors')({ origin: true });
+const { verifyFirebaseAuth } = require('./src/firebase-auth-helper');
 
 // Initialize if needed
 if (!admin.apps.length) {
@@ -18,34 +19,10 @@ const db = admin.firestore();
 const VALID_REACTIONS = ['like', 'love', 'haha', 'wow', 'sad', 'angry'];
 
 // Valid post types
-const VALID_POST_TYPES = ['general', 'looking_for_partner', 'anyone_going', 'announcement'];
+const VALID_POST_TYPES = ['general', 'looking_for_partner', 'looking_for_team', 'looking_for_ride', 'chatroom_invite', 'anyone_going', 'announcement'];
 
 // Valid visibility options
 const VALID_VISIBILITY = ['public', 'friends', 'league'];
-
-// ============================================================================
-// HELPER FUNCTIONS
-// ============================================================================
-
-/**
- * Verify player PIN and return player data
- */
-async function verifyPlayerPin(pin) {
-    if (!pin) return null;
-
-    const playersSnapshot = await db.collection('players')
-        .where('pin', '==', pin)
-        .limit(1)
-        .get();
-
-    if (playersSnapshot.empty) return null;
-
-    const doc = playersSnapshot.docs[0];
-    return {
-        id: doc.id,
-        ...doc.data()
-    };
-}
 
 /**
  * Get player info for embedding in posts/comments
@@ -295,34 +272,27 @@ exports.createPost = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
             const {
-                player_pin,
                 author_id,
                 content,
                 post_type,
                 tagged_event,
-                visibility
+                visibility,
+                mentions,
+                chat_room_id
             } = req.body;
 
             // Validate required fields
-            if (!content || (!player_pin && !author_id)) {
+            if (!content) {
                 return res.status(400).json({
                     success: false,
-                    error: 'Missing required fields: author_id/player_pin and content are required'
+                    error: 'Missing required fields: content is required'
                 });
             }
 
             // Verify player
-            let player;
-            if (player_pin) {
-                player = await verifyPlayerPin(player_pin);
-                if (!player) {
-                    return res.status(401).json({ success: false, error: 'Invalid PIN' });
-                }
-            } else {
-                player = await getPlayerInfo(author_id);
-                if (!player) {
-                    return res.status(404).json({ success: false, error: 'Author not found' });
-                }
+            const player = await verifyFirebaseAuth(req);
+            if (!player) {
+                return res.status(401).json({ success: false, error: 'Unauthorized' });
             }
 
             // Validate post_type if provided
@@ -376,7 +346,10 @@ exports.createPost = functions.https.onRequest((req, res) => {
                 reactions: createEmptyReactions(),
                 comment_count: 0,
                 created_at: admin.firestore.FieldValue.serverTimestamp(),
-                visibility: finalVisibility
+                visibility: finalVisibility,
+                mentions: mentions || [],
+                chat_room_id: chat_room_id || null,
+                respondents: []
             };
 
             const postRef = await db.collection('posts').add(postData);
@@ -396,6 +369,102 @@ exports.createPost = functions.https.onRequest((req, res) => {
 });
 
 // ============================================================================
+// JOIN POOL
+// ============================================================================
+
+/**
+ * Add a player to a pool post's respondents list
+ */
+exports.joinPool = functions.https.onRequest((req, res) => {
+    cors(req, res, async () => {
+        try {
+            const { post_id, player_id, player_name } = req.body;
+
+            if (!post_id || !player_id || !player_name) {
+                return res.status(400).json({ success: false, error: 'Missing required fields' });
+            }
+
+            const postRef = db.collection('posts').doc(post_id);
+            const postDoc = await postRef.get();
+
+            if (!postDoc.exists) {
+                return res.status(404).json({ success: false, error: 'Post not found' });
+            }
+
+            const postData = postDoc.data();
+            const respondents = postData.respondents || [];
+
+            // Check if already joined
+            if (respondents.some(r => r.player_id === player_id)) {
+                return res.json({ success: true, already_joined: true, respondent_count: respondents.length });
+            }
+
+            const newRespondent = {
+                player_id,
+                player_name,
+                joined_at: admin.firestore.FieldValue.serverTimestamp()
+            };
+
+            await postRef.update({
+                respondents: admin.firestore.FieldValue.arrayUnion(newRespondent)
+            });
+
+            res.json({
+                success: true,
+                respondent_count: respondents.length + 1
+            });
+
+        } catch (error) {
+            console.error('Error joining pool:', error);
+            res.status(500).json({ success: false, error: error.message });
+        }
+    });
+});
+
+// ============================================================================
+// CREATE OPEN CHAT ROOM
+// ============================================================================
+
+/**
+ * Create a social/open chat room for a post
+ */
+exports.createOpenChatRoom = functions.https.onRequest((req, res) => {
+    cors(req, res, async () => {
+        try {
+            const { player_id, player_name, name } = req.body;
+
+            if (!player_id || !player_name || !name) {
+                return res.status(400).json({ success: false, error: 'Missing required fields' });
+            }
+
+            const roomData = {
+                name: name.trim(),
+                type: 'open',
+                creator_id: player_id,
+                creator_name: player_name,
+                participants: [player_id],
+                participant_names: { [player_id]: player_name },
+                created_at: admin.firestore.FieldValue.serverTimestamp(),
+                last_message: null,
+                last_message_at: admin.firestore.FieldValue.serverTimestamp(),
+                member_count: 1
+            };
+
+            const roomRef = await db.collection('chat_rooms').add(roomData);
+
+            res.json({
+                success: true,
+                room_id: roomRef.id
+            });
+
+        } catch (error) {
+            console.error('Error creating open chat room:', error);
+            res.status(500).json({ success: false, error: error.message });
+        }
+    });
+});
+
+// ============================================================================
 // GET FEED
 // ============================================================================
 
@@ -406,32 +475,17 @@ exports.getFeed = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
             const {
-                player_pin,
-                player_id,
                 filter,
                 limit: queryLimit,
                 cursor
             } = req.method === 'POST' ? req.body : req.query;
 
-            // Validate required fields
-            if (!player_pin && !player_id) {
-                return res.status(400).json({
-                    success: false,
-                    error: 'player_id or player_pin is required'
-                });
-            }
-
             // Verify player
-            let playerId;
-            if (player_pin) {
-                const player = await verifyPlayerPin(player_pin);
-                if (!player) {
-                    return res.status(401).json({ success: false, error: 'Invalid PIN' });
-                }
-                playerId = player.id;
-            } else {
-                playerId = player_id;
+            const player = await verifyFirebaseAuth(req);
+            if (!player) {
+                return res.status(401).json({ success: false, error: 'Unauthorized' });
             }
+            const playerId = player.id;
 
             const feedLimit = Math.min(parseInt(queryLimit) || 20, 50);
             const feedFilter = filter || 'all';
@@ -542,27 +596,22 @@ exports.getFeed = functions.https.onRequest((req, res) => {
 exports.addPostReaction = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { player_pin, post_id, player_id, reaction_type } = req.body;
+            const { post_id, reaction_type } = req.body;
 
             // Validate required fields
-            if (!post_id || !reaction_type || (!player_pin && !player_id)) {
+            if (!post_id || !reaction_type) {
                 return res.status(400).json({
                     success: false,
-                    error: 'Missing required fields: post_id, player_id/player_pin, and reaction_type are required'
+                    error: 'Missing required fields: post_id and reaction_type are required'
                 });
             }
 
             // Verify player
-            let reactorId;
-            if (player_pin) {
-                const player = await verifyPlayerPin(player_pin);
-                if (!player) {
-                    return res.status(401).json({ success: false, error: 'Invalid PIN' });
-                }
-                reactorId = player.id;
-            } else {
-                reactorId = player_id;
+            const player = await verifyFirebaseAuth(req);
+            if (!player) {
+                return res.status(401).json({ success: false, error: 'Unauthorized' });
             }
+            const reactorId = player.id;
 
             // Validate reaction type
             if (reaction_type !== 'none' && !VALID_REACTIONS.includes(reaction_type)) {
@@ -628,28 +677,20 @@ exports.addPostReaction = functions.https.onRequest((req, res) => {
 exports.addComment = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { player_pin, post_id, author_id, content } = req.body;
+            const { post_id, content } = req.body;
 
             // Validate required fields
-            if (!post_id || !content || (!player_pin && !author_id)) {
+            if (!post_id || !content) {
                 return res.status(400).json({
                     success: false,
-                    error: 'Missing required fields: post_id, author_id/player_pin, and content are required'
+                    error: 'Missing required fields: post_id and content are required'
                 });
             }
 
             // Verify player
-            let author;
-            if (player_pin) {
-                author = await verifyPlayerPin(player_pin);
-                if (!author) {
-                    return res.status(401).json({ success: false, error: 'Invalid PIN' });
-                }
-            } else {
-                author = await getPlayerInfo(author_id);
-                if (!author) {
-                    return res.status(404).json({ success: false, error: 'Author not found' });
-                }
+            const author = await verifyFirebaseAuth(req);
+            if (!author) {
+                return res.status(401).json({ success: false, error: 'Unauthorized' });
             }
 
             // Verify post exists
@@ -779,27 +820,22 @@ exports.getComments = functions.https.onRequest((req, res) => {
 exports.deletePost = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { player_pin, post_id, author_id } = req.body;
+            const { post_id } = req.body;
 
             // Validate required fields
-            if (!post_id || (!player_pin && !author_id)) {
+            if (!post_id) {
                 return res.status(400).json({
                     success: false,
-                    error: 'Missing required fields: post_id and author_id/player_pin are required'
+                    error: 'Missing required fields: post_id is required'
                 });
             }
 
             // Verify player
-            let deleterId;
-            if (player_pin) {
-                const player = await verifyPlayerPin(player_pin);
-                if (!player) {
-                    return res.status(401).json({ success: false, error: 'Invalid PIN' });
-                }
-                deleterId = player.id;
-            } else {
-                deleterId = author_id;
+            const player = await verifyFirebaseAuth(req);
+            if (!player) {
+                return res.status(401).json({ success: false, error: 'Unauthorized' });
             }
+            const deleterId = player.id;
 
             // Get the post
             const postRef = db.collection('posts').doc(post_id);
@@ -905,7 +941,6 @@ exports.getUserPosts = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
             const {
-                player_pin,
                 user_id,
                 limit: queryLimit,
                 cursor
@@ -918,13 +953,11 @@ exports.getUserPosts = functions.https.onRequest((req, res) => {
                 });
             }
 
-            // Optional: verify requesting player
+            // Optional: verify requesting player for visibility filtering
             let requesterId = null;
-            if (player_pin) {
-                const player = await verifyPlayerPin(player_pin);
-                if (player) {
-                    requesterId = player.id;
-                }
+            const player = await verifyFirebaseAuth(req);
+            if (player) {
+                requesterId = player.id;
             }
 
             const postLimit = Math.min(parseInt(queryLimit) || 20, 50);

@@ -2,6 +2,7 @@
 <html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="manifest" href="/manifest.json">
     <title>BRDC Tournament Director Dashboard</title>
     <link rel="icon" type="image/png" href="/images/favicon.png">
     <script src="/js/brdc-toast.js"></script>
@@ -49,50 +50,6 @@
                 radial-gradient(ellipse at 80% 80%, rgba(145, 215, 235, 0.06) 0%, transparent 50%);
             pointer-events: none;
             z-index: -1;
-        }
-
-        /* Header Bar */
-        .header-bar {
-            background: var(--bg-panel);
-            border-bottom: 3px solid var(--pink);
-            padding: 16px 20px;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
-        }
-
-        .back-btn {
-            background: rgba(255,255,255,0.1);
-            color: white;
-            border: 2px solid rgba(255,255,255,0.3);
-            padding: 10px 16px;
-            font-weight: 700;
-            cursor: pointer;
-            border-radius: 6px;
-            font-size: 14px;
-            transition: all 0.2s;
-        }
-
-        .back-btn:hover {
-            background: rgba(255,255,255,0.2);
-            border-color: var(--pink);
-        }
-
-        .header-logo {
-            width: 40px;
-            height: 40px;
-            
-        }
-
-        .header-title {
-            font-family: 'Bebas Neue', cursive;
-            font-size: 28px;
-            letter-spacing: 3px;
-            color: var(--pink);
         }
 
         /* Container */
@@ -506,6 +463,52 @@
             position: relative;
             border-radius: 16px;
         }
+        .login-divider {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 16px 0 4px;
+        }
+        .login-divider::before,
+        .login-divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: #333;
+        }
+        .login-divider span {
+            color: #555;
+            font-size: 12px;
+            font-family: 'JetBrains Mono', monospace;
+            white-space: nowrap;
+        }
+        .btn-google {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            width: 100%;
+            padding: 12px 20px;
+            background: #fff;
+            color: #333;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-family: 'Inter', sans-serif;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+            margin-top: 8px;
+            transition: box-shadow 0.15s ease, transform 0.15s ease;
+        }
+        .btn-google:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+            transform: translateY(-1px);
+        }
+        .btn-google:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
         .login-title {
             font-family: 'Bebas Neue', cursive;
             font-size: 36px;
@@ -580,10 +583,6 @@
                 font-size: 22px;
             }
 
-            .header-title {
-                font-size: 20px;
-            }
-
             .btn {
                 padding: 10px 16px;
                 font-size: 12px;
@@ -592,7 +591,7 @@
 
             /* Ensure all interactive elements have 44px touch targets */
             button, .tab-button, .btn-primary, .btn-success, .btn-warning, .btn-danger,
-            .back-btn, [onclick] {
+            [onclick] {
                 min-height: 44px;
             }
 
@@ -612,26 +611,31 @@
     <div id="loginOverlay" class="login-overlay">
         <div class="login-card">
             <img src="/images/gold_logo.png" alt="BRDC" style="width: 80px; margin-bottom: 15px;">
-            <div class="login-title">🎯 TOURNAMENT DIRECTOR</div>
-            <p class="login-subtitle">Enter your 8-digit PIN to access the dashboard</p>
-            <div class="pin-input">
-                <input type="text" id="pinInput" maxlength="8" class="pin-field" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="••••••••">
+            <div class="login-title">TOURNAMENT DIRECTOR</div>
+            <p class="login-subtitle">Sign in to access the dashboard</p>
+            <div class="form-group" style="margin-bottom: 12px;">
+                <label class="login-label" for="emailInput" style="display:block; font-size:12px; color:var(--text-dim); margin-bottom:6px;">Email</label>
+                <input type="email" id="emailInput" class="pin-field" autocomplete="email" placeholder="your@email.com" style="letter-spacing:0;">
+            </div>
+            <div class="form-group" style="margin-bottom: 12px;">
+                <label class="login-label" for="passwordInput" style="display:block; font-size:12px; color:var(--text-dim); margin-bottom:6px;">Password</label>
+                <input type="password" id="passwordInput" class="pin-field" autocomplete="current-password" placeholder="Password" style="letter-spacing:0;">
             </div>
             <button id="loginBtn" class="btn btn-primary" style="width: 100%; justify-content: center;">ENTER DASHBOARD</button>
             <p id="loginError" style="color: var(--pink); margin-top: 20px; display: none; font-weight: 600;"></p>
-            <p style="margin-top: 20px; font-size: 12px; color: var(--text-dim);">Use your player PIN or the PIN shown when you created the tournament</p>
+            <p style="text-align:center; margin-top: 12px;">
+                <a href="#" onclick="forgotPassword(); return false;" style="color: var(--text-dim); font-size: 13px; text-decoration: none;">Forgot password?</a>
+            </p>
+            <div class="login-divider"><span>OR</span></div>
+            <button type="button" class="btn-google" onclick="loginWithGoogle()">
+                <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.08 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-3.59-13.46-8.86l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+                Sign in with Google
+            </button>
         </div>
     </div>
 
     <!-- Main Dashboard (hidden until logged in) -->
     <div id="mainDashboard" style="display: none;">
-    <!-- STICKY HEADER BAR -->
-    <div class="header-bar">
-        <button class="back-btn" onclick="goBack()" aria-label="Go back">← BACK</button>
-        <img src="/images/gold_logo.png" alt="BRDC" class="header-logo">
-        <span class="header-title">TOURNAMENT DIRECTOR</span>
-    </div>
-
     <div class="container">
         <!-- TEAL TABS -->
         <div class="tab-nav">
@@ -1001,7 +1005,7 @@
     </div>
 
     <script type="module">
-        import { db, collection, query, where, getDocs, doc, getDoc } from '/js/firebase-config.js';
+        import { db, collection, query, where, getDocs, doc, getDoc, auth, signInWithEmailAndPassword, sendPasswordResetEmail, callFunction, signInWithPopup, GoogleAuthProvider } from '/js/firebase-config.js';
 
         function goBack() {
             if (window.history.length > 1) {
@@ -1033,28 +1037,19 @@
         const urlParams = new URLSearchParams(window.location.search);
         let tournamentId = urlParams.get('pin');
 
-        // Check for saved director session
+        // Check for saved brdc_session and restore if valid
         (async function checkSavedSession() {
-            if (tournamentId) return; // Already have PIN from URL
-            const saved = localStorage.getItem('directorSession');
+            if (tournamentId) return; // Already have ID from URL
+            const saved = localStorage.getItem('brdc_session');
             if (saved) {
                 try {
                     const session = JSON.parse(saved);
-                    if (session.pin && (Date.now() - session.timestamp) < 7 * 24 * 60 * 60 * 1000) {
-                        // Try to use saved PIN
-                        const tournamentsQuery = query(
-                            collection(db, 'tournaments'),
-                            where('director_pin', '==', session.pin)
-                        );
-                        const tournamentSnapshot = await getDocs(tournamentsQuery);
-                        if (!tournamentSnapshot.empty) {
-                            tournamentId = session.pin;
-                            window.history.replaceState({}, '', `?pin=${session.pin}`);
-                            document.getElementById('loginOverlay').style.display = 'none';
-                            document.getElementById('mainDashboard').style.display = 'block';
-                            loadDashboardData();
-                            return;
-                        }
+                    if (session.player_id && (session.is_director || session.is_admin)) {
+                        // Session looks valid — show dashboard, let loadDashboardData handle the rest
+                        document.getElementById('loginOverlay').style.display = 'none';
+                        document.getElementById('mainDashboard').style.display = 'block';
+                        loadDashboardData();
+                        return;
                     }
                 } catch (e) {
                     console.error('Session restore error:', e);
@@ -1062,60 +1057,121 @@
             }
         })();
 
-        // PIN input handling
-        const pinInput = document.getElementById('pinInput');
-        pinInput.addEventListener('input', (e) => {
-            e.target.value = e.target.value.replace(/[^0-9]/g, '');
+        // Input handling
+        document.getElementById('emailInput').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') attemptLogin();
         });
-        pinInput.addEventListener('keydown', (e) => {
+        document.getElementById('passwordInput').addEventListener('keydown', (e) => {
             if (e.key === 'Enter') attemptLogin();
         });
 
         document.getElementById('loginBtn').addEventListener('click', attemptLogin);
 
         async function attemptLogin() {
-            const pin = pinInput.value.trim();
-            if (pin.length !== 8) {
-                showLoginError('Enter 8-digit PIN');
+            const email = (document.getElementById('emailInput')?.value || '').trim();
+            const password = document.getElementById('passwordInput')?.value || '';
+
+            if (!email || !password) {
+                showLoginError('Please enter your email and password.');
                 return;
             }
 
+            const btn = document.getElementById('loginBtn');
+            btn.disabled = true;
+
             try {
-                // Search for tournament by director_pin
-                const tournamentsQuery = query(
-                    collection(db, 'tournaments'),
-                    where('director_pin', '==', pin)
-                );
-                const tournamentSnapshot = await getDocs(tournamentsQuery);
+                await signInWithEmailAndPassword(auth, email, password);
 
-                if (tournamentSnapshot.empty) {
-                    showLoginError('Tournament not found with this PIN');
+                const result = await callFunction('getPlayerSession', {});
+                if (!result?.success) throw new Error(result?.error || 'Login failed');
+
+                const player = result.player;
+
+                if (!player.is_director && !player.is_admin) {
+                    showLoginError('No director or admin role found for this account.');
+                    btn.disabled = false;
                     return;
                 }
 
-                // Check if this is a matchmaker tournament - redirect to matchmaker dashboard
-                const foundTournament = tournamentSnapshot.docs[0];
-                if (foundTournament.data().matchmaker_enabled) {
-                    window.location.href = `matchmaker-director.html?id=${foundTournament.id}`;
-                    return;
-                }
-
-                tournamentId = pin;
-                window.history.replaceState({}, '', `?pin=${pin}`);
-
-                // Save session for persistence
-                localStorage.setItem('directorSession', JSON.stringify({
-                    pin: pin,
-                    timestamp: Date.now()
+                localStorage.setItem('brdc_session', JSON.stringify({
+                    player_id: player.id,
+                    name: player.name,
+                    source_type: player.source_type || 'global',
+                    league_id: player.league_id || null,
+                    is_admin: player.is_admin || false,
+                    is_master_admin: player.is_master_admin || false,
+                    is_director: player.is_director || false,
+                    is_captain: player.is_captain || false,
+                    involvements: player.involvements || {},
+                    logged_in_at: Date.now()
                 }));
+                localStorage.removeItem('brdc_player_pin');
 
                 document.getElementById('loginOverlay').style.display = 'none';
                 document.getElementById('mainDashboard').style.display = 'block';
                 loadDashboardData();
-            } catch (error) {
-                showLoginError('Error: ' + error.message);
+            } catch (err) {
+                let msg = 'Login failed.';
+                if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') msg = 'Invalid email or password.';
+                else if (err.code === 'auth/too-many-requests') msg = 'Too many attempts. Try again later.';
+                else if (err.message) msg = err.message;
+                showLoginError(msg);
+                btn.disabled = false;
             }
         }
+
+        window.forgotPassword = async function() {
+            const email = (document.getElementById('emailInput')?.value || '').trim();
+            if (!email) { alert('Enter your email first.'); return; }
+            try {
+                await sendPasswordResetEmail(auth, email);
+                alert('Password reset email sent!');
+            } catch (err) {
+                alert('Could not send reset email. Try again.');
+            }
+        };
+
+        window.loginWithGoogle = async function() {
+            showLoginError('');
+            document.getElementById('loginError').style.display = 'none';
+            try {
+                const provider = new GoogleAuthProvider();
+                await signInWithPopup(auth, provider);
+
+                const result = await callFunction('getPlayerSession', {});
+                if (!result?.success) throw new Error(result?.error || 'Login failed');
+
+                const player = result.player;
+                if (!player.is_director && !player.is_admin) {
+                    showLoginError('No director or admin role found for this account.');
+                    return;
+                }
+
+                localStorage.setItem('brdc_session', JSON.stringify({
+                    player_id: player.id,
+                    name: player.name,
+                    source_type: player.source_type || 'global',
+                    league_id: player.league_id || null,
+                    is_admin: player.is_admin || false,
+                    is_master_admin: player.is_master_admin || false,
+                    is_director: player.is_director || false,
+                    is_captain: player.is_captain || false,
+                    involvements: player.involvements || {},
+                    logged_in_at: Date.now()
+                }));
+                localStorage.removeItem('brdc_player_pin');
+
+                document.getElementById('loginOverlay').style.display = 'none';
+                document.getElementById('mainDashboard').style.display = 'block';
+                loadDashboardData();
+            } catch (err) {
+                if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') return;
+                let msg = 'Google sign-in failed. Please try again.';
+                if (err.code === 'auth/popup-blocked') msg = 'Popup was blocked. Please allow popups for this site and try again.';
+                else if (err.message) msg = err.message;
+                showLoginError(msg);
+            }
+        };
 
         function showLoginError(msg) {
             const el = document.getElementById('loginError');
@@ -1131,7 +1187,7 @@
                 loadDashboardData();
             } else {
                 // Show login overlay
-                pinInput.focus();
+                document.getElementById('emailInput')?.focus();
             }
         };
 
@@ -1925,6 +1981,6 @@
 
 <script src="/js/display-helpers.js"></script>
 <script src="/js/nav-menu.js"></script>
-<script src="/components/brdc-navigation-init.js"></script>
+<script src="/components/brdc-navigation-init.js?v=13"></script>
 <script>initBRDCNavigation({ page: 'director-dashboard' });</script>
 </body></html>

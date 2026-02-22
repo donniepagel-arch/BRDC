@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <link rel="manifest" href="/manifest.json">
     <title>Verify Your Stats - BRDC</title>
     <link rel="icon" type="image/png" href="/images/favicon.png">
     <script src="/js/brdc-toast.js"></script>
@@ -42,49 +43,6 @@
             min-height: 100vh;
             min-height: 100dvh;
             color: white;
-        }
-
-        /* Header */
-        .header-bar {
-            background: var(--bg-panel);
-            border-bottom: 3px solid var(--pink);
-            padding: 12px 20px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-        }
-
-        .header-logo {
-            width: 32px;
-            height: 32px;
-        }
-
-        .header-title {
-            font-family: 'Bebas Neue', cursive;
-            font-size: 22px;
-            letter-spacing: 2px;
-            color: var(--pink);
-            flex: 1;
-        }
-
-        .back-btn {
-            background: rgba(255,255,255,0.1);
-            border: 2px solid rgba(255,255,255,0.3);
-            color: white;
-            padding: 8px 16px;
-            border-radius: 6px;
-            font-weight: 700;
-            font-size: 12px;
-            cursor: pointer;
-            text-decoration: none;
-        }
-
-        .back-btn:hover {
-            background: rgba(255,255,255,0.2);
-            border-color: var(--pink);
         }
 
         /* Container */
@@ -542,17 +500,56 @@
         .login-links a:hover { text-decoration: underline; }
 
         .hidden { display: none !important; }
+
+        .login-divider {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 16px 0 4px;
+        }
+        .login-divider::before,
+        .login-divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: #333;
+        }
+        .login-divider span {
+            color: #555;
+            font-size: 12px;
+            font-family: 'JetBrains Mono', monospace;
+            white-space: nowrap;
+        }
+        .btn-google {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            width: 100%;
+            padding: 12px 20px;
+            background: #fff;
+            color: #333;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-family: 'Inter', sans-serif;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+            margin-top: 8px;
+            transition: box-shadow 0.15s ease, transform 0.15s ease;
+        }
+        .btn-google:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+            transform: translateY(-1px);
+        }
+        .btn-google:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
     </style>
 </head>
 <body>
-    <!-- Header (hidden on login) -->
-    <div class="header-bar" id="headerBar" style="display: none;">
-        <a href="/pages/dashboard.html">
-            <img src="/images/gold_logo.png" alt="BRDC" class="header-logo">
-        </a>
-        <span class="header-title">VERIFY YOUR STATS</span>
-        <button class="back-btn" onclick="goBack()" aria-label="Go back">← BACK</button>
-    </div>
 
     <!-- Login Screen -->
     <div class="screen active" id="loginScreen">
@@ -566,11 +563,23 @@
                 <div class="login-error hidden" id="loginError" role="alert"></div>
 
                 <div class="form-group">
-                    <label class="form-label">Your 8-Digit PIN</label>
-                    <input type="text" class="form-input" id="pinInput" placeholder="••••••••" maxlength="8" inputmode="numeric" pattern="[0-9]*" autocomplete="off" style="-webkit-text-security: disc;">
+                    <label class="form-label" for="emailInput">Email</label>
+                    <input type="email" class="form-input" id="emailInput" placeholder="your@email.com" autocomplete="email">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="passwordInput">Password</label>
+                    <input type="password" class="form-input" id="passwordInput" placeholder="Password" autocomplete="current-password">
                 </div>
 
                 <button class="login-btn" onclick="loginWithPin()">LOGIN</button>
+                <div style="text-align:center; margin-top: 12px;">
+                    <a href="#" onclick="forgotPassword(); return false;" style="color: var(--text-dim, #888); font-size: 13px; text-decoration: none;">Forgot password?</a>
+                </div>
+                <div class="login-divider"><span>OR</span></div>
+                <button type="button" class="btn-google" onclick="loginWithGoogle()">
+                    <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.08 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-3.59-13.46-8.86l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+                    Sign in with Google
+                </button>
 
                 <div class="login-links">
                     <a href="/pages/dashboard.html">Back to Dashboard</a>
@@ -648,7 +657,7 @@
     </div>
 
     <script type="module">
-        import { callFunction } from '/js/firebase-config.js';
+        import { callFunction, auth, signInWithEmailAndPassword, sendPasswordResetEmail, signInWithPopup, GoogleAuthProvider } from '/js/firebase-config.js';
 
         function goBack() {
             if (window.history.length > 1) {
@@ -685,11 +694,12 @@
 
         // Login
         window.loginWithPin = async function() {
-            const pin = document.getElementById('pinInput').value.trim();
+            const email = (document.getElementById('emailInput')?.value || '').trim();
+            const password = document.getElementById('passwordInput')?.value || '';
             const errorEl = document.getElementById('loginError');
 
-            if (!pin || pin.length !== 8) {
-                errorEl.textContent = 'Please enter your 8-digit PIN';
+            if (!email || !password) {
+                errorEl.textContent = 'Please enter your email and password.';
                 errorEl.classList.remove('hidden');
                 return;
             }
@@ -699,11 +709,12 @@
             btn.textContent = 'LOGGING IN...';
 
             try {
-                // Look up player via Cloud Function
-                const result = await callFunction('getPlayerByPin', { pin });
+                await signInWithEmailAndPassword(auth, email, password);
 
-                if (!result.success || !result.player) {
-                    errorEl.textContent = 'Player not found. Check your PIN.';
+                const result = await callFunction('getPlayerSession', {});
+
+                if (!result?.success || !result.player) {
+                    errorEl.textContent = 'Login failed. Please try again.';
                     errorEl.classList.remove('hidden');
                     btn.disabled = false;
                     btn.textContent = 'LOGIN';
@@ -711,14 +722,26 @@
                 }
 
                 currentPlayer = result.player;
-                currentPlayer.pin = pin;
 
                 // Store in session for scorer pages
                 sessionStorage.setItem('verificationPlayer', JSON.stringify({
                     id: currentPlayer.id,
-                    name: currentPlayer.name,
-                    pin: pin
+                    name: currentPlayer.name
                 }));
+
+                localStorage.setItem('brdc_session', JSON.stringify({
+                    player_id: currentPlayer.id,
+                    name: currentPlayer.name,
+                    source_type: 'global',
+                    league_id: currentPlayer.league_id || null,
+                    is_admin: currentPlayer.is_admin || false,
+                    is_master_admin: currentPlayer.is_master_admin || false,
+                    is_director: currentPlayer.is_director || false,
+                    is_captain: currentPlayer.is_captain || false,
+                    involvements: currentPlayer.involvements || {},
+                    logged_in_at: Date.now()
+                }));
+                localStorage.removeItem('brdc_player_pin');
 
                 // Update UI
                 document.getElementById('playerName').textContent = currentPlayer.name || 'Player';
@@ -738,10 +761,87 @@
 
             } catch (err) {
                 console.error('Login error:', err);
-                errorEl.textContent = 'Error logging in: ' + (err.message || 'Unknown error');
+                let msg = 'Login failed. Please try again.';
+                if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') msg = 'Invalid email or password.';
+                else if (err.code === 'auth/too-many-requests') msg = 'Too many attempts. Try again later.';
+                else if (err.message) msg = err.message;
+                errorEl.textContent = msg;
                 errorEl.classList.remove('hidden');
                 btn.disabled = false;
                 btn.textContent = 'LOGIN';
+            }
+        };
+
+        window.forgotPassword = async function() {
+            const email = (document.getElementById('emailInput')?.value || '').trim();
+            if (!email) { alert('Enter your email first.'); return; }
+            try {
+                await sendPasswordResetEmail(auth, email);
+                alert('Password reset email sent!');
+            } catch (err) {
+                alert('Could not send reset email. Try again.');
+            }
+        };
+
+        window.loginWithGoogle = async function() {
+            const errorEl = document.getElementById('loginError');
+            const btn = document.querySelector('.btn-google');
+            errorEl.classList.add('hidden');
+            if (btn) btn.disabled = true;
+            try {
+                const provider = new GoogleAuthProvider();
+                await signInWithPopup(auth, provider);
+
+                const result = await callFunction('getPlayerSession', {});
+
+                if (!result?.success || !result.player) {
+                    errorEl.textContent = 'Login failed. Please try again.';
+                    errorEl.classList.remove('hidden');
+                    if (btn) btn.disabled = false;
+                    return;
+                }
+
+                currentPlayer = result.player;
+
+                sessionStorage.setItem('verificationPlayer', JSON.stringify({
+                    id: currentPlayer.id,
+                    name: currentPlayer.name
+                }));
+
+                localStorage.setItem('brdc_session', JSON.stringify({
+                    player_id: currentPlayer.id,
+                    name: currentPlayer.name,
+                    source_type: 'global',
+                    league_id: currentPlayer.league_id || null,
+                    is_admin: currentPlayer.is_admin || false,
+                    is_master_admin: currentPlayer.is_master_admin || false,
+                    is_director: currentPlayer.is_director || false,
+                    is_captain: currentPlayer.is_captain || false,
+                    involvements: currentPlayer.involvements || {},
+                    logged_in_at: Date.now()
+                }));
+                localStorage.removeItem('brdc_player_pin');
+
+                document.getElementById('playerName').textContent = currentPlayer.name || 'Player';
+                document.getElementById('playerAvatar').textContent =
+                    (currentPlayer.name || 'P').charAt(0).toUpperCase();
+
+                await checkVerificationStatus();
+                await loadBots();
+                checkVerificationProgress();
+
+                showScreen('setupScreen');
+            } catch (err) {
+                if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
+                    if (btn) btn.disabled = false;
+                    return;
+                }
+                let msg = 'Google sign-in failed. Please try again.';
+                if (err.code === 'auth/popup-blocked') msg = 'Popup was blocked. Please allow popups for this site and try again.';
+                else if (err.message) msg = err.message;
+                errorEl.textContent = msg;
+                errorEl.classList.remove('hidden');
+                if (btn) btn.disabled = false;
             }
         };
 
@@ -934,11 +1034,12 @@
                 .replace(/'/g, '&#039;');
         }
 
-        // Handle Enter key on PIN input
-        document.getElementById('pinInput').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                window.loginWithPin();
-            }
+        // Handle Enter key on login inputs
+        document.getElementById('emailInput')?.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') window.loginWithPin();
+        });
+        document.getElementById('passwordInput')?.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') window.loginWithPin();
         });
 
         // Check if returning from scorer with results
@@ -956,19 +1057,32 @@
             }
         })();
 
-        // Auto-login if returning from scorer
+        // Auto-restore session if returning from scorer
         (function checkAutoLogin() {
             const savedPlayer = sessionStorage.getItem('verificationPlayer');
             if (savedPlayer) {
-                const player = JSON.parse(savedPlayer);
-                document.getElementById('pinInput').value = player.pin;
-                // Delay to allow page to load
-                setTimeout(() => window.loginWithPin(), 100);
+                try {
+                    const player = JSON.parse(savedPlayer);
+                    // If Firebase Auth is still active, restore the player directly
+                    if (auth.currentUser && player.id) {
+                        currentPlayer = player;
+                        document.getElementById('playerName').textContent = player.name || 'Player';
+                        document.getElementById('playerAvatar').textContent = (player.name || 'P').charAt(0).toUpperCase();
+                        checkVerificationStatus().then(() => {
+                            loadBots().then(() => {
+                                checkVerificationProgress();
+                                showScreen('setupScreen');
+                            });
+                        });
+                    }
+                } catch (e) {
+                    console.error('Auto-restore error:', e);
+                }
             }
         })();
     </script>
 <script src="/js/nav-menu.js"></script>
-<script src="/components/brdc-navigation-init.js"></script>
+<script src="/components/brdc-navigation-init.js?v=13"></script>
 <script>initBRDCNavigation({ page: 'stat-verification' });</script>
 </body>
 </html>

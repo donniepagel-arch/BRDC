@@ -597,7 +597,6 @@
         /* Role colors (Discord-style) */
         .role-admin { color: #e74c3c; }
         .role-director { color: var(--yellow, #FDD835); }
-        .role-captain { color: var(--teal, #91D7EB); }
         .role-player { color: var(--text-light, #f0f0f0); }
 
         .role-badge-small {
@@ -611,7 +610,6 @@
         }
         .role-badge-small.admin { background: rgba(231, 76, 60, 0.2); color: #e74c3c; }
         .role-badge-small.director { background: rgba(253, 216, 53, 0.2); color: var(--yellow); }
-        .role-badge-small.captain { background: rgba(145, 215, 235, 0.2); color: var(--teal); }
 
         /* Enhanced emoji picker */
         .emoji-picker-container {
@@ -909,7 +907,6 @@
             color: var(--pink);
         }
         .message-sender.role-admin { color: #e74c3c; }
-        .message-sender.role-captain { color: var(--teal, #91D7EB); }
         .message-sender.role-player { color: var(--pink); }
 
         .message-time-full {
@@ -2200,10 +2197,8 @@
         function renderMemberItem(p, status) {
             const initials = getInitials(p.name);
             const dotClass = status === 'online' ? 'online-dot' : 'offline-dot';
-            const nameColorClass = p.is_admin ? 'role-admin' : (p.is_captain ? 'role-captain' : 'role-player');
-            const roleBadge = p.is_admin ? '<span class="role-badge-small admin">Admin</span>'
-                            : p.is_captain ? '<span class="role-badge-small captain">Captain</span>'
-                            : '';
+            const nameColorClass = p.is_admin ? 'role-admin' : 'role-player';
+            const roleBadge = p.is_admin ? '<span class="role-badge-small admin">Admin</span>' : '';
 
             return `
                 <div class="member-item" onclick="openPlayerProfile('${p.id}')">
@@ -2286,12 +2281,10 @@
                 // Determine role color for sender name
                 const senderParticipant = participants.find(p => p.id === msg.sender_id);
                 const senderRoleClass = senderParticipant
-                    ? (senderParticipant.is_admin ? 'role-admin' : (senderParticipant.is_captain ? 'role-captain' : 'role-player'))
+                    ? (senderParticipant.is_admin ? 'role-admin' : 'role-player')
                     : '';
                 const senderBadge = senderParticipant
-                    ? (senderParticipant.is_admin ? '<span class="role-badge-small admin">Admin</span>'
-                      : senderParticipant.is_captain ? '<span class="role-badge-small captain">Captain</span>'
-                      : '')
+                    ? (senderParticipant.is_admin ? '<span class="role-badge-small admin">Admin</span>' : '')
                     : '';
 
                 html += `

@@ -11,7 +11,6 @@ import { CHAT_FEATURES, CHALLENGE_CONFIG, LEADERBOARD_CONFIG } from './chat-conf
 // CHALLENGE STATE
 // ============================================================================
 
-let playerPin = null;
 let currentPlayerId = null;
 let unsubscribeChallenges = null;
 
@@ -27,8 +26,7 @@ export function initChallengeSystem() {
         return;
     }
 
-    playerPin = localStorage.getItem('brdc_player_pin');
-    currentPlayerId = localStorage.getItem('brdc_player_id');
+    currentPlayerId = JSON.parse(localStorage.getItem('brdc_session') || '{}').player_id;
 }
 
 // ============================================================================
@@ -46,7 +44,7 @@ export async function openChallengeModal(playerId, playerName) {
         return;
     }
 
-    if (!playerPin) {
+    if (!currentPlayerId) {
         toastWarning('Please log in to send challenges');
         return;
     }
@@ -60,7 +58,6 @@ export async function openChallengeModal(playerId, playerName) {
     let h2hHtml = '';
     try {
         const result = await callFunction('getHeadToHead', {
-            player_pin: playerPin,
             opponent_id: playerId
         });
 
@@ -185,7 +182,6 @@ export async function submitChallenge(event) {
 
     try {
         const result = await callFunction('sendChallenge', {
-            challenger_pin: playerPin,
             challenged_player_id: challengedPlayerId,
             game_type: gameType,
             race_to: raceTo,
@@ -216,7 +212,7 @@ export async function submitChallenge(event) {
  * Open the challenges list panel
  */
 export async function openChallengesList() {
-    if (!playerPin) {
+    if (!currentPlayerId) {
         toastWarning('Please log in to view challenges');
         return;
     }
@@ -294,7 +290,6 @@ async function loadChallenges(tab) {
 
     try {
         const result = await callFunction('getPlayerChallenges', {
-            player_pin: playerPin,
             filter: 'pending'
         });
 
@@ -384,7 +379,6 @@ function formatTimeRemaining(ms) {
 export async function respondToChallenge(challengeId, response) {
     try {
         const result = await callFunction('respondToChallenge', {
-            player_pin: playerPin,
             challenge_id: challengeId,
             response: response
         });
@@ -419,7 +413,6 @@ export async function cancelChallenge(challengeId) {
 
     try {
         const result = await callFunction('cancelChallenge', {
-            player_pin: playerPin,
             challenge_id: challengeId
         });
 
@@ -472,7 +465,7 @@ export async function openLeaderboard(category = 'most_wins') {
         return;
     }
 
-    if (!playerPin) {
+    if (!currentPlayerId) {
         toastWarning('Please log in to view leaderboards');
         return;
     }
@@ -546,7 +539,6 @@ async function loadLeaderboard(category) {
 
     try {
         const result = await callFunction('getCasualLeaderboard', {
-            player_pin: playerPin,
             category: category
         });
 
@@ -628,14 +620,13 @@ function renderLeaderboard(leaders, category, playerRank) {
  * Send a rematch challenge
  */
 export async function sendRematch(matchId) {
-    if (!playerPin) {
+    if (!currentPlayerId) {
         toastWarning('Please log in to send rematch');
         return;
     }
 
     try {
         const result = await callFunction('sendRematch', {
-            player_pin: playerPin,
             match_id: matchId
         });
 

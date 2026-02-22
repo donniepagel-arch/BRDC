@@ -10,7 +10,7 @@
     --nav-active: #FF469A;
     --nav-hover: rgba(255, 70, 154, 0.1);
     --nav-teal: #91D7EB;
-    --nav-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
+    --nav-shadow: 0 -4px 20px var(--bg-overlay);
 }
 
 /* ===== MOBILE BOTTOM NAVIGATION ===== */
@@ -46,6 +46,10 @@
     /* remove max-width to allow equal spacing */
     position: relative;
     -webkit-tap-highlight-color: transparent;
+    /* reset button element defaults */
+    background: none;
+    border: none;
+    cursor: pointer;
 }
 
 .mobile-nav-item:active {
@@ -97,6 +101,16 @@
     filter: grayscale(100%);
     opacity: 0.7;
     transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mobile-nav-icon svg {
+    width: 22px;
+    height: 22px;
+    stroke: currentColor;
+    fill: none;
 }
 
 .mobile-nav-item.active .mobile-nav-icon {
@@ -149,7 +163,7 @@ body.has-mobile-nav {
     position: sticky;
     top: 0;
     z-index: 1000;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 4px 20px var(--bg-overlay-heavy);
 }
 
 /* Hide on desktop */
@@ -326,16 +340,20 @@ body.has-brdc-nav:not(.is-desktop):has(.fb-main) {
 /* ===== DESKTOP HEADER NAVIGATION ===== */
 .brdc-desktop-nav {
     display: none;
-    justify-content: space-between;
+    justify-content: center;
     align-items: center;
-    padding: 12px 24px;
+    padding: 0 24px;
+    height: 64px;
+    margin-top: 12px;
     background: var(--nav-bg);
+    border-top: 2px solid var(--nav-border);
     border-bottom: 2px solid var(--nav-border);
     position: sticky;
     top: 0;
-    z-index: 1000;
+    z-index: 300;
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
 }
 
 @media (min-width: 1024px) {
@@ -344,32 +362,57 @@ body.has-brdc-nav:not(.is-desktop):has(.fb-main) {
     }
 }
 
-.desktop-nav-brand {
+.desktop-nav-logo {
     display: flex;
     align-items: center;
+    flex-shrink: 0;
+    z-index: 1;
 }
 
 .desktop-nav-logo img {
-    height: 32px;
+    height: 76px;
     width: auto;
+    margin: -10px 0;
+    filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.6));
 }
 
 .desktop-nav-links {
     display: flex;
-    gap: 8px;
     align-items: center;
 }
 
+.desktop-nav-links-left {
+    justify-content: space-evenly;
+    flex: 1;
+    margin-right: 16px;
+    min-width: 0;
+}
+
+.desktop-nav-links-right {
+    justify-content: space-evenly;
+    flex: 1;
+    margin-left: 16px;
+    min-width: 0;
+}
+
 .desktop-nav-link {
-    color: var(--nav-text);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #ffffff;
     text-decoration: none;
     font-weight: 600;
-    font-size: 14px;
+    font-size: 13px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     transition: all 0.2s ease;
-    padding: 10px 16px;
+    padding: 8px 12px;
     border-radius: 8px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    position: relative;
+    white-space: nowrap;
 }
 
 .desktop-nav-link:hover {
@@ -382,25 +425,37 @@ body.has-brdc-nav:not(.is-desktop):has(.fb-main) {
     background: var(--nav-hover);
 }
 
-.desktop-nav-user {
+.desktop-nav-link-icon {
+    font-size: 18px;
     display: flex;
     align-items: center;
-    gap: 12px;
-    position: relative;
+    line-height: 1;
 }
 
-.desktop-nav-user-menu {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    cursor: pointer;
-    padding: 6px 12px;
-    border-radius: 20px;
-    transition: background 0.2s ease;
+.desktop-nav-link-icon svg {
+    width: 18px;
+    height: 18px;
+    stroke: currentColor;
+    fill: none;
 }
 
-.desktop-nav-user-menu:hover {
-    background: rgba(255, 255, 255, 0.05);
+/* At narrower desktop widths, hide link labels and show icons only */
+@media (min-width: 1024px) and (max-width: 1279px) {
+    .desktop-nav-link span:not(.desktop-nav-link-icon):not(.fb-footer-tab-badge) {
+        display: none;
+    }
+
+    .desktop-nav-link {
+        padding: 8px 10px;
+    }
+
+    .desktop-nav-links-left {
+        margin-right: 12px;
+    }
+
+    .desktop-nav-links-right {
+        margin-left: 12px;
+    }
 }
 
 .desktop-nav-user-name {
@@ -442,7 +497,7 @@ body.has-brdc-nav:not(.is-desktop):has(.fb-main) {
     visibility: hidden;
     transform: translateY(-10px);
     transition: all 0.2s ease;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 8px 32px var(--bg-overlay-heavy);
 }
 
 .desktop-user-dropdown.open {
@@ -514,11 +569,6 @@ body.has-desktop-nav {
     color: var(--nav-teal);
 }
 
-.role-badge.captain {
-    background: rgba(255, 70, 154, 0.15);
-    border-color: var(--nav-active);
-    color: var(--nav-active);
-}
 
 .role-badge.admin {
     background: rgba(253, 216, 53, 0.15);
@@ -557,7 +607,7 @@ body.is-tablet .mobile-only {
     background: var(--nav-bg);
     border: 1px solid var(--nav-border);
     border-radius: 12px;
-    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 -4px 20px var(--bg-overlay-heavy);
     z-index: 10002;
     opacity: 0;
     visibility: hidden;
@@ -680,5 +730,116 @@ body.is-tablet .mobile-only {
         right: 20px;
         left: auto;
         width: 360px;
+    }
+}
+
+/* ===== BACK BUTTON ===== */
+.brdc-back-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    color: #f0f0f0;
+    cursor: pointer;
+    transition: opacity 0.2s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.brdc-back-btn:hover {
+    opacity: 0.7;
+}
+
+.brdc-back-btn:active {
+    opacity: 0.5;
+}
+
+/* ===== DESKTOP SIDEBAR LAYOUT ===== */
+/*
+ * On desktop (≥1024px), the left nav sidebar and right chat sidebar are
+ * permanently pinned to the sides. No top bar. Page content is inset between them.
+ * Mobile sidebars (fb-sidebar from fb-nav.js, fb-chat-sidebar from chat-drawer.js)
+ * become the permanent desktop panels via CSS transform override.
+ */
+
+@media (min-width: 1024px) {
+
+    /* === LEFT NAV SIDEBAR — permanently pinned === */
+    body.is-desktop .fb-sidebar {
+        transform: translateX(0) !important;
+        width: 240px;
+        max-width: 240px;
+        z-index: 200;
+        border-right: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow: 2px 0 16px rgba(0, 0, 0, 0.4);
+        transition: none;
+    }
+
+    body.is-desktop .fb-sidebar-overlay {
+        display: none !important;
+    }
+
+    body.is-desktop .fb-sidebar .fb-sidebar-close {
+        display: none !important;
+    }
+
+    /* === RIGHT CHAT SIDEBAR — permanently pinned === */
+    body.is-desktop .fb-chat-sidebar {
+        transform: translateX(0) !important;
+        width: 280px;
+        max-width: 280px;
+        z-index: 200;
+        border-left: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow: -2px 0 16px rgba(0, 0, 0, 0.4);
+        transition: none;
+    }
+
+    body.is-desktop .fb-chat-sidebar-overlay {
+        display: none !important;
+    }
+
+    body.is-desktop .fb-chat-sidebar .fb-chat-sidebar-close {
+        display: none !important;
+    }
+
+    /* === PAGE CONTENT — pushed between the two sidebars === */
+    body.is-desktop {
+        padding-left: 240px !important;
+        padding-right: 280px !important;
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
+    }
+
+    /* Never lock scroll on desktop (chat open() adds this class — block it) */
+    body.is-desktop.chat-drawer-no-scroll {
+        overflow: auto !important;
+        position: static !important;
+        width: auto !important;
+    }
+
+    /* === HIDE MOBILE ELEMENTS ON DESKTOP === */
+    body.is-desktop .brdc-mobile-nav,
+    body.is-desktop .fb-footer {
+        display: none !important;
+    }
+
+    body.is-desktop .fb-header,
+    body.is-desktop #brdcMobileHeader {
+        display: none !important;
+    }
+
+    /* Hide old per-page static headers on desktop too (sidebars replace them) */
+    body.is-desktop.has-brdc-nav .header-bar,
+    body.is-desktop.has-brdc-nav .header:not(.fb-header),
+    body.is-desktop.has-brdc-nav .page-header {
+        display: none !important;
+    }
+
+    /* Notifications panel — reposition away from left sidebar */
+    body.is-desktop .fb-notifications-panel {
+        left: 250px !important;
+        right: auto !important;
+        top: 20px;
+        bottom: auto;
     }
 }

@@ -86,13 +86,12 @@
      * Send heartbeat to server
      */
     async function sendHeartbeat() {
-        const playerPin = localStorage.getItem('brdc_player_pin');
-        if (!playerPin) return;
+        const playerId = JSON.parse(localStorage.getItem('brdc_session') || '{}').player_id;
+        if (!playerId) return;
 
         try {
             const { callFunction } = await import('/js/firebase-config.js');
             await callFunction('updatePresence', {
-                player_pin: playerPin,
                 status: document.hidden ? STATUS_TYPES.AWAY : STATUS_TYPES.ONLINE,
                 current_page: currentPage,
                 device_type: getDeviceType(),
@@ -109,8 +108,8 @@
      * Handle page unload - set offline
      */
     async function handleUnload() {
-        const playerPin = localStorage.getItem('brdc_player_pin');
-        if (!playerPin) return;
+        const playerId = JSON.parse(localStorage.getItem('brdc_session') || '{}').player_id;
+        if (!playerId) return;
 
         // Clean up any typing status
         if (isTyping && currentContext?.room_id) {
@@ -118,7 +117,7 @@
         }
 
         // Use sendBeacon for reliable delivery
-        const data = JSON.stringify({ player_pin: playerPin });
+        const data = JSON.stringify({ player_id: playerId });
         navigator.sendBeacon?.(
             'https://us-central1-brdc-v2.cloudfunctions.net/setOffline',
             new Blob([data], { type: 'application/json' })
@@ -144,13 +143,12 @@
      * @param {string} customStatus - Optional custom status message
      */
     async function updatePresenceStatus(status, customStatus = null) {
-        const playerPin = localStorage.getItem('brdc_player_pin');
-        if (!playerPin) return;
+        const playerId = JSON.parse(localStorage.getItem('brdc_session') || '{}').player_id;
+        if (!playerId) return;
 
         try {
             const { callFunction } = await import('/js/firebase-config.js');
             await callFunction('setPresenceStatus', {
-                player_pin: playerPin,
                 status: status,
                 custom_status: customStatus
             });
@@ -172,13 +170,12 @@
         currentActivity = activity;
         if (context) currentContext = context;
 
-        const playerPin = localStorage.getItem('brdc_player_pin');
-        if (!playerPin) return;
+        const playerId = JSON.parse(localStorage.getItem('brdc_session') || '{}').player_id;
+        if (!playerId) return;
 
         try {
             const { callFunction } = await import('/js/firebase-config.js');
             await callFunction('updateActivity', {
-                player_pin: playerPin,
                 activity: activity,
                 context: currentContext
             });
@@ -289,13 +286,12 @@
      * @param {string} leagueId - Optional league ID
      */
     async function joinMatchAsViewer(matchId, leagueId = null) {
-        const playerPin = localStorage.getItem('brdc_player_pin');
-        if (!playerPin) return;
+        const playerId = JSON.parse(localStorage.getItem('brdc_session') || '{}').player_id;
+        if (!playerId) return;
 
         try {
             const { callFunction } = await import('/js/firebase-config.js');
             await callFunction('joinMatchAsViewer', {
-                player_pin: playerPin,
                 match_id: matchId,
                 league_id: leagueId
             });
@@ -309,13 +305,12 @@
      * @param {string} matchId - Match ID to leave
      */
     async function leaveMatchAsViewer(matchId) {
-        const playerPin = localStorage.getItem('brdc_player_pin');
-        if (!playerPin) return;
+        const playerId = JSON.parse(localStorage.getItem('brdc_session') || '{}').player_id;
+        if (!playerId) return;
 
         try {
             const { callFunction } = await import('/js/firebase-config.js');
             await callFunction('leaveMatchAsViewer', {
-                player_pin: playerPin,
                 match_id: matchId
             });
         } catch (error) {
@@ -329,13 +324,12 @@
      * @returns {Promise<{viewers: Array, viewer_count: number}>}
      */
     async function getMatchViewers(matchId) {
-        const playerPin = localStorage.getItem('brdc_player_pin');
-        if (!playerPin) return { viewers: [], viewer_count: 0 };
+        const playerId = JSON.parse(localStorage.getItem('brdc_session') || '{}').player_id;
+        if (!playerId) return { viewers: [], viewer_count: 0 };
 
         try {
             const { callFunction } = await import('/js/firebase-config.js');
             const result = await callFunction('getMatchViewers', {
-                player_pin: playerPin,
                 match_id: matchId
             });
             return {
@@ -402,15 +396,14 @@
      * @param {boolean} typing - Whether user is typing
      */
     async function setTypingStatus(roomId, typing) {
-        const playerPin = localStorage.getItem('brdc_player_pin');
-        if (!playerPin) return;
+        const playerId = JSON.parse(localStorage.getItem('brdc_session') || '{}').player_id;
+        if (!playerId) return;
 
         isTyping = typing;
 
         try {
             const { callFunction } = await import('/js/firebase-config.js');
             await callFunction('setTypingStatus', {
-                player_pin: playerPin,
                 room_id: roomId,
                 is_typing: typing
             });
@@ -465,7 +458,7 @@
         try {
             const { db, collection, onSnapshot } = await import('/js/firebase-config.js');
             const typingRef = collection(db, 'chat_rooms', roomId, 'typing');
-            const currentPlayerId = localStorage.getItem('brdc_player_id');
+            const currentPlayerId = JSON.parse(localStorage.getItem('brdc_session') || '{}').player_id;
 
             const unsubscribe = onSnapshot(typingRef, (snapshot) => {
                 const fiveSecondsAgo = new Date(Date.now() - 5000);
@@ -507,13 +500,12 @@
      * @returns {Promise<Object>} Map of playerId -> presence data
      */
     async function getPresenceForPlayers(playerIds) {
-        const playerPin = localStorage.getItem('brdc_player_pin');
-        if (!playerPin || !playerIds?.length) return {};
+        const playerId = JSON.parse(localStorage.getItem('brdc_session') || '{}').player_id;
+        if (!playerId || !playerIds?.length) return {};
 
         try {
             const { callFunction } = await import('/js/firebase-config.js');
             const result = await callFunction('getPlayerPresence', {
-                player_pin: playerPin,
                 player_ids: playerIds
             });
             return result.presence || {};
@@ -532,13 +524,12 @@
      * @returns {Promise<{online_players: Array, count: number}>}
      */
     async function getOnlinePlayers(options = {}) {
-        const playerPin = localStorage.getItem('brdc_player_pin');
-        if (!playerPin) return { online_players: [], count: 0 };
+        const playerId = JSON.parse(localStorage.getItem('brdc_session') || '{}').player_id;
+        if (!playerId) return { online_players: [], count: 0 };
 
         try {
             const { callFunction } = await import('/js/firebase-config.js');
             const result = await callFunction('getOnlinePlayers', {
-                player_pin: playerPin,
                 ...options
             });
             return {

@@ -6,6 +6,7 @@
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 const cors = require('cors')({ origin: true });
+const { verifyFirebaseAuth } = require('./src/firebase-auth-helper');
 
 const db = admin.firestore();
 
@@ -14,34 +15,14 @@ const db = admin.firestore();
 // ============================================================================
 
 /**
- * Verify player PIN and return player data
+ * Check if a player has admin access to a league by player ID
  */
-async function verifyPlayerPin(pin) {
-    if (!pin) return null;
-
-    const playersSnapshot = await db.collection('players')
-        .where('pin', '==', pin)
-        .limit(1)
-        .get();
-
-    if (playersSnapshot.empty) return null;
-
-    const doc = playersSnapshot.docs[0];
-    return {
-        id: doc.id,
-        ...doc.data()
-    };
-}
-
-/**
- * Check if PIN has admin access to a league
- */
-async function checkLeagueAdminAccess(leagueId, pin) {
+async function checkLeagueAdminAccess(leagueId, playerId) {
     const leagueDoc = await db.collection('leagues').doc(leagueId).get();
     if (!leagueDoc.exists) return false;
 
     const league = leagueDoc.data();
-    return league.admin_pin === pin || league.director_pin === pin;
+    return league.director_id === playerId || league.admin_id === playerId;
 }
 
 /**
@@ -225,20 +206,29 @@ async function queueChatRoomNotification(roomId, roomName, roomType, senderId, s
 exports.createLeagueChatRoom = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { league_id, admin_pin } = req.body;
+            const { league_id } = req.body;
 
-            if (!league_id || !admin_pin) {
+            if (!league_id) {
                 return res.status(400).json({
                     success: false,
-                    error: 'Missing required fields: league_id, admin_pin'
+                    error: 'Missing required fields: league_id'
+                });
+            }
+
+            // Verify admin
+            const adminPlayer = await verifyFirebaseAuth(req);
+            if (!adminPlayer) {
+                return res.status(401).json({
+                    success: false,
+                    error: 'Unauthorized'
                 });
             }
 
             // Verify admin access
-            if (!await checkLeagueAdminAccess(league_id, admin_pin)) {
-                return res.status(401).json({
+            if (!await checkLeagueAdminAccess(league_id, adminPlayer.id)) {
+                return res.status(403).json({
                     success: false,
-                    error: 'Invalid admin PIN'
+                    error: 'You do not have admin access to this league'
                 });
             }
 
@@ -267,9 +257,7 @@ exports.createLeagueChatRoom = functions.https.onRequest((req, res) => {
 
             const participantIds = playersSnapshot.docs.map(doc => doc.id);
 
-            // Get director player ID
-            const adminPlayer = await verifyPlayerPin(admin_pin);
-            const adminIds = adminPlayer ? [adminPlayer.id] : [];
+            const adminIds = [adminPlayer.id];
 
             // Create chat room
             const leagueName = league.league_name || league.name || 'League';
@@ -319,20 +307,29 @@ exports.createLeagueChatRoom = functions.https.onRequest((req, res) => {
 exports.createTeamChatRoom = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { league_id, team_id, admin_pin } = req.body;
+            const { league_id, team_id } = req.body;
 
-            if (!league_id || !team_id || !admin_pin) {
+            if (!league_id || !team_id) {
                 return res.status(400).json({
                     success: false,
-                    error: 'Missing required fields: league_id, team_id, admin_pin'
+                    error: 'Missing required fields: league_id, team_id'
+                });
+            }
+
+            // Verify admin
+            const adminPlayer = await verifyFirebaseAuth(req);
+            if (!adminPlayer) {
+                return res.status(401).json({
+                    success: false,
+                    error: 'Unauthorized'
                 });
             }
 
             // Verify admin access
-            if (!await checkLeagueAdminAccess(league_id, admin_pin)) {
-                return res.status(401).json({
+            if (!await checkLeagueAdminAccess(league_id, adminPlayer.id)) {
+                return res.status(403).json({
                     success: false,
-                    error: 'Invalid admin PIN'
+                    error: 'You do not have admin access to this league'
                 });
             }
 
@@ -420,20 +417,29 @@ exports.createTeamChatRoom = functions.https.onRequest((req, res) => {
 exports.createMatchChatRoom = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { league_id, match_id, admin_pin } = req.body;
+            const { league_id, match_id } = req.body;
 
-            if (!league_id || !match_id || !admin_pin) {
+            if (!league_id || !match_id) {
                 return res.status(400).json({
                     success: false,
-                    error: 'Missing required fields: league_id, match_id, admin_pin'
+                    error: 'Missing required fields: league_id, match_id'
+                });
+            }
+
+            // Verify admin
+            const adminPlayer = await verifyFirebaseAuth(req);
+            if (!adminPlayer) {
+                return res.status(401).json({
+                    success: false,
+                    error: 'Unauthorized'
                 });
             }
 
             // Verify admin access
-            if (!await checkLeagueAdminAccess(league_id, admin_pin)) {
-                return res.status(401).json({
+            if (!await checkLeagueAdminAccess(league_id, adminPlayer.id)) {
+                return res.status(403).json({
                     success: false,
-                    error: 'Invalid admin PIN'
+                    error: 'You do not have admin access to this league'
                 });
             }
 
@@ -533,21 +539,21 @@ exports.createMatchChatRoom = functions.https.onRequest((req, res) => {
 exports.createTournamentChatRoom = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { tournament_id, admin_pin } = req.body;
+            const { tournament_id } = req.body;
 
-            if (!tournament_id || !admin_pin) {
+            if (!tournament_id) {
                 return res.status(400).json({
                     success: false,
-                    error: 'Missing required fields: tournament_id, admin_pin'
+                    error: 'Missing required fields: tournament_id'
                 });
             }
 
             // Verify admin
-            const adminPlayer = await verifyPlayerPin(admin_pin);
+            const adminPlayer = await verifyFirebaseAuth(req);
             if (!adminPlayer) {
                 return res.status(401).json({
                     success: false,
-                    error: 'Invalid PIN'
+                    error: 'Unauthorized'
                 });
             }
 
@@ -563,7 +569,6 @@ exports.createTournamentChatRoom = functions.https.onRequest((req, res) => {
 
             // Check if admin is the director
             const isDirector = tournament.director_id === adminPlayer.id ||
-                               tournament.admin_pin === admin_pin ||
                                adminPlayer.isAdmin;
 
             if (!isDirector) {
@@ -651,21 +656,21 @@ exports.createTournamentChatRoom = functions.https.onRequest((req, res) => {
 exports.createAllTournamentChatRooms = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { tournament_id, admin_pin } = req.body;
+            const { tournament_id } = req.body;
 
-            if (!tournament_id || !admin_pin) {
+            if (!tournament_id) {
                 return res.status(400).json({
                     success: false,
-                    error: 'Missing required fields: tournament_id, admin_pin'
+                    error: 'Missing required fields: tournament_id'
                 });
             }
 
             // Verify admin
-            const adminPlayer = await verifyPlayerPin(admin_pin);
+            const adminPlayer = await verifyFirebaseAuth(req);
             if (!adminPlayer) {
                 return res.status(401).json({
                     success: false,
-                    error: 'Invalid PIN'
+                    error: 'Unauthorized'
                 });
             }
 
@@ -681,7 +686,6 @@ exports.createAllTournamentChatRooms = functions.https.onRequest((req, res) => {
 
             // Check if admin is the director
             const isDirector = tournament.director_id === adminPlayer.id ||
-                               tournament.admin_pin === admin_pin ||
                                adminPlayer.isAdmin;
 
             if (!isDirector) {
@@ -842,17 +846,8 @@ exports.createAllTournamentChatRooms = functions.https.onRequest((req, res) => {
 exports.createAllTournamentsChatRooms = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { admin_pin } = req.body;
-
-            if (!admin_pin) {
-                return res.status(400).json({
-                    success: false,
-                    error: 'Missing required field: admin_pin'
-                });
-            }
-
             // Verify admin (must be master admin)
-            const adminPlayer = await verifyPlayerPin(admin_pin);
+            const adminPlayer = await verifyFirebaseAuth(req);
             if (!adminPlayer || !adminPlayer.isAdmin) {
                 return res.status(401).json({
                     success: false,
@@ -965,12 +960,12 @@ exports.createAllTournamentsChatRooms = functions.https.onRequest((req, res) => 
 exports.sendChatMessage = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { room_id, sender_pin, text, reply_to } = req.body;
+            const { room_id, text, reply_to } = req.body;
 
-            if (!room_id || !sender_pin || !text) {
+            if (!room_id || !text) {
                 return res.status(400).json({
                     success: false,
-                    error: 'Missing required fields: room_id, sender_pin, text'
+                    error: 'Missing required fields: room_id, text'
                 });
             }
 
@@ -983,11 +978,11 @@ exports.sendChatMessage = functions.https.onRequest((req, res) => {
             }
 
             // Verify sender
-            const sender = await verifyPlayerPin(sender_pin);
+            const sender = await verifyFirebaseAuth(req);
             if (!sender) {
                 return res.status(401).json({
                     success: false,
-                    error: 'Invalid PIN'
+                    error: 'Unauthorized'
                 });
             }
 
@@ -1104,21 +1099,21 @@ exports.sendChatMessage = functions.https.onRequest((req, res) => {
 exports.getChatRoomMessages = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { room_id, player_pin, limit = 50, before_timestamp } = req.body;
+            const { room_id, limit = 50, before_timestamp } = req.body;
 
-            if (!room_id || !player_pin) {
+            if (!room_id) {
                 return res.status(400).json({
                     success: false,
-                    error: 'Missing required fields: room_id, player_pin'
+                    error: 'Missing required fields: room_id'
                 });
             }
 
             // Verify player
-            const player = await verifyPlayerPin(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
                 return res.status(401).json({
                     success: false,
-                    error: 'Invalid PIN'
+                    error: 'Unauthorized'
                 });
             }
 
@@ -1197,21 +1192,12 @@ exports.getChatRoomMessages = functions.https.onRequest((req, res) => {
 exports.getPlayerChatRooms = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { player_pin } = req.body;
-
-            if (!player_pin) {
-                return res.status(400).json({
-                    success: false,
-                    error: 'Missing required field: player_pin'
-                });
-            }
-
             // Verify player
-            const player = await verifyPlayerPin(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
                 return res.status(401).json({
                     success: false,
-                    error: 'Invalid PIN'
+                    error: 'Unauthorized'
                 });
             }
 
@@ -1290,21 +1276,21 @@ exports.getPlayerChatRooms = functions.https.onRequest((req, res) => {
 exports.markChatRoomRead = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { room_id, player_pin } = req.body;
+            const { room_id } = req.body;
 
-            if (!room_id || !player_pin) {
+            if (!room_id) {
                 return res.status(400).json({
                     success: false,
-                    error: 'Missing required fields: room_id, player_pin'
+                    error: 'Missing required fields: room_id'
                 });
             }
 
             // Verify player
-            const player = await verifyPlayerPin(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
                 return res.status(401).json({
                     success: false,
-                    error: 'Invalid PIN'
+                    error: 'Unauthorized'
                 });
             }
 
@@ -1345,12 +1331,21 @@ exports.markChatRoomRead = functions.https.onRequest((req, res) => {
 exports.archiveChatRoom = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { room_id, admin_pin } = req.body;
+            const { room_id } = req.body;
 
-            if (!room_id || !admin_pin) {
+            if (!room_id) {
                 return res.status(400).json({
                     success: false,
-                    error: 'Missing required fields: room_id, admin_pin'
+                    error: 'Missing required fields: room_id'
+                });
+            }
+
+            // Verify admin
+            const adminPlayer = await verifyFirebaseAuth(req);
+            if (!adminPlayer) {
+                return res.status(401).json({
+                    success: false,
+                    error: 'Unauthorized'
                 });
             }
 
@@ -1366,10 +1361,10 @@ exports.archiveChatRoom = functions.https.onRequest((req, res) => {
             const room = roomDoc.data();
 
             // Verify admin access
-            if (!await checkLeagueAdminAccess(room.league_id, admin_pin)) {
-                return res.status(401).json({
+            if (!await checkLeagueAdminAccess(room.league_id, adminPlayer.id)) {
+                return res.status(403).json({
                     success: false,
-                    error: 'Invalid admin PIN'
+                    error: 'You do not have admin access to this league'
                 });
             }
 
@@ -1408,21 +1403,21 @@ exports.archiveChatRoom = functions.https.onRequest((req, res) => {
 exports.pinChatMessage = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { room_id, message_id, player_pin, pinned } = req.body;
+            const { room_id, message_id, pinned } = req.body;
 
-            if (!room_id || !message_id || !player_pin || typeof pinned !== 'boolean') {
+            if (!room_id || !message_id || typeof pinned !== 'boolean') {
                 return res.status(400).json({
                     success: false,
-                    error: 'Missing required fields: room_id, message_id, player_pin, pinned'
+                    error: 'Missing required fields: room_id, message_id, pinned'
                 });
             }
 
             // Verify player
-            const player = await verifyPlayerPin(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
                 return res.status(401).json({
                     success: false,
-                    error: 'Invalid PIN'
+                    error: 'Unauthorized'
                 });
             }
 
@@ -1469,21 +1464,21 @@ exports.pinChatMessage = functions.https.onRequest((req, res) => {
 exports.getPinnedMessages = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { room_id, player_pin } = req.body;
+            const { room_id } = req.body;
 
-            if (!room_id || !player_pin) {
+            if (!room_id) {
                 return res.status(400).json({
                     success: false,
-                    error: 'Missing required fields: room_id, player_pin'
+                    error: 'Missing required fields: room_id'
                 });
             }
 
             // Verify player
-            const player = await verifyPlayerPin(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
                 return res.status(401).json({
                     success: false,
-                    error: 'Invalid PIN'
+                    error: 'Unauthorized'
                 });
             }
 
@@ -1537,12 +1532,12 @@ exports.getPinnedMessages = functions.https.onRequest((req, res) => {
 exports.updateRoomParticipants = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { room_id, admin_pin, action, player_ids } = req.body;
+            const { room_id, action, player_ids } = req.body;
 
-            if (!room_id || !admin_pin || !action || !player_ids || !Array.isArray(player_ids)) {
+            if (!room_id || !action || !player_ids || !Array.isArray(player_ids)) {
                 return res.status(400).json({
                     success: false,
-                    error: 'Missing required fields: room_id, admin_pin, action, player_ids'
+                    error: 'Missing required fields: room_id, action, player_ids'
                 });
             }
 
@@ -1550,6 +1545,15 @@ exports.updateRoomParticipants = functions.https.onRequest((req, res) => {
                 return res.status(400).json({
                     success: false,
                     error: 'Invalid action. Must be "add" or "remove"'
+                });
+            }
+
+            // Verify admin
+            const adminPlayer = await verifyFirebaseAuth(req);
+            if (!adminPlayer) {
+                return res.status(401).json({
+                    success: false,
+                    error: 'Unauthorized'
                 });
             }
 
@@ -1565,10 +1569,10 @@ exports.updateRoomParticipants = functions.https.onRequest((req, res) => {
             const room = roomDoc.data();
 
             // Verify admin access
-            if (!await checkLeagueAdminAccess(room.league_id, admin_pin)) {
-                return res.status(401).json({
+            if (!await checkLeagueAdminAccess(room.league_id, adminPlayer.id)) {
+                return res.status(403).json({
                     success: false,
-                    error: 'Invalid admin PIN'
+                    error: 'You do not have admin access to this league'
                 });
             }
 
@@ -1610,21 +1614,21 @@ exports.updateRoomParticipants = functions.https.onRequest((req, res) => {
 exports.getChatRoomParticipants = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { room_id, player_pin } = req.body;
+            const { room_id } = req.body;
 
-            if (!room_id || !player_pin) {
+            if (!room_id) {
                 return res.status(400).json({
                     success: false,
-                    error: 'Missing required fields: room_id, player_pin'
+                    error: 'Missing required fields: room_id'
                 });
             }
 
             // Verify player
-            const player = await verifyPlayerPin(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
                 return res.status(401).json({
                     success: false,
-                    error: 'Invalid PIN'
+                    error: 'Unauthorized'
                 });
             }
 
@@ -1691,21 +1695,21 @@ exports.getChatRoomParticipants = functions.https.onRequest((req, res) => {
 exports.setTypingStatus = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { room_id, player_pin, is_typing } = req.body;
+            const { room_id, is_typing } = req.body;
 
-            if (!room_id || !player_pin || typeof is_typing !== 'boolean') {
+            if (!room_id || typeof is_typing !== 'boolean') {
                 return res.status(400).json({
                     success: false,
-                    error: 'Missing required fields: room_id, player_pin, is_typing'
+                    error: 'Missing required fields: room_id, is_typing'
                 });
             }
 
             // Verify player
-            const player = await verifyPlayerPin(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
                 return res.status(401).json({
                     success: false,
-                    error: 'Invalid PIN'
+                    error: 'Unauthorized'
                 });
             }
 
@@ -1763,12 +1767,12 @@ exports.setTypingStatus = functions.https.onRequest((req, res) => {
 exports.addMessageReaction = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { room_id, message_id, player_pin, emoji } = req.body;
+            const { room_id, message_id, emoji } = req.body;
 
-            if (!room_id || !message_id || !player_pin || !emoji) {
+            if (!room_id || !message_id || !emoji) {
                 return res.status(400).json({
                     success: false,
-                    error: 'Missing required fields: room_id, message_id, player_pin, emoji'
+                    error: 'Missing required fields: room_id, message_id, emoji'
                 });
             }
 
@@ -1782,11 +1786,11 @@ exports.addMessageReaction = functions.https.onRequest((req, res) => {
             }
 
             // Verify player
-            const player = await verifyPlayerPin(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
                 return res.status(401).json({
                     success: false,
-                    error: 'Invalid PIN'
+                    error: 'Unauthorized'
                 });
             }
 
@@ -1872,21 +1876,21 @@ exports.addMessageReaction = functions.https.onRequest((req, res) => {
 exports.toggleChatRoomMute = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { room_id, player_pin, muted } = req.body;
+            const { room_id, muted } = req.body;
 
-            if (!room_id || !player_pin || typeof muted !== 'boolean') {
+            if (!room_id || typeof muted !== 'boolean') {
                 return res.status(400).json({
                     success: false,
-                    error: 'Missing required fields: room_id, player_pin, muted'
+                    error: 'Missing required fields: room_id, muted'
                 });
             }
 
             // Verify player
-            const player = await verifyPlayerPin(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
                 return res.status(401).json({
                     success: false,
-                    error: 'Invalid PIN'
+                    error: 'Unauthorized'
                 });
             }
 
@@ -1939,21 +1943,21 @@ exports.toggleChatRoomMute = functions.https.onRequest((req, res) => {
 exports.updateNotificationPreferences = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { player_pin, preferences } = req.body;
+            const { preferences } = req.body;
 
-            if (!player_pin || !preferences) {
+            if (!preferences) {
                 return res.status(400).json({
                     success: false,
-                    error: 'Missing required fields: player_pin, preferences'
+                    error: 'Missing required fields: preferences'
                 });
             }
 
             // Verify player
-            const player = await verifyPlayerPin(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
                 return res.status(401).json({
                     success: false,
-                    error: 'Invalid PIN'
+                    error: 'Unauthorized'
                 });
             }
 
@@ -1995,17 +1999,17 @@ exports.updateNotificationPreferences = functions.https.onRequest((req, res) => 
 
 /**
  * Edit a message (only within 5 minutes of sending)
- * POST: { room_id, message_id, player_pin, new_text }
+ * POST: { room_id, message_id, new_text }
  */
 exports.editChatMessage = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { room_id, message_id, player_pin, new_text } = req.body;
+            const { room_id, message_id, new_text } = req.body;
 
-            if (!room_id || !message_id || !player_pin || !new_text) {
+            if (!room_id || !message_id || !new_text) {
                 return res.status(400).json({
                     success: false,
-                    error: 'Missing required fields: room_id, message_id, player_pin, new_text'
+                    error: 'Missing required fields: room_id, message_id, new_text'
                 });
             }
 
@@ -2017,11 +2021,11 @@ exports.editChatMessage = functions.https.onRequest((req, res) => {
             }
 
             // Verify player
-            const player = await verifyPlayerPin(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
                 return res.status(401).json({
                     success: false,
-                    error: 'Invalid PIN'
+                    error: 'Unauthorized'
                 });
             }
 
@@ -2077,26 +2081,26 @@ exports.editChatMessage = functions.https.onRequest((req, res) => {
 
 /**
  * Delete a message (soft delete)
- * POST: { room_id, message_id, player_pin }
+ * POST: { room_id, message_id }
  */
 exports.deleteChatMessage = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { room_id, message_id, player_pin } = req.body;
+            const { room_id, message_id } = req.body;
 
-            if (!room_id || !message_id || !player_pin) {
+            if (!room_id || !message_id) {
                 return res.status(400).json({
                     success: false,
-                    error: 'Missing required fields: room_id, message_id, player_pin'
+                    error: 'Missing required fields: room_id, message_id'
                 });
             }
 
             // Verify player
-            const player = await verifyPlayerPin(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
                 return res.status(401).json({
                     success: false,
-                    error: 'Invalid PIN'
+                    error: 'Unauthorized'
                 });
             }
 
@@ -2159,25 +2163,33 @@ exports.deleteChatMessage = functions.https.onRequest((req, res) => {
 
 /**
  * Create all chat rooms for a league (league + teams)
- * POST: { league_id, admin_pin }
+ * POST: { league_id }
  */
 exports.createAllLeagueChatRooms = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { league_id, admin_pin } = req.body;
+            const { league_id } = req.body;
 
-            if (!league_id || !admin_pin) {
+            if (!league_id) {
                 return res.status(400).json({
                     success: false,
-                    error: 'Missing required fields: league_id, admin_pin'
+                    error: 'Missing required fields: league_id'
                 });
             }
 
             // Verify admin access
-            if (!await checkLeagueAdminAccess(league_id, admin_pin)) {
+            const adminPlayer = await verifyFirebaseAuth(req);
+            if (!adminPlayer) {
                 return res.status(401).json({
                     success: false,
-                    error: 'Invalid admin PIN'
+                    error: 'Unauthorized'
+                });
+            }
+
+            if (!await checkLeagueAdminAccess(league_id, adminPlayer.id)) {
+                return res.status(403).json({
+                    success: false,
+                    error: 'You do not have admin access to this league'
                 });
             }
 
@@ -2195,9 +2207,7 @@ exports.createAllLeagueChatRooms = functions.https.onRequest((req, res) => {
                 .collection('players').get();
             const allPlayerIds = playersSnapshot.docs.map(doc => doc.id);
 
-            // Get admin player ID
-            const adminPlayer = await verifyPlayerPin(admin_pin);
-            const adminIds = adminPlayer ? [adminPlayer.id] : [];
+            const adminIds = [adminPlayer.id];
 
             // Create league chat if doesn't exist
             const existingLeagueChat = await db.collection('chat_rooms')
@@ -2318,26 +2328,26 @@ exports.createAllLeagueChatRooms = functions.https.onRequest((req, res) => {
 
 /**
  * Fix chat room name (admin utility)
- * POST: { room_id, new_name, admin_pin }
+ * POST: { room_id, new_name }
  */
 exports.fixChatRoomName = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { room_id, new_name, admin_pin } = req.body;
+            const { room_id, new_name } = req.body;
 
-            if (!room_id || !new_name || !admin_pin) {
+            if (!room_id || !new_name) {
                 return res.status(400).json({
                     success: false,
-                    error: 'Missing required fields: room_id, new_name, admin_pin'
+                    error: 'Missing required fields: room_id, new_name'
                 });
             }
 
             // Verify admin
-            const admin = await verifyPlayerPin(admin_pin);
-            if (!admin || !admin.isAdmin) {
+            const adminPlayer = await verifyFirebaseAuth(req);
+            if (!adminPlayer || !adminPlayer.isAdmin) {
                 return res.status(401).json({
                     success: false,
-                    error: 'Invalid admin PIN'
+                    error: 'Unauthorized'
                 });
             }
 

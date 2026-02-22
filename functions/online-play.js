@@ -8,20 +8,9 @@ const functions = require('firebase-functions');
 const { logger } = require('firebase-functions');
 const admin = require('firebase-admin');
 const cors = require('cors')({origin: true});
+const { verifyFirebaseAuth } = require('./src/firebase-auth-helper');
 
 const db = admin.firestore();
-
-// Helper: Verify player PIN
-async function verifyPlayer(pin) {
-    if (!pin) return null;
-    const playersSnapshot = await db.collection('players')
-        .where('pin', '==', pin)
-        .limit(1)
-        .get();
-
-    if (playersSnapshot.empty) return null;
-    return { id: playersSnapshot.docs[0].id, ...playersSnapshot.docs[0].data() };
-}
 
 // ===========================================
 // CHALLENGES
@@ -33,15 +22,15 @@ async function verifyPlayer(pin) {
 exports.sendChallenge = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { player_pin, opponent_id, game_type, game_settings, message, scheduled_time } = req.body;
+            const { opponent_id, game_type, game_settings, message, scheduled_time } = req.body;
 
-            if (!player_pin || !opponent_id) {
+            if (!opponent_id) {
                 return res.status(400).json({ success: false, error: 'Missing required fields' });
             }
 
-            const player = await verifyPlayer(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
-                return res.status(401).json({ success: false, error: 'Invalid PIN' });
+                return res.status(401).json({ success: false, error: 'Unauthorized' });
             }
 
             // Can't challenge yourself
@@ -112,9 +101,9 @@ exports.sendChallenge = functions.https.onRequest((req, res) => {
 exports.respondToChallenge = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { player_pin, challenge_id, response } = req.body;
+            const { challenge_id, response } = req.body;
 
-            if (!player_pin || !challenge_id || !response) {
+            if (!challenge_id || !response) {
                 return res.status(400).json({ success: false, error: 'Missing required fields' });
             }
 
@@ -122,9 +111,9 @@ exports.respondToChallenge = functions.https.onRequest((req, res) => {
                 return res.status(400).json({ success: false, error: 'Invalid response' });
             }
 
-            const player = await verifyPlayer(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
-                return res.status(401).json({ success: false, error: 'Invalid PIN' });
+                return res.status(401).json({ success: false, error: 'Unauthorized' });
             }
 
             const challengeDoc = await db.collection('challenges').doc(challenge_id).get();
@@ -213,15 +202,9 @@ exports.respondToChallenge = functions.https.onRequest((req, res) => {
 exports.getPendingChallenges = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { player_pin } = req.body;
-
-            if (!player_pin) {
-                return res.status(400).json({ success: false, error: 'Missing player_pin' });
-            }
-
-            const player = await verifyPlayer(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
-                return res.status(401).json({ success: false, error: 'Invalid PIN' });
+                return res.status(401).json({ success: false, error: 'Unauthorized' });
             }
 
             // Get challenges received
@@ -269,15 +252,9 @@ exports.getPendingChallenges = functions.https.onRequest((req, res) => {
 exports.getActiveOnlineMatches = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { player_pin } = req.body;
-
-            if (!player_pin) {
-                return res.status(400).json({ success: false, error: 'Missing player_pin' });
-            }
-
-            const player = await verifyPlayer(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
-                return res.status(401).json({ success: false, error: 'Invalid PIN' });
+                return res.status(401).json({ success: false, error: 'Unauthorized' });
             }
 
             // Get matches where player is participant
@@ -313,15 +290,15 @@ exports.getActiveOnlineMatches = functions.https.onRequest((req, res) => {
 exports.startOnlineMatch = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { player_pin, match_id } = req.body;
+            const { match_id } = req.body;
 
-            if (!player_pin || !match_id) {
+            if (!match_id) {
                 return res.status(400).json({ success: false, error: 'Missing required fields' });
             }
 
-            const player = await verifyPlayer(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
-                return res.status(401).json({ success: false, error: 'Invalid PIN' });
+                return res.status(401).json({ success: false, error: 'Unauthorized' });
             }
 
             const matchDoc = await db.collection('online_matches').doc(match_id).get();
@@ -384,15 +361,15 @@ exports.startOnlineMatch = functions.https.onRequest((req, res) => {
 exports.recordOnlineLeg = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { player_pin, match_id, winner_id, leg_data } = req.body;
+            const { match_id, winner_id, leg_data } = req.body;
 
-            if (!player_pin || !match_id || !winner_id) {
+            if (!match_id || !winner_id) {
                 return res.status(400).json({ success: false, error: 'Missing required fields' });
             }
 
-            const player = await verifyPlayer(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
-                return res.status(401).json({ success: false, error: 'Invalid PIN' });
+                return res.status(401).json({ success: false, error: 'Unauthorized' });
             }
 
             const matchDoc = await db.collection('online_matches').doc(match_id).get();
@@ -548,15 +525,15 @@ async function updateOnlineStats(player1Id, player2Id, winnerId, match, legData)
 exports.requestRematch = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { player_pin, match_id } = req.body;
+            const { match_id } = req.body;
 
-            if (!player_pin || !match_id) {
+            if (!match_id) {
                 return res.status(400).json({ success: false, error: 'Missing required fields' });
             }
 
-            const player = await verifyPlayer(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
-                return res.status(401).json({ success: false, error: 'Invalid PIN' });
+                return res.status(401).json({ success: false, error: 'Unauthorized' });
             }
 
             const matchDoc = await db.collection('online_matches').doc(match_id).get();
@@ -613,15 +590,11 @@ exports.requestRematch = functions.https.onRequest((req, res) => {
 exports.getOnlineMatchHistory = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { player_pin, limit: resultLimit } = req.body;
+            const { limit: resultLimit } = req.body;
 
-            if (!player_pin) {
-                return res.status(400).json({ success: false, error: 'Missing player_pin' });
-            }
-
-            const player = await verifyPlayer(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
-                return res.status(401).json({ success: false, error: 'Invalid PIN' });
+                return res.status(401).json({ success: false, error: 'Unauthorized' });
             }
 
             const queryLimit = Math.min(resultLimit || 20, 50);

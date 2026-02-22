@@ -14,7 +14,7 @@ exports.submitMatchResult = functions.https.onRequest(async (req, res) => {
 
     if (req.method === 'OPTIONS') {
         res.set('Access-Control-Allow-Methods', 'POST');
-        res.set('Access-Control-Allow-Headers', 'Content-Type');
+        res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
         return res.status(204).send('');
     }
 
@@ -150,7 +150,7 @@ exports.submitMatchResult = functions.https.onRequest(async (req, res) => {
 exports.submitDoubleElimMatchResult = functions.https.onRequest(async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
     if (req.method === 'OPTIONS') {
         return res.status(204).send('');
@@ -695,7 +695,7 @@ function checkMingleStatus(bracket) {
 exports.startDoubleElimMatch = functions.https.onRequest(async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
     if (req.method === 'OPTIONS') {
         return res.status(204).send('');
@@ -822,7 +822,7 @@ exports.recalculateTournamentStats = functions.https.onRequest(async (req, res) 
 
     if (req.method === 'OPTIONS') {
         res.set('Access-Control-Allow-Methods', 'POST');
-        res.set('Access-Control-Allow-Headers', 'Content-Type');
+        res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
         return res.status(204).send('');
     }
 

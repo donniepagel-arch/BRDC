@@ -415,6 +415,12 @@ function convertToFirestoreFormat(parsedGames, homeTeam, awayTeam, metadata, mat
             // DO NOT modify leg counts - leave them as parsed
         }
 
+        // Skip sets with DartConnect "Home"/"Away" placeholders (no real players mapped)
+        if (homePlayersSet.size === 0 || awayPlayersSet.size === 0) {
+            console.log(`  [SKIP] Set ${setNum} — unmapped players on one or both sides (DartConnect placeholder), dropping phantom set`);
+            return;
+        }
+
         games.push({
             set: setNum,
             game_number: setNum,

@@ -1,7 +1,8 @@
 // Firebase Configuration
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
-import { getFirestore, collection, addDoc, query, where, getDocs, doc, getDoc, onSnapshot, updateDoc, setDoc, deleteDoc, orderBy, limit, startAfter, serverTimestamp, Timestamp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+import { getFirestore, collection, addDoc, query, where, getDocs, doc, getDoc, onSnapshot, updateDoc, setDoc, deleteDoc, orderBy, limit, startAfter, serverTimestamp, Timestamp, arrayUnion, arrayRemove } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js';
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, sendPasswordResetEmail, onAuthStateChanged, GoogleAuthProvider, signInWithPopup } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
 
 const firebaseConfig = {
     apiKey: "AIzaSyDN1aYhoVt3OX5EafsNTVB09i8VFx7QM1U",
@@ -15,6 +16,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const storage = getStorage(app);
+const auth = getAuth(app);
 
 /**
  * Upload an image to Firebase Storage
@@ -45,15 +47,24 @@ async function uploadImage(file, folder = 'images') {
  * Call a Cloud Function via HTTPS
  * Uses direct Cloud Functions URL
  */
-async function callFunction(functionName, data) {
+async function callFunction(functionName, data = {}) {
     const url = `https://us-central1-brdc-v2.cloudfunctions.net/${functionName}`;
+
+    const headers = { 'Content-Type': 'application/json' };
+    const user = auth.currentUser;
+    if (user) {
+        try {
+            const token = await user.getIdToken();
+            headers['Authorization'] = `Bearer ${token}`;
+        } catch (e) {
+            console.warn('[callFunction] Could not get ID token:', e.message);
+        }
+    }
 
     try {
         const response = await fetch(url, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers,
             body: JSON.stringify(data)
         });
 
@@ -116,9 +127,13 @@ function hideLoading() {
     overlay.classList.remove('active');
 }
 
+// Expose callFunction globally so non-module scripts (e.g. brdc-share.js) can use it with auth
+window._brdcCall = callFunction;
+
 export {
     db,
     storage,
+    auth,
     collection,
     addDoc,
     query,
@@ -135,11 +150,20 @@ export {
     startAfter,
     serverTimestamp,
     Timestamp,
+    arrayUnion,
+    arrayRemove,
     ref,
     uploadBytes,
     getDownloadURL,
     callFunction,
     showLoading,
     hideLoading,
-    uploadImage
+    uploadImage,
+    signInWithEmailAndPassword,
+    createUserWithEmailAndPassword,
+    signOut,
+    sendPasswordResetEmail,
+    onAuthStateChanged,
+    GoogleAuthProvider,
+    signInWithPopup
 };

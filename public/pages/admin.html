@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="manifest" href="/manifest.json">
     <title>Admin Dashboard - BRDC</title>
     <link rel="icon" type="image/png" href="/images/favicon.png">
     <link rel="stylesheet" href="/css/brdc-styles.css">
@@ -827,21 +828,30 @@
     </style>
 </head>
 <body>
-    <div class="header-bar">
-        <button class="back-btn" onclick="goBack()" aria-label="Go back">← BACK</button>
-        <img src="/images/gold_logo.png" alt="BRDC" class="header-logo">
-        <span class="header-title">ADMIN</span>
-    </div>
-
     <!-- Login Screen -->
     <div id="loginScreen">
         <div class="login-card">
             <img src="/images/gold_logo.png" alt="BRDC" style="width: 80px; margin-bottom: 15px;">
-            <h2>🔧 ADMIN LOGIN</h2>
-            <p id="loginMessage">Enter your admin PIN to access the dashboard</p>
+            <h2>ADMIN LOGIN</h2>
+            <p id="loginMessage">Sign in to access the admin dashboard</p>
             <div id="loginForm">
-                <input type="text" id="pinInput" class="pin-input" placeholder="••••••••" maxlength="8" inputmode="numeric" pattern="[0-9]*" autocomplete="off">
+                <div style="margin-bottom: 12px; text-align: left;">
+                    <label for="emailInput" style="display:block; font-size:12px; color:var(--text-dim); margin-bottom:6px;">Email</label>
+                    <input type="email" id="emailInput" class="pin-input" placeholder="your@email.com" autocomplete="email" style="letter-spacing:0; font-size:16px;">
+                </div>
+                <div style="margin-bottom: 12px; text-align: left;">
+                    <label for="passwordInput" style="display:block; font-size:12px; color:var(--text-dim); margin-bottom:6px;">Password</label>
+                    <input type="password" id="passwordInput" class="pin-input" placeholder="Password" autocomplete="current-password" style="letter-spacing:0; font-size:16px;">
+                </div>
                 <button class="brdc-btn" onclick="adminLogin()" style="width: 100%;">LOGIN</button>
+                <p style="text-align:center; margin-top: 12px;">
+                    <a href="#" onclick="forgotPassword(); return false;" style="color: var(--text-dim); font-size: 13px; text-decoration: none;">Forgot password?</a>
+                </p>
+                <div class="login-divider"><span>OR</span></div>
+                <button type="button" class="btn-google" onclick="loginWithGoogle()">
+                    <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.08 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-3.59-13.46-8.86l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+                    Sign in with Google
+                </button>
             </div>
             <div id="loginLoading" style="display: none; text-align: center; padding: 20px;">
                 <div style="width: 32px; height: 32px; border: 3px solid rgba(255,255,255,0.1); border-top-color: var(--teal); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 10px;"></div>
@@ -1273,7 +1283,7 @@
     </div>
 
     <script type="module">
-        import { callFunction } from '/js/firebase-config.js';
+        import { callFunction, auth, signInWithEmailAndPassword, sendPasswordResetEmail, signInWithPopup, GoogleAuthProvider } from '/js/firebase-config.js';
 
         // HTML escape helper to prevent XSS
         function escapeHtml(text) {
@@ -1315,65 +1325,119 @@
             }
         };
 
-        // Check for saved session - ALWAYS verify with backend first
-        const savedPin = sessionStorage.getItem('adminPin');
-        if (savedPin) {
-            // Verify the saved PIN is still valid before showing dashboard
-            verifyAndRestoreSession(savedPin);
-        }
-
-        // Verify saved PIN with backend before restoring session
-        async function verifyAndRestoreSession(pin) {
-            // Show loading state
-            document.getElementById('loginForm').style.display = 'none';
-            document.getElementById('loginLoading').style.display = 'block';
-            document.getElementById('loginMessage').textContent = 'Restoring session...';
-
-            try {
-                const result = await callFunction('adminGetDashboard', { pin });
-                if (result.success) {
-                    adminPin = pin;
-                    showDashboard();
-                    renderDashboard(result);
-                } else {
-                    // Invalid PIN - clear storage and show login form
-                    sessionStorage.removeItem('adminPin');
-                    document.getElementById('loginForm').style.display = 'block';
-                    document.getElementById('loginLoading').style.display = 'none';
-                    document.getElementById('loginMessage').textContent = 'Session expired. Please log in again.';
-                    console.warn('Saved admin session invalid, cleared');
+        // Check for saved brdc_session with admin role
+        (function checkSavedSession() {
+            const saved = localStorage.getItem('brdc_session');
+            if (saved) {
+                try {
+                    const session = JSON.parse(saved);
+                    if (session.player_id && (session.is_admin || session.is_master_admin)) {
+                        document.getElementById('loginForm').style.display = 'none';
+                        document.getElementById('loginLoading').style.display = 'block';
+                        document.getElementById('loginMessage').textContent = 'Restoring session...';
+                        showDashboard();
+                        loadDashboard();
+                        return;
+                    }
+                } catch (e) {
+                    console.error('Session restore error:', e);
                 }
-            } catch (error) {
-                // Backend verification failed - show login form
-                sessionStorage.removeItem('adminPin');
-                document.getElementById('loginForm').style.display = 'block';
-                document.getElementById('loginLoading').style.display = 'none';
-                document.getElementById('loginMessage').textContent = 'Enter your admin PIN to access the dashboard';
-                console.error('Session verification failed:', error);
             }
-        }
+        })();
 
         window.adminLogin = async function() {
-            const pin = document.getElementById('pinInput').value;
+            const email = (document.getElementById('emailInput')?.value || '').trim();
+            const password = document.getElementById('passwordInput')?.value || '';
 
-            if (!pin) {
-                toastWarning('Please enter your PIN');
+            if (!email || !password) {
+                toastWarning('Please enter your email and password.');
                 return;
             }
 
             try {
-                const result = await callFunction('adminGetDashboard', { pin });
+                await signInWithEmailAndPassword(auth, email, password);
 
-                if (result.success) {
-                    adminPin = pin;
-                    sessionStorage.setItem('adminPin', pin);
-                    showDashboard();
-                    renderDashboard(result);
-                } else {
-                    toastError('Invalid PIN');
+                const result = await callFunction('getPlayerSession', {});
+                if (!result?.success) throw new Error(result?.error || 'Login failed');
+
+                const player = result.player;
+                if (!player.is_admin && !player.is_master_admin) {
+                    toastError('No admin role found for this account.');
+                    return;
                 }
-            } catch (error) {
-                toastError('Login failed: ' + error.message);
+
+                localStorage.setItem('brdc_session', JSON.stringify({
+                    player_id: player.id,
+                    name: player.name,
+                    source_type: player.source_type || 'global',
+                    league_id: player.league_id || null,
+                    is_admin: player.is_admin || false,
+                    is_master_admin: player.is_master_admin || false,
+                    is_director: player.is_director || false,
+                    is_captain: player.is_captain || false,
+                    involvements: player.involvements || {},
+                    logged_in_at: Date.now()
+                }));
+                localStorage.removeItem('brdc_player_pin');
+
+                showDashboard();
+                loadDashboard();
+            } catch (err) {
+                let msg = 'Login failed.';
+                if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') msg = 'Invalid email or password.';
+                else if (err.code === 'auth/too-many-requests') msg = 'Too many attempts. Try again later.';
+                else if (err.message) msg = err.message;
+                toastError(msg);
+            }
+        };
+
+        window.forgotPassword = async function() {
+            const email = (document.getElementById('emailInput')?.value || '').trim();
+            if (!email) { alert('Enter your email first.'); return; }
+            try {
+                await sendPasswordResetEmail(auth, email);
+                alert('Password reset email sent!');
+            } catch (err) {
+                alert('Could not send reset email. Try again.');
+            }
+        };
+
+        window.loginWithGoogle = async function() {
+            try {
+                const provider = new GoogleAuthProvider();
+                await signInWithPopup(auth, provider);
+
+                const result = await callFunction('getPlayerSession', {});
+                if (!result?.success) throw new Error(result?.error || 'Login failed');
+
+                const player = result.player;
+                if (!player.is_admin && !player.is_master_admin) {
+                    toastError('No admin role found for this account.');
+                    return;
+                }
+
+                localStorage.setItem('brdc_session', JSON.stringify({
+                    player_id: player.id,
+                    name: player.name,
+                    source_type: player.source_type || 'global',
+                    league_id: player.league_id || null,
+                    is_admin: player.is_admin || false,
+                    is_master_admin: player.is_master_admin || false,
+                    is_director: player.is_director || false,
+                    is_captain: player.is_captain || false,
+                    involvements: player.involvements || {},
+                    logged_in_at: Date.now()
+                }));
+                localStorage.removeItem('brdc_player_pin');
+
+                showDashboard();
+                loadDashboard();
+            } catch (err) {
+                if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') return;
+                let msg = 'Google sign-in failed. Please try again.';
+                if (err.code === 'auth/popup-blocked') msg = 'Popup was blocked. Please allow popups for this site and try again.';
+                else if (err.message) msg = err.message;
+                toastError(msg);
             }
         };
 
@@ -1461,7 +1525,6 @@
                             <p>
                                 <span class="status-badge status-${escapeHtml(l.status || 'pending')}">${escapeHtml(l.status || 'pending')}</span>
                                 | Director: ${escapeHtml(l.director_name || 'N/A')}
-                                | Director PIN: <code style="background: rgba(145,215,235,0.2); padding: 2px 6px; border-radius: 4px;">${escapeHtml(l.director_pin || l.admin_pin || 'N/A')}</code>
                             </p>
                         </div>
                         <div class="item-actions">
@@ -1510,7 +1573,6 @@
                                 <span class="status-badge status-${escapeHtml(t.status || 'pending')}">${escapeHtml(t.status || 'pending')}</span>
                                 | Date: ${escapeHtml(t.date || 'TBD')}
                                 | Director: ${escapeHtml(t.director_name || 'N/A')}
-                                | Director PIN: <code style="background: rgba(145,215,235,0.2); padding: 2px 6px; border-radius: 4px;">${escapeHtml(t.director_pin || 'N/A')}</code>
                             </p>
                         </div>
                         <div class="item-actions">
@@ -1714,10 +1776,12 @@
 
         window.logout = function() {
             sessionStorage.removeItem('adminPin');
+            localStorage.removeItem('brdc_session');
             adminPin = null;
             document.getElementById('loginScreen').style.display = 'block';
             document.getElementById('adminContent').style.display = 'none';
-            document.getElementById('pinInput').value = '';
+            document.getElementById('emailInput').value = '';
+            document.getElementById('passwordInput').value = '';
         };
 
         // Bot Management
@@ -1998,7 +2062,7 @@
                         <div class="member-header">
                             <div class="member-info">
                                 <h3>${escapeHtml(m.name)} ${isAdmin ? '<span class="admin-badge">ADMIN</span>' : ''}</h3>
-                                <p>${escapeHtml(m.email || 'No email')} | PIN: ${escapeHtml(m.pin || 'N/A')}</p>
+                                <p>${escapeHtml(m.email || 'No email')}</p>
                             </div>
                         </div>
                         <div class="permissions-row">
@@ -2203,8 +2267,7 @@
                                 <div class="member-info">
                                     <h3>${escapeHtml(p.name || 'Unnamed Player')}${p.is_bot ? '<span style="display:inline-block;background:#fdd835;color:#000;font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;margin-left:8px;vertical-align:middle;">BOT</span>' : ''}</h3>
                                     <p>
-                                        PIN: <code style="background: rgba(253,216,53,0.2); padding: 2px 6px; border-radius: 4px;">${escapeHtml(p.pin || 'N/A')}</code>
-                                        | ${escapeHtml(p.email || p.phone || 'No contact')}
+                                        ${escapeHtml(p.email || p.phone || 'No contact')}
                                         | Games: ${gamesPlayed}
                                         | Joined: ${createdDate}
                                     </p>
@@ -2294,8 +2357,11 @@
             }
         };
 
-        // Handle Enter key
-        document.getElementById('pinInput').addEventListener('keypress', (e) => {
+        // Handle Enter key on login inputs
+        document.getElementById('emailInput')?.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') adminLogin();
+        });
+        document.getElementById('passwordInput')?.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') adminLogin();
         });
 
@@ -2603,7 +2669,7 @@
     </script>
     <script src="/js/display-helpers.js"></script>
     <script src="/js/nav-menu.js"></script>
-    <script src="/components/brdc-navigation-init.js"></script>
+    <script src="/components/brdc-navigation-init.js?v=13"></script>
     <script>initBRDCNavigation({ page: 'admin' });</script>
 </body>
 </html>

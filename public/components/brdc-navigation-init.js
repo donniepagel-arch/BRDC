@@ -57,11 +57,31 @@ window.initBRDCNavigation = function (options = {}) {
 
     // Load required CSS
     loadCSS('/css/fb-mobile.css');
-    loadCSS('/css/brdc-navigation.css');
+    loadCSS('/css/brdc-navigation.css?v=11');
     if (config.showSearch) loadCSS('/css/brdc-search.css');
 
     // Load accessibility utilities
     loadScript('/js/a11y-helpers.js');
+
+    // Load sidebar navigation (hamburger menu drawer) on all pages
+    loadScript('/js/fb-nav.js?v=13', function () {
+        // Initialize ONLY the sidebar if not already done.
+        // Don't call FBNav.init() which creates a duplicate footer nav.
+        // Dashboard does its own full init via dashboard-auth.js.
+        if (window.FBNav && !window.FBNav.sidebar && window.FBNav.SidebarMenu) {
+            try {
+                const session = JSON.parse(localStorage.getItem('brdc_session') || '{}');
+                const player = session.player_id ? session : null;
+                const sidebar = new window.FBNav.SidebarMenu();
+                sidebar.init();
+                sidebar.setPlayer(player);
+                sidebar.generateContent();
+                window.FBNav.sidebar = sidebar;
+            } catch (e) {
+                // Sidebar init failed - hamburger fallback will retry on click
+            }
+        }
+    });
 
     // Add body class for mobile nav padding
     if (config.showMobileNav) {
@@ -74,12 +94,17 @@ window.initBRDCNavigation = function (options = {}) {
     }
 
     // Load navigation component - v2.0 auto-inits, so we just configure it
-    loadScript('/components/brdc-navigation.js?v=2', function () {
+    loadScript('/components/brdc-navigation.js?v=12', function () {
         // If already auto-initialized, just update config
         if (window.brdcNavInitialized && window.brdcNav) {
             window.brdcNav.currentPage = config.page || window.brdcNav.detectCurrentPage();
             if (config.pageTitle) window.brdcNav.setPageTitle(config.pageTitle);
             window.brdcNav.setActivePage(window.brdcNav.currentPage);
+            // Update breadcrumbs if provided
+            if (config.breadcrumbs && config.breadcrumbs.length > 0) {
+                window.brdcNav.breadcrumbPath = config.breadcrumbs;
+                window.brdcNav.renderBreadcrumbs();
+            }
             return;
         }
 

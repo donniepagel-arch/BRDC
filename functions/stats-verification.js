@@ -10,6 +10,7 @@
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 const cors = require('cors')({ origin: true });
+const { verifyFirebaseAuth } = require('./src/firebase-auth-helper');
 
 const db = admin.firestore();
 
@@ -22,19 +23,16 @@ exports.submitVerification = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
             const {
-                player_id,
-                player_pin,
                 x01_legs,      // Array of { leg, darts, avg, won } - optional
                 cricket_legs,  // Array of { leg, rounds, marks, mpr, won } - optional
             } = req.body;
 
-            // Validate required fields
-            if (!player_id && !player_pin) {
-                return res.status(400).json({
-                    success: false,
-                    error: 'player_id or player_pin required'
-                });
+            // Authenticate player
+            const authPlayer = await verifyFirebaseAuth(req);
+            if (!authPlayer) {
+                return res.status(401).json({ success: false, error: 'Unauthorized' });
             }
+            const playerId = authPlayer.id;
 
             // Must have at least one game type
             const hasX01 = x01_legs && x01_legs.length === 5;
@@ -45,23 +43,6 @@ exports.submitVerification = functions.https.onRequest((req, res) => {
                     success: false,
                     error: 'At least 5 x01 legs or 5 cricket legs required'
                 });
-            }
-
-            // Look up player
-            let playerId = player_id;
-            if (!playerId && player_pin) {
-                const playerQuery = await db.collection('players')
-                    .where('pin', '==', player_pin)
-                    .limit(1)
-                    .get();
-
-                if (playerQuery.empty) {
-                    return res.status(404).json({
-                        success: false,
-                        error: 'Player not found'
-                    });
-                }
-                playerId = playerQuery.docs[0].id;
             }
 
             // Verify player exists
@@ -225,31 +206,11 @@ exports.submitVerification = functions.https.onRequest((req, res) => {
 exports.getVerificationStatus = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { player_id, player_pin } = req.body;
-
-            if (!player_id && !player_pin) {
-                return res.status(400).json({
-                    success: false,
-                    error: 'player_id or player_pin required'
-                });
+            const authPlayer = await verifyFirebaseAuth(req);
+            if (!authPlayer) {
+                return res.status(401).json({ success: false, error: 'Unauthorized' });
             }
-
-            // Look up player
-            let playerId = player_id;
-            if (!playerId && player_pin) {
-                const playerQuery = await db.collection('players')
-                    .where('pin', '==', player_pin)
-                    .limit(1)
-                    .get();
-
-                if (playerQuery.empty) {
-                    return res.status(404).json({
-                        success: false,
-                        error: 'Player not found'
-                    });
-                }
-                playerId = playerQuery.docs[0].id;
-            }
+            const playerId = authPlayer.id;
 
             // Get current verification
             const verDoc = await db.collection('players').doc(playerId)
@@ -311,37 +272,19 @@ exports.getVerificationStatus = functions.https.onRequest((req, res) => {
 exports.selfReportStats = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { player_id, player_pin, estimated_3da, estimated_mpr } = req.body;
+            const { estimated_3da, estimated_mpr } = req.body;
 
-            if (!player_id && !player_pin) {
-                return res.status(400).json({
-                    success: false,
-                    error: 'player_id or player_pin required'
-                });
+            const authPlayer = await verifyFirebaseAuth(req);
+            if (!authPlayer) {
+                return res.status(401).json({ success: false, error: 'Unauthorized' });
             }
+            const playerId = authPlayer.id;
 
             if (!estimated_3da && !estimated_mpr) {
                 return res.status(400).json({
                     success: false,
                     error: 'At least one stat (estimated_3da or estimated_mpr) required'
                 });
-            }
-
-            // Look up player
-            let playerId = player_id;
-            if (!playerId && player_pin) {
-                const playerQuery = await db.collection('players')
-                    .where('pin', '==', player_pin)
-                    .limit(1)
-                    .get();
-
-                if (playerQuery.empty) {
-                    return res.status(404).json({
-                        success: false,
-                        error: 'Player not found'
-                    });
-                }
-                playerId = playerQuery.docs[0].id;
             }
 
             const playerRef = db.collection('players').doc(playerId);

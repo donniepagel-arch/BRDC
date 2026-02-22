@@ -7,32 +7,9 @@
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 const cors = require('cors')({ origin: true });
+const { verifyFirebaseAuth } = require('./src/firebase-auth-helper');
 
 const db = admin.firestore();
-
-// ============================================================================
-// HELPER FUNCTIONS
-// ============================================================================
-
-/**
- * Verify player PIN and return player data
- */
-async function verifyPlayerPin(pin) {
-    if (!pin) return null;
-
-    const playersSnapshot = await db.collection('players')
-        .where('pin', '==', pin)
-        .limit(1)
-        .get();
-
-    if (playersSnapshot.empty) return null;
-
-    const doc = playersSnapshot.docs[0];
-    return {
-        id: doc.id,
-        ...doc.data()
-    };
-}
 
 /**
  * Build match result message for auto-posting
@@ -91,26 +68,19 @@ function buildMatchResultMessage(match, stats) {
 
 /**
  * Get all live matches for the ticker
- * POST: { player_pin, filter?: 'all'|'leagues'|'tournaments'|'following' }
+ * POST: { filter?: 'all'|'leagues'|'tournaments'|'following' }
  */
 exports.getLiveMatches = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { player_pin, filter = 'all' } = req.body;
-
-            if (!player_pin) {
-                return res.status(400).json({
-                    success: false,
-                    error: 'Missing required field: player_pin'
-                });
-            }
+            const { filter = 'all' } = req.body;
 
             // Verify player
-            const player = await verifyPlayerPin(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
                 return res.status(401).json({
                     success: false,
-                    error: 'Invalid PIN'
+                    error: 'Unauthorized'
                 });
             }
 
@@ -188,26 +158,26 @@ exports.getLiveMatches = functions.https.onRequest((req, res) => {
 
 /**
  * Get detailed match data for overlay
- * POST: { player_pin, match_id }
+ * POST: { match_id }
  */
 exports.getLiveMatchDetails = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { player_pin, match_id } = req.body;
+            const { match_id } = req.body;
 
-            if (!player_pin || !match_id) {
+            if (!match_id) {
                 return res.status(400).json({
                     success: false,
-                    error: 'Missing required fields: player_pin, match_id'
+                    error: 'Missing required field: match_id'
                 });
             }
 
             // Verify player
-            const player = await verifyPlayerPin(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
                 return res.status(401).json({
                     success: false,
-                    error: 'Invalid PIN'
+                    error: 'Unauthorized'
                 });
             }
 
@@ -311,26 +281,26 @@ exports.getLiveMatchDetails = functions.https.onRequest((req, res) => {
 
 /**
  * Update a live match (called by scorer)
- * POST: { scorer_pin, match_id, update_data }
+ * POST: { match_id, update_data }
  */
 exports.updateLiveMatch = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { scorer_pin, match_id, update_data } = req.body;
+            const { match_id, update_data } = req.body;
 
-            if (!scorer_pin || !match_id || !update_data) {
+            if (!match_id || !update_data) {
                 return res.status(400).json({
                     success: false,
-                    error: 'Missing required fields: scorer_pin, match_id, update_data'
+                    error: 'Missing required fields: match_id, update_data'
                 });
             }
 
             // Verify scorer
-            const scorer = await verifyPlayerPin(scorer_pin);
+            const scorer = await verifyFirebaseAuth(req);
             if (!scorer) {
                 return res.status(401).json({
                     success: false,
-                    error: 'Invalid PIN'
+                    error: 'Unauthorized'
                 });
             }
 
@@ -394,26 +364,26 @@ exports.updateLiveMatch = functions.https.onRequest((req, res) => {
 
 /**
  * Start tracking a match as live (called when scorer opens)
- * POST: { scorer_pin, match_id, event_id, event_type, match_data }
+ * POST: { match_id, event_id, event_type, match_data }
  */
 exports.startLiveMatch = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { scorer_pin, match_id, event_id, event_type, match_data } = req.body;
+            const { match_id, event_id, event_type, match_data } = req.body;
 
-            if (!scorer_pin || !match_id) {
+            if (!match_id) {
                 return res.status(400).json({
                     success: false,
-                    error: 'Missing required fields: scorer_pin, match_id'
+                    error: 'Missing required field: match_id'
                 });
             }
 
             // Verify scorer
-            const scorer = await verifyPlayerPin(scorer_pin);
+            const scorer = await verifyFirebaseAuth(req);
             if (!scorer) {
                 return res.status(401).json({
                     success: false,
-                    error: 'Invalid PIN'
+                    error: 'Unauthorized'
                 });
             }
 
@@ -487,26 +457,26 @@ exports.startLiveMatch = functions.https.onRequest((req, res) => {
 
 /**
  * End live match tracking (called when match completes)
- * POST: { scorer_pin, match_id, result }
+ * POST: { match_id, result }
  */
 exports.endLiveMatch = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { scorer_pin, match_id, result } = req.body;
+            const { match_id, result } = req.body;
 
-            if (!scorer_pin || !match_id) {
+            if (!match_id) {
                 return res.status(400).json({
                     success: false,
-                    error: 'Missing required fields: scorer_pin, match_id'
+                    error: 'Missing required field: match_id'
                 });
             }
 
             // Verify scorer
-            const scorer = await verifyPlayerPin(scorer_pin);
+            const scorer = await verifyFirebaseAuth(req);
             if (!scorer) {
                 return res.status(401).json({
                     success: false,
-                    error: 'Invalid PIN'
+                    error: 'Unauthorized'
                 });
             }
 
@@ -663,26 +633,26 @@ async function postMatchResult(matchData, result) {
 /**
  * Get or create a chat room for a live match (for viewers)
  * Any authenticated player can call this - creates room if doesn't exist
- * POST: { player_pin, league_id, match_id }
+ * POST: { league_id, match_id }
  */
 exports.getOrCreateMatchChatRoom = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { player_pin, league_id, match_id } = req.body;
+            const { league_id, match_id } = req.body;
 
-            if (!player_pin || !league_id || !match_id) {
+            if (!league_id || !match_id) {
                 return res.status(400).json({
                     success: false,
-                    error: 'Missing required fields: player_pin, league_id, match_id'
+                    error: 'Missing required fields: league_id, match_id'
                 });
             }
 
             // Verify player
-            const player = await verifyPlayerPin(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
                 return res.status(401).json({
                     success: false,
-                    error: 'Invalid PIN'
+                    error: 'Unauthorized'
                 });
             }
 
@@ -812,25 +782,16 @@ exports.getOrCreateMatchChatRoom = functions.https.onRequest((req, res) => {
 
 /**
  * Get player's ticker preferences
- * POST: { player_pin }
+ * POST: {}
  */
 exports.getTickerPreferences = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { player_pin } = req.body;
-
-            if (!player_pin) {
-                return res.status(400).json({
-                    success: false,
-                    error: 'Missing required field: player_pin'
-                });
-            }
-
-            const player = await verifyPlayerPin(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
                 return res.status(401).json({
                     success: false,
-                    error: 'Invalid PIN'
+                    error: 'Unauthorized'
                 });
             }
 
@@ -855,25 +816,25 @@ exports.getTickerPreferences = functions.https.onRequest((req, res) => {
 
 /**
  * Update player's ticker preferences
- * POST: { player_pin, preferences }
+ * POST: { preferences }
  */
 exports.updateTickerPreferences = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { player_pin, preferences } = req.body;
+            const { preferences } = req.body;
 
-            if (!player_pin || !preferences) {
+            if (!preferences) {
                 return res.status(400).json({
                     success: false,
-                    error: 'Missing required fields: player_pin, preferences'
+                    error: 'Missing required field: preferences'
                 });
             }
 
-            const player = await verifyPlayerPin(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
                 return res.status(401).json({
                     success: false,
-                    error: 'Invalid PIN'
+                    error: 'Unauthorized'
                 });
             }
 

@@ -26,8 +26,8 @@
     <link rel="stylesheet" href="/css/brdc-styles.css">
     <link rel="stylesheet" href="/css/fb-mobile.css">
     <link rel="stylesheet" href="/css/dashboard/dashboard-base.css">
-    <link rel="stylesheet" href="/css/dashboard/dashboard-feed.css">
-    <link rel="stylesheet" href="/css/dashboard/dashboard-schedule.css">
+    <link rel="stylesheet" href="/css/dashboard/dashboard-feed.css?v=23">
+    <link rel="stylesheet" href="/css/dashboard/dashboard-schedule.css?v=3">
 
     <!-- BRDC Navigation System -->
     <link rel="stylesheet" href="/css/brdc-navigation.css">
@@ -36,39 +36,56 @@
     <script src="/js/brdc-toast.js"></script>
 </head>
 <body class="fb-page">
+    <!-- Skip to main content link for keyboard users -->
+    <a href="#mainContent" class="skip-link">Skip to main content</a>
+
     <!-- Initial Loading Screen -->
-    <div id="initialLoader">
+    <div id="initialLoader" role="status" aria-live="polite" aria-label="Loading dashboard">
         <img src="/images/gold_logo.png" alt="BRDC" style="height: 80px; margin-bottom: 20px;">
         <div class="loader-spinner"></div>
         <div id="initialLoaderText" style="margin-top: 16px; color: var(--pink); font-weight: 600;"></div>
     </div>
 
     <!-- Login Overlay -->
-    <div class="login-overlay" id="loginOverlay">
+    <div class="login-overlay" id="loginOverlay" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
         <img src="/images/gold_logo.png" alt="Burning River Dart Club logo" class="login-logo">
-        <h1 class="login-title">BRDC DASHBOARD</h1>
+        <h1 class="login-title" id="loginTitle">BRDC DASHBOARD</h1>
 
         <div class="login-box" style="position: relative;">
             <!-- Loading overlay -->
-            <div id="loginLoader" class="hidden" style="position: absolute; inset: 0; background: rgba(22, 33, 62, 0.95); display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 16px; z-index: 10;">
+            <div id="loginLoader" class="hidden" role="status" aria-live="polite" style="position: absolute; inset: 0; background: rgba(22, 33, 62, 0.95); display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 16px; z-index: 10;">
                 <div class="loader-spinner"></div>
                 <div style="margin-top: 16px; color: var(--pink); font-weight: 600;">Logging in...</div>
             </div>
 
             <h2 class="login-form-title">LOGIN</h2>
 
-            <div class="login-error hidden" id="loginError" role="alert"></div>
+            <div class="login-error hidden" id="loginError" role="alert" aria-live="assertive"></div>
 
             <div class="form-group">
-                <label class="form-label" for="pinInput">Your 8-Digit PIN</label>
-                <input type="text" class="form-input" id="pinInput" placeholder="--------" maxlength="8" inputmode="numeric" pattern="[0-9]*" autocomplete="off" style="-webkit-text-security: disc;">
+                <label class="form-label" for="emailInput">Email</label>
+                <input type="email" class="form-input" id="emailInput" placeholder="your@email.com" autocomplete="email" aria-label="Email address" aria-required="true">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="passwordInput">Password</label>
+                <input type="password" class="form-input" id="passwordInput" placeholder="Password" autocomplete="current-password" aria-label="Password" aria-required="true">
             </div>
 
             <button class="login-btn" id="loginBtn" onclick="login()">LOGIN</button>
 
+            <div style="text-align:center; margin-top: 12px;">
+                <a href="#" onclick="forgotPassword(); return false;" style="color: var(--text-dim, #888); font-size: 13px; text-decoration: none;">Forgot password?</a>
+            </div>
+
+            <div class="login-divider"><span>OR</span></div>
+
+            <button type="button" class="btn-google" onclick="loginWithGoogle()">
+                <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.08 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-3.59-13.46-8.86l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+                Sign in with Google
+            </button>
+
             <div class="login-links">
-                <a href="#" onclick="showForgotPin(); return false;">Forgot PIN?</a>
-                <span style="color: var(--text-dim); margin: 0 10px;">|</span>
                 <a href="/pages/register.html">New Player? Register</a>
             </div>
         </div>
@@ -79,94 +96,74 @@
     <!-- Main Content (hidden until logged in) -->
     <main class="fb-main" id="mainContent" style="display: none;">
 
+        <!-- Inline Post Composer -->
+        <div class="feed-composer" id="feedComposer">
+            <div class="composer-row">
+                <div class="feed-composer-avatar" id="feedComposerAvatar">?</div>
+                <div class="composer-input-wrap">
+                    <div id="composerTypeChip" class="post-type-chip post-type-chip--hidden"></div>
+                    <textarea id="postContent" class="composer-textarea"
+                        placeholder="What's on your mind?" rows="1"
+                        oninput="onPostInput(this)" aria-label="Write a post"></textarea>
+                    <div id="mentionDropdown" class="mention-dropdown mention-dropdown--hidden"></div>
+                </div>
+            </div>
+            <div class="composer-hint">@ mention players &amp; events &nbsp;·&nbsp; / for actions</div>
+            <div class="composer-footer composer-footer--hidden" id="composerFooter">
+                <button type="button" class="composer-post-btn" onclick="submitPost()">POST</button>
+            </div>
+        </div>
+
         <!-- Match Night Banner -->
-        <div class="match-night-banner" id="matchNightBanner" style="display: none;">
-            <div class="match-night-title">🎯 MATCH NIGHT - <span id="matchWeek">WEEK 1</span></div>
+        <div class="match-night-banner" id="matchNightBanner" role="region" aria-label="Match night notification" style="display: none;">
+            <div class="match-night-title"><span aria-hidden="true">🎯</span> MATCH NIGHT - <span id="matchWeek">WEEK 1</span></div>
             <div id="matchNightContent"></div>
             <div class="match-night-buttons">
-                <button class="match-night-btn confirm" id="confirmBtn" onclick="confirmAvailability('available')">✓ I'LL BE THERE</button>
-                <button class="match-night-btn cant-make" id="cantMakeBtn" onclick="confirmAvailability('unavailable')">✗ CAN'T MAKE IT</button>
+                <button class="match-night-btn confirm" id="confirmBtn" onclick="confirmAvailability('available')" aria-label="Confirm attendance"><span aria-hidden="true">✓</span> I'LL BE THERE</button>
+                <button class="match-night-btn cant-make" id="cantMakeBtn" onclick="confirmAvailability('unavailable')" aria-label="Indicate unavailability"><span aria-hidden="true">✗</span> CAN'T MAKE IT</button>
             </div>
             <div class="match-night-captain" id="matchNightCaptain" style="display: none;"></div>
         </div>
 
-        <!-- My Events Row -->
-        <section class="fb-stories-container">
-            <h3 class="fb-section-title" style="margin: 0 16px 8px; font-family: 'Bebas Neue', cursive; font-size: 18px; color: var(--text-light);">My Events</h3>
-            <div class="fb-stories-scroll" id="scheduleStories">
-                <!-- Skeleton placeholders -->
-                <div class="skeleton skeleton-story-card"></div>
-                <div class="skeleton skeleton-story-card"></div>
-                <div class="skeleton skeleton-story-card"></div>
-            </div>
-            <a href="/pages/events-hub.html" class="fb-see-all-link">See All Events</a>
-        </section>
+        <!-- My Events Title -->
+        <div class="feed-section-title" id="myEventsTitle">MY SCHEDULE</div>
 
-        <!-- Stats Summary Cards -->
-        <section class="fb-stats-summary">
-            <a class="fb-stat-card" href="#" onclick="goToProfile(); return false;">
-                <span class="fb-stat-value" id="stat3DA">-</span>
-                <span class="fb-stat-label">3DA</span>
-            </a>
-            <a class="fb-stat-card" href="#" onclick="goToProfile(); return false;">
-                <span class="fb-stat-value" id="statMPR">-</span>
-                <span class="fb-stat-label">MPR</span>
-            </a>
-            <a class="fb-stat-card" href="#" onclick="goToProfile(); return false;">
-                <span class="fb-stat-value" id="statWinPct">-</span>
-                <span class="fb-stat-label">WIN%</span>
-            </a>
-        </section>
+        <!-- My Events Row -->
+        <div class="fb-stories-scroll" id="scheduleStories" role="list" aria-live="polite" aria-labelledby="myEventsTitle">
+            <!-- Skeleton placeholders -->
+            <div class="skeleton skeleton-story-card" aria-hidden="true"></div>
+            <div class="skeleton skeleton-story-card" aria-hidden="true"></div>
+            <div class="skeleton skeleton-story-card" aria-hidden="true"></div>
+        </div>
+        <a href="/pages/events-hub.html" class="fb-see-all-link">See All Events</a>
+
+        <!-- News Feed Title -->
+        <div class="feed-section-title">NEWS FEED</div>
 
         <!-- Feed Filter Bar -->
-        <section class="fb-feed-filters">
-            <button class="fb-filter-btn active" data-filter="all" onclick="filterFeed('all')">All</button>
-            <button class="fb-filter-btn" data-filter="results" onclick="filterFeed('results')">Results</button>
-            <button class="fb-filter-btn" data-filter="events" onclick="filterFeed('events')">Events</button>
-            <button class="fb-filter-btn" data-filter="friends" onclick="filterFeed('friends')">Friends</button>
-        </section>
+        <nav class="feed-tab-nav" role="tablist" aria-label="Feed filters">
+            <button class="feed-tab-btn active" data-filter="all" role="tab" aria-selected="true" aria-controls="newsFeed" onclick="filterFeed('all')">ALL</button>
+            <button class="feed-tab-btn" data-filter="leagues" role="tab" aria-selected="false" aria-controls="newsFeed" onclick="filterFeed('leagues')">LEAGUES</button>
+            <button class="feed-tab-btn" data-filter="events" role="tab" aria-selected="false" aria-controls="newsFeed" onclick="filterFeed('events')">EVENTS</button>
+            <button class="feed-tab-btn" data-filter="friends" role="tab" aria-selected="false" aria-controls="newsFeed" onclick="filterFeed('friends')">FRIENDS</button>
+        </nav>
 
         <!-- News Feed -->
-        <section class="fb-feed" id="newsFeed">
+        <section class="fb-feed" id="newsFeed" role="tabpanel" aria-live="polite" aria-labelledby="feedTitle">
+            <h2 id="feedTitle" class="sr-only">News Feed</h2>
             <!-- Skeleton placeholders -->
-            <div class="skeleton skeleton-feed-item"></div>
-            <div class="skeleton skeleton-feed-item"></div>
-            <div class="skeleton skeleton-feed-item"></div>
+            <div class="skeleton skeleton-feed-item" aria-hidden="true"></div>
+            <div class="skeleton skeleton-feed-item" aria-hidden="true"></div>
+            <div class="skeleton skeleton-feed-item" aria-hidden="true"></div>
         </section>
 
     </main>
 
-    <!-- Post Modal -->
-    <div class="fb-modal-overlay" id="postModal" role="dialog" aria-modal="true" aria-labelledby="postModalTitle">
-        <div class="fb-modal">
-            <div class="fb-modal-header">
-                <h3 id="postModalTitle">Create Post</h3>
-                <button class="fb-modal-close" onclick="closePostModal()" aria-label="Close modal">X</button>
-            </div>
-            <div class="fb-modal-body">
-                <textarea id="postContent" placeholder="What's on your mind?" rows="4"></textarea>
-                <div class="fb-form-group">
-                    <label>Tag Event (optional)</label>
-                    <select id="postEventTag">
-                        <option value="">Select an event...</option>
-                    </select>
-                </div>
-                <div class="fb-quick-posts">
-                    <button class="fb-quick-post-btn" onclick="setQuickPost('anyone_going')">Anyone going?</button>
-                    <button class="fb-quick-post-btn" onclick="setQuickPost('looking_for_partner')">Looking for partner</button>
-                    <button class="fb-quick-post-btn" onclick="setQuickPost('whos_playing')">Who's playing tonight?</button>
-                </div>
-            </div>
-            <div class="fb-modal-footer">
-                <button class="fb-btn-primary" onclick="submitPost()">POST</button>
-            </div>
-        </div>
-    </div>
-
     <!-- Story Detail Modal -->
-    <div class="fb-modal-overlay" id="storyModal" role="dialog" aria-modal="true" aria-label="Match details">
+    <div class="fb-modal-overlay" id="storyModal" role="dialog" aria-modal="true" aria-labelledby="storyModalTitle">
         <div class="fb-modal fb-modal-large">
-            <button class="fb-modal-close" onclick="closeStoryModal()" style="position: absolute; top: 16px; right: 16px; z-index: 10;" aria-label="Close modal">X</button>
+            <h2 id="storyModalTitle" class="sr-only">Match details</h2>
+            <button class="fb-modal-close" onclick="closeStoryModal()" style="position: absolute; top: 16px; right: 16px; z-index: 10;" aria-label="Close match details modal">X</button>
             <div class="fb-modal-body" id="storyModalContent">
                 <!-- Match card or tournament details populated by JS -->
             </div>
@@ -175,12 +172,12 @@
 
     <!-- Scripts -->
     <script type="module">
-        import { initDashboard } from '/js/dashboard/dashboard-auth.js';
+        import { initDashboard } from '/js/dashboard/dashboard-auth.js?v=2';
         initDashboard();
     </script>
 
     <!-- BRDC Navigation System -->
-    <script src="/components/brdc-navigation-init.js"></script>
+    <script src="/components/brdc-navigation-init.js?v=13"></script>
     <script>
         // Initialize navigation when page loads
         document.addEventListener('DOMContentLoaded', function() {
@@ -188,18 +185,15 @@
                 page: 'dashboard',
                 showMobileNav: true,
                 showBackButton: false,
-                showSearch: false,
-                breadcrumbs: [
-                    { label: 'Dashboard', url: '/pages/dashboard.html' }
-                ]
+                showSearch: false
             });
         });
     </script>
 
-    <!-- FB Nav Script (creates footer and sidebar) -->
-    <script src="/js/fb-nav.js"></script>
+    <script src="/js/fb-nav.js?v=13"></script>
     <script src="/js/stats-helpers.js"></script>
     <script src="/js/display-helpers.js"></script>
+    <script src="/js/brdc-share.js"></script>
 
     <!-- Service Worker Registration -->
     <script>

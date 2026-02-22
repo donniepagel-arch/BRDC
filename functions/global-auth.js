@@ -103,7 +103,7 @@ async function sendWelcomeEmail(email, name, pin) {
 function setCorsHeaders(res) {
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 }
 
 // Generate a unique 4-digit chosen PIN (the portion the player selects/is assigned)
@@ -423,13 +423,23 @@ exports.globalLogin = functions.https.onRequest(async (req, res) => {
             last_login: admin.firestore.FieldValue.serverTimestamp()
         });
 
+        // Populate league_id and team_id from involvements if not set (must happen before captain/director checks)
+        let playerTeamId = player.team_id || null;
+        if (player.involvements && player.involvements.leagues) {
+            const firstLeague = player.involvements.leagues[0];
+            if (firstLeague) {
+                if (!leagueId) leagueId = firstLeague.id;
+                if (!playerTeamId) playerTeamId = firstLeague.team_id || null;
+            }
+        }
+
         // Check captain status - A level players are considered captains
         let isCaptain = player.is_captain === true;
-        if (!isCaptain && player.team_id && leagueId) {
+        if (!isCaptain && playerTeamId && leagueId) {
             // Check if player is the team's captain_id or is level A
             try {
                 const teamDoc = await db.collection('leagues').doc(leagueId)
-                    .collection('teams').doc(player.team_id).get();
+                    .collection('teams').doc(playerTeamId).get();
                 if (teamDoc.exists) {
                     const team = teamDoc.data();
                     isCaptain = team.captain_id === playerDoc.id ||
@@ -439,6 +449,14 @@ exports.globalLogin = functions.https.onRequest(async (req, res) => {
                 }
             } catch (e) {
                 console.error('Error checking captain status:', e);
+            }
+        }
+
+        // Fallback: check involvements for captain role
+        if (!isCaptain && player.involvements) {
+            const leagues = player.involvements.leagues || [];
+            if (leagues.some(l => l.role === 'captain')) {
+                isCaptain = true;
             }
         }
 
@@ -474,7 +492,7 @@ exports.globalLogin = functions.https.onRequest(async (req, res) => {
             // Track source for dashboard
             source_type: sourceType,
             league_id: leagueId,
-            team_id: player.team_id || null,
+            team_id: playerTeamId,
             position: player.position || null,
             // Role flags for sidebar menu
             is_captain: isCaptain,
@@ -902,7 +920,8 @@ exports.getDashboardData = functions.https.onRequest(async (req, res) => {
                 is_captain: isCaptain,
                 is_director: isDirector,
                 is_admin: player.is_admin || player.is_master_admin || false,
-                is_master_admin: player.is_master_admin || false
+                is_master_admin: player.is_master_admin || false,
+                involvements: involvements || {}
             },
             roles: {
                 directing: [],
@@ -2148,6 +2167,140 @@ exports.registerPlayerSimple = functions.https.onRequest(async (req, res) => {
 
     } catch (error) {
         console.error('Simple register player error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// ============================================================================
+// GET PLAYER SESSION (Firebase Auth token → session data)
+// ============================================================================
+
+/**
+ * Verify a Firebase ID token and return full session/role data for the player.
+ * Replaces PIN-based session establishment for clients using Firebase Auth.
+ * Expects: Authorization: Bearer <firebase_id_token>
+ * Returns the same shape as globalLogin's player response.
+ */
+exports.getPlayerSession = functions.https.onRequest(async (req, res) => {
+    setCorsHeaders(res);
+    if (req.method === 'OPTIONS') return res.status(204).send('');
+    try {
+        // Verify Firebase ID token
+        const authHeader = req.headers.authorization || '';
+        const idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+        if (!idToken) return res.status(401).json({ success: false, error: 'No auth token provided' });
+
+        let decoded;
+        try {
+            decoded = await admin.auth().verifyIdToken(idToken);
+        } catch (err) {
+            return res.status(401).json({ success: false, error: 'Invalid auth token' });
+        }
+
+        // Look up player by firebase_uid
+        let snap = await db.collection('players').where('firebase_uid', '==', decoded.uid).limit(1).get();
+        if (snap.empty) {
+            // Fallback: look up by email (handles Google Sign-In for existing players)
+            if (!decoded.email) {
+                return res.status(404).json({ success: false, error: 'Player not found' });
+            }
+            const emailSnap = await db.collection('players')
+                .where('email', '==', decoded.email.toLowerCase())
+                .limit(1).get();
+            if (emailSnap.empty) {
+                return res.status(404).json({ success: false, error: 'No BRDC account is linked to this Google account. Contact your league director.' });
+            }
+            // Link this Firebase UID to the player doc so future lookups are fast
+            await emailSnap.docs[0].ref.update({ firebase_uid: decoded.uid });
+            snap = emailSnap;
+        }
+        const playerDoc = snap.docs[0];
+        const player = { id: playerDoc.id, ...playerDoc.data() };
+
+        // Populate league_id and team_id from involvements if not set
+        let leagueId = player.league_id || null;
+        let playerTeamId = player.team_id || null;
+        if (player.involvements && player.involvements.leagues) {
+            const firstLeague = player.involvements.leagues[0];
+            if (firstLeague) {
+                if (!leagueId) leagueId = firstLeague.id;
+                if (!playerTeamId) playerTeamId = firstLeague.team_id || null;
+            }
+        }
+
+        // Check captain status - mirrors globalLogin logic
+        let isCaptain = player.is_captain === true;
+        if (!isCaptain && playerTeamId && leagueId) {
+            try {
+                const teamDoc = await db.collection('leagues').doc(leagueId)
+                    .collection('teams').doc(playerTeamId).get();
+                if (teamDoc.exists) {
+                    const team = teamDoc.data();
+                    isCaptain = team.captain_id === playerDoc.id ||
+                               player.skill_level === 'A' ||
+                               player.preferred_level === 'A' ||
+                               player.position === 1;
+                }
+            } catch (e) {
+                console.error('getPlayerSession: Error checking captain status:', e);
+            }
+        }
+        // Fallback: check involvements for captain role
+        if (!isCaptain && player.involvements) {
+            const leagues = player.involvements.leagues || [];
+            if (leagues.some(l => l.role === 'captain')) {
+                isCaptain = true;
+            }
+        }
+
+        // Check director status - mirrors globalLogin logic
+        let isDirector = player.is_director === true || player.is_admin === true;
+        if (!isDirector && leagueId) {
+            try {
+                const leagueDoc = await db.collection('leagues').doc(leagueId).get();
+                if (leagueDoc.exists) {
+                    const league = leagueDoc.data();
+                    isDirector = league.director_id === playerDoc.id ||
+                                (league.directors && league.directors.includes(playerDoc.id));
+                }
+            } catch (e) {
+                console.error('getPlayerSession: Error checking director status:', e);
+            }
+        }
+
+        // Build response (same shape as globalLogin, no PIN sent back)
+        const responsePlayer = {
+            id: playerDoc.id,
+            name: player.name,
+            email: player.email,
+            phone_last4: player.phone_last4 || (player.phone ? player.phone.slice(-4) : null),
+            zip: player.zip,
+            photo_url: player.photo_url || null,
+            isBot: player.isBot || false,
+            botDifficulty: player.botDifficulty || null,
+            stats: player.stats || player.unified_stats || {},
+            involvements: player.involvements || {},
+            created_at: player.created_at || player.registered_at,
+            last_login: new Date(),
+            source_type: 'global',
+            league_id: leagueId,
+            team_id: playerTeamId,
+            position: player.position || null,
+            // Role flags for sidebar menu
+            is_captain: isCaptain,
+            is_director: isDirector,
+            is_admin: player.is_admin || player.is_master_admin || false,
+            is_master_admin: player.is_master_admin || false
+        };
+
+        res.json({
+            success: true,
+            player: responsePlayer,
+            message: `Session restored for ${player.name}.`
+        });
+
+    } catch (error) {
+        console.error('getPlayerSession error:', error);
         res.status(500).json({ success: false, error: error.message });
     }
 });

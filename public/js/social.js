@@ -23,8 +23,8 @@
      * Toggle reaction on a message
      */
     async function toggleReaction(messageType, roomOrConvId, messageId, emoji) {
-        const playerPin = localStorage.getItem('brdc_player_pin');
-        if (!playerPin) return { success: false, error: 'Not logged in' };
+        const playerId = JSON.parse(localStorage.getItem('brdc_session') || '{}').player_id;
+        if (!playerId) return { success: false, error: 'Not logged in' };
 
         try {
             const { callFunction } = await import('/js/firebase-config.js');
@@ -36,7 +36,6 @@
             if (existingReaction) {
                 // Remove reaction
                 const result = await callFunction('removeReaction', {
-                    player_pin: playerPin,
                     message_type: messageType,
                     room_or_conversation_id: roomOrConvId,
                     message_id: messageId,
@@ -46,7 +45,6 @@
             } else {
                 // Add reaction
                 const result = await callFunction('addReaction', {
-                    player_pin: playerPin,
                     message_type: messageType,
                     room_or_conversation_id: roomOrConvId,
                     message_id: messageId,
@@ -136,13 +134,12 @@
      * Send a cheer to a player
      */
     async function sendCheer(receiverId, context, message) {
-        const playerPin = localStorage.getItem('brdc_player_pin');
-        if (!playerPin) return { success: false, error: 'Not logged in' };
+        const playerId = JSON.parse(localStorage.getItem('brdc_session') || '{}').player_id;
+        if (!playerId) return { success: false, error: 'Not logged in' };
 
         try {
             const { callFunction } = await import('/js/firebase-config.js');
             const result = await callFunction('sendCheer', {
-                player_pin: playerPin,
                 receiver_id: receiverId,
                 context: context || 'general',
                 message: message || ''
@@ -158,13 +155,12 @@
      * Load biggest fans for a player
      */
     async function loadBiggestFans(playerId) {
-        const playerPin = localStorage.getItem('brdc_player_pin');
-        if (!playerPin) return [];
+        const currentPlayerId = JSON.parse(localStorage.getItem('brdc_session') || '{}').player_id;
+        if (!currentPlayerId) return [];
 
         try {
             const { callFunction } = await import('/js/firebase-config.js');
             const result = await callFunction('getBiggestFans', {
-                player_pin: playerPin,
                 player_id: playerId
             });
             return result.biggest_fans || [];
@@ -178,13 +174,12 @@
      * Load cheer history
      */
     async function loadCheerHistory(playerId, direction, limit) {
-        const playerPin = localStorage.getItem('brdc_player_pin');
-        if (!playerPin) return [];
+        const currentPlayerId = JSON.parse(localStorage.getItem('brdc_session') || '{}').player_id;
+        if (!currentPlayerId) return [];
 
         try {
             const { callFunction } = await import('/js/firebase-config.js');
             const result = await callFunction('getPlayerCheers', {
-                player_pin: playerPin,
                 player_id: playerId,
                 direction: direction || 'received',
                 limit: limit || 20
@@ -261,13 +256,12 @@
      * Load achievements for a player
      */
     async function loadPlayerAchievements(playerId) {
-        const playerPin = localStorage.getItem('brdc_player_pin');
-        if (!playerPin) return { achievements: [], total_points: 0 };
+        const currentPlayerId = JSON.parse(localStorage.getItem('brdc_session') || '{}').player_id;
+        if (!currentPlayerId) return { achievements: [], total_points: 0 };
 
         try {
             const { callFunction } = await import('/js/firebase-config.js');
             const result = await callFunction('getPlayerAchievements', {
-                player_pin: playerPin,
                 player_id: playerId
             });
             return result;
@@ -359,13 +353,12 @@
      * Set showcase achievements
      */
     async function setShowcaseAchievements(achievementIds) {
-        const playerPin = localStorage.getItem('brdc_player_pin');
-        if (!playerPin) return { success: false };
+        const playerId = JSON.parse(localStorage.getItem('brdc_session') || '{}').player_id;
+        if (!playerId) return { success: false };
 
         try {
             const { callFunction } = await import('/js/firebase-config.js');
             const result = await callFunction('setShowcaseAchievements', {
-                player_pin: playerPin,
                 achievement_ids: achievementIds
             });
             return result;
@@ -412,13 +405,12 @@
      * Load hot players
      */
     async function loadHotPlayers(leagueId) {
-        const playerPin = localStorage.getItem('brdc_player_pin');
-        if (!playerPin) return [];
+        const playerId = JSON.parse(localStorage.getItem('brdc_session') || '{}').player_id;
+        if (!playerId) return [];
 
         try {
             const { callFunction } = await import('/js/firebase-config.js');
             const result = await callFunction('getHotPlayers', {
-                player_pin: playerPin,
                 league_id: leagueId || null
             });
             return result.hot_players || [];

@@ -6,6 +6,7 @@
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 const cors = require('cors')({ origin: true });
+const { verifyFirebaseAuth } = require('./src/firebase-auth-helper');
 
 const db = admin.firestore();
 
@@ -18,12 +19,11 @@ exports.getUnreadNotificationCount = functions.https.onRequest((req, res) => {
             return res.status(405).json({ error: 'Method not allowed' });
         }
 
-        const { player_pin, player_id } = req.body;
-        const playerId = player_id || player_pin;
-
-        if (!playerId) {
-            return res.status(400).json({ error: 'Player ID required' });
+        const authPlayer = await verifyFirebaseAuth(req);
+        if (!authPlayer) {
+            return res.status(401).json({ error: 'Unauthorized' });
         }
+        const playerId = authPlayer.id;
 
         try {
             const notificationsRef = db.collection('players').doc(playerId).collection('notifications');
@@ -52,13 +52,13 @@ exports.getNotifications = functions.https.onRequest((req, res) => {
             return res.status(405).json({ error: 'Method not allowed' });
         }
 
-        const { player_pin, player_id, limit: queryLimit } = req.body;
-        const playerId = player_id || player_pin;
-        const limitNum = parseInt(queryLimit) || 20;
-
-        if (!playerId) {
-            return res.status(400).json({ error: 'Player ID required' });
+        const { limit: queryLimit } = req.body;
+        const authPlayer = await verifyFirebaseAuth(req);
+        if (!authPlayer) {
+            return res.status(401).json({ error: 'Unauthorized' });
         }
+        const playerId = authPlayer.id;
+        const limitNum = parseInt(queryLimit) || 20;
 
         try {
             const notificationsRef = db.collection('players').doc(playerId).collection('notifications');
@@ -95,11 +95,15 @@ exports.markNotificationRead = functions.https.onRequest((req, res) => {
             return res.status(405).json({ error: 'Method not allowed' });
         }
 
-        const { notification_id, player_pin, player_id } = req.body;
-        const playerId = player_id || player_pin;
+        const { notification_id } = req.body;
+        const authPlayer = await verifyFirebaseAuth(req);
+        if (!authPlayer) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+        const playerId = authPlayer.id;
 
-        if (!notification_id || !playerId) {
-            return res.status(400).json({ error: 'Notification ID and player ID required' });
+        if (!notification_id) {
+            return res.status(400).json({ error: 'Notification ID required' });
         }
 
         try {
@@ -124,12 +128,11 @@ exports.markAllNotificationsRead = functions.https.onRequest((req, res) => {
             return res.status(405).json({ error: 'Method not allowed' });
         }
 
-        const { player_pin, player_id } = req.body;
-        const playerId = player_id || player_pin;
-
-        if (!playerId) {
-            return res.status(400).json({ error: 'Player ID required' });
+        const authPlayer = await verifyFirebaseAuth(req);
+        if (!authPlayer) {
+            return res.status(401).json({ error: 'Unauthorized' });
         }
+        const playerId = authPlayer.id;
 
         try {
             const notificationsRef = db.collection('players').doc(playerId).collection('notifications');

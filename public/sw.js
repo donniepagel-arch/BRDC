@@ -4,7 +4,7 @@
  * v45 - Fixes #2-4: Viewport adjustments, validation improvements
  */
 
-const CACHE_VERSION = 'brdc-v46';
+const CACHE_VERSION = 'brdc-v55';
 const CACHE_NAME = `brdc-cache-${CACHE_VERSION}`;
 
 // Critical pages - scorer pages prioritized for offline use

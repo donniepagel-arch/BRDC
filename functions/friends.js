@@ -6,6 +6,7 @@
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 const cors = require('cors')({ origin: true });
+const { verifyFirebaseAuth } = require('./src/firebase-auth-helper');
 
 // Initialize if not already done
 if (!admin.apps.length) {
@@ -13,24 +14,6 @@ if (!admin.apps.length) {
 }
 
 const db = admin.firestore();
-
-// ===================================================================
-// HELPER FUNCTIONS
-// ===================================================================
-
-/**
- * Verify player by PIN and return player data
- */
-async function verifyPlayer(pin) {
-    if (!pin) return null;
-    const playersSnapshot = await db.collection('players')
-        .where('pin', '==', pin)
-        .limit(1)
-        .get();
-
-    if (playersSnapshot.empty) return null;
-    return { id: playersSnapshot.docs[0].id, ...playersSnapshot.docs[0].data() };
-}
 
 /**
  * Generate sorted friendship ID from two user IDs
@@ -126,19 +109,19 @@ async function getPlayerDisplayInfo(playerId) {
 exports.sendFriendRequest = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { player_pin, target_id } = req.body;
+            const { target_id } = req.body;
 
-            if (!player_pin || !target_id) {
+            if (!target_id) {
                 return res.status(400).json({
                     success: false,
-                    error: 'Missing required fields: player_pin and target_id'
+                    error: 'Missing required field: target_id'
                 });
             }
 
             // Verify requesting player
-            const player = await verifyPlayer(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
-                return res.status(401).json({ success: false, error: 'Invalid PIN' });
+                return res.status(401).json({ success: false, error: 'Unauthorized' });
             }
 
             const requesterId = player.id;
@@ -262,18 +245,18 @@ exports.sendFriendRequest = functions.https.onRequest((req, res) => {
 exports.acceptFriendRequest = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { player_pin, friendship_id } = req.body;
+            const { friendship_id } = req.body;
 
-            if (!player_pin || !friendship_id) {
+            if (!friendship_id) {
                 return res.status(400).json({
                     success: false,
-                    error: 'Missing required fields: player_pin and friendship_id'
+                    error: 'Missing required field: friendship_id'
                 });
             }
 
-            const player = await verifyPlayer(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
-                return res.status(401).json({ success: false, error: 'Invalid PIN' });
+                return res.status(401).json({ success: false, error: 'Unauthorized' });
             }
 
             // Get friendship document
@@ -332,23 +315,23 @@ exports.acceptFriendRequest = functions.https.onRequest((req, res) => {
 /**
  * Decline a pending friend request
  * POST /declineFriendRequest
- * Body: { player_pin, friendship_id }
+ * Body: { friendship_id }
  */
 exports.declineFriendRequest = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { player_pin, friendship_id } = req.body;
+            const { friendship_id } = req.body;
 
-            if (!player_pin || !friendship_id) {
+            if (!friendship_id) {
                 return res.status(400).json({
                     success: false,
-                    error: 'Missing required fields: player_pin and friendship_id'
+                    error: 'Missing required field: friendship_id'
                 });
             }
 
-            const player = await verifyPlayer(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
-                return res.status(401).json({ success: false, error: 'Invalid PIN' });
+                return res.status(401).json({ success: false, error: 'Unauthorized' });
             }
 
             const friendshipDoc = await db.collection('friendships').doc(friendship_id).get();
@@ -391,23 +374,23 @@ exports.declineFriendRequest = functions.https.onRequest((req, res) => {
 /**
  * Remove an existing friendship
  * POST /removeFriend
- * Body: { player_pin, friendship_id } OR { player_pin, friend_id }
+ * Body: { friendship_id } OR { friend_id }
  */
 exports.removeFriend = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { player_pin, friendship_id, friend_id } = req.body;
+            const { friendship_id, friend_id } = req.body;
 
-            if (!player_pin || (!friendship_id && !friend_id)) {
+            if (!friendship_id && !friend_id) {
                 return res.status(400).json({
                     success: false,
-                    error: 'Missing required fields: player_pin and (friendship_id or friend_id)'
+                    error: 'Missing required field: friendship_id or friend_id'
                 });
             }
 
-            const player = await verifyPlayer(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
-                return res.status(401).json({ success: false, error: 'Invalid PIN' });
+                return res.status(401).json({ success: false, error: 'Unauthorized' });
             }
 
             // Get friendship ID either directly or by computing from friend_id
@@ -467,23 +450,23 @@ exports.removeFriend = functions.https.onRequest((req, res) => {
 /**
  * Block a player
  * POST /blockPlayer
- * Body: { player_pin, blocked_id }
+ * Body: { blocked_id }
  */
 exports.blockPlayer = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { player_pin, blocked_id } = req.body;
+            const { blocked_id } = req.body;
 
-            if (!player_pin || !blocked_id) {
+            if (!blocked_id) {
                 return res.status(400).json({
                     success: false,
-                    error: 'Missing required fields: player_pin and blocked_id'
+                    error: 'Missing required field: blocked_id'
                 });
             }
 
-            const player = await verifyPlayer(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
-                return res.status(401).json({ success: false, error: 'Invalid PIN' });
+                return res.status(401).json({ success: false, error: 'Unauthorized' });
             }
 
             if (player.id === blocked_id) {
@@ -549,23 +532,23 @@ exports.blockPlayer = functions.https.onRequest((req, res) => {
 /**
  * Unblock a previously blocked player
  * POST /unblockPlayer
- * Body: { player_pin, blocked_id }
+ * Body: { blocked_id }
  */
 exports.unblockPlayer = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { player_pin, blocked_id } = req.body;
+            const { blocked_id } = req.body;
 
-            if (!player_pin || !blocked_id) {
+            if (!blocked_id) {
                 return res.status(400).json({
                     success: false,
-                    error: 'Missing required fields: player_pin and blocked_id'
+                    error: 'Missing required field: blocked_id'
                 });
             }
 
-            const player = await verifyPlayer(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
-                return res.status(401).json({ success: false, error: 'Invalid PIN' });
+                return res.status(401).json({ success: false, error: 'Unauthorized' });
             }
 
             const friendshipId = getFriendshipId(player.id, blocked_id);
@@ -619,24 +602,17 @@ exports.unblockPlayer = functions.https.onRequest((req, res) => {
 /**
  * Get a player's friend list
  * POST /getFriends
- * Body: { player_pin, filter?, limit? }
+ * Body: { filter?, limit? }
  * filter: 'all' | 'online' | 'in_league'
  */
 exports.getFriends = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { player_pin, filter, limit: resultLimit, league_id } = req.body;
+            const { filter, limit: resultLimit, league_id } = req.body;
 
-            if (!player_pin) {
-                return res.status(400).json({
-                    success: false,
-                    error: 'Missing required field: player_pin'
-                });
-            }
-
-            const player = await verifyPlayer(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
-                return res.status(401).json({ success: false, error: 'Invalid PIN' });
+                return res.status(401).json({ success: false, error: 'Unauthorized' });
             }
 
             const queryLimit = Math.min(resultLimit || 50, 100);
@@ -744,23 +720,14 @@ exports.getFriends = functions.https.onRequest((req, res) => {
 /**
  * Get pending friend requests for a player
  * POST /getFriendRequests
- * Body: { player_pin }
+ * Body: {}
  */
 exports.getFriendRequests = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { player_pin } = req.body;
-
-            if (!player_pin) {
-                return res.status(400).json({
-                    success: false,
-                    error: 'Missing required field: player_pin'
-                });
-            }
-
-            const player = await verifyPlayer(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
-                return res.status(401).json({ success: false, error: 'Invalid PIN' });
+                return res.status(401).json({ success: false, error: 'Unauthorized' });
             }
 
             // Get incoming requests (requests TO this player)
@@ -825,18 +792,18 @@ exports.getFriendRequests = functions.https.onRequest((req, res) => {
 /**
  * Search for players to add as friends
  * POST /searchPlayers
- * Body: { player_pin, query, filter?, limit? }
+ * Body: { query, filter?, limit? }
  * filter: 'in_leagues' | 'nearby' | null
  */
 exports.searchPlayers = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { player_pin, query, filter, limit: resultLimit } = req.body;
+            const { query, filter, limit: resultLimit } = req.body;
 
-            if (!player_pin || !query) {
+            if (!query) {
                 return res.status(400).json({
                     success: false,
-                    error: 'Missing required fields: player_pin and query'
+                    error: 'Missing required field: query'
                 });
             }
 
@@ -847,9 +814,9 @@ exports.searchPlayers = functions.https.onRequest((req, res) => {
                 });
             }
 
-            const player = await verifyPlayer(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
-                return res.status(401).json({ success: false, error: 'Invalid PIN' });
+                return res.status(401).json({ success: false, error: 'Unauthorized' });
             }
 
             const queryLimit = Math.min(resultLimit || 20, 50);
@@ -977,23 +944,16 @@ exports.searchPlayers = functions.https.onRequest((req, res) => {
 /**
  * Get suggested friends based on mutual connections and leagues
  * POST /getSuggestedFriends
- * Body: { player_pin, limit? }
+ * Body: { limit? }
  */
 exports.getSuggestedFriends = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { player_pin, limit: resultLimit } = req.body;
+            const { limit: resultLimit } = req.body;
 
-            if (!player_pin) {
-                return res.status(400).json({
-                    success: false,
-                    error: 'Missing required field: player_pin'
-                });
-            }
-
-            const player = await verifyPlayer(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
-                return res.status(401).json({ success: false, error: 'Invalid PIN' });
+                return res.status(401).json({ success: false, error: 'Unauthorized' });
             }
 
             const queryLimit = Math.min(resultLimit || 10, 30);
@@ -1118,23 +1078,23 @@ exports.getSuggestedFriends = functions.https.onRequest((req, res) => {
 /**
  * Check friendship status between two players
  * POST /checkFriendshipStatus
- * Body: { player_pin, target_id }
+ * Body: { target_id }
  */
 exports.checkFriendshipStatus = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { player_pin, target_id } = req.body;
+            const { target_id } = req.body;
 
-            if (!player_pin || !target_id) {
+            if (!target_id) {
                 return res.status(400).json({
                     success: false,
-                    error: 'Missing required fields: player_pin and target_id'
+                    error: 'Missing required field: target_id'
                 });
             }
 
-            const player = await verifyPlayer(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
-                return res.status(401).json({ success: false, error: 'Invalid PIN' });
+                return res.status(401).json({ success: false, error: 'Unauthorized' });
             }
 
             const friendshipId = getFriendshipId(player.id, target_id);
@@ -1184,23 +1144,14 @@ exports.checkFriendshipStatus = functions.https.onRequest((req, res) => {
 /**
  * Get blocked players list
  * POST /getBlockedPlayers
- * Body: { player_pin }
+ * Body: {}
  */
 exports.getBlockedPlayers = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { player_pin } = req.body;
-
-            if (!player_pin) {
-                return res.status(400).json({
-                    success: false,
-                    error: 'Missing required field: player_pin'
-                });
-            }
-
-            const player = await verifyPlayer(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
-                return res.status(401).json({ success: false, error: 'Invalid PIN' });
+                return res.status(401).json({ success: false, error: 'Unauthorized' });
             }
 
             const blockedIds = player.blocked || [];

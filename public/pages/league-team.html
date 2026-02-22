@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="manifest" href="/manifest.json">
     <title>Team - BRDC</title>
     <link rel="icon" type="image/png" href="/images/favicon.png">
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -38,39 +39,6 @@
                 radial-gradient(ellipse at 80% 80%, rgba(145, 215, 235, 0.06) 0%, transparent 50%);
             pointer-events: none;
             z-index: -1;
-        }
-
-        .header-bar {
-            background: var(--bg-panel);
-            border-bottom: 3px solid #000;
-            padding: 12px 15px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-        }
-
-        .back-btn {
-            background: rgba(255,255,255,0.1);
-            border: 2px solid rgba(255,255,255,0.3);
-            color: white;
-            padding: 8px 14px;
-            border-radius: 6px;
-            font-weight: 700;
-            font-size: 12px;
-            cursor: pointer;
-            text-decoration: none;
-        }
-
-        .back-btn:hover { background: rgba(255,255,255,0.2); }
-
-        .header-title {
-            font-family: 'Bebas Neue', cursive;
-            font-size: 22px;
-            letter-spacing: 2px;
-            color: var(--teal);
         }
 
         .container {
@@ -233,8 +201,6 @@
             transform: translateX(3px);
         }
 
-        .roster-card.captain { border-left: 3px solid var(--yellow); }
-
         .roster-avatar {
             width: 45px;
             height: 45px;
@@ -260,12 +226,6 @@
             font-weight: 600;
             font-size: 15px;
             margin-bottom: 2px;
-        }
-
-        .roster-name .captain-badge {
-            color: var(--yellow);
-            font-size: 12px;
-            margin-left: 5px;
         }
 
         .roster-level {
@@ -398,11 +358,6 @@
     </style>
 </head>
 <body>
-    <div class="header-bar">
-        <a href="/pages/dashboard.html" class="back-btn" aria-label="Go back">< BACK</a>
-        <span class="header-title" id="headerTitle">TEAM</span>
-    </div>
-
     <nav class="breadcrumbs" aria-label="Breadcrumb">
         <ol>
             <li><a href="/pages/dashboard.html">Dashboard</a></li>
@@ -682,7 +637,7 @@ async function loadRoster(team) {
         const teamPlayers = [];
         playersSnap.forEach(d => {
             const player = { id: d.id, ...d.data() };
-            if (player.team_id === teamId) {
+            if (player.team_id === teamId && !player.is_sub) {
                 teamPlayers.push(player);
             }
         });
@@ -729,12 +684,11 @@ async function loadRoster(team) {
         });
 
         container.innerHTML = playersWithStats.map(player => `
-            <div class="roster-card ${player.isCaptain ? 'captain' : ''}" onclick="viewPlayer('${player.id}')">
+            <div class="roster-card" onclick="viewPlayer('${player.id}')">
                 <div class="roster-avatar">${(player.name || '?').charAt(0).toUpperCase()}</div>
                 <div class="roster-info">
                     <div class="roster-name">
                         ${player.name || 'Unknown'}
-                        ${player.isCaptain ? '<span class="captain-badge">Captain</span>' : ''}
                     </div>
                     ${player.level ? `<span class="roster-level ${player.level}">${player.level}</span>` : ''}
                 </div>
@@ -830,7 +784,11 @@ window.viewPlayer = function(playerId) {
 };
 </script>
 <script src="/js/display-helpers.js"></script>
-<script src="/components/brdc-navigation-init.js"></script>
-<script>initBRDCNavigation({ page: 'league-team' });</script>
+<script src="/components/brdc-navigation-init.js?v=13"></script>
+<script>
+    // Use league_id from URL params for back navigation
+    const backUrl = leagueId ? `/pages/league-view.html?league_id=${leagueId}` : '/pages/dashboard.html';
+    initBRDCNavigation({ page: 'league-team', backUrl });
+</script>
 </body>
 </html>

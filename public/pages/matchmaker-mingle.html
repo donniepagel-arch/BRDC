@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="manifest" href="/manifest.json">
     <title>Heartbreaker Mingle - BRDC</title>
     <link rel="icon" type="image/png" href="/images/favicon.png">
     <script src="/js/brdc-toast.js"></script>
@@ -41,51 +42,6 @@
                 radial-gradient(ellipse at 80% 80%, rgba(255, 107, 107, 0.08) 0%, transparent 50%);
             pointer-events: none;
             z-index: -1;
-        }
-
-        /* Header with countdown */
-        .header-bar {
-            background: var(--bg-panel);
-            border-bottom: 3px solid var(--pink);
-            padding: 16px 20px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .header-left {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-
-        .header-logo { width: 40px; height: 40px; }
-
-        .header-title {
-            font-family: 'Bebas Neue', cursive;
-            font-size: 24px;
-            letter-spacing: 2px;
-            color: var(--pink);
-        }
-
-        .header-countdown {
-            display: flex;
-            flex-direction: column;
-            align-items: flex-end;
-        }
-
-        .countdown-timer {
-            font-family: 'Bebas Neue', cursive;
-            font-size: 42px;
-            color: var(--yellow);
-            line-height: 1;
-        }
-
-        .countdown-label {
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: var(--text-dim);
         }
 
         .container {
@@ -462,7 +418,6 @@
 
         /* Responsive */
         @media (max-width: 768px) {
-            .header-countdown { display: none; }
             .decision-buttons { grid-template-columns: 1fr; }
             .stats-grid { grid-template-columns: 1fr; }
             .nudge-stats { grid-template-columns: 1fr; }
@@ -475,18 +430,6 @@
         <div class="broken-heart">💔</div>
         <div class="processing-text">PROCESSING HEARTBREAK...</div>
         <div class="processing-subtext">Calculating the damage...</div>
-    </div>
-
-    <!-- Header -->
-    <div class="header-bar">
-        <div class="header-left">
-            <img src="/images/gold_logo.png" alt="BRDC" class="header-logo">
-            <div class="header-title">HEARTBREAKER MINGLE</div>
-        </div>
-        <div class="header-countdown">
-            <div class="countdown-timer" id="countdownTimer">--:--</div>
-            <div class="countdown-label">MINGLE TIME REMAINING</div>
-        </div>
     </div>
 
     <div class="container">
@@ -821,7 +764,7 @@
                     const endTime = new Date(result.mingle_end_time._seconds * 1000);
                     startCountdown(endTime);
                 } else {
-                    document.getElementById('countdownTimer').textContent = 'ENDED';
+                    const _ctEl = document.getElementById('countdownTimer'); if (_ctEl) _ctEl.textContent = 'ENDED';
                 }
             } catch (error) {
                 console.error('Error fetching mingle status:', error);
@@ -840,12 +783,12 @@
                 const minutes = Math.floor(remaining / 60);
                 const seconds = remaining % 60;
 
-                document.getElementById('countdownTimer').textContent =
+                const _ctEl = document.getElementById('countdownTimer'); if (_ctEl) _ctEl.textContent =
                     `${minutes}:${seconds.toString().padStart(2, '0')}`;
 
                 if (remaining <= 0) {
                     clearInterval(countdownInterval);
-                    document.getElementById('countdownTimer').textContent = 'ENDED';
+                    const _ctEl = document.getElementById('countdownTimer'); if (_ctEl) _ctEl.textContent = 'ENDED';
                     // Optionally redirect or show a message
                 }
             }, 1000);
@@ -860,7 +803,7 @@
                             const endTime = data.mingle_end_time.toDate();
                             startCountdown(endTime);
                         } else {
-                            document.getElementById('countdownTimer').textContent = 'ENDED';
+                            const _ctEl = document.getElementById('countdownTimer'); if (_ctEl) _ctEl.textContent = 'ENDED';
                             if (countdownInterval) {
                                 clearInterval(countdownInterval);
                             }
@@ -879,7 +822,7 @@
         // Initialize on load
         init();
     </script>
-<script src="/components/brdc-navigation-init.js"></script>
+<script src="/components/brdc-navigation-init.js?v=13"></script>
 <script>initBRDCNavigation({ page: 'matchmaker-mingle' });</script>
 </body>
 </html>

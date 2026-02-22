@@ -12,6 +12,7 @@ const functions = require('firebase-functions');
 const { logger } = require('firebase-functions');
 const admin = require('firebase-admin');
 const cors = require('cors')({origin: true});
+const { verifyFirebaseAuth } = require('./src/firebase-auth-helper');
 
 const db = admin.firestore();
 
@@ -39,20 +40,6 @@ const ACTIVITY_TYPES = {
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
-
-/**
- * Verify player PIN and get player data
- */
-async function verifyPlayer(pin) {
-    if (!pin) return null;
-    const playersSnapshot = await db.collection('players')
-        .where('pin', '==', pin)
-        .limit(1)
-        .get();
-
-    if (playersSnapshot.empty) return null;
-    return { id: playersSnapshot.docs[0].id, ...playersSnapshot.docs[0].data() };
-}
 
 /**
  * Get player display name
@@ -104,7 +91,6 @@ exports.updatePresence = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
             const {
-                player_pin,
                 status,
                 current_page,
                 device_type,
@@ -112,13 +98,9 @@ exports.updatePresence = functions.https.onRequest((req, res) => {
                 context
             } = req.body;
 
-            if (!player_pin) {
-                return res.status(400).json({ success: false, error: 'Missing player_pin' });
-            }
-
-            const player = await verifyPlayer(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
-                return res.status(401).json({ success: false, error: 'Invalid PIN' });
+                return res.status(401).json({ success: false, error: 'Unauthorized' });
             }
 
             const now = admin.firestore.FieldValue.serverTimestamp();
@@ -194,9 +176,9 @@ exports.updatePresence = functions.https.onRequest((req, res) => {
 exports.setPresenceStatus = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { player_pin, status, custom_status } = req.body;
+            const { status, custom_status } = req.body;
 
-            if (!player_pin || !status) {
+            if (!status) {
                 return res.status(400).json({ success: false, error: 'Missing required fields' });
             }
 
@@ -204,9 +186,9 @@ exports.setPresenceStatus = functions.https.onRequest((req, res) => {
                 return res.status(400).json({ success: false, error: 'Invalid status' });
             }
 
-            const player = await verifyPlayer(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
-                return res.status(401).json({ success: false, error: 'Invalid PIN' });
+                return res.status(401).json({ success: false, error: 'Unauthorized' });
             }
 
             const now = admin.firestore.FieldValue.serverTimestamp();
@@ -245,15 +227,11 @@ exports.setPresenceStatus = functions.https.onRequest((req, res) => {
 exports.updateActivity = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { player_pin, activity, context } = req.body;
+            const { activity, context } = req.body;
 
-            if (!player_pin) {
-                return res.status(400).json({ success: false, error: 'Missing player_pin' });
-            }
-
-            const player = await verifyPlayer(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
-                return res.status(401).json({ success: false, error: 'Invalid PIN' });
+                return res.status(401).json({ success: false, error: 'Unauthorized' });
             }
 
             const now = admin.firestore.FieldValue.serverTimestamp();
@@ -309,15 +287,9 @@ exports.updateActivity = functions.https.onRequest((req, res) => {
 exports.setOffline = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { player_pin } = req.body;
-
-            if (!player_pin) {
-                return res.status(400).json({ success: false, error: 'Missing player_pin' });
-            }
-
-            const player = await verifyPlayer(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
-                return res.status(401).json({ success: false, error: 'Invalid PIN' });
+                return res.status(401).json({ success: false, error: 'Unauthorized' });
             }
 
             const now = admin.firestore.FieldValue.serverTimestamp();
@@ -442,15 +414,15 @@ async function updateRoomPresence(roomId, playerId, playerName, isJoining) {
 exports.joinMatchAsViewer = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { player_pin, match_id, league_id } = req.body;
+            const { match_id, league_id } = req.body;
 
-            if (!player_pin || !match_id) {
+            if (!match_id) {
                 return res.status(400).json({ success: false, error: 'Missing required fields' });
             }
 
-            const player = await verifyPlayer(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
-                return res.status(401).json({ success: false, error: 'Invalid PIN' });
+                return res.status(401).json({ success: false, error: 'Unauthorized' });
             }
 
             const playerName = getPlayerName(player);
@@ -488,15 +460,15 @@ exports.joinMatchAsViewer = functions.https.onRequest((req, res) => {
 exports.leaveMatchAsViewer = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { player_pin, match_id } = req.body;
+            const { match_id } = req.body;
 
-            if (!player_pin || !match_id) {
+            if (!match_id) {
                 return res.status(400).json({ success: false, error: 'Missing required fields' });
             }
 
-            const player = await verifyPlayer(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
-                return res.status(401).json({ success: false, error: 'Invalid PIN' });
+                return res.status(401).json({ success: false, error: 'Unauthorized' });
             }
 
             const now = admin.firestore.FieldValue.serverTimestamp();
@@ -526,15 +498,15 @@ exports.leaveMatchAsViewer = functions.https.onRequest((req, res) => {
 exports.getMatchViewers = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { player_pin, match_id } = req.body;
+            const { match_id } = req.body;
 
-            if (!player_pin || !match_id) {
+            if (!match_id) {
                 return res.status(400).json({ success: false, error: 'Missing required fields' });
             }
 
-            const player = await verifyPlayer(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
-                return res.status(401).json({ success: false, error: 'Invalid PIN' });
+                return res.status(401).json({ success: false, error: 'Unauthorized' });
             }
 
             const viewersDoc = await db.collection('match_viewers').doc(match_id).get();
@@ -579,15 +551,15 @@ exports.getMatchViewers = functions.https.onRequest((req, res) => {
 exports.setPresenceTypingStatus = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { player_pin, room_id, is_typing } = req.body;
+            const { room_id, is_typing } = req.body;
 
-            if (!player_pin || !room_id) {
+            if (!room_id) {
                 return res.status(400).json({ success: false, error: 'Missing required fields' });
             }
 
-            const player = await verifyPlayer(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
-                return res.status(401).json({ success: false, error: 'Invalid PIN' });
+                return res.status(401).json({ success: false, error: 'Unauthorized' });
             }
 
             const playerName = getPlayerName(player);
@@ -620,15 +592,15 @@ exports.setPresenceTypingStatus = functions.https.onRequest((req, res) => {
 exports.getTypingUsers = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { player_pin, room_id } = req.body;
+            const { room_id } = req.body;
 
-            if (!player_pin || !room_id) {
+            if (!room_id) {
                 return res.status(400).json({ success: false, error: 'Missing required fields' });
             }
 
-            const player = await verifyPlayer(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
-                return res.status(401).json({ success: false, error: 'Invalid PIN' });
+                return res.status(401).json({ success: false, error: 'Unauthorized' });
             }
 
             const typingSnapshot = await db.collection('chat_rooms').doc(room_id).collection('typing').get();
@@ -669,15 +641,11 @@ exports.getTypingUsers = functions.https.onRequest((req, res) => {
 exports.getOnlinePlayers = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { player_pin, context, league_id, team_id, match_id } = req.body;
+            const { context, league_id, team_id, match_id } = req.body;
 
-            if (!player_pin) {
-                return res.status(400).json({ success: false, error: 'Missing player_pin' });
-            }
-
-            const player = await verifyPlayer(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
-                return res.status(401).json({ success: false, error: 'Invalid PIN' });
+                return res.status(401).json({ success: false, error: 'Unauthorized' });
             }
 
             // Get heartbeats from last 5 minutes
@@ -746,15 +714,15 @@ exports.getOnlinePlayers = functions.https.onRequest((req, res) => {
 exports.getPlayerPresence = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { player_pin, player_ids } = req.body;
+            const { player_ids } = req.body;
 
-            if (!player_pin || !player_ids || !Array.isArray(player_ids)) {
+            if (!player_ids || !Array.isArray(player_ids)) {
                 return res.status(400).json({ success: false, error: 'Missing required fields' });
             }
 
-            const player = await verifyPlayer(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
-                return res.status(401).json({ success: false, error: 'Invalid PIN' });
+                return res.status(401).json({ success: false, error: 'Unauthorized' });
             }
 
             const fiveMinutesAgo = new Date();
@@ -814,15 +782,15 @@ exports.getPlayerPresence = functions.https.onRequest((req, res) => {
 exports.getPlayerPublicProfile = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { player_pin, target_player_id } = req.body;
+            const { target_player_id } = req.body;
 
-            if (!player_pin || !target_player_id) {
+            if (!target_player_id) {
                 return res.status(400).json({ success: false, error: 'Missing required fields' });
             }
 
-            const player = await verifyPlayer(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
-                return res.status(401).json({ success: false, error: 'Invalid PIN' });
+                return res.status(401).json({ success: false, error: 'Unauthorized' });
             }
 
             const targetDoc = await db.collection('players').doc(target_player_id).get();
@@ -885,15 +853,15 @@ exports.getPlayerPublicProfile = functions.https.onRequest((req, res) => {
 exports.updatePlayerProfile = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         try {
-            const { player_pin, profile_data } = req.body;
+            const { profile_data } = req.body;
 
-            if (!player_pin || !profile_data) {
+            if (!profile_data) {
                 return res.status(400).json({ success: false, error: 'Missing required fields' });
             }
 
-            const player = await verifyPlayer(player_pin);
+            const player = await verifyFirebaseAuth(req);
             if (!player) {
-                return res.status(401).json({ success: false, error: 'Invalid PIN' });
+                return res.status(401).json({ success: false, error: 'Unauthorized' });
             }
 
             // Validate and sanitize profile fields

@@ -3,1449 +3,316 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="manifest" href="/manifest.json">
     <title>Captain Dashboard - BRDC</title>
     <link rel="icon" type="image/png" href="/images/favicon.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700&display=swap">
-    <link rel="stylesheet" href="/css/brdc-styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@400;700&family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/brdc-styles.css?v=3">
     <link rel="stylesheet" href="/css/print.css">
-    <style>
-        :root {
-            --pink: #FF469A;
-            --teal: #91D7EB;
-            --yellow: #FDD835;
-            --bg-dark: #1a1a2e;
-            --bg-panel: #16213e;
-            --bg-card: #1e2a47;
-            --text-light: #f0f0f0;
-            --text-dim: #8a8aa3;
-            --border-color: rgba(255,255,255,0.15);
-            --success: #22c55e;
-            --danger: #ef4444;
-        }
+    <link rel="stylesheet" href="/css/captain-dashboard.css?v=3">
 
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        html, body { min-height: 100%; overflow-x: hidden; width: 100%; }
-        body {
-            background: linear-gradient(135deg, var(--bg-dark) 0%, #0f0f23 100%);
-            color: var(--text-light);
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-        }
-
-        body::before {
-            content: '';
-            position: fixed;
-            inset: 0;
-            background:
-                radial-gradient(ellipse at 20% 20%, rgba(255, 70, 154, 0.08) 0%, transparent 50%),
-                radial-gradient(ellipse at 80% 80%, rgba(145, 215, 235, 0.06) 0%, transparent 50%);
-            pointer-events: none;
-            z-index: -1;
-        }
-
-        .header-bar {
-            background: var(--bg-panel);
-            border-bottom: 2px solid var(--pink);
-            padding: 14px 20px;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.4), 0 0 30px rgba(255, 70, 154, 0.15);
-        }
-        .back-btn {
-            background: rgba(255,255,255,0.1);
-            border: 2px solid var(--border-color);
-            border-radius: 8px;
-            padding: 8px 14px;
-            color: var(--text-light);
-            font-weight: 600;
-            font-size: 13px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        .back-btn:hover {
-            background: rgba(255,255,255,0.15);
-            border-color: var(--teal);
-        }
-        .header-logo {
-            width: 36px;
-            height: 36px;
-        }
-        .header-title {
-            font-family: 'Bebas Neue', cursive;
-            font-size: 24px;
-            letter-spacing: 3px;
-            color: var(--pink);
-        }
-
-        .dashboard-container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        .dashboard-header {
-            background: var(--bg-card);
-            border: 2px solid var(--border-color);
-            border-radius: 16px;
-            padding: 20px 24px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 24px;
-            flex-wrap: wrap;
-            gap: 20px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-        }
-        .team-name {
-            font-family: 'Bebas Neue', cursive;
-            font-size: 42px;
-            color: var(--yellow);
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            line-height: 1;
-        }
-        .team-name-text {
-            cursor: pointer;
-            transition: color 0.2s;
-        }
-        .team-name-text:hover {
-            color: var(--teal);
-        }
-        .edit-icon {
-            font-size: 20px;
-            opacity: 0.5;
-            cursor: pointer;
-            transition: opacity 0.2s;
-        }
-        .edit-icon:hover {
-            opacity: 1;
-        }
-        .team-name-input {
-            font-family: 'Bebas Neue', cursive;
-            font-size: 36px;
-            background: rgba(0,0,0,0.3);
-            border: 2px solid var(--yellow);
-            border-radius: 8px;
-            color: var(--yellow);
-            padding: 5px 15px;
-            width: 300px;
-        }
-        .league-name {
-            font-size: 14px;
-            color: var(--teal);
-            font-weight: 600;
-            margin-top: 4px;
-        }
-        .record {
-            font-family: 'Bebas Neue', cursive;
-            font-size: 32px;
-            color: white;
-        }
-
-        /* Modern Tab Pills */
-        .tabs {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 24px;
-            flex-wrap: nowrap;
-            overflow-x: auto;
-            padding-bottom: 8px;
-            scrollbar-width: none;
-        }
-        .tabs::-webkit-scrollbar { display: none; }
-        .tab {
-            background: var(--bg-card);
-            border: 2px solid var(--border-color);
-            border-radius: 24px;
-            padding: 10px 20px;
-            font-family: 'Bebas Neue', cursive;
-            font-size: 15px;
-            letter-spacing: 1px;
-            color: var(--text-dim);
-            cursor: pointer;
-            transition: all 0.2s;
-            white-space: nowrap;
-            flex-shrink: 0;
-        }
-        .tab:hover {
-            background: rgba(255,255,255,0.08);
-            border-color: var(--teal);
-            color: var(--text-light);
-        }
-        .tab.active {
-            background: linear-gradient(135deg, var(--pink) 0%, #d63384 100%);
-            border-color: var(--pink);
-            color: white;
-            box-shadow: 0 0 15px rgba(255, 70, 154, 0.4);
-        }
-
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
-
-        /* Modern Roster Cards */
-        .roster-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 16px;
-            margin-bottom: 30px;
-        }
-        .roster-card {
-            background: var(--bg-card);
-            border: 2px solid var(--border-color);
-            border-radius: 14px;
-            padding: 18px;
-            transition: all 0.2s;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-        }
-        .roster-card:hover {
-            border-color: var(--teal);
-            transform: translateY(-2px);
-            box-shadow: 0 6px 25px rgba(0,0,0,0.3);
-        }
-        .roster-card.unavailable {
-            border-color: var(--danger);
-            opacity: 0.75;
-            background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), var(--bg-card));
-        }
-        .player-position {
-            font-family: 'Bebas Neue', cursive;
-            font-size: 12px;
-            color: var(--teal);
-            letter-spacing: 1px;
-            margin-bottom: 4px;
-        }
-        .player-name-roster {
-            font-family: 'Bebas Neue', cursive;
-            font-size: 24px;
-            color: white;
-            margin-bottom: 12px;
-            line-height: 1.1;
-        }
-        .player-stats-mini {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 8px;
-            font-size: 14px;
-        }
-        .stat-mini {
-            background: rgba(0,0,0,0.25);
-            padding: 10px 8px;
-            text-align: center;
-            border-radius: 8px;
-        }
-        .stat-mini-label {
-            font-size: 10px;
-            color: var(--text-dim);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        .stat-mini-value {
-            font-family: 'Bebas Neue', cursive;
-            font-size: 20px;
-            color: var(--yellow);
-        }
-        .player-actions {
-            margin-top: 14px;
-            display: flex;
-            gap: 8px;
-        }
-        .action-btn {
-            flex: 1;
-            padding: 10px;
-            font-family: 'Bebas Neue', cursive;
-            font-size: 13px;
-            letter-spacing: 1px;
-            border: 2px solid var(--border-color);
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.2s;
-            background: rgba(0,0,0,0.2);
-            color: var(--text-light);
-        }
-        .action-btn:hover {
-            border-color: var(--teal);
-        }
-        .action-btn.replace {
-            background: linear-gradient(135deg, var(--danger) 0%, #dc2626 100%);
-            border-color: var(--danger);
-            color: white;
-        }
-        .action-btn.replace:hover {
-            box-shadow: 0 0 15px rgba(239, 68, 68, 0.4);
-        }
-
-        /* Attendance Toggle */
-        .attendance-toggle {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-top: 12px;
-            padding: 10px 12px;
-            background: rgba(0,0,0,0.3);
-            border-radius: 10px;
-            border: 1px solid var(--border-color);
-        }
-        .attendance-toggle-label {
-            font-size: 11px;
-            color: var(--text-dim);
-            font-weight: 600;
-        }
-        .attendance-switch {
-            position: relative;
-            width: 50px;
-            height: 26px;
-            cursor: pointer;
-        }
-        .attendance-switch input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
-        .attendance-slider {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: var(--danger);
-            border-radius: 26px;
-            transition: 0.3s;
-        }
-        .attendance-slider:before {
-            content: "";
-            position: absolute;
-            height: 20px;
-            width: 20px;
-            left: 3px;
-            bottom: 3px;
-            background: white;
-            border-radius: 50%;
-            transition: 0.3s;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-        }
-        .attendance-switch input:checked + .attendance-slider {
-            background-color: var(--success);
-        }
-        .attendance-switch input:checked + .attendance-slider:before {
-            transform: translateX(24px);
-        }
-        .attendance-status {
-            font-size: 11px;
-            font-weight: 700;
-            margin-left: 8px;
-            letter-spacing: 0.5px;
-        }
-        .attendance-status.available { color: var(--success); }
-        .attendance-status.unavailable { color: var(--danger); }
-
-        /* Schedule Table */
-        .schedule-table {
-            width: 100%;
-            border-collapse: separate;
-            border-spacing: 0;
-            background: var(--bg-card);
-            border-radius: 12px;
-            overflow: hidden;
-            border: 2px solid var(--border-color);
-        }
-        .schedule-table th, .schedule-table td {
-            padding: 14px 16px;
-            text-align: left;
-            border-bottom: 1px solid var(--border-color);
-        }
-        .schedule-table th {
-            font-family: 'Bebas Neue', cursive;
-            font-size: 14px;
-            letter-spacing: 1px;
-            color: var(--teal);
-            background: rgba(0,0,0,0.3);
-        }
-        .schedule-table tr:last-child td {
-            border-bottom: none;
-        }
-        .schedule-table tr:hover td {
-            background: rgba(255,255,255,0.03);
-        }
-        .status-badge {
-            padding: 5px 12px;
-            border-radius: 20px;
-            font-size: 11px;
-            font-weight: 700;
-            letter-spacing: 0.5px;
-        }
-        .status-badge.scheduled {
-            background: rgba(59, 130, 246, 0.2);
-            color: #60a5fa;
-        }
-        .status-badge.in_progress {
-            background: rgba(253, 216, 53, 0.2);
-            color: var(--yellow);
-        }
-        .status-badge.completed {
-            background: rgba(34, 197, 94, 0.2);
-            color: var(--success);
-        }
-
-        .availability-indicator { display: flex; gap: 5px; }
-        .avail-dot {
-            width: 26px;
-            height: 26px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 11px;
-            font-weight: 700;
-        }
-        .avail-dot.available { background: var(--success); color: white; }
-        .avail-dot.unavailable { background: var(--danger); color: white; }
-        .avail-dot.unknown { background: var(--text-dim); color: var(--bg-dark); }
-
-        /* Lineup Section */
-        .lineup-section {
-            background: var(--bg-card);
-            border: 2px solid var(--border-color);
-            border-radius: 14px;
-            padding: 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-        }
-        .lineup-title {
-            font-family: 'Bebas Neue', cursive;
-            font-size: 22px;
-            color: var(--yellow);
-            margin-bottom: 16px;
-            letter-spacing: 1px;
-        }
-        .lineup-row {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            padding: 12px 14px;
-            background: rgba(0,0,0,0.2);
-            margin-bottom: 10px;
-            border-radius: 10px;
-            border: 1px solid var(--border-color);
-        }
-        .lineup-position {
-            font-family: 'Bebas Neue', cursive;
-            font-size: 22px;
-            color: var(--teal);
-            width: 30px;
-        }
-        .lineup-select {
-            flex: 1;
-            padding: 12px;
-            font-size: 14px;
-            border: 2px solid var(--border-color);
-            border-radius: 8px;
-            background: rgba(0,0,0,0.3);
-            color: var(--text-light);
-        }
-        .lineup-select:focus {
-            outline: none;
-            border-color: var(--teal);
-        }
-
-        /* Notifications */
-        .notifications-list {
-            max-height: 400px;
-            overflow-y: auto;
-        }
-        .notification-item {
-            padding: 16px;
-            background: var(--bg-card);
-            border-left: 4px solid var(--yellow);
-            margin-bottom: 12px;
-            border-radius: 0 10px 10px 0;
-            transition: all 0.2s;
-        }
-        .notification-item:hover {
-            background: rgba(255,255,255,0.03);
-        }
-        .notification-item.unread {
-            border-left-color: var(--pink);
-            background: linear-gradient(90deg, rgba(255,70,154,0.1), var(--bg-card));
-        }
-        .notification-time {
-            font-size: 11px;
-            color: var(--text-dim);
-            margin-top: 6px;
-        }
-
-        /* Subs List */
-        .subs-list {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-            gap: 14px;
-        }
-        .sub-card {
-            background: var(--bg-card);
-            border: 2px solid var(--border-color);
-            border-radius: 12px;
-            padding: 16px;
-            transition: all 0.2s;
-        }
-        .sub-card:hover {
-            border-color: var(--teal);
-            transform: translateY(-2px);
-        }
-        .sub-name {
-            font-family: 'Bebas Neue', cursive;
-            font-size: 18px;
-            color: white;
-        }
-        .sub-skill {
-            font-size: 11px;
-            color: var(--teal);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        /* Level Badges */
-        .level-badge {
-            display: inline-block;
-            padding: 3px 10px;
-            border-radius: 6px;
-            font-size: 11px;
-            font-weight: 700;
-            margin-left: 8px;
-            vertical-align: middle;
-            letter-spacing: 0.5px;
-        }
-        .level-badge.level-A {
-            background: linear-gradient(135deg, #ffd700, #ffa500);
-            color: #000;
-        }
-        .level-badge.level-B {
-            background: linear-gradient(135deg, #c0c0c0, #a8a8a8);
-            color: #000;
-        }
-        .level-badge.level-C {
-            background: linear-gradient(135deg, #cd7f32, #a0522d);
-            color: #fff;
-        }
-        .level-badge.level-unknown {
-            background: var(--text-dim);
-            color: var(--bg-dark);
-        }
-
-        /* Sub Level Filters */
-        .sub-filters {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-        }
-        .filter-btn {
-            padding: 8px 18px;
-            font-family: 'Bebas Neue', cursive;
-            font-size: 14px;
-            letter-spacing: 1px;
-            border: 2px solid var(--border-color);
-            border-radius: 20px;
-            background: var(--bg-card);
-            color: var(--text-dim);
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        .filter-btn:hover {
-            background: rgba(255,255,255,0.08);
-            border-color: var(--teal);
-            color: var(--text-light);
-        }
-        .filter-btn.active {
-            background: var(--teal);
-            border-color: var(--teal);
-            color: var(--bg-dark);
-        }
-
-        /* Fill-in Request UI */
-        .fillin-request-section {
-            background: var(--bg-card);
-            border: 2px solid var(--border-color);
-            border-radius: 14px;
-            padding: 20px;
-            margin-bottom: 20px;
-        }
-        .fillin-section-title {
-            font-family: 'Bebas Neue', cursive;
-            font-size: 20px;
-            color: var(--yellow);
-            margin-bottom: 16px;
-            letter-spacing: 1px;
-        }
-        .pending-requests {
-            margin-top: 24px;
-        }
-        .request-card {
-            background: rgba(0,0,0,0.2);
-            border: 2px solid var(--border-color);
-            padding: 16px;
-            margin-bottom: 12px;
-            border-radius: 12px;
-        }
-        .request-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 12px;
-        }
-        .request-match {
-            font-family: 'Bebas Neue', cursive;
-            font-size: 18px;
-            color: var(--teal);
-            letter-spacing: 1px;
-        }
-        .request-status {
-            padding: 5px 12px;
-            font-size: 10px;
-            font-weight: 700;
-            border-radius: 16px;
-            letter-spacing: 0.5px;
-        }
-        .request-status.pending {
-            background: rgba(253, 216, 53, 0.2);
-            color: var(--yellow);
-        }
-        .request-status.confirmed {
-            background: rgba(34, 197, 94, 0.2);
-            color: var(--success);
-        }
-        .response-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-            margin-top: 12px;
-            font-size: 12px;
-        }
-        .response-column {
-            background: rgba(0,0,0,0.25);
-            padding: 10px;
-            border-radius: 8px;
-        }
-        .response-label {
-            font-size: 10px;
-            color: var(--text-dim);
-            margin-bottom: 6px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        .response-list { color: var(--text-light); }
-        .response-list.interested { color: var(--success); }
-        .response-list.declined { color: var(--danger); }
-
-        /* Header Actions */
-        .header-actions {
-            display: flex;
-            gap: 12px;
-            align-items: center;
-        }
-        .header-action-btn {
-            padding: 10px 18px;
-            font-family: 'Bebas Neue', cursive;
-            font-size: 14px;
-            letter-spacing: 1px;
-            border: 2px solid var(--border-color);
-            border-radius: 10px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        .header-action-btn.message-btn {
-            background: linear-gradient(135deg, var(--pink) 0%, #d63384 100%);
-            border-color: var(--pink);
-            color: white;
-            box-shadow: 0 0 15px rgba(255, 70, 154, 0.3);
-        }
-        .header-action-btn.message-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 0 25px rgba(255, 70, 154, 0.5);
-        }
-
-        /* Checkbox list for subs selection */
-        .sub-select-list {
-            max-height: 300px;
-            overflow-y: auto;
-            margin: 15px 0;
-            border-radius: 10px;
-        }
-        .sub-select-item {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 12px 14px;
-            background: rgba(0,0,0,0.2);
-            margin-bottom: 6px;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.2s;
-            border: 1px solid transparent;
-        }
-        .sub-select-item:hover {
-            background: rgba(255,255,255,0.08);
-            border-color: var(--border-color);
-        }
-        .sub-select-item input[type="checkbox"] {
-            width: 18px;
-            height: 18px;
-            cursor: pointer;
-            accent-color: var(--pink);
-        }
-        .sub-select-name {
-            flex: 1;
-            font-family: 'Bebas Neue', cursive;
-            font-size: 16px;
-            color: var(--text-light);
-        }
-        .sub-select-level {
-            font-size: 10px;
-            font-weight: 700;
-            padding: 3px 8px;
-            background: var(--teal);
-            color: var(--bg-dark);
-            border-radius: 6px;
-            letter-spacing: 0.5px;
-        }
-
-        /* Channel checkboxes */
-        .channel-options {
-            display: flex;
-            gap: 24px;
-            margin: 15px 0;
-        }
-        .channel-option {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            cursor: pointer;
-            color: var(--text-light);
-        }
-        .channel-option input {
-            width: 18px;
-            height: 18px;
-            accent-color: var(--pink);
-        }
-        .channel-option span { font-size: 14px; }
-
-        /* Free Agent Cards */
-        .free-agent-card {
-            background: var(--bg-card);
-            border: 2px solid var(--border-color);
-            border-radius: 12px;
-            padding: 16px;
-            position: relative;
-            transition: all 0.2s;
-        }
-        .free-agent-card:hover {
-            border-color: var(--teal);
-            transform: translateY(-2px);
-        }
-        .free-agent-card.invited {
-            border-color: var(--yellow);
-            opacity: 0.7;
-        }
-        .free-agent-name {
-            font-family: 'Bebas Neue', cursive;
-            font-size: 20px;
-            color: white;
-        }
-        .free-agent-level {
-            display: inline-block;
-            padding: 3px 10px;
-            font-size: 10px;
-            background: var(--teal);
-            color: var(--bg-dark);
-            font-weight: 700;
-            margin-top: 6px;
-            border-radius: 6px;
-            letter-spacing: 0.5px;
-        }
-        .free-agent-note {
-            font-size: 12px;
-            color: var(--text-dim);
-            margin-top: 10px;
-            font-style: italic;
-        }
-        .invite-btn {
-            margin-top: 12px;
-            padding: 10px 16px;
-            background: linear-gradient(135deg, var(--pink) 0%, #d63384 100%);
-            border: 2px solid var(--pink);
-            border-radius: 8px;
-            color: white;
-            font-family: 'Bebas Neue', cursive;
-            font-size: 14px;
-            letter-spacing: 1px;
-            cursor: pointer;
-            width: 100%;
-            transition: all 0.2s;
-        }
-        .invite-btn:hover {
-            box-shadow: 0 0 15px rgba(255, 70, 154, 0.4);
-        }
-        .invite-btn:disabled {
-            background: var(--text-dim);
-            border-color: var(--text-dim);
-            cursor: not-allowed;
-            box-shadow: none;
-        }
-        .invited-badge {
-            position: absolute;
-            top: 12px;
-            right: 12px;
-            background: var(--yellow);
-            color: var(--bg-dark);
-            padding: 3px 10px;
-            font-size: 10px;
-            font-weight: 700;
-            border-radius: 6px;
-            letter-spacing: 0.5px;
-        }
-
-        /* Modern Modals */
-        .modal-overlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.85);
-            backdrop-filter: blur(4px);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-            padding: 20px;
-        }
-        .modal-overlay.active { display: flex; }
-        .modal-content {
-            background: linear-gradient(180deg, var(--bg-panel) 0%, var(--bg-dark) 100%);
-            border: 2px solid var(--border-color);
-            border-radius: 16px;
-            padding: 28px;
-            max-width: 500px;
-            width: 100%;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 0 40px rgba(255, 70, 154, 0.1);
-        }
-        .modal-title {
-            font-family: 'Bebas Neue', cursive;
-            font-size: 26px;
-            color: var(--yellow);
-            margin-bottom: 20px;
-            letter-spacing: 2px;
-        }
-
-        /* Modern Form Elements */
-        .brdc-input, .brdc-select, .brdc-textarea {
-            width: 100%;
-            padding: 14px 16px;
-            background: rgba(0,0,0,0.3);
-            border: 2px solid var(--border-color);
-            border-radius: 10px;
-            font-size: 14px;
-            color: var(--text-light);
-            transition: all 0.2s;
-        }
-        .brdc-input:focus, .brdc-select:focus, .brdc-textarea:focus {
-            outline: none;
-            border-color: var(--pink);
-            background: rgba(255, 70, 154, 0.1);
-            box-shadow: 0 0 15px rgba(255, 70, 154, 0.2);
-        }
-        .brdc-input::placeholder {
-            color: var(--text-dim);
-        }
-        .brdc-select {
-            cursor: pointer;
-        }
-        .brdc-select option {
-            background: var(--bg-dark);
-            color: var(--text-light);
-        }
-
-        /* Modern Buttons */
-        .brdc-btn {
-            padding: 12px 24px;
-            background: linear-gradient(135deg, var(--pink) 0%, #d63384 100%);
-            border: 2px solid var(--pink);
-            border-radius: 10px;
-            color: white;
-            font-family: 'Bebas Neue', cursive;
-            font-size: 16px;
-            letter-spacing: 1px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        .brdc-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 0 20px rgba(255, 70, 154, 0.4);
-        }
-        .brdc-btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
-        }
-        .brdc-btn-secondary {
-            background: rgba(255,255,255,0.1);
-            border-color: var(--border-color);
-        }
-        .brdc-btn-secondary:hover {
-            background: rgba(255,255,255,0.15);
-            border-color: var(--teal);
-            box-shadow: none;
-        }
-
-        /* Responsive Styles */
-        @media (max-width: 768px) {
-            .team-name { font-size: 28px; }
-            .record { font-size: 24px; }
-            .roster-grid {
-                grid-template-columns: 1fr;
-            }
-            .roster-card {
-                padding: 16px;
-            }
-            .player-name-roster {
-                font-size: 22px;
-            }
-            .schedule-table th,
-            .schedule-table td {
-                padding: 12px 10px;
-                font-size: 13px;
-            }
-            .availability-indicator {
-                flex-wrap: wrap;
-            }
-            .lineup-row {
-                flex-wrap: wrap;
-            }
-            .lineup-select {
-                width: 100%;
-            }
-            .modal-content {
-                width: 100%;
-                padding: 24px 20px;
-            }
-            .dashboard-header {
-                flex-direction: column;
-                text-align: center;
-                padding: 16px;
-            }
-            .dashboard-header > div:last-child {
-                text-align: center;
-            }
-            .header-actions {
-                justify-content: center;
-                flex-wrap: wrap;
-            }
-            .subs-list {
-                grid-template-columns: 1fr;
-            }
-            .response-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        @media (max-width: 480px) {
-            .dashboard-container {
-                padding: 12px;
-            }
-            .team-name { font-size: 24px; }
-            .record { font-size: 20px; }
-            .header-title { font-size: 18px; }
-            .header-bar {
-                padding: 12px 14px;
-                gap: 10px;
-            }
-            .back-btn {
-                padding: 6px 10px;
-                font-size: 12px;
-            }
-            .tab {
-                padding: 8px 14px;
-                font-size: 13px;
-            }
-            .player-stats-mini {
-                grid-template-columns: repeat(2, 1fr);
-                gap: 6px;
-            }
-            .stat-mini {
-                padding: 8px 6px;
-            }
-            .stat-mini-value {
-                font-size: 18px;
-            }
-            .schedule-table th,
-            .schedule-table td {
-                padding: 10px 8px;
-                font-size: 12px;
-            }
-            .schedule-table th:nth-child(5),
-            .schedule-table td:nth-child(5),
-            .schedule-table th:nth-child(6),
-            .schedule-table td:nth-child(6) {
-                display: none;
-            }
-            .lineup-title {
-                font-size: 18px;
-            }
-            .brdc-btn, .action-btn {
-                padding: 10px 16px;
-                font-size: 14px;
-            }
-            .modal-content {
-                padding: 20px 16px;
-            }
-            .modal-title {
-                font-size: 22px;
-            }
-        }
-
-        /* Accessibility - Screen Reader Only */
-        .sr-only {
-            position: absolute;
-            width: 1px;
-            height: 1px;
-            padding: 0;
-            margin: -1px;
-            overflow: hidden;
-            clip: rect(0, 0, 0, 0);
-            white-space: nowrap;
-            border: 0;
-        }
-
-        /* Focus Indicators */
-        :focus-visible {
-            outline: 2px solid var(--yellow);
-            outline-offset: 2px;
-        }
-
-        button:focus-visible,
-        a:focus-visible,
-        input:focus-visible,
-        select:focus-visible,
-        textarea:focus-visible {
-            outline: 2px solid var(--yellow);
-            outline-offset: 2px;
-        }
-
-        /* Scrollbar styling */
-        ::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
-        }
-        ::-webkit-scrollbar-track {
-            background: rgba(0,0,0,0.2);
-            border-radius: 3px;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: var(--border-color);
-            border-radius: 3px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: var(--text-dim);
-        }
-
-        /* Skeleton Loading States */
-        .skeleton {
-            background: linear-gradient(90deg, #1e2a47 25%, #2a3a57 50%, #1e2a47 75%);
-            background-size: 200% 100%;
-            animation: shimmer 1.5s ease-in-out infinite;
-            border-radius: 8px;
-        }
-        @keyframes shimmer {
-            0% { background-position: 200% 0; }
-            100% { background-position: -200% 0; }
-        }
-
-        /* Print-specific overrides */
-        @media print {
-            /* Hide attendance toggle buttons */
-            .attendance-btn,
-            .attendance-icon,
-            .presence-indicator {
-                display: none !important;
-            }
-
-            /* Hide lineup editing buttons and controls */
-            .lineup-controls,
-            .set-lineup-btn,
-            .add-sub-btn,
-            .remove-sub-btn,
-            .edit-btn,
-            .delete-btn,
-            .action-btn {
-                display: none !important;
-            }
-
-            /* Hide alert count badges */
-            .alert-count,
-            .badge {
-                display: none !important;
-            }
-
-            /* Hide interactive SET LINEUP controls */
-            .lineup-editor,
-            .lineup-drag-handle,
-            .lineup-reorder-controls {
-                display: none !important;
-            }
-
-            /* Clean up roster table for print */
-            .roster-table {
-                width: 100%;
-            }
-
-            /* Simplify player cards */
-            .player-card:hover {
-                transform: none;
-            }
-        }
-    </style>
+    <!-- BRDC Navigation CSS -->
+    <link rel="stylesheet" href="/css/brdc-navigation.css">
 
     <!-- Toast Notifications -->
     <script src="/js/brdc-toast.js"></script>
 </head>
 <body>
-    <header class="header-bar" role="banner">
-        <button class="back-btn" onclick="window.location.href='/pages/dashboard.html'" aria-label="Back to Dashboard">← BACK</button>
-        <img src="/images/gold_logo.png" alt="Burning River Dart Club" class="header-logo">
-        <h1 class="header-title">CAPTAIN DASHBOARD</h1>
-    </header>
+    <!-- Skip to content link -->
+    <a href="#mainContent" class="skip-link">Skip to main content</a>
 
-    <!-- Login Modal - hidden by default, shown only if no valid session -->
-    <div class="modal-overlay" id="loginModal" role="dialog" aria-modal="true" aria-labelledby="loginModalTitle">
-        <div class="modal-content">
-            <h2 class="modal-title" id="loginModalTitle">Captain Login</h2>
-            <label for="loginEmail" class="sr-only">Email Address</label>
-            <input type="email" id="loginEmail" placeholder="Email Address" class="brdc-input" style="margin-bottom: 15px;" aria-required="true">
-            <button class="brdc-btn" onclick="captainLogin()" style="width: 100%;">LOGIN</button>
-            <button class="brdc-btn brdc-btn-secondary" onclick="window.location.href='/pages/dashboard.html'" style="width: 100%; margin-top: 10px;">CANCEL</button>
+    <!-- Page Loader (shown while initializing) -->
+    <div id="pageLoader" class="page-loader" role="status" aria-label="Loading captain dashboard" aria-busy="true">
+        <img src="/images/gold_logo.png" alt="BRDC" class="loader-logo">
+        <div class="loader-spinner"></div>
+    </div>
+
+    <!-- Login Overlay - hidden by default, shown only if no valid session -->
+    <div class="login-overlay hidden" id="loginOverlay" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
+        <img src="/images/gold_logo.png" alt="BRDC" class="login-logo">
+        <h1 class="login-title" id="loginTitle">CAPTAIN DASHBOARD</h1>
+        <div class="login-box">
+            <h2 class="login-form-title">LOGIN</h2>
+            <div class="login-error hidden" id="loginError" role="alert" aria-live="assertive"></div>
+            <form onsubmit="captainLogin(); return false;">
+                <div class="form-group">
+                    <label class="form-label" for="emailInput">Email</label>
+                    <input type="email" class="form-input" id="emailInput" placeholder="your@email.com" autocomplete="email" aria-label="Email address" aria-describedby="loginError" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="passwordInput">Password</label>
+                    <input type="password" class="form-input" id="passwordInput" placeholder="Password" autocomplete="current-password" aria-label="Password" required>
+                </div>
+                <button type="submit" class="login-btn" id="loginBtn">LOGIN</button>
+            </form>
+            <div style="text-align:center; margin-top: 12px;">
+                <a href="#" onclick="forgotPassword(); return false;" style="color: var(--text-dim, #888); font-size: 13px; text-decoration: none;">Forgot password?</a>
+            </div>
+            <div class="login-divider"><span>OR</span></div>
+            <button type="button" class="btn-google" onclick="loginWithGoogle()">
+                <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.08 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-3.59-13.46-8.86l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+                Sign in with Google
+            </button>
+            <div class="login-links">
+                <a href="/pages/dashboard.html">Back to Dashboard</a>
+            </div>
         </div>
     </div>
 
     <!-- Fill-in Request Modal -->
-    <div class="modal-overlay" id="fillinModal">
+    <div class="modal-overlay" id="fillinModal" role="dialog" aria-modal="true" aria-labelledby="fillinModalTitle">
         <div class="modal-content">
-            <div class="modal-title">Send Fill-in Request</div>
-            <div style="margin-bottom: 15px;">
-                <label style="display: block; margin-bottom: 5px; color: #aaa;">Position Needing Fill-in</label>
-                <select id="fillinPosition" class="brdc-select">
-                    <option value="A">A Level</option>
-                    <option value="B">B Level</option>
-                    <option value="C">C Level</option>
-                </select>
-            </div>
-            <div style="margin-bottom: 15px;">
-                <label style="display: block; margin-bottom: 5px; color: #aaa;">Select Match</label>
-                <select id="fillinMatch" class="brdc-select"></select>
-            </div>
-            <div style="margin-bottom: 10px;">
-                <label style="display: block; margin-bottom: 5px; color: #aaa;">Select Subs to Contact</label>
-                <div class="sub-filters" id="fillinSubFilters">
-                    <button class="filter-btn active" onclick="filterFillinSubs('ALL')">ALL</button>
-                    <button class="filter-btn" onclick="filterFillinSubs('A')">A</button>
-                    <button class="filter-btn" onclick="filterFillinSubs('B')">B</button>
-                    <button class="filter-btn" onclick="filterFillinSubs('C')">C</button>
+            <div class="modal-title" id="fillinModalTitle">Send Fill-in Request</div>
+            <div class="modal-body">
+                <div style="margin-bottom: 15px;">
+                    <label for="fillinPosition" style="display: block; margin-bottom: 5px; color: #aaa;">Position Needing Fill-in</label>
+                    <select id="fillinPosition" class="brdc-select" aria-label="Position needing fill-in">
+                        <option value="A">A Level</option>
+                        <option value="B">B Level</option>
+                        <option value="C">C Level</option>
+                    </select>
                 </div>
-            </div>
-            <div class="sub-select-list" id="fillinSubList"></div>
-            <div style="margin-bottom: 15px;">
-                <label style="display: block; margin-bottom: 5px; color: #aaa;">Custom Message (optional)</label>
-                <textarea id="fillinMessage" class="brdc-input" rows="3" placeholder="Leave blank for default message"></textarea>
-            </div>
-            <div style="display: flex; gap: 15px;">
-                <button class="brdc-btn brdc-btn-secondary" onclick="closeFillinModal()" style="flex: 1;">CANCEL</button>
-                <button class="brdc-btn" onclick="sendFillinRequests()" style="flex: 1;">SEND REQUESTS</button>
+                <div style="margin-bottom: 15px;">
+                    <label for="fillinMatch" style="display: block; margin-bottom: 5px; color: #aaa;">Select Match</label>
+                    <select id="fillinMatch" class="brdc-select" aria-label="Select match for fill-in"></select>
+                </div>
+                <div style="margin-bottom: 10px;">
+                    <label id="fillinSubsLabel" style="display: block; margin-bottom: 5px; color: #aaa;">Select Subs to Contact</label>
+                    <div class="sub-filters" id="fillinSubFilters" role="group" aria-label="Filter substitutes by level">
+                        <button class="filter-btn active" onclick="filterFillinSubs('ALL')" aria-pressed="true">ALL</button>
+                        <button class="filter-btn" onclick="filterFillinSubs('A')" aria-pressed="false">A</button>
+                        <button class="filter-btn" onclick="filterFillinSubs('B')" aria-pressed="false">B</button>
+                        <button class="filter-btn" onclick="filterFillinSubs('C')" aria-pressed="false">C</button>
+                    </div>
+                </div>
+                <div class="sub-select-list" id="fillinSubList" role="group" aria-labelledby="fillinSubsLabel"></div>
+                <div style="margin-bottom: 15px;">
+                    <label for="fillinMessage" style="display: block; margin-bottom: 5px; color: #aaa;">Custom Message (optional)</label>
+                    <textarea id="fillinMessage" class="brdc-input" rows="3" placeholder="Leave blank for default message" aria-label="Custom message for fill-in request"></textarea>
+                </div>
+                <div style="display: flex; gap: 15px;">
+                    <button class="brdc-btn brdc-btn-secondary" onclick="closeFillinModal()" style="flex: 1;" aria-label="Cancel fill-in request">CANCEL</button>
+                    <button class="brdc-btn" onclick="sendFillinRequests()" style="flex: 1;" aria-label="Send fill-in requests">SEND REQUESTS</button>
+                </div>
             </div>
         </div>
     </div>
 
     <!-- Team Message Modal -->
-    <div class="modal-overlay" id="messageModal">
+    <div class="modal-overlay" id="messageModal" role="dialog" aria-modal="true" aria-labelledby="messageModalTitle">
         <div class="modal-content">
-            <div class="modal-title">Message Team</div>
-            <div style="margin-bottom: 15px;">
-                <label style="display: block; margin-bottom: 5px; color: #aaa;">Recipients</label>
-                <div class="sub-select-list" id="messageRecipientList" style="max-height: 200px;"></div>
-            </div>
-            <div style="margin-bottom: 15px;">
-                <label style="display: block; margin-bottom: 5px; color: #aaa;">Send Via</label>
-                <div class="channel-options">
-                    <label class="channel-option">
-                        <input type="checkbox" id="channelSms" checked>
-                        <span>SMS</span>
-                    </label>
-                    <label class="channel-option">
-                        <input type="checkbox" id="channelEmail">
-                        <span>Email</span>
-                    </label>
+            <div class="modal-title" id="messageModalTitle">Message Team</div>
+            <div class="modal-body">
+                <div style="margin-bottom: 15px;">
+                    <label id="messageRecipientsLabel" style="display: block; margin-bottom: 5px; color: #aaa;">Recipients</label>
+                    <div class="sub-select-list" id="messageRecipientList" style="max-height: 200px;" role="group" aria-labelledby="messageRecipientsLabel"></div>
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <fieldset style="border: none; padding: 0; margin: 0;">
+                        <legend style="display: block; margin-bottom: 5px; color: #aaa; font-size: inherit; padding: 0;">Send Via</legend>
+                        <div class="channel-options">
+                            <label class="channel-option">
+                                <input type="checkbox" id="channelSms" checked aria-label="Send via SMS">
+                                <span>SMS</span>
+                            </label>
+                            <label class="channel-option">
+                                <input type="checkbox" id="channelEmail" aria-label="Send via email">
+                                <span>Email</span>
+                            </label>
+                        </div>
+                    </fieldset>
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <label for="teamMessage" style="display: block; margin-bottom: 5px; color: #aaa;">Message</label>
+                    <textarea id="teamMessage" class="brdc-input" rows="4" placeholder="Enter your message..." aria-label="Team message content"></textarea>
+                </div>
+                <div style="display: flex; gap: 15px;">
+                    <button class="brdc-btn brdc-btn-secondary" onclick="closeMessageModal()" style="flex: 1;" aria-label="Cancel message">CANCEL</button>
+                    <button class="brdc-btn" onclick="sendTeamMessage()" style="flex: 1;" aria-label="Send message to team">SEND</button>
                 </div>
             </div>
-            <div style="margin-bottom: 15px;">
-                <label style="display: block; margin-bottom: 5px; color: #aaa;">Message</label>
-                <textarea id="teamMessage" class="brdc-input" rows="4" placeholder="Enter your message..."></textarea>
-            </div>
-            <div style="display: flex; gap: 15px;">
-                <button class="brdc-btn brdc-btn-secondary" onclick="closeMessageModal()" style="flex: 1;">CANCEL</button>
-                <button class="brdc-btn" onclick="sendTeamMessage()" style="flex: 1;">SEND</button>
-            </div>
         </div>
     </div>
 
-    <!-- Replace Player Modal -->
-    <div class="modal-overlay" id="replaceModal">
-        <div class="modal-content">
-            <div class="modal-title">Replace Player</div>
-            <p style="margin-bottom: 15px;">Select a replacement for <strong id="replacePlayerName">-</strong></p>
-            <select id="replacementSelect" class="brdc-select" style="margin-bottom: 15px;"></select>
-            <input type="text" id="replaceReason" placeholder="Reason (optional)" class="brdc-input" style="margin-bottom: 15px;">
-            <div style="display: flex; gap: 15px;">
-                <button class="brdc-btn brdc-btn-secondary" onclick="closeReplaceModal()" style="flex: 1;">CANCEL</button>
-                <button class="brdc-btn" onclick="confirmReplacement()" style="flex: 1;">CONFIRM</button>
-            </div>
-        </div>
-    </div>
-
-    <div class="dashboard-container" id="dashboardContent" style="display: none;">
+    <main class="dashboard-container" id="mainContent" style="display: none;">
         <div class="dashboard-header">
-            <div>
-                <div class="team-name">
-                    <span class="team-name-text" id="teamName" onclick="startEditTeamName()">Loading...</span>
-                    <span class="edit-icon" onclick="startEditTeamName()">✏️</span>
-                    <input type="text" class="team-name-input" id="teamNameInput" style="display: none;"
-                           onblur="saveTeamName()" onkeypress="if(event.key==='Enter') saveTeamName()">
+            <div class="header-top-row">
+                <div class="header-team-info">
+                    <div class="team-name">
+                        <span class="team-name-text" id="teamName" onclick="startEditTeamName()" role="button" tabindex="0" aria-label="Team name, click to edit">Loading...</span>
+                        <span class="edit-icon" onclick="startEditTeamName()" role="button" tabindex="0" aria-label="Edit team name">✏️</span>
+                        <input type="text" class="team-name-input" id="teamNameInput" style="display: none;"
+                               onblur="saveTeamName()" onkeypress="if(event.key==='Enter') saveTeamName()" aria-label="Team name input">
+                    </div>
+                    <span class="standing-badge" id="teamStanding" aria-label="Team standing">—</span>
+                    <span class="record-badge" id="teamRecord" aria-label="Team record">0-0</span>
                 </div>
-                <div class="league-name" id="leagueName">-</div>
             </div>
-            <div class="header-actions">
-                <button class="header-action-btn message-btn" onclick="openMessageModal()">MESSAGE TEAM</button>
-                <div style="text-align: right;">
-                    <div class="record" id="teamRecord">0-0</div>
-                    <div style="font-size: 12px; color: var(--text-dim);">Games: <span id="gamesRecord" style="color: var(--teal); font-weight: 600;">0-0</span></div>
+            <div class="header-stats-row">
+                <div class="league-name" id="leagueName" aria-label="League name">-</div>
+                <div style="flex: 1;"></div>
+                <div class="header-stat">
+                    <span class="header-stat-label">3DA</span>
+                    <span class="header-stat-value" id="teamAvg3DA" aria-label="Team 3-dart average">-</span>
                 </div>
+                <div class="header-stat">
+                    <span class="header-stat-label">MPR</span>
+                    <span class="header-stat-value" id="teamAvgMPR" aria-label="Team marks per round">-</span>
+                </div>
+            </div>
+            <div class="header-actions-row">
+                <button class="header-action-btn message-btn" onclick="openMessageModal()" style="font-size: 11px; padding: 6px 14px;" aria-label="Send message to team">MESSAGE TEAM</button>
             </div>
         </div>
 
-        <nav class="tabs" role="tablist" aria-label="Captain dashboard sections">
-            <button class="tab active" role="tab" aria-selected="true" aria-controls="tab-roster" onclick="showTab('roster', event)">ROSTER</button>
-            <button class="tab" role="tab" aria-selected="false" aria-controls="tab-schedule" onclick="showTab('schedule', event)">SCHEDULE</button>
-            <button class="tab" role="tab" aria-selected="false" aria-controls="tab-lineup" onclick="showTab('lineup', event)">SET LINEUP</button>
-            <button class="tab" role="tab" aria-selected="false" aria-controls="tab-subs" onclick="showTab('subs', event)">SUBSTITUTES</button>
-            <button class="tab" role="tab" aria-selected="false" aria-controls="tab-freeagents" id="freeAgentsTab" onclick="showTab('freeagents', event)" style="display: none;">FREE AGENTS</button>
-            <button class="tab" role="tab" aria-selected="false" aria-controls="tab-notifications" onclick="showTab('notifications', event)">ALERTS <span id="alertCount" aria-label="alert count"></span></button>
+        <!-- Roster Section - Always visible above tabs -->
+        <section class="roster-section" id="rosterSection" aria-labelledby="rosterTitle">
+            <div class="roster-header">
+                <h2 class="roster-title" id="rosterTitle">ROSTER</h2>
+                <span class="roster-subtitle" id="rosterSubtitle"></span>
+            </div>
+            <div id="rosterRows" role="table" aria-label="Team roster">
+                <!-- Populated by renderRoster() -->
+            </div>
+        </section>
+
+        <nav class="tab-nav" role="tablist" aria-label="Captain dashboard sections">
+            <button class="tab-btn active" role="tab" aria-selected="true" aria-controls="tab-schedule" onclick="showTab('schedule', event)">SCHEDULE</button>
+            <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-subs" onclick="showTab('subs', event)">SUBSTITUTES</button>
+            <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-freeagents" id="freeAgentsTab" onclick="showTab('freeagents', event)" style="display: none;">FREE AGENTS</button>
+            <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-notifications" onclick="showTab('notifications', event)">ALERTS <span id="alertCount" aria-label="alert count"></span></button>
         </nav>
 
-        <!-- Roster Tab -->
-        <section class="tab-content active" id="tab-roster" role="tabpanel" aria-label="Team roster">
-            <div class="roster-grid" id="rosterGrid">
-                <!-- Skeleton loading state -->
-                <div class="roster-card">
-                    <div class="skeleton" style="height: 12px; width: 80px; margin-bottom: 8px;"></div>
-                    <div class="skeleton" style="height: 24px; width: 140px; margin-bottom: 16px;"></div>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-                        <div style="background: rgba(0,0,0,0.25); padding: 10px 8px; border-radius: 8px;">
-                            <div class="skeleton" style="height: 10px; width: 30px; margin: 0 auto 6px;"></div>
-                            <div class="skeleton" style="height: 20px; width: 40px; margin: 0 auto;"></div>
-                        </div>
-                        <div style="background: rgba(0,0,0,0.25); padding: 10px 8px; border-radius: 8px;">
-                            <div class="skeleton" style="height: 10px; width: 30px; margin: 0 auto 6px;"></div>
-                            <div class="skeleton" style="height: 20px; width: 40px; margin: 0 auto;"></div>
-                        </div>
-                    </div>
-                </div>
-                <div class="roster-card">
-                    <div class="skeleton" style="height: 12px; width: 80px; margin-bottom: 8px;"></div>
-                    <div class="skeleton" style="height: 24px; width: 140px; margin-bottom: 16px;"></div>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-                        <div style="background: rgba(0,0,0,0.25); padding: 10px 8px; border-radius: 8px;">
-                            <div class="skeleton" style="height: 10px; width: 30px; margin: 0 auto 6px;"></div>
-                            <div class="skeleton" style="height: 20px; width: 40px; margin: 0 auto;"></div>
-                        </div>
-                        <div style="background: rgba(0,0,0,0.25); padding: 10px 8px; border-radius: 8px;">
-                            <div class="skeleton" style="height: 10px; width: 30px; margin: 0 auto 6px;"></div>
-                            <div class="skeleton" style="height: 20px; width: 40px; margin: 0 auto;"></div>
-                        </div>
-                    </div>
-                </div>
-                <div class="roster-card">
-                    <div class="skeleton" style="height: 12px; width: 80px; margin-bottom: 8px;"></div>
-                    <div class="skeleton" style="height: 24px; width: 140px; margin-bottom: 16px;"></div>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-                        <div style="background: rgba(0,0,0,0.25); padding: 10px 8px; border-radius: 8px;">
-                            <div class="skeleton" style="height: 10px; width: 30px; margin: 0 auto 6px;"></div>
-                            <div class="skeleton" style="height: 20px; width: 40px; margin: 0 auto;"></div>
-                        </div>
-                        <div style="background: rgba(0,0,0,0.25); padding: 10px 8px; border-radius: 8px;">
-                            <div class="skeleton" style="height: 10px; width: 30px; margin: 0 auto 6px;"></div>
-                            <div class="skeleton" style="height: 20px; width: 40px; margin: 0 auto;"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
         <!-- Schedule Tab -->
-        <section class="tab-content" id="tab-schedule" role="tabpanel" aria-label="Match schedule">
-            <div style="overflow-x: auto;">
-                <table class="schedule-table">
-                    <thead>
-                        <tr>
-                            <th>Week</th>
-                            <th>Date</th>
-                            <th>Opponent</th>
-                            <th>Status</th>
-                            <th>Score</th>
-                            <th>Availability</th>
-                        </tr>
-                    </thead>
-                    <tbody id="scheduleBody"></tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- Lineup Tab -->
-        <section class="tab-content" id="tab-lineup" role="tabpanel" aria-label="Set lineup">
-            <div class="lineup-section">
-                <div class="lineup-title">Select Match</div>
-                <select id="lineupMatchSelect" class="brdc-select" onchange="loadLineupForMatch()" style="margin-bottom: 20px;">
-                    <option value="">Select upcoming match...</option>
-                </select>
-                <div id="lineupBuilder" style="display: none;">
-                    <div class="lineup-title">Set Your Lineup</div>
-                    <div id="lineupRows"></div>
-                    <button class="brdc-btn" onclick="saveLineup()" style="margin-top: 20px;">SAVE LINEUP</button>
-                </div>
-            </div>
-        </div>
+        <section class="tab-content active" id="tab-schedule" role="tabpanel" aria-label="Match schedule">
+            <div id="scheduleCards"></div>
+        </section>
 
         <!-- Subs Tab -->
         <section class="tab-content" id="tab-subs" role="tabpanel" aria-label="Substitutes">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
-                <div class="sub-filters" id="subFilters">
-                    <button class="filter-btn active" data-level="ALL" onclick="filterSubs('ALL', this)">ALL</button>
-                    <button class="filter-btn" data-level="A" onclick="filterSubs('A', this)">A</button>
-                    <button class="filter-btn" data-level="B" onclick="filterSubs('B', this)">B</button>
-                    <button class="filter-btn" data-level="C" onclick="filterSubs('C', this)">C</button>
+                <div class="sub-filters" id="subFilters" role="group" aria-label="Filter substitutes by level">
+                    <button class="filter-btn active" data-level="ALL" onclick="filterSubs('ALL', this)" aria-pressed="true">ALL</button>
+                    <button class="filter-btn" data-level="A" onclick="filterSubs('A', this)" aria-pressed="false">A</button>
+                    <button class="filter-btn" data-level="B" onclick="filterSubs('B', this)" aria-pressed="false">B</button>
+                    <button class="filter-btn" data-level="C" onclick="filterSubs('C', this)" aria-pressed="false">C</button>
                 </div>
-                <button class="brdc-btn" onclick="openFillinModal()">SEND FILL-IN REQUEST</button>
+                <button class="brdc-btn" onclick="openFillinModal()" aria-label="Send fill-in request">SEND FILL-IN REQUEST</button>
             </div>
-            <div class="subs-list" id="subsList"></div>
+            <div class="subs-list" id="subsList" role="list"></div>
 
             <!-- Pending Fill-in Requests Section -->
-            <div class="pending-requests" id="pendingRequestsSection" style="display: none;">
-                <div class="fillin-section-title">Pending Fill-in Requests</div>
-                <div id="pendingRequestsList"></div>
+            <div class="pending-requests" id="pendingRequestsSection" style="display: none;" aria-live="polite">
+                <div class="fillin-request-section">
+                    <h3 class="fillin-section-title">Pending Fill-in Requests</h3>
+                    <div id="pendingRequestsList" role="list"></div>
+                </div>
             </div>
-        </div>
+        </section>
 
         <!-- Free Agents Tab -->
         <section class="tab-content" id="tab-freeagents" role="tabpanel" aria-label="Free agents">
             <div style="margin-bottom: 20px;">
-                <div style="font-family: 'Bebas Neue', cursive; font-size: 24px; color: var(--teal); margin-bottom: 10px;">
+                <h2 style="font-family: 'Oswald', sans-serif; font-size: 24px; color: var(--teal); margin-bottom: 10px; text-transform: uppercase;">
                     Available Free Agents
-                </div>
-                <div style="font-size: 14px; color: #aaa;">
+                </h2>
+                <p style="font-size: 14px; color: #aaa;">
                     Invite players to join your team. They'll receive a notification and can accept or decline.
-                </div>
+                </p>
             </div>
-            <div class="subs-list" id="freeAgentsList"></div>
-        </div>
+            <div class="subs-list" id="freeAgentsList" role="list"></div>
+        </section>
 
         <!-- Notifications Tab -->
         <section class="tab-content" id="tab-notifications" role="tabpanel" aria-label="Alerts and notifications">
-            <div class="notifications-list" id="notificationsList"></div>
-        </div>
+            <div class="notifications-list" id="notificationsList" role="list"></div>
+        </section>
 
         <div style="margin-top: 30px; text-align: center;">
-            <button class="brdc-btn brdc-btn-secondary" onclick="logout()">LOGOUT</button>
+            <button class="brdc-btn brdc-btn-secondary" onclick="logout()" aria-label="Logout from captain dashboard">LOGOUT</button>
         </div>
-    </div>
+    </main>
 
     <script type="module">
-        import { callFunction } from '/js/firebase-config.js';
+        import { auth, signInWithEmailAndPassword, sendPasswordResetEmail, callFunction, signInWithPopup, GoogleAuthProvider } from '/js/firebase-config.js';
 
         let dashboardData = null;
         let currentLeagueId = null;
         let currentTeamId = null;
+        let currentPlayerId = null;
         let captainEmail = null;
-        let replacePlayerId = null;
 
         const params = new URLSearchParams(window.location.search);
         currentLeagueId = params.get('league_id');
 
-        // Initialize session - check main brdc_session first, then captain session
-        let currentPlayerId = null;
+        // Helper: extract captain team/league IDs from session data
+        function findCaptainIds(session) {
+            let teamId = null, leagueId = null;
+
+            // 1) Direct team_id + is_captain on session (from globalLogin)
+            if (session.team_id && session.is_captain && session.league_id) {
+                teamId = session.team_id;
+                leagueId = session.league_id;
+            }
+
+            // 2) Check involvements.leagues array for captain role
+            if (!teamId) {
+                const involvements = session.involvements || {};
+                const leagues = involvements.leagues || [];
+                for (const league of leagues) {
+                    if (league.team_id && (league.role === 'captain' || session.is_captain)) {
+                        leagueId = league.id;
+                        teamId = league.team_id;
+                        break;
+                    }
+                }
+            }
+
+            return { teamId, leagueId };
+        }
+
+        // Helper: load captain dashboard with given IDs (single cloud function call)
+        async function loadCaptainDashboard(playerId, teamId, leagueId, email) {
+            const result = await callFunction('getCaptainDashboard', {
+                league_id: leagueId,
+                team_id: teamId,
+                captain_id: playerId,
+                captain_email: email || null
+            });
+
+            if (result.success) {
+                currentPlayerId = playerId;
+                currentTeamId = teamId;
+                currentLeagueId = leagueId;
+                dashboardData = result;
+
+                // Cache for instant reload
+                localStorage.setItem('captainSession', JSON.stringify({
+                    teamId, leagueId, playerId, email: email || null
+                }));
+
+                document.getElementById('mainContent').style.display = 'block';
+                renderDashboard();
+                return true;
+            }
+            return false;
+        }
 
         (async () => {
-            // First try main BRDC session (from dashboard login)
+            // 1) Try brdc_session — single call using stored team_id/involvements
             const brdcSession = localStorage.getItem('brdc_session');
             if (brdcSession) {
                 try {
                     const session = JSON.parse(brdcSession);
-                    currentPlayerId = session.player_id;
+                    const { teamId, leagueId } = findCaptainIds(session);
 
-                    // Get dashboard data to find captain's team info
-                    const dashResult = await callFunction('getDashboardData', {
-                        player_id: session.player_id,
-                        source_type: session.source_type || 'global',
-                        league_id: session.league_id || currentLeagueId
-                    });
-
-                    if (dashResult.success && dashResult.dashboard) {
-                        const player = dashResult.dashboard.player;
-                        const roles = dashResult.dashboard.roles;
-
-
-                        // Find captain role - check if player is captain of any team
-                        if (roles && roles.playing) {
-                            for (const team of roles.playing) {
-                                // Skip teams without team_id
-                                if (!team.team_id) {
-                                    continue;
-                                }
-
-                                // Use league_id from URL if provided, otherwise use first team
-                                const teamLeagueId = team.league_id || team.id;
-                                if (!currentLeagueId || teamLeagueId === currentLeagueId) {
-                                    currentLeagueId = teamLeagueId;
-                                    currentTeamId = team.team_id;
-                                    captainEmail = player.email || null;
-
-
-                                    // Try to load captain dashboard - use player ID for auth
-                                    try {
-                                        const params = {
-                                            league_id: currentLeagueId,
-                                            team_id: currentTeamId,
-                                            captain_id: player.id
-                                        };
-                                        // Only add email if it exists
-                                        if (captainEmail) params.captain_email = captainEmail;
-
-                                        const result = await callFunction('getCaptainDashboard', params);
-
-
-                                        if (result.success) {
-                                            dashboardData = result;
-                                            // Also save to captainSession for future visits
-                                            localStorage.setItem('captainSession', JSON.stringify({
-                                                email: captainEmail,
-                                                teamId: currentTeamId,
-                                                leagueId: currentLeagueId,
-                                                playerId: player.id
-                                            }));
-                                            document.getElementById('dashboardContent').style.display = 'block';
-                                            renderDashboard();
-                                            return; // Success - don't show login
-                                        }
-                                    } catch (dashErr) {
-                                        console.error('getCaptainDashboard error:', dashErr);
-                                    }
-                                }
-                            }
+                    if (teamId && leagueId) {
+                        const ok = await loadCaptainDashboard(session.player_id, teamId, leagueId);
+                        if (ok) {
+                            document.getElementById('pageLoader')?.classList.add('hidden');
+                            return;
                         }
                     }
                 } catch (error) {
@@ -1453,73 +320,186 @@
                 }
             }
 
-            // Fall back to captain session
+            // 2) Try captainSession — saved from prior captain dashboard visit
             const savedSession = localStorage.getItem('captainSession');
             if (savedSession) {
-                const session = JSON.parse(savedSession);
-                captainEmail = session.email;
-                currentTeamId = session.teamId;
-                currentLeagueId = session.leagueId || currentLeagueId;
-                currentPlayerId = session.playerId;
-
                 try {
-                    const result = await callFunction('getCaptainDashboard', {
-                        league_id: currentLeagueId,
-                        team_id: currentTeamId,
-                        captain_id: currentPlayerId,
-                        captain_email: captainEmail
-                    });
-                    if (result.success) {
-                        dashboardData = result;
-                        document.getElementById('dashboardContent').style.display = 'block';
-                        renderDashboard();
-                        return; // Session valid, don't show login
+                    const session = JSON.parse(savedSession);
+                    if (session.teamId && session.leagueId && session.playerId) {
+                        const ok = await loadCaptainDashboard(session.playerId, session.teamId, session.leagueId, session.email);
+                        if (ok) {
+                            document.getElementById('pageLoader')?.classList.add('hidden');
+                            return;
+                        }
                     }
                 } catch (error) {
                     console.error('Captain session check failed:', error);
                 }
-                // Session invalid, clear it
                 localStorage.removeItem('captainSession');
-                captainEmail = null;
-                currentTeamId = null;
             }
 
-            // No valid session found, show login modal
-            document.getElementById('loginModal').classList.add('active');
+            // 3) No valid session — show PIN login
+            document.getElementById('pageLoader')?.classList.add('hidden');
+            document.getElementById('loginOverlay').classList.remove('hidden');
         })();
 
         window.captainLogin = async function() {
-            const email = document.getElementById('loginEmail').value.trim().toLowerCase();
-            if (!email) { toastWarning('Please enter your email'); return; }
+            const email = (document.getElementById('emailInput')?.value || '').trim();
+            const password = document.getElementById('passwordInput')?.value || '';
+            const errorDiv = document.getElementById('loginError');
+            const btn = document.getElementById('loginBtn');
+
+            errorDiv.classList.add('hidden');
+
+            if (!email || !password) {
+                errorDiv.textContent = 'Please enter your email and password.';
+                errorDiv.classList.remove('hidden');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'LOGGING IN...';
 
             try {
-                const result = await callFunction('captainLogin', { league_id: currentLeagueId, email });
-                if (result.success) {
-                    captainEmail = email;
-                    currentTeamId = result.team.id;
-                    currentLeagueId = currentLeagueId || result.league_id;
-                    localStorage.setItem('captainSession', JSON.stringify({ email: captainEmail, teamId: currentTeamId, leagueId: currentLeagueId }));
-                    loadDashboard();
-                } else {
-                    toastError(result.error || 'Login failed');
+                await signInWithEmailAndPassword(auth, email, password);
+
+                const result = await callFunction('getPlayerSession', {});
+                if (!result?.success) throw new Error(result?.error || 'Login failed');
+
+                const player = result.player;
+                captainEmail = player.email || email;
+
+                // Save full brdc_session (including team_id, is_captain, involvements)
+                localStorage.setItem('brdc_session', JSON.stringify({
+                    player_id: player.id,
+                    name: player.name,
+                    source_type: player.source_type || 'global',
+                    league_id: player.league_id || null,
+                    team_id: player.team_id || null,
+                    is_captain: player.is_captain || false,
+                    is_admin: player.is_admin || false,
+                    is_master_admin: player.is_master_admin || false,
+                    is_director: player.is_director || false,
+                    involvements: player.involvements || {},
+                    logged_in_at: Date.now()
+                }));
+                localStorage.removeItem('brdc_player_pin');
+
+                // Extract captain team/league from login response (no second call needed)
+                const { teamId, leagueId } = findCaptainIds({
+                    team_id: player.team_id,
+                    league_id: player.league_id,
+                    is_captain: player.is_captain,
+                    involvements: player.involvements || {}
+                });
+
+                if (teamId && leagueId) {
+                    document.getElementById('loginOverlay').classList.add('hidden');
+                    const ok = await loadCaptainDashboard(player.id, teamId, leagueId, captainEmail);
+                    if (ok) {
+                        document.getElementById('pageLoader')?.classList.add('hidden');
+                        return;
+                    }
                 }
-            } catch (error) {
-                console.error('Login error:', error);
-                toastError('Login failed: ' + error.message);
+
+                // Logged in but not a captain
+                document.getElementById('loginOverlay').classList.remove('hidden');
+                errorDiv.textContent = 'No captain role found for this account';
+                errorDiv.classList.remove('hidden');
+            } catch (err) {
+                console.error('Login error:', err);
+                let msg = 'Login failed. Please try again.';
+                if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') msg = 'Invalid email or password.';
+                else if (err.code === 'auth/too-many-requests') msg = 'Too many attempts. Try again later.';
+                else if (err.message) msg = err.message;
+                errorDiv.textContent = msg;
+                errorDiv.classList.remove('hidden');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'LOGIN';
+            }
+        };
+
+        window.forgotPassword = async function() {
+            const email = (document.getElementById('emailInput')?.value || '').trim();
+            if (!email) { alert('Enter your email first.'); return; }
+            try {
+                await sendPasswordResetEmail(auth, email);
+                alert('Password reset email sent!');
+            } catch (err) {
+                alert('Could not send reset email. Try again.');
+            }
+        };
+
+        window.loginWithGoogle = async function() {
+            const errorDiv = document.getElementById('loginError');
+            errorDiv.classList.add('hidden');
+            try {
+                const provider = new GoogleAuthProvider();
+                await signInWithPopup(auth, provider);
+
+                const result = await callFunction('getPlayerSession', {});
+                if (!result?.success) throw new Error(result?.error || 'Login failed');
+
+                const player = result.player;
+                captainEmail = player.email || null;
+
+                localStorage.setItem('brdc_session', JSON.stringify({
+                    player_id: player.id,
+                    name: player.name,
+                    source_type: player.source_type || 'global',
+                    league_id: player.league_id || null,
+                    team_id: player.team_id || null,
+                    is_captain: player.is_captain || false,
+                    is_admin: player.is_admin || false,
+                    is_master_admin: player.is_master_admin || false,
+                    is_director: player.is_director || false,
+                    involvements: player.involvements || {},
+                    logged_in_at: Date.now()
+                }));
+                localStorage.removeItem('brdc_player_pin');
+
+                const { teamId, leagueId } = findCaptainIds({
+                    team_id: player.team_id,
+                    league_id: player.league_id,
+                    is_captain: player.is_captain,
+                    involvements: player.involvements || {}
+                });
+
+                if (teamId && leagueId) {
+                    document.getElementById('loginOverlay').classList.add('hidden');
+                    const ok = await loadCaptainDashboard(player.id, teamId, leagueId, captainEmail);
+                    if (ok) {
+                        document.getElementById('pageLoader')?.classList.add('hidden');
+                        return;
+                    }
+                }
+
+                document.getElementById('loginOverlay').classList.remove('hidden');
+                errorDiv.textContent = 'No captain role found for this account';
+                errorDiv.classList.remove('hidden');
+            } catch (err) {
+                if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') return;
+                let msg = 'Google sign-in failed. Please try again.';
+                if (err.code === 'auth/popup-blocked') msg = 'Popup was blocked. Please allow popups for this site and try again.';
+                else if (err.message) msg = err.message;
+                errorDiv.textContent = msg;
+                errorDiv.classList.remove('hidden');
             }
         };
 
         window.logout = function() {
             localStorage.removeItem('captainSession');
+            // Don't remove brdc_session — that's the main login
             location.reload();
         };
 
         async function loadDashboard() {
-            document.getElementById('loginModal').classList.remove('active');
-            document.getElementById('dashboardContent').style.display = 'block';
+            document.getElementById('loginOverlay').classList.add('hidden');
+            document.getElementById('mainContent').style.display = 'block';
 
             try {
-                const result = await callFunction('getCaptainDashboard', { league_id: currentLeagueId, team_id: currentTeamId, captain_email: captainEmail });
+                const result = await callFunction('getCaptainDashboard', { league_id: currentLeagueId, team_id: currentTeamId, captain_id: currentPlayerId, captain_email: captainEmail });
                 if (result.success) {
                     dashboardData = result;
                     renderDashboard();
@@ -1533,12 +513,22 @@
         }
 
         function renderDashboard() {
-            const { team, league, matches, player_stats, available_subs, free_agents, notifications, pending_fillin_requests } = dashboardData;
+            const { team, league, matches, player_stats, available_subs, free_agents, notifications, pending_fillin_requests, next_opponent } = dashboardData;
 
             document.getElementById('teamName').textContent = team.team_name || '(Set Team Name)';
             document.getElementById('leagueName').textContent = formatLeagueName(league.league_name);
             document.getElementById('teamRecord').textContent = `${team.wins || 0}-${team.losses || 0}${(team.ties || 0) > 0 ? '-' + team.ties : ''}`;
-            document.getElementById('gamesRecord').textContent = `${team.games_won || 0}-${team.games_lost || 0}`;
+
+            // New header fields
+            const standingEl = document.getElementById('teamStanding');
+            if (team.standing) {
+                const suffix = team.standing === 1 ? 'st' : team.standing === 2 ? 'nd' : team.standing === 3 ? 'rd' : 'th';
+                standingEl.textContent = team.standing + suffix;
+            } else {
+                standingEl.textContent = '—';
+            }
+            document.getElementById('teamAvg3DA').textContent = team.team_3da > 0 ? team.team_3da.toFixed(1) : '-';
+            document.getElementById('teamAvgMPR').textContent = team.team_mpr > 0 ? team.team_mpr.toFixed(2) : '-';
 
             // Show free agents tab if league allows and team has open spots
             const hasOpenSpots = (team.roster_count || 0) < (team.max_roster || 4);
@@ -1548,7 +538,6 @@
 
             renderRoster(team, player_stats);
             renderSchedule(matches, team);
-            renderLineupMatches(matches);
             renderSubs(available_subs);
             renderFreeAgents(free_agents || [], team);
             renderNotifications(notifications);
@@ -1590,7 +579,7 @@
                 const result = await callFunction('updateTeamName', {
                     league_id: currentLeagueId,
                     team_id: currentTeamId,
-                    captain_email: captainEmail,
+                    captain_id: currentPlayerId,
                     team_name: newName
                 });
 
@@ -1610,7 +599,7 @@
         function renderFreeAgents(freeAgents, team) {
             const list = document.getElementById('freeAgentsList');
             if (!freeAgents || freeAgents.length === 0) {
-                list.innerHTML = '<div style="text-align: center; color: #aaa; padding: 40px;">No free agents available</div>';
+                list.innerHTML = '<div class="empty-state"><div class="empty-state-icon" aria-hidden="true">🆓</div><div class="empty-state-text">No free agents available</div></div>';
                 return;
             }
 
@@ -1618,13 +607,16 @@
 
             list.innerHTML = freeAgents.map(fa => {
                 const alreadyInvited = fa.invites_received?.includes(currentTeamId);
+                const buttonLabel = alreadyInvited ? `Invite already sent to ${fa.name}` :
+                                  (hasOpenSpots ? `Invite ${fa.name} to team` : 'Roster is full');
                 return `
-                    <div class="free-agent-card ${alreadyInvited ? 'invited' : ''}">
-                        ${alreadyInvited ? '<span class="invited-badge">INVITED</span>' : ''}
+                    <div class="free-agent-card ${alreadyInvited ? 'invited' : ''}" role="listitem">
+                        ${alreadyInvited ? '<span class="invited-badge" aria-label="Invite sent">INVITED</span>' : ''}
                         <div class="free-agent-name">${fa.name}</div>
-                        ${fa.skill_level ? `<span class="free-agent-level">${fa.skill_level}</span>` : ''}
+                        ${fa.skill_level ? `<span class="free-agent-level" aria-label="Skill level ${fa.skill_level}">${fa.skill_level}</span>` : ''}
                         ${fa.note ? `<div class="free-agent-note">"${fa.note}"</div>` : ''}
                         <button class="invite-btn" onclick="inviteFreeAgent('${fa.id}', '${fa.name}')"
+                                aria-label="${buttonLabel}"
                                 ${!hasOpenSpots || alreadyInvited ? 'disabled' : ''}>
                             ${alreadyInvited ? 'INVITE SENT' : (hasOpenSpots ? 'INVITE TO TEAM' : 'ROSTER FULL')}
                         </button>
@@ -1640,7 +632,7 @@
                 const result = await callFunction('sendTeamInvite', {
                     league_id: currentLeagueId,
                     team_id: currentTeamId,
-                    captain_email: captainEmail,
+                    captain_id: currentPlayerId,
                     free_agent_id: freeAgentId
                 });
 
@@ -1662,169 +654,292 @@
             }
         };
 
-        // Toggle player attendance for a match
-        window.toggleAttendance = async function(playerId, matchId, isAvailable) {
-            const statusEl = document.getElementById(`status-${playerId}`);
-            const card = statusEl?.closest('.roster-card');
-
-            // Optimistic UI update
-            if (statusEl) {
-                statusEl.textContent = isAvailable ? 'IN' : 'OUT';
-                statusEl.className = `attendance-status ${isAvailable ? 'available' : 'unavailable'}`;
-            }
-            if (card) {
-                card.classList.toggle('unavailable', !isAvailable);
-            }
-
-            try {
-                const result = await callFunction('setPlayerAvailability', {
-                    league_id: currentLeagueId,
-                    match_id: matchId,
-                    player_id: playerId,
-                    available: isAvailable
-                });
-
-                if (!result.success) {
-                    // Revert on failure
-                    const checkbox = card?.querySelector('input[type="checkbox"]');
-                    if (checkbox) checkbox.checked = !isAvailable;
-                    if (statusEl) {
-                        statusEl.textContent = isAvailable ? 'OUT' : 'IN';
-                        statusEl.className = `attendance-status ${isAvailable ? 'unavailable' : 'available'}`;
-                    }
-                    if (card) card.classList.toggle('unavailable', isAvailable);
-                    toastError(result.error || 'Failed to update availability');
-                } else {
-                    // Update local data
-                    const match = dashboardData?.matches?.find(m => m.id === matchId);
-                    if (match) {
-                        match.availability = match.availability || {};
-                        match.availability[playerId] = isAvailable ? 'available' : 'unavailable';
-                    }
-                }
-            } catch (error) {
-                console.error('Toggle attendance error:', error);
-                // Revert on error
-                const checkbox = card?.querySelector('input[type="checkbox"]');
-                if (checkbox) checkbox.checked = !isAvailable;
-                toastError('Failed to update attendance');
-            }
-        };
-
         function renderRoster(team, playerStats) {
-            const grid = document.getElementById('rosterGrid');
-            const positions = ['1', '2', '3', '4', '5']; // Use numbers to avoid confusion with levels
-
-            // Find next upcoming match
+            const container = document.getElementById('rosterRows');
             const nextMatch = dashboardData?.matches?.find(m => m.status === 'scheduled');
-            const matchLabel = nextMatch ? `Week ${nextMatch.week}` : 'Next Match';
+            const nextOpponent = dashboardData?.next_opponent;
 
-            grid.innerHTML = (team.players || []).map(player => {
-                const stats = playerStats.find(s => s.player_id === player.id) || {};
-                const posLabel = positions[player.position - 1] || player.position;
+            // Update header
+            if (nextOpponent) {
+                document.getElementById('rosterTitle').textContent = `WEEK ${nextOpponent.match_week} ROSTER`;
+                document.getElementById('rosterSubtitle').innerHTML = `vs <strong>${nextOpponent.team.name}</strong>`;
+            } else {
+                document.getElementById('rosterTitle').textContent = 'ROSTER';
+                document.getElementById('rosterSubtitle').textContent = '';
+            }
 
-                // Get player level (A/B/C)
+            let html = '';
+
+            // Column labels
+            html += `
+                <div class="roster-col-labels">
+                    <span>PLAYER</span>
+                    <span>3DA</span>
+                    <span>MPR</span>
+                    <span>W%</span>
+                    <span></span>
+                    <span></span>
+                </div>
+            `;
+
+            // Player rows
+            (team.players || []).forEach(player => {
+                const stats = (playerStats || []).find(s => s.player_id === player.id) || {};
                 const level = player.level || player.skill_level || player.preferred_level || '?';
                 const levelClass = ['A', 'B', 'C'].includes(level) ? `level-${level}` : 'level-unknown';
-
-                // Get availability for next match
                 const availability = nextMatch?.availability?.[player.id] || 'unknown';
-                const isAvailable = availability === 'available';
+                const isIn = availability === 'available';
+                const isOut = availability === 'unavailable';
+                const rsvpClass = isIn ? 'in' : (isOut ? 'out' : 'unknown');
 
-                return `
-                    <div class="roster-card ${availability === 'unavailable' ? 'unavailable' : ''}">
-                        <div class="player-position">POSITION ${posLabel}</div>
-                        <div class="player-name-roster">
-                            ${player.name}
+                const avg3da = stats.x01_three_dart_avg || 0;
+                const mpr = stats.cricket_mpr || 0;
+                const legsWon = (stats.x01_legs_won || 0) + (stats.cricket_legs_won || 0);
+                const legsPlayed = (stats.x01_legs_played || 0) + (stats.cricket_legs_played || 0);
+                const winPct = legsPlayed > 0 ? Math.round((legsWon / legsPlayed) * 100) + '%' : '-';
+
+                html += `
+                    <div class="roster-row ${isOut ? 'unavailable' : ''}" id="row-${player.id}">
+                        <div class="roster-player-name">
                             <span class="level-badge ${levelClass}">${level}</span>
+                            ${player.name}
                         </div>
-                        <div class="player-stats-mini">
-                            <div class="stat-mini"><div class="stat-mini-label">501 Avg</div><div class="stat-mini-value">${format3DA(stats)}</div></div>
-                            <div class="stat-mini"><div class="stat-mini-label">MPR</div><div class="stat-mini-value">${formatMPR(stats)}</div></div>
-                            <div class="stat-mini"><div class="stat-mini-label">180s</div><div class="stat-mini-value">${stats.x01_tons_180 || stats.x01_ton_eighties || 0}</div></div>
-                            <div class="stat-mini"><div class="stat-mini-label">High CO</div><div class="stat-mini-value">${stats.x01_high_checkout || '-'}</div></div>
+                        <div class="roster-stat">${avg3da > 0 ? avg3da.toFixed(1) : '-'}</div>
+                        <div class="roster-stat">${mpr > 0 ? mpr.toFixed(2) : '-'}</div>
+                        <div class="roster-stat ${winPct === '-' ? 'dim' : ''}">${winPct}</div>
+                        <div class="roster-rsvp">
+                            ${nextMatch ? `<div class="roster-rsvp-dot ${rsvpClass}" onclick="toggleRosterStatus('${player.id}', '${nextMatch.id}')" title="Click to toggle RSVP"></div>` : ''}
                         </div>
-                        ${nextMatch ? `
-                        <div class="attendance-toggle">
-                            <span class="attendance-toggle-label">${matchLabel} Attendance</span>
-                            <div style="display: flex; align-items: center;">
-                                <label class="attendance-switch">
-                                    <input type="checkbox" ${isAvailable ? 'checked' : ''} onchange="toggleAttendance('${player.id}', '${nextMatch.id}', this.checked)">
-                                    <span class="attendance-slider"></span>
-                                </label>
-                                <span class="attendance-status ${isAvailable ? 'available' : 'unavailable'}" id="status-${player.id}">${isAvailable ? 'IN' : 'OUT'}</span>
+                        <button class="roster-msg-btn" onclick="messagePlayer('${player.id}', '${player.name}')" title="Message ${player.name}">💬</button>
+                    </div>
+                    ${isOut ? `<div><button class="roster-fillin-btn" onclick="openFillinForPlayer('${player.id}', '${player.name}')">FIND FILL-IN FOR ${player.name.split(' ')[0].toUpperCase()}</button></div>` : ''}
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        window.messagePlayer = function(playerId, playerName) {
+            // Open team message modal pre-addressed to this player
+            openMessageModal();
+            const textarea = document.getElementById('teamMessage');
+            if (textarea) textarea.placeholder = `Message to ${playerName}...`;
+        };
+
+        function getOrdinal(n) {
+            const s = ['th','st','nd','rd'];
+            const v = n % 100;
+            return n + (s[(v - 20) % 10] || s[v] || s[0]);
+        }
+
+        function renderSchedule(matches, team) {
+            const container = document.getElementById('scheduleCards');
+            const playerStats = dashboardData.player_stats || [];
+            const totalWeeks = matches.length > 0 ? Math.max(...matches.map(m => m.week || 1)) : 18;
+            const positions = ['A', 'B', 'C'];
+
+            container.innerHTML = matches.map(match => {
+                const isCompleted = match.status === 'completed';
+                const isUpcoming = match.status === 'scheduled';
+
+                // My team is always LEFT side
+                const myTeamName = team.team_name || team.name || 'My Team';
+                const opponentName = match.is_home ? (match.away_team_name || 'Opponent') : (match.home_team_name || 'Opponent');
+                const myRecord = `${team.wins || 0}-${team.losses || 0}`;
+                const myStanding = team.standing;
+
+                // Scores
+                const myScore = match.is_home ? match.home_score : match.away_score;
+                const oppScore = match.is_home ? match.away_score : match.home_score;
+                const myWon = isCompleted && myScore > oppScore;
+                const oppWon = isCompleted && oppScore > myScore;
+
+                // Team averages
+                const my3DA = team.team_3da > 0 ? team.team_3da.toFixed(1) : '-';
+                const myMPR = team.team_mpr > 0 ? team.team_mpr.toFixed(2) : '-';
+                const myTotalWon = (team.set_wins || 0);
+                const myTotalPlayed = (team.set_wins || 0) + (team.set_losses || 0);
+                const myTeamWinPct = myTotalPlayed > 0 ? Math.round((myTotalWon / myTotalPlayed) * 100) + '%' : '-';
+
+                // Build roster rows — my players on left, opponent on right
+                const oppTeamId = match.is_home ? match.away_team_id : match.home_team_id;
+                const matchOpponent = dashboardData?.all_opponents?.[oppTeamId];
+                let rosterRows = '';
+                (team.players || []).forEach(player => {
+                    const stats = playerStats.find(s => s.player_id === player.id) || {};
+                    const isCaptain = player.is_captain || player.position === 1;
+                    const avg3da = stats.x01_three_dart_avg || 0;
+                    const mpr = stats.cricket_mpr || 0;
+                    const avgStr = avg3da > 0 ? avg3da.toFixed(1) : '-';
+                    const mprStr = mpr > 0 ? mpr.toFixed(2) : '-';
+                    const myLegsWon = (stats.x01_legs_won || 0) + (stats.cricket_legs_won || 0);
+                    const myLegsPlayed = (stats.x01_legs_played || 0) + (stats.cricket_legs_played || 0);
+                    const myWinPct = myLegsPlayed > 0 ? Math.round((myLegsWon / myLegsPlayed) * 100) : 0;
+                    const myWinStr = myLegsPlayed > 0 ? myWinPct + '%' : '-';
+                    const availability = match.availability?.[player.id] || 'unknown';
+                    const rsvpClass = availability === 'available' ? 'in' : (availability === 'unavailable' ? 'out' : 'unknown');
+
+                    // Opponent player matched by position
+                    const opp = matchOpponent?.players?.find(p => p.position === player.position);
+                    let oppCellHtml = '';
+                    let myAvgClass = '', myMprClass = '', myWinClass = '';
+
+                    if (opp) {
+                        const oppAvg = opp.stats.x01_three_dart_avg || 0;
+                        const oppMpr = opp.stats.cricket_mpr || 0;
+                        const oppLegsWon = (opp.stats.x01_legs_won || 0) + (opp.stats.cricket_legs_won || 0);
+                        const oppLegsPlayed = (opp.stats.x01_legs_played || 0) + (opp.stats.cricket_legs_played || 0);
+                        const oppWinPct = oppLegsPlayed > 0 ? Math.round((oppLegsWon / oppLegsPlayed) * 100) : 0;
+                        const oppWinStr = oppLegsPlayed > 0 ? oppWinPct + '%' : '-';
+                        const oppIsCaptain = opp.position === 1;
+                        // Compare stats
+                        const avgCmp = avg3da > 0 && oppAvg > 0 ? (avg3da > oppAvg ? 1 : (oppAvg > avg3da ? -1 : 0)) : 0;
+                        const mprCmp = mpr > 0 && oppMpr > 0 ? (mpr > oppMpr ? 1 : (oppMpr > mpr ? -1 : 0)) : 0;
+                        const winCmp = myWinPct > 0 && oppWinPct > 0 ? (myWinPct > oppWinPct ? 1 : (oppWinPct > myWinPct ? -1 : 0)) : 0;
+                        myAvgClass = avgCmp > 0 ? 'better' : (avgCmp < 0 ? 'worse' : '');
+                        myMprClass = mprCmp > 0 ? 'better' : (mprCmp < 0 ? 'worse' : '');
+                        myWinClass = winCmp > 0 ? 'better' : (winCmp < 0 ? 'worse' : '');
+                        const oppAvgClass = avgCmp < 0 ? 'better' : (avgCmp > 0 ? 'worse' : '');
+                        const oppMprClass = mprCmp < 0 ? 'better' : (mprCmp > 0 ? 'worse' : '');
+                        const oppWinClass = winCmp < 0 ? 'better' : (winCmp > 0 ? 'worse' : '');
+                        oppCellHtml = `
+                            <span class="match-player-name${oppIsCaptain ? ' captain' : ''}">${opp.name}</span>
+                            <span class="match-player-stats"><span class="${oppAvgClass}">${oppAvg > 0 ? oppAvg.toFixed(1) : '-'}</span> / <span class="${oppMprClass}">${oppMpr > 0 ? oppMpr.toFixed(2) : '-'}</span> / <span class="${oppWinClass}">${oppWinStr}</span></span>`;
+                    } else {
+                        oppCellHtml = `<span class="match-player-name" style="color: var(--text-dim);">-</span>`;
+                    }
+
+                    rosterRows += `
+                        <div class="match-row">
+                            <div class="match-player-cell left">
+                                <div class="match-rsvp-dot ${rsvpClass}" onclick="event.stopPropagation(); toggleRosterStatus('${player.id}', '${match.id}')" title="Click to toggle RSVP"></div>
+                                <span class="match-player-name">${player.name}</span>
+                                <span class="match-player-stats"><span class="${myAvgClass}">${avgStr}</span> / <span class="${myMprClass}">${mprStr}</span> / <span class="${myWinClass}">${myWinStr}</span></span>
+                            </div>
+                            <div class="match-player-cell right">
+                                ${oppCellHtml}
+                            </div>
+                        </div>`;
+                });
+
+                // Lineup panel for upcoming matches
+                let lineupHtml = '';
+                if (isUpcoming) {
+                    const subs = dashboardData.available_subs || [];
+                    const lineupRows = (team.players || []).map(player => {
+                        const posLabel = positions[player.position - 1] || player.position;
+                        const options = [
+                            `<option value="${player.id}" selected>${player.name} (Roster)</option>`,
+                            ...subs.map(sub => `<option value="${sub.id}">${sub.name} (Sub - ${sub.skill_level || '?'})</option>`)
+                        ].join('');
+                        return `<div class="lineup-row"><div class="lineup-position">${posLabel}</div><select class="lineup-select" data-position="${player.position}" data-match="${match.id}">${options}</select></div>`;
+                    }).join('');
+
+                    lineupHtml = `
+                        <div class="schedule-lineup" id="lineup-${match.id}">
+                            <div class="schedule-lineup-title">Set Lineup</div>
+                            ${lineupRows}
+                            <div class="schedule-lineup-actions">
+                                <button class="lineup-save-btn" onclick="saveLineup('${match.id}')">SAVE LINEUP</button>
                             </div>
                         </div>
-                        ` : ''}
-                        <div class="player-actions">
-                            <button class="action-btn replace" onclick="openReplaceModal('${player.id}', '${player.name}')">REPLACE</button>
+                    `;
+                }
+
+                // Footer
+                let footerHtml = '';
+                if (isUpcoming) {
+                    footerHtml = `
+                        <div class="match-card-footer">
+                            <span></span>
+                            <a class="match-card-link" onclick="toggleLineup('${match.id}')" style="cursor: pointer;">Set Lineup</a>
+                            <span></span>
+                        </div>`;
+                } else if (isCompleted) {
+                    footerHtml = `
+                        <div class="match-card-footer">
+                            <span></span>
+                            <a href="/pages/match-hub.html?league_id=${currentLeagueId}&match_id=${match.id}" class="match-card-link">View Report</a>
+                            <span></span>
+                        </div>`;
+                }
+
+                return `
+                    <div class="match-card">
+                        <div class="match-card-header${isCompleted ? ' completed' : ''}">
+                            <div class="match-team-side left${myWon ? ' winner' : ''}">
+                                <div class="match-team-name">${myTeamName}</div>
+                                <div class="match-team-meta-row">
+                                    ${myStanding ? `<span class="match-team-standing">${getOrdinal(myStanding)}</span>` : ''}
+                                    <span class="match-team-record">${myRecord}</span>
+                                </div>
+                                <div class="match-team-avg">${my3DA} / ${myMPR} / ${myTeamWinPct}</div>
+                            </div>
+                            ${isCompleted ? `
+                                <div class="match-star-slot">${myWon ? '\u2B50' : ''}</div>
+                                <div class="match-center">
+                                    <div class="match-date-label">${formatDate(match.match_date)}</div>
+                                    <div class="match-week-label">WEEK ${match.week}/${totalWeeks}</div>
+                                    <div class="match-score-group">
+                                        <span class="match-header-score">${myScore}</span>
+                                        <span class="match-score-dash">\u2013</span>
+                                        <span class="match-header-score">${oppScore}</span>
+                                    </div>
+                                </div>
+                                <div class="match-star-slot">${oppWon ? '\u2B50' : ''}</div>
+                            ` : `
+                                <div class="match-center">
+                                    <div class="match-date-label">${formatDate(match.match_date)}</div>
+                                    <div class="match-week-label">WEEK ${match.week}/${totalWeeks}</div>
+                                    <div class="match-vs">${match.is_home ? 'VS' : '@'}</div>
+                                </div>
+                            `}
+                            <div class="match-team-side right${oppWon ? ' winner' : ''}">
+                                <div class="match-team-name">${opponentName}</div>
+                                <div class="match-team-meta-row">
+                                    ${matchOpponent?.team?.standing ? `<span class="match-team-standing">${getOrdinal(matchOpponent.team.standing)}</span><span class="match-team-record">${matchOpponent.team.record || ''}</span>` : ''}
+                                </div>
+                                ${matchOpponent?.team ? (() => {
+                                    const opp3da = matchOpponent.team.team_3da > 0 ? matchOpponent.team.team_3da.toFixed(1) : '-';
+                                    const oppMpr = matchOpponent.team.team_mpr > 0 ? matchOpponent.team.team_mpr.toFixed(2) : '-';
+                                    const oppSW = matchOpponent.team.set_wins || 0;
+                                    const oppSL = matchOpponent.team.set_losses || 0;
+                                    const oppWinPct = (oppSW + oppSL) > 0 ? Math.round((oppSW / (oppSW + oppSL)) * 100) + '%' : '-';
+                                    return `<div class="match-team-avg">${opp3da} / ${oppMpr} / ${oppWinPct}</div>`;
+                                })() : ''}
+                            </div>
                         </div>
+                        <div class="match-card-body">
+                            ${rosterRows}
+                        </div>
+                        ${footerHtml}
+                        ${lineupHtml}
                     </div>
                 `;
             }).join('');
         }
 
-        function renderSchedule(matches, team) {
-            const tbody = document.getElementById('scheduleBody');
-            const positions = ['A', 'B', 'C'];
-
-            tbody.innerHTML = matches.map(match => {
-                const opponent = match.is_home ? match.away_team_name : match.home_team_name;
-                const location = match.is_home ? 'vs' : '@';
-                const availabilityDots = (team.players || []).map(player => {
-                    const status = match.availability[player.id] || 'unknown';
-                    const label = positions[player.position - 1] || '?';
-                    return `<div class="avail-dot ${status}" title="${player.name}: ${status}">${label}</div>`;
-                }).join('');
-
-                let score = '-';
-                if (match.status === 'completed') {
-                    score = match.is_home ? `${match.home_score}-${match.away_score}` : `${match.away_score}-${match.home_score}`;
-                }
-
-                return `<tr><td>Week ${match.week}</td><td>${formatDate(match.match_date)}</td><td>${location} ${opponent}</td><td><span class="status-badge ${match.status}">${match.status.replace('_', ' ')}</span></td><td>${score}</td><td><div class="availability-indicator">${availabilityDots}</div></td></tr>`;
-            }).join('');
-        }
-
-        function renderLineupMatches(matches) {
-            const select = document.getElementById('lineupMatchSelect');
-            const upcomingMatches = matches.filter(m => m.status !== 'completed');
-            select.innerHTML = '<option value="">Select upcoming match...</option>' + upcomingMatches.map(m => {
-                const opponent = m.is_home ? m.away_team_name : m.home_team_name;
-                return `<option value="${m.id}">Week ${m.week} - ${m.is_home ? 'vs' : '@'} ${opponent}</option>`;
-            }).join('');
-        }
-
-        window.loadLineupForMatch = function() {
-            const matchId = document.getElementById('lineupMatchSelect').value;
-            if (!matchId) { document.getElementById('lineupBuilder').style.display = 'none'; return; }
-
-            document.getElementById('lineupBuilder').style.display = 'block';
-            const team = dashboardData.team;
-            const subs = dashboardData.available_subs;
-            const positions = ['A', 'B', 'C', 'D', 'E'];
-
-            const rows = (team.players || []).map(player => {
-                const posLabel = positions[player.position - 1] || player.position;
-                const options = [`<option value="${player.id}" selected>${player.name} (Roster)</option>`, ...subs.map(sub => `<option value="${sub.id}">${sub.name} (Sub - ${sub.skill_level})</option>`)].join('');
-                return `<div class="lineup-row"><div class="lineup-position">${posLabel}</div><select class="lineup-select" data-position="${player.position}">${options}</select></div>`;
-            }).join('');
-
-            document.getElementById('lineupRows').innerHTML = rows;
+        window.toggleLineup = function(matchId) {
+            const panel = document.getElementById(`lineup-${matchId}`);
+            if (!panel) return;
+            // Close all other open lineup panels
+            document.querySelectorAll('.schedule-lineup.open').forEach(p => {
+                if (p.id !== `lineup-${matchId}`) p.classList.remove('open');
+            });
+            panel.classList.toggle('open');
         };
 
-        window.saveLineup = async function() {
-            const matchId = document.getElementById('lineupMatchSelect').value;
+        window.saveLineup = async function(matchId) {
             if (!matchId) return;
 
-            const selects = document.querySelectorAll('.lineup-select');
+            const selects = document.querySelectorAll(`.lineup-select[data-match="${matchId}"]`);
             const lineup = [];
+            const team = dashboardData.team;
+            const subs = dashboardData.available_subs || [];
 
             selects.forEach(select => {
                 const playerId = select.value;
                 const position = parseInt(select.dataset.position);
-                const team = dashboardData.team;
-                const subs = dashboardData.available_subs;
                 let playerName = '', isSub = false;
 
                 const rosterPlayer = (team.players || []).find(p => p.id === playerId);
@@ -1834,10 +949,23 @@
                 lineup.push({ position, player_id: playerId, player_name: playerName, is_sub: isSub });
             });
 
+            // Add loading state to save button
+            const saveBtn = event?.target || document.querySelector(`#lineup-${matchId} .lineup-save-btn`);
+            if (saveBtn) {
+                saveBtn.classList.add('btn-loading');
+                saveBtn.disabled = true;
+            }
+
             try {
-                const result = await callFunction('setMatchLineup', { league_id: currentLeagueId, match_id: matchId, team_id: currentTeamId, captain_email: captainEmail, lineup });
-                if (result.success) { toastSuccess('Lineup saved successfully!'); } else { toastError(result.error || 'Failed to save lineup'); }
+                const result = await callFunction('setMatchLineup', { league_id: currentLeagueId, match_id: matchId, team_id: currentTeamId, captain_id: currentPlayerId, lineup });
+                if (result.success) { toastSuccess('Lineup saved!'); } else { toastError(result.error || 'Failed to save lineup'); }
             } catch (error) { console.error('Save lineup error:', error); toastError('Failed to save lineup'); }
+            finally {
+                if (saveBtn) {
+                    saveBtn.classList.remove('btn-loading');
+                    saveBtn.disabled = false;
+                }
+            }
         };
 
         let currentSubFilter = 'ALL';
@@ -1845,7 +973,7 @@
         function renderSubs(subs, filter = 'ALL') {
             const list = document.getElementById('subsList');
             if (!subs || subs.length === 0) {
-                list.innerHTML = '<div style="text-align: center; color: #aaa; padding: 40px;">No substitutes available</div>';
+                list.innerHTML = '<div class="empty-state"><div class="empty-state-icon" aria-hidden="true">👥</div><div class="empty-state-text">No substitutes available</div></div>';
                 return;
             }
 
@@ -1856,20 +984,21 @@
             });
 
             if (filteredSubs.length === 0) {
-                list.innerHTML = `<div style="text-align: center; color: #aaa; padding: 40px;">No ${filter}-level substitutes available</div>`;
+                list.innerHTML = `<div class="empty-state"><div class="empty-state-icon" aria-hidden="true">👥</div><div class="empty-state-text">No ${filter}-level substitutes available</div></div>`;
                 return;
             }
 
             list.innerHTML = filteredSubs.map(sub => {
                 const level = sub.skill_level || sub.level || sub.preferred_level || '?';
                 const levelClass = ['A', 'B', 'C'].includes(level.toUpperCase()) ? `level-${level.toUpperCase()}` : 'level-unknown';
+                const contact = sub.phone || sub.email || 'No contact';
                 return `
-                    <div class="sub-card" data-level="${level.toUpperCase()}">
+                    <div class="sub-card" data-level="${level.toUpperCase()}" role="listitem">
                         <div class="sub-name">
                             ${sub.name}
-                            <span class="level-badge ${levelClass}">${level}</span>
+                            <span class="level-badge ${levelClass}" aria-label="Level ${level}">${level}</span>
                         </div>
-                        <div style="font-size: 12px; color: #aaa; margin-top: 5px;">${sub.phone || sub.email || 'No contact'}</div>
+                        <div style="font-size: 12px; color: #aaa; margin-top: 5px;" aria-label="Contact: ${contact}">${contact}</div>
                     </div>
                 `;
             }).join('');
@@ -1877,9 +1006,15 @@
 
         window.filterSubs = function(level, btn) {
             currentSubFilter = level;
-            // Update button states
-            document.querySelectorAll('#subFilters .filter-btn').forEach(b => b.classList.remove('active'));
-            if (btn) btn.classList.add('active');
+            // Update button states and ARIA
+            document.querySelectorAll('#subFilters .filter-btn').forEach(b => {
+                b.classList.remove('active');
+                b.setAttribute('aria-pressed', 'false');
+            });
+            if (btn) {
+                btn.classList.add('active');
+                btn.setAttribute('aria-pressed', 'true');
+            }
             // Re-render subs with filter
             renderSubs(dashboardData?.available_subs || [], level);
         };
@@ -1891,7 +1026,12 @@
         let currentFillinFilter = 'ALL';
         let pendingFillinRequests = [];
 
+        let fillinModalTrigger = null;
+
         window.openFillinModal = function() {
+            // Store trigger element for focus restoration
+            fillinModalTrigger = document.activeElement;
+
             // Populate upcoming matches
             const matchSelect = document.getElementById('fillinMatch');
             const upcomingMatches = (dashboardData?.matches || []).filter(m => m.status !== 'completed');
@@ -1903,11 +1043,23 @@
             // Populate sub selection list
             renderFillinSubList('ALL');
 
-            document.getElementById('fillinModal').classList.add('active');
+            const modal = document.getElementById('fillinModal');
+            modal.classList.add('active');
+
+            // Focus first interactive element
+            setTimeout(() => {
+                const firstFocusable = modal.querySelector('select, button, input, textarea');
+                if (firstFocusable) firstFocusable.focus();
+            }, 100);
         };
 
         window.closeFillinModal = function() {
             document.getElementById('fillinModal').classList.remove('active');
+            // Restore focus to trigger element
+            if (fillinModalTrigger) {
+                fillinModalTrigger.focus();
+                fillinModalTrigger = null;
+            }
         };
 
         function renderFillinSubList(filter) {
@@ -1920,7 +1072,7 @@
             });
 
             if (filteredSubs.length === 0) {
-                list.innerHTML = `<div style="text-align: center; color: #aaa; padding: 20px;">No ${filter === 'ALL' ? '' : filter + '-level '}substitutes available</div>`;
+                list.innerHTML = `<div class="empty-state"><div class="empty-state-icon">👥</div><div class="empty-state-text">No ${filter === 'ALL' ? '' : filter + '-level '}substitutes available</div></div>`;
                 return;
             }
 
@@ -1938,9 +1090,11 @@
 
         window.filterFillinSubs = function(level) {
             currentFillinFilter = level;
-            // Update button states
+            // Update button states and ARIA
             document.querySelectorAll('#fillinSubFilters .filter-btn').forEach(btn => {
-                btn.classList.toggle('active', btn.textContent === level);
+                const isActive = btn.textContent === level;
+                btn.classList.toggle('active', isActive);
+                btn.setAttribute('aria-pressed', isActive);
             });
             renderFillinSubList(level);
         };
@@ -1961,6 +1115,13 @@
             if (subIds.length === 0) {
                 toastWarning('Please select at least one substitute to contact');
                 return;
+            }
+
+            // Add loading state to button
+            const sendBtn = event?.target || document.querySelector('#fillinModal .brdc-btn');
+            if (sendBtn) {
+                sendBtn.classList.add('btn-loading');
+                sendBtn.disabled = true;
             }
 
             try {
@@ -1984,6 +1145,11 @@
             } catch (error) {
                 console.error('Send fill-in requests error:', error);
                 toastError('Failed to send fill-in requests: ' + error.message);
+            } finally {
+                if (sendBtn) {
+                    sendBtn.classList.remove('btn-loading');
+                    sendBtn.disabled = false;
+                }
             }
         };
 
@@ -2068,30 +1234,47 @@
         // TEAM MESSAGING FUNCTIONS
         // ============================================================================
 
+        let messageModalTrigger = null;
+
         window.openMessageModal = function() {
+            // Store trigger element for focus restoration
+            messageModalTrigger = document.activeElement;
+
             const list = document.getElementById('messageRecipientList');
             const players = dashboardData?.team?.players || [];
 
             // Add "All Team" option + individual players
             list.innerHTML = `
                 <label class="sub-select-item">
-                    <input type="checkbox" id="selectAllTeam" onchange="toggleAllRecipients(this.checked)" checked>
+                    <input type="checkbox" id="selectAllTeam" onchange="toggleAllRecipients(this.checked)" checked aria-label="Select all team members">
                     <span class="sub-select-name" style="color: var(--yellow);">ALL TEAM MEMBERS</span>
                 </label>
                 ${players.map(player => `
                     <label class="sub-select-item">
-                        <input type="checkbox" class="recipient-checkbox" value="${player.id}" data-name="${player.name}" checked>
+                        <input type="checkbox" class="recipient-checkbox" value="${player.id}" data-name="${player.name}" checked aria-label="Send to ${player.name}">
                         <span class="sub-select-name">${player.name}</span>
                     </label>
                 `).join('')}
             `;
 
             document.getElementById('teamMessage').value = '';
-            document.getElementById('messageModal').classList.add('active');
+            const modal = document.getElementById('messageModal');
+            modal.classList.add('active');
+
+            // Focus first interactive element
+            setTimeout(() => {
+                const firstFocusable = modal.querySelector('input, textarea, button');
+                if (firstFocusable) firstFocusable.focus();
+            }, 100);
         };
 
         window.closeMessageModal = function() {
             document.getElementById('messageModal').classList.remove('active');
+            // Restore focus to trigger element
+            if (messageModalTrigger) {
+                messageModalTrigger.focus();
+                messageModalTrigger = null;
+            }
         };
 
         window.toggleAllRecipients = function(checked) {
@@ -2127,6 +1310,13 @@
                 return;
             }
 
+            // Add loading state to button
+            const sendBtn = event?.target || document.querySelector('#messageModal .brdc-btn');
+            if (sendBtn) {
+                sendBtn.classList.add('btn-loading');
+                sendBtn.disabled = true;
+            }
+
             try {
                 const result = await callFunction('sendCaptainMessageV2', {
                     league_id: currentLeagueId,
@@ -2147,58 +1337,137 @@
             } catch (error) {
                 console.error('Send team message error:', error);
                 toastError('Failed to send message: ' + error.message);
+            } finally {
+                if (sendBtn) {
+                    sendBtn.classList.remove('btn-loading');
+                    sendBtn.disabled = false;
+                }
             }
         };
 
         function renderNotifications(notifications) {
             const list = document.getElementById('notificationsList');
             const unreadCount = (notifications || []).filter(n => !n.read).length;
-            document.getElementById('alertCount').textContent = unreadCount > 0 ? `(${unreadCount})` : '';
+            const alertCountEl = document.getElementById('alertCount');
+            alertCountEl.textContent = unreadCount > 0 ? `(${unreadCount})` : '';
+            alertCountEl.setAttribute('aria-label', unreadCount > 0 ? `${unreadCount} unread alerts` : 'No unread alerts');
 
-            if (!notifications || notifications.length === 0) { list.innerHTML = '<div style="text-align: center; color: #aaa; padding: 40px;">No notifications</div>'; return; }
-            list.innerHTML = notifications.map(n => `<div class="notification-item ${n.read ? '' : 'unread'}"><div>${n.message}</div><div class="notification-time">${formatDateTime(n.created_at)}</div></div>`).join('');
+            if (!notifications || notifications.length === 0) {
+                list.innerHTML = '<div class="empty-state"><div class="empty-state-icon" aria-hidden="true">🔔</div><div class="empty-state-text">No notifications</div></div>';
+                return;
+            }
+            list.innerHTML = notifications.map(n => `
+                <div class="notification-item ${n.read ? '' : 'unread'}" role="listitem" aria-label="${n.read ? 'Read notification' : 'Unread notification'}">
+                    <div>${n.message}</div>
+                    <div class="notification-time">${formatDateTime(n.created_at)}</div>
+                </div>
+            `).join('');
         }
 
-        window.openReplaceModal = function(playerId, playerName) {
-            replacePlayerId = playerId;
-            document.getElementById('replacePlayerName').textContent = playerName;
-            const subs = dashboardData.available_subs || [];
-            document.getElementById('replacementSelect').innerHTML = '<option value="">Select replacement...</option>' + subs.map(s => `<option value="${s.id}">${s.name} (${s.skill_level})</option>`).join('');
-            document.getElementById('replaceModal').classList.add('active');
-        };
+        // Toggle roster RSVP status (click the dot)
+        window.toggleRosterStatus = async function(playerId, matchId) {
+            const row = document.getElementById(`row-${playerId}`);
+            const dot = row?.querySelector('.roster-rsvp-dot');
+            if (!dot) return;
 
-        window.closeReplaceModal = function() { document.getElementById('replaceModal').classList.remove('active'); replacePlayerId = null; };
+            // Cycle: unknown → in → out → in → out ...
+            const currentStatus = dot.classList.contains('in') ? 'available' : (dot.classList.contains('out') ? 'unavailable' : 'unknown');
+            const newAvailable = currentStatus !== 'available';
 
-        window.confirmReplacement = async function() {
-            const newPlayerId = document.getElementById('replacementSelect').value;
-            const reason = document.getElementById('replaceReason').value;
-            if (!newPlayerId) { toastWarning('Please select a replacement'); return; }
-            if (!confirm('This will permanently remove the player from your roster. Are you sure?')) return;
+            // Optimistic UI update
+            dot.className = `roster-rsvp-dot ${newAvailable ? 'in' : 'out'}`;
+            row.classList.toggle('unavailable', !newAvailable);
+
+            // Update local data and re-render to show/hide fill-in button
+            const match = dashboardData?.matches?.find(m => m.id === matchId);
+            if (match) {
+                match.availability = match.availability || {};
+                match.availability[playerId] = newAvailable ? 'available' : 'unavailable';
+            }
+            renderRoster(dashboardData.team, dashboardData.player_stats);
 
             try {
-                const result = await callFunction('permanentReplacement', { league_id: currentLeagueId, team_id: currentTeamId, drop_player_id: replacePlayerId, new_player_id: newPlayerId, captain_email: captainEmail, reason });
-                if (result.success) { toastSuccess('Player replaced successfully!'); closeReplaceModal(); loadDashboard(); }
-                else { toastError(result.error || 'Failed to replace player'); }
-            } catch (error) { console.error('Replace error:', error); toastError('Failed to replace player'); }
+                const result = await callFunction('setPlayerAvailability', {
+                    league_id: currentLeagueId,
+                    match_id: matchId,
+                    player_id: playerId,
+                    available: newAvailable
+                });
+                if (!result.success) {
+                    toastError(result.error || 'Failed to update');
+                    // Revert
+                    if (match) match.availability[playerId] = currentStatus === 'available' ? 'available' : (currentStatus === 'unavailable' ? 'unavailable' : 'unknown');
+                    renderRoster(dashboardData.team, dashboardData.player_stats);
+                }
+            } catch (error) {
+                console.error('Toggle error:', error);
+                toastError('Failed to update');
+                if (match) match.availability[playerId] = currentStatus === 'available' ? 'available' : (currentStatus === 'unavailable' ? 'unavailable' : 'unknown');
+                renderRoster(dashboardData.team, dashboardData.player_stats);
+            }
+        };
+
+        // Open fill-in modal pre-configured for a specific player
+        window.openFillinForPlayer = function(playerId, playerName) {
+            // Pre-select the position level based on the player
+            const player = (dashboardData?.team?.players || []).find(p => p.id === playerId);
+            const level = player?.level || player?.skill_level || player?.preferred_level || 'ALL';
+            if (level && ['A', 'B', 'C'].includes(level.toUpperCase())) {
+                document.getElementById('fillinPosition').value = level.toUpperCase();
+            }
+            openFillinModal();
         };
 
         window.showTab = function(tabName, clickEvent) {
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            // Update tab button states and ARIA
+            document.querySelectorAll('.tab-btn').forEach(t => {
+                t.classList.remove('active');
+                t.setAttribute('aria-selected', 'false');
+            });
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
             // Use passed event or find tab by name
+            let activeTabBtn = null;
             if (clickEvent && clickEvent.target) {
-                clickEvent.target.classList.add('active');
+                activeTabBtn = clickEvent.target;
+                activeTabBtn.classList.add('active');
             } else {
-                const tab = document.querySelector(`.tab[onclick*="showTab('${tabName}'"]`);
-                if (tab) tab.classList.add('active');
+                activeTabBtn = document.querySelector(`.tab-btn[onclick*="showTab('${tabName}'"]`);
+                if (activeTabBtn) activeTabBtn.classList.add('active');
             }
+
+            if (activeTabBtn) {
+                activeTabBtn.setAttribute('aria-selected', 'true');
+            }
+
             document.getElementById('tab-' + tabName).classList.add('active');
         };
 
         function formatDate(dateStr) { if (!dateStr) return '-'; return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); }
         function formatDateTime(timestamp) { if (!timestamp) return '-'; const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp); return date.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }); }
+        function formatLeagueName(name) { return name || '-'; }
 
-        document.getElementById('loginEmail').addEventListener('keypress', (e) => { if (e.key === 'Enter') captainLogin(); });
+        // Keyboard support for modal close (Escape key)
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                const fillinModal = document.getElementById('fillinModal');
+                const messageModal = document.getElementById('messageModal');
+                if (fillinModal && fillinModal.classList.contains('active')) {
+                    closeFillinModal();
+                } else if (messageModal && messageModal.classList.contains('active')) {
+                    closeMessageModal();
+                }
+            }
+        });
+
+        // Keyboard support for team name edit (Enter to activate)
+        document.addEventListener('keydown', (e) => {
+            const teamNameSpan = document.getElementById('teamName');
+            const editIcon = document.querySelector('.edit-icon');
+            if (e.key === 'Enter' && (document.activeElement === teamNameSpan || document.activeElement === editIcon)) {
+                startEditTeamName();
+            }
+        });
     </script>
 
     <script type="module">
@@ -2206,7 +1475,7 @@
 
         // Get visible tabs only (some may be hidden like Free Agents)
         function getVisibleTabs() {
-            return Array.from(document.querySelectorAll('.tabs .tab'))
+            return Array.from(document.querySelectorAll('.tab-nav .tab-btn'))
                 .filter(t => t.style.display !== 'none' && !t.hidden);
         }
 
@@ -2232,8 +1501,14 @@
 
 <script src="/js/display-helpers.js"></script>
 <script src="/js/stats-helpers.js"></script>
-<script src="/js/nav-menu.js"></script>
-<script src="/components/brdc-navigation-init.js"></script>
-<script>initBRDCNavigation({ page: 'captain-dashboard' });</script>
+<script src="/components/brdc-navigation-init.js?v=13"></script>
+<script src="/js/fb-nav.js"></script>
+<script>
+    // Initialize BRDC navigation with proper config
+    initBRDCNavigation({
+        page: 'captain-dashboard',
+        backUrl: '/pages/dashboard.html'
+    });
+</script>
 </body>
 </html>

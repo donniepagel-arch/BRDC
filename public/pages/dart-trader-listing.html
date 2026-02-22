@@ -478,15 +478,77 @@
             text-decoration: none;
             font-weight: 600;
         }
+
+        /* Owner Actions */
+        .owner-actions {
+            background: var(--bg-panel);
+            border-radius: 12px;
+            padding: 16px 20px;
+            border: 2px solid rgba(255,255,255,0.1);
+            grid-column: 1 / -1;
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .owner-btn {
+            flex: 1;
+            min-width: 120px;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.15s;
+            border: 2px solid;
+            text-align: center;
+        }
+
+        .owner-btn.edit-btn {
+            background: transparent;
+            border-color: var(--teal);
+            color: var(--teal);
+        }
+        .owner-btn.edit-btn:hover {
+            background: rgba(145, 215, 235, 0.15);
+        }
+
+        .owner-btn.sold-btn {
+            background: transparent;
+            border-color: var(--yellow);
+            color: var(--yellow);
+        }
+        .owner-btn.sold-btn:hover {
+            background: rgba(253, 216, 53, 0.15);
+        }
+
+        .owner-btn.relist-btn {
+            background: transparent;
+            border-color: var(--success);
+            color: var(--success);
+        }
+        .owner-btn.relist-btn:hover {
+            background: rgba(34, 197, 94, 0.15);
+        }
+
+        .owner-btn.remove-btn {
+            background: transparent;
+            border-color: var(--text-dim);
+            color: var(--text-dim);
+        }
+        .owner-btn.remove-btn:hover {
+            background: rgba(138, 138, 163, 0.15);
+            border-color: var(--danger);
+            color: var(--danger);
+        }
+
+        .owner-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body>
-    <!-- Header -->
-    <div class="header-bar">
-        <a href="/pages/dart-trader.html" class="back-btn" aria-label="Go back to browse">← BROWSE</a>
-        <div class="header-title">DART TRADER</div>
-    </div>
-
     <div class="page-content" id="pageContent">
         <div class="loading">
             <div class="loading-spinner"></div>
@@ -585,6 +647,8 @@
             const content = document.getElementById('pageContent');
             const icon = categoryIcons[listing.category?.toLowerCase()] || '📦';
             const isSold = listing.status === 'sold';
+            const isRemoved = listing.status === 'removed';
+            const isOwner = currentUser && currentUser.id === listing.seller_id;
 
             // Update page title
             document.title = `${listing.title} - Dart Trader - BRDC`;
@@ -676,6 +740,7 @@
                     <!-- Listing Info -->
                     <div class="listing-info">
                         ${isSold ? '<div class="listing-status-sold">This item has been sold</div>' : ''}
+                        ${isRemoved ? '<div class="listing-status-sold" style="background: var(--text-dim);">This listing has been removed</div>' : ''}
                         <span class="listing-category-badge">${listing.category || 'Item'}</span>
                         <h1 class="listing-title">${escapeHtml(listing.title)}</h1>
                         <div class="listing-price">$${parseFloat(listing.price).toFixed(0)}</div>
@@ -701,11 +766,29 @@
                                 <div class="seller-name">${escapeHtml(listing.seller_name || 'BRDC Member')}</div>
                                 <div class="seller-meta">Member since ${listing.seller_member_since || '2024'}</div>
                             </div>
-                            <button class="contact-btn" onclick="showContactModal()" ${isSold ? 'disabled' : ''}>
-                                ${isSold ? 'Sold' : 'Contact Seller'}
-                            </button>
+                            ${!isOwner ? `
+                                <button class="contact-btn" onclick="showContactModal()" ${isSold ? 'disabled' : ''}>
+                                    ${isSold ? 'Sold' : 'Contact Seller'}
+                                </button>
+                            ` : ''}
                         </div>
                     </div>
+
+                    <!-- Owner Actions -->
+                    ${isOwner ? `
+                        <div class="owner-actions">
+                            <button class="owner-btn edit-btn" onclick="editListing()">Edit Listing</button>
+                            ${listing.status === 'active' ? `
+                                <button class="owner-btn sold-btn" onclick="markAsSold()">Mark as Sold</button>
+                            ` : ''}
+                            ${listing.status === 'sold' || listing.status === 'removed' ? `
+                                <button class="owner-btn relist-btn" onclick="relistListing()">Relist</button>
+                            ` : ''}
+                            ${listing.status !== 'removed' ? `
+                                <button class="owner-btn remove-btn" onclick="removeListing()">Remove Listing</button>
+                            ` : ''}
+                        </div>
+                    ` : ''}
 
                     <!-- Posted Date -->
                     <div class="listing-posted">
@@ -817,8 +900,70 @@
             }
             return phone;
         }
+
+        // Owner action: Edit listing
+        function editListing() {
+            window.location.href = '/pages/dart-trader-create.html?id=' + listing.id;
+        }
+
+        // Owner action: Mark as sold
+        async function markAsSold() {
+            if (!confirm('Mark this listing as sold?')) return;
+            try {
+                const btn = document.querySelector('.sold-btn');
+                if (btn) { btn.disabled = true; btn.textContent = 'Updating...'; }
+                await db.collection('dart_trader_listings').doc(listing.id).update({
+                    status: 'sold',
+                    updated_at: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                window.location.reload();
+            } catch (error) {
+                console.error('Error marking as sold:', error);
+                alert('Failed to update listing. Please try again.');
+                const btn = document.querySelector('.sold-btn');
+                if (btn) { btn.disabled = false; btn.textContent = 'Mark as Sold'; }
+            }
+        }
+
+        // Owner action: Relist
+        async function relistListing() {
+            if (!confirm('Relist this item as active?')) return;
+            try {
+                const btn = document.querySelector('.relist-btn');
+                if (btn) { btn.disabled = true; btn.textContent = 'Updating...'; }
+                await db.collection('dart_trader_listings').doc(listing.id).update({
+                    status: 'active',
+                    updated_at: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                window.location.reload();
+            } catch (error) {
+                console.error('Error relisting:', error);
+                alert('Failed to relist. Please try again.');
+                const btn = document.querySelector('.relist-btn');
+                if (btn) { btn.disabled = false; btn.textContent = 'Relist'; }
+            }
+        }
+
+        // Owner action: Remove listing
+        async function removeListing() {
+            if (!confirm('Remove this listing? It will no longer be visible to others.')) return;
+            try {
+                const btn = document.querySelector('.remove-btn');
+                if (btn) { btn.disabled = true; btn.textContent = 'Removing...'; }
+                await db.collection('dart_trader_listings').doc(listing.id).update({
+                    status: 'removed',
+                    updated_at: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                window.location.href = '/pages/dart-trader.html';
+            } catch (error) {
+                console.error('Error removing listing:', error);
+                alert('Failed to remove listing. Please try again.');
+                const btn = document.querySelector('.remove-btn');
+                if (btn) { btn.disabled = false; btn.textContent = 'Remove Listing'; }
+            }
+        }
     </script>
-    <script src="/components/brdc-navigation-init.js"></script>
+    <script src="/components/brdc-navigation-init.js?v=13"></script>
     <script>initBRDCNavigation({ page: 'dart-trader-listing' });</script>
 </body>
 </html>

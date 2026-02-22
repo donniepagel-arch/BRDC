@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="manifest" href="/manifest.json">
     <title>Bracket - Matchmaker Tournament</title>
     <link rel="icon" type="image/png" href="/images/favicon.png">
     <script src="/js/brdc-toast.js"></script>
@@ -43,111 +44,6 @@
                 radial-gradient(ellipse at 80% 80%, rgba(145, 215, 235, 0.06) 0%, transparent 50%);
             pointer-events: none;
             z-index: -1;
-        }
-
-        .header-bar {
-            background: var(--bg-panel);
-            border-bottom: 3px solid var(--pink);
-            padding: 16px 20px;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4), 0 0 30px rgba(255, 70, 154, 0.15);
-        }
-
-        .director-link {
-            background: rgba(255,255,255,0.1);
-            color: var(--text-dim);
-            border: 2px solid rgba(255,255,255,0.2);
-            padding: 8px 12px;
-            border-radius: 6px;
-            text-decoration: none;
-            font-size: 18px;
-            transition: all 0.2s;
-        }
-
-        .director-link:hover {
-            background: rgba(255,255,255,0.15);
-            border-color: var(--pink);
-            color: var(--pink);
-        }
-
-        .back-btn {
-            background: rgba(255,255,255,0.1);
-            color: white;
-            border: 2px solid rgba(255,255,255,0.3);
-            padding: 10px 16px;
-            font-weight: 700;
-            cursor: pointer;
-            border-radius: 6px;
-        }
-
-        .header-title {
-            font-family: 'Bebas Neue', cursive;
-            font-size: 24px;
-            letter-spacing: 2px;
-            color: var(--pink);
-            flex: 1;
-        }
-
-        /* Login Bar */
-        .login-bar {
-            background: rgba(255, 70, 154, 0.1);
-            border: 2px solid var(--pink);
-            padding: 10px 15px;
-            border-radius: 6px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 14px;
-        }
-
-        .login-bar input {
-            background: rgba(0, 0, 0, 0.3);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            color: var(--text-light);
-            padding: 6px 10px;
-            border-radius: 4px;
-            width: 120px;
-            font-size: 14px;
-        }
-
-        .login-bar button {
-            background: var(--pink);
-            border: none;
-            color: white;
-            padding: 6px 12px;
-            border-radius: 4px;
-            font-weight: 700;
-            cursor: pointer;
-            font-size: 14px;
-        }
-
-        .login-bar button:hover {
-            background: #ff5ba8;
-        }
-
-        .login-bar .logged-in-status {
-            color: var(--teal);
-            font-weight: 700;
-        }
-
-        .logout-btn {
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            color: var(--text-dim);
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 12px;
-            cursor: pointer;
-        }
-
-        .logout-btn:hover {
-            background: rgba(255, 255, 255, 0.15);
-            color: var(--text-light);
         }
 
         .container { max-width: 1400px; margin: 0 auto; padding: 30px 20px; }
@@ -1250,23 +1146,6 @@
     </style>
 </head>
 <body>
-    <div class="header-bar">
-        <button class="back-btn" onclick="goBack()" aria-label="Go back">BACK</button>
-        <span class="header-title" id="tournamentName">MATCHMAKER BRACKET</span>
-
-        <!-- Login Bar -->
-        <div class="login-bar" id="loginBar">
-            <input type="text" id="pinInput" placeholder="••••••••" maxlength="8" inputmode="numeric" pattern="[0-9]*" autocomplete="off" onkeypress="if(event.key==='Enter')handleLogin()" style="display: none; -webkit-text-security: disc;">
-            <button id="loginBtn" onclick="handleLogin()" style="display: none;">LOGIN</button>
-            <span class="logged-in-status" id="loggedInStatus" style="display: none;"></span>
-            <button class="logout-btn" id="logoutBtn" onclick="handleLogout()" style="display: none;">LOGOUT</button>
-        </div>
-
-        <div class="connection-status" id="connectionStatus">
-            <span class="status-dot connected"></span> Live
-        </div>
-        <a href="#" class="director-link" id="directorLink" title="Director Dashboard">⚙</a>
-    </div>
 
     <div class="container">
         <!-- Champion Display (hidden until tournament complete) -->
@@ -1429,7 +1308,7 @@
     </div>
 
     <script type="module">
-        import { db, doc, getDoc, collection, getDocs, query, where, onSnapshot, callFunction } from '/js/firebase-config.js';
+        import { db, doc, getDoc, collection, getDocs, query, where, onSnapshot, callFunction, auth } from '/js/firebase-config.js';
 
         function goBack() {
             if (window.history.length > 1) {
@@ -1442,50 +1321,26 @@
 
         // --- Login Functions ---
         function updateLoginUI() {
-            const pinInput = document.getElementById('pinInput');
-            const loginBtn = document.getElementById('loginBtn');
-            const loggedInStatus = document.getElementById('loggedInStatus');
-            const logoutBtn = document.getElementById('logoutBtn');
-
-            if (loggedInPlayerId) {
-                // Show logged-in state
-                pinInput.style.display = 'none';
-                loginBtn.style.display = 'none';
-                loggedInStatus.textContent = `Signed in as ${loggedInPlayerName}`;
-                loggedInStatus.style.display = 'inline';
-                logoutBtn.style.display = 'inline';
-            } else {
-                // Show login input
-                pinInput.style.display = 'inline-block';
-                loginBtn.style.display = 'inline-block';
-                loggedInStatus.style.display = 'none';
-                logoutBtn.style.display = 'none';
-            }
+            // Login bar elements were removed with header; auth state tracked internally only
         }
 
         window.handleLogin = async function() {
-            const pinInput = document.getElementById('pinInput');
-            const pin = pinInput.value.trim();
-
-            if (pin.length !== 8) {
-                toastError('PIN must be 8 digits');
+            // Attempt to use existing Firebase Auth session
+            const user = auth.currentUser;
+            if (!user) {
+                toastError('Please log in first');
                 return;
             }
-
             try {
-                const response = await callFunction('globalLogin', { pin });
-
+                const response = await callFunction('getPlayerSession', {});
                 if (response.success && response.player) {
                     loggedInPlayerId = response.player.id;
                     loggedInPlayerName = response.player.name;
-                    pinInput.value = '';
                     updateLoginUI();
                     toastSuccess(`Welcome, ${loggedInPlayerName}!`);
-
-                    // Check if player is eligible for breakup decision
                     await checkBreakupEligibility();
                 } else {
-                    toastError('Invalid PIN');
+                    toastError('Could not retrieve player session');
                 }
             } catch (error) {
                 console.error('Login error:', error);
@@ -1577,6 +1432,7 @@
 
         function updateConnectionStatus(connected) {
             const statusEl = document.getElementById('connectionStatus');
+            if (!statusEl) return;
             if (connected) {
                 statusEl.innerHTML = '<span class="status-dot connected"></span> Live';
             } else {
@@ -1591,7 +1447,8 @@
             }
 
             // Set director link
-            document.getElementById('directorLink').href = `/pages/matchmaker-director.html?id=${tournamentId}`;
+            const directorLinkEl = document.getElementById('directorLink');
+            if (directorLinkEl) directorLinkEl.href = `/pages/matchmaker-director.html?id=${tournamentId}`;
 
             // Initialize login UI
             updateLoginUI();
@@ -1607,7 +1464,8 @@
                     if (docSnap.exists()) {
                         tournamentData = docSnap.data();
                         bracketData = tournamentData.bracket || null;
-                        document.getElementById('tournamentName').textContent = tournamentData.tournament_name || 'MATCHMAKER BRACKET';
+                        const tnEl = document.getElementById('tournamentName');
+                        if (tnEl) tnEl.textContent = tournamentData.tournament_name || 'MATCHMAKER BRACKET';
 
                         if (tournamentData.champion) {
                             document.getElementById('championCard').classList.remove('hidden');
@@ -3077,7 +2935,7 @@
             </div>
         </div>
     </div>
-<script src="/components/brdc-navigation-init.js"></script>
+<script src="/components/brdc-navigation-init.js?v=13"></script>
 <script>initBRDCNavigation({ page: 'matchmaker-bracket' });</script>
 </body>
 </html>

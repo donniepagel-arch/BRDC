@@ -372,14 +372,25 @@
 
     // Load unread message count if player is logged in
     async function loadUnreadCount() {
-        const playerPin = localStorage.getItem('brdc_player_pin');
-        if (!playerPin) return;
+        const playerId = JSON.parse(localStorage.getItem('brdc_session') || '{}').player_id;
+        if (!playerId) return;
 
         try {
-            // Dynamic import for firebase
-            const { callFunction } = await import('/js/firebase-config.js');
-            const result = await callFunction('getUnreadCount', { player_pin: playerPin });
+            const { callFunction, auth, onAuthStateChanged } = await import('/js/firebase-config.js');
 
+            // Wait for Firebase Auth to resolve before calling (needs Bearer token)
+            if (!auth.currentUser) {
+                await new Promise(resolve => {
+                    const unsubscribe = onAuthStateChanged(auth, user => {
+                        unsubscribe();
+                        resolve(user);
+                    });
+                    setTimeout(() => { unsubscribe(); resolve(null); }, 5000);
+                });
+            }
+            if (!auth.currentUser) return;
+
+            const result = await callFunction('getUnreadCount', {});
             if (result.success && result.total_unread > 0) {
                 updateMessageBadge(result.total_unread);
             }
@@ -404,7 +415,6 @@
     function logout() {
         // Clear all session data
         localStorage.removeItem('brdc_session');
-        localStorage.removeItem('brdc_player_pin');
         localStorage.removeItem('brdc_player_id');
         localStorage.removeItem('brdc_player_name');
         localStorage.removeItem('brdc_secure_session');
