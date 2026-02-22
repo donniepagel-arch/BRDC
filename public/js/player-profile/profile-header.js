@@ -433,19 +433,12 @@ window.uploadPhoto = async function(input) {
         const snapshot = await uploadBytes(storageRef, file);
         const photoUrl = await getDownloadURL(snapshot.ref);
 
-        // Save to global /players/{id}
-        try {
-            await updateDoc(doc(db, 'players', playerId), { photo_url: photoUrl });
-        } catch (e) {
-            // Player may only exist in league collection — that's fine
-        }
-
-        // Save to league player doc if applicable
-        if (state.currentLeagueId) {
-            try {
-                await updateDoc(doc(db, 'leagues', state.currentLeagueId, 'players', playerId), { photo_url: photoUrl });
-            } catch (e) { /* may not exist */ }
-        }
+        // Save via cloud function (updates both global and league player docs using admin SDK)
+        await callFunction('updatePlayerPhoto', {
+            player_id: playerId,
+            league_id: state.currentLeagueId || null,
+            photo_url: photoUrl
+        });
 
         // Update session
         const session = JSON.parse(localStorage.getItem('brdc_session') || '{}');

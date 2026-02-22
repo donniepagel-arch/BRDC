@@ -198,16 +198,34 @@ exports.updatePlayerPhoto = functions.https.onRequest(async (req, res) => {
     try {
         const { league_id, player_id, photo_url } = req.body;
 
-        if (!league_id || !player_id || !photo_url) {
+        if (!player_id || !photo_url) {
             return res.status(400).json({ success: false, error: 'Missing required fields' });
         }
 
-        await db.collection('leagues').doc(league_id)
-            .collection('players').doc(player_id)
-            .update({
-                photo_url: photo_url,
-                updated_at: admin.firestore.FieldValue.serverTimestamp()
-            });
+        // Always update global player doc (this is what playerLogin reads for photo_url)
+        try {
+            await db.collection('players').doc(player_id)
+                .update({
+                    photo_url: photo_url,
+                    updated_at: admin.firestore.FieldValue.serverTimestamp()
+                });
+        } catch (e) {
+            console.log('Global player doc update skipped (may not exist):', e.message);
+        }
+
+        // Also update league player doc if league_id provided
+        if (league_id) {
+            try {
+                await db.collection('leagues').doc(league_id)
+                    .collection('players').doc(player_id)
+                    .update({
+                        photo_url: photo_url,
+                        updated_at: admin.firestore.FieldValue.serverTimestamp()
+                    });
+            } catch (e) {
+                console.log('League player doc update skipped:', e.message);
+            }
+        }
 
         res.json({ success: true, message: 'Photo updated' });
 
