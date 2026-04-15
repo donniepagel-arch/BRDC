@@ -2135,9 +2135,9 @@ Bob Wilson"></textarea>
                                     <div class="card-icon">IN</div>
                                     <div class="card-title">Manual Import Workbench</div>
                                 </div>
-                                <div class="card-body">
-                                    <p style="color: var(--text-dim); font-size: 13px; margin-bottom: 16px;">
-                                        Select the scheduled BRDC match first. The schedule anchors team orientation, set layout, and player identity; DartConnect is only used for throw-by-throw leg data.
+                                    <div class="card-body">
+                                        <p style="color: var(--text-dim); font-size: 13px; margin-bottom: 16px;">
+                                        Paste a DartConnect recap URL. The importer will match it to the BRDC schedule by match date, set format, and player identity; the selectors below are only needed if auto-match is ambiguous.
                                     </p>
                                     <div style="display: grid; grid-template-columns: minmax(120px, 180px) minmax(240px, 1fr); gap: 12px; margin-bottom: 14px;">
                                         <div class="form-group" style="margin-bottom: 0;">
@@ -2155,7 +2155,7 @@ Bob Wilson"></textarea>
                                     </div>
                                     <input type="hidden" id="importMatchId">
                                     <div id="importSelectedMatchSummary" style="margin: -2px 0 14px; padding: 12px 14px; border-left: 6px solid var(--teal); background: rgba(20,184,166,0.08); color: var(--text-dim); font-size: 13px;">
-                                        Select a week and scheduled match before parsing a DartConnect recap.
+                                        Paste a DartConnect recap URL to auto-match it, or manually select a week and match first.
                                     </div>
                                     <div class="form-group" style="margin-bottom: 14px;">
                                         <label class="brdc-label">DartConnect Recap URL</label>
@@ -2171,7 +2171,7 @@ Bob Wilson"></textarea>
                                         <button class="brdc-btn" onclick="importValidatedPayload()">Import Validated Payload</button>
                                     </div>
                                     <div id="importWorkbenchStatus" style="margin-bottom: 16px; color: var(--text-dim);">
-                                        Select a scheduled match, then parse a DartConnect recap URL.
+                                        Paste a DartConnect recap URL. Auto-match will select the scheduled BRDC match before import.
                                     </div>
                                     <div class="settings-grid" style="margin-bottom: 16px;">
                                         <div>
@@ -5418,29 +5418,42 @@ Bob Wilson"></textarea>
 
         window.parseRecapToWorkbench = async function() {
             const recapUrl = document.getElementById('importRecapUrl').value.trim();
-            const matchId = document.getElementById('importMatchId').value.trim();
-            const selectedMatch = getImportSelectedMatch();
+            const selectedMatchBeforeParse = getImportSelectedMatch();
+            const selectedMatchIdBeforeParse = document.getElementById('importMatchId').value.trim();
             if (!recapUrl) {
                 toastWarning('Paste a DartConnect recap URL first');
                 return;
             }
-            if (!matchId || !selectedMatch) {
-                toastWarning('Select the scheduled BRDC match before parsing a recap URL');
-                return;
-            }
 
             try {
-                showLoading(`Parsing recap for Week ${selectedMatch.week}...`);
-                const result = await callFunction('parseDartConnectRecap', {
+                showLoading(selectedMatchBeforeParse
+                    ? `Parsing recap for Week ${selectedMatchBeforeParse.week}...`
+                    : 'Parsing recap and matching schedule...');
+                const parseRequest = {
                     recapUrl,
-                    leagueId,
-                    matchId
-                });
+                    leagueId
+                };
+                if (selectedMatchIdBeforeParse) {
+                    parseRequest.matchId = selectedMatchIdBeforeParse;
+                }
+                const result = await callFunction('parseDartConnectRecap', parseRequest);
                 hideLoading();
 
                 importWorkbenchPayload = result.matchData;
                 importWorkbenchValidation = result.validation;
                 importWorkbenchParseSummary = result.parse_summary || null;
+
+                const resolvedMatchId = importWorkbenchParseSummary?.schedule_match_id || '';
+                if (resolvedMatchId) {
+                    populateImportWorkbenchSelectors(resolvedMatchId);
+                    const matchSelect = document.getElementById('importMatchSelect');
+                    const hiddenMatchId = document.getElementById('importMatchId');
+                    if (matchSelect) matchSelect.value = resolvedMatchId;
+                    if (hiddenMatchId) hiddenMatchId.value = resolvedMatchId;
+                    renderImportSelectedMatchSummary();
+                }
+                const selectedMatch = getImportSelectedMatch();
+                const matchId = document.getElementById('importMatchId').value.trim();
 
                 document.getElementById('importPayloadJson').value = JSON.stringify(importWorkbenchPayload, null, 2);
                 renderImportValidation(importWorkbenchValidation);
@@ -5453,8 +5466,15 @@ Bob Wilson"></textarea>
                 const scheduledGroups = parseSummary.scheduled_game_count ?? '-';
                 const unresolvedPlayers = parseSummary.unresolved_turn_player_count ?? 0;
                 const anchorOk = parseSummary.schedule_match_id === matchId;
+                const autoMatch = parseSummary.auto_match;
+                const autoMatchText = autoMatch
+                    ? ` Auto-match score: ${autoMatch.score}${autoMatch.next_score ? ` (next ${autoMatch.next_score})` : ''}.`
+                    : '';
+                const matchLabel = selectedMatch
+                    ? `Week ${selectedMatch.week} - ${selectedMatch.home_team_name} vs ${selectedMatch.away_team_name}`
+                    : 'selected scheduled match';
                 document.getElementById('importWorkbenchStatus').textContent =
-                    `Parsed DartConnect recap for Week ${selectedMatch.week} - ${selectedMatch.home_team_name} vs ${selectedMatch.away_team_name} (${recapComponent}). Schedule anchor: ${anchorOk ? 'OK' : 'MISMATCH'}. Trimmed old/placeholder groups: ${trimmedGroups}. Parsed groups: ${parsedGroups}/${scheduledGroups}. Summary-only legs: ${summaryOnlyLegs}. Unresolved players: ${unresolvedPlayers}. Review warnings before import.`;
+                    `Parsed DartConnect recap for ${matchLabel} (${recapComponent}). Schedule anchor: ${anchorOk ? 'OK' : 'MISMATCH'}.${autoMatchText} Trimmed old/placeholder groups: ${trimmedGroups}. Parsed groups: ${parsedGroups}/${scheduledGroups}. Summary-only legs: ${summaryOnlyLegs}. Unresolved players: ${unresolvedPlayers}. Review warnings before import.`;
 
                 if (!importWorkbenchValidation.valid) {
                     toastWarning('Recap parsed, but the payload has blocking validation errors');

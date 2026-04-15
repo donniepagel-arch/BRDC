@@ -703,17 +703,24 @@ async function buildScheduledMatchContext(leagueId, matchId) {
         throw new Error('Scheduled match not found for supplied leagueId/matchId');
     }
 
-    const match = matchDoc.data();
     const leagueDoc = await db.collection('leagues').doc(leagueId).get();
     const league = leagueDoc.exists ? leagueDoc.data() : {};
     const teamRefs = await Promise.all([
-        db.collection('leagues').doc(leagueId).collection('teams').doc(match.home_team_id).get(),
-        db.collection('leagues').doc(leagueId).collection('teams').doc(match.away_team_id).get()
+        db.collection('leagues').doc(leagueId).collection('teams').doc(matchDoc.data().home_team_id).get(),
+        db.collection('leagues').doc(leagueId).collection('teams').doc(matchDoc.data().away_team_id).get()
     ]);
-    const homeTeam = teamRefs[0].exists ? teamRefs[0].data() : null;
-    const awayTeam = teamRefs[1].exists ? teamRefs[1].data() : null;
+    const teamsById = new Map();
+    if (teamRefs[0].exists) teamsById.set(matchDoc.data().home_team_id, teamRefs[0].data());
+    if (teamRefs[1].exists) teamsById.set(matchDoc.data().away_team_id, teamRefs[1].data());
     const playersSnap = await db.collection('leagues').doc(leagueId).collection('players').get();
     const allPlayers = playersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+    return buildScheduledMatchContextFromData(matchDoc.id, matchDoc.data(), league, teamsById, allPlayers);
+}
+
+function buildScheduledMatchContextFromData(matchId, match, league, teamsById, allPlayers) {
+    const homeTeam = teamsById.get(match.home_team_id) || null;
+    const awayTeam = teamsById.get(match.away_team_id) || null;
     const homeRoster = allPlayers.filter(player => player.team_id === match.home_team_id);
     const awayRoster = allPlayers.filter(player => player.team_id === match.away_team_id);
     const preferredPlayerIds = new Set([
@@ -747,12 +754,113 @@ async function buildScheduledMatchContext(leagueId, matchId) {
         matchId,
         home_team: match.home_team_name,
         away_team: match.away_team_name,
+        match_date: match.match_date || match.scheduled_date || null,
+        week: match.week || null,
         homeRoster,
         awayRoster,
         homeAliasSet: buildRosterAliasSet(homeRoster),
         awayAliasSet: buildRosterAliasSet(awayRoster),
         scheduledGames,
         resolveImportedPlayer: buildPlayerAliasResolver(allPlayers, preferredPlayerIds)
+    };
+}
+
+function normalizeDateOnly(value) {
+    if (!value) return null;
+    if (typeof value === 'string') {
+        const iso = value.match(/\b(\d{4}-\d{2}-\d{2})\b/);
+        if (iso) return iso[1];
+        const dartConnect = value.match(/\b(\d{1,2})-([A-Za-z]{3})-(\d{4})\b/);
+        if (dartConnect) {
+            const monthMap = {
+                jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06',
+                jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12'
+            };
+            const month = monthMap[dartConnect[2].toLowerCase()];
+            if (month) return `${dartConnect[3]}-${month}-${String(dartConnect[1]).padStart(2, '0')}`;
+        }
+    }
+    if (value?.seconds) {
+        return new Date(value.seconds * 1000).toISOString().slice(0, 10);
+    }
+    return null;
+}
+
+function scoreScheduledContextForPayload(context, payload, recapDate) {
+    const props = payload?.props || {};
+    const segments = props.segments || {};
+    const groupedSets = [];
+    Object.keys(segments).forEach((segmentKey) => {
+        const segmentGroups = Array.isArray(segments[segmentKey]) ? segments[segmentKey] : [];
+        segmentGroups.forEach((setGroup) => {
+            if (Array.isArray(setGroup) && setGroup.length) groupedSets.push(setGroup);
+        });
+    });
+
+    const trimmed = trimLeadingPlaceholderGroups(groupedSets);
+    const selected = selectScheduledRecapGroups(trimmed.groups, context.scheduledGames);
+    const dateScore = recapDate && normalizeDateOnly(context.match_date) === recapDate ? 250 : 0;
+    const shapeScore = selected.selectedCount === context.scheduledGames.length ? 100 : -100;
+    return {
+        score: (selected.score || 0) + dateScore + shapeScore,
+        selected
+    };
+}
+
+async function resolveScheduledMatchContextFromPayload(leagueId, payload) {
+    const leagueDoc = await db.collection('leagues').doc(leagueId).get();
+    const league = leagueDoc.exists ? leagueDoc.data() : {};
+    const [matchesSnap, teamsSnap, playersSnap] = await Promise.all([
+        db.collection('leagues').doc(leagueId).collection('matches').get(),
+        db.collection('leagues').doc(leagueId).collection('teams').get(),
+        db.collection('leagues').doc(leagueId).collection('players').get()
+    ]);
+    const teamsById = new Map(teamsSnap.docs.map(doc => [doc.id, doc.data()]));
+    const allPlayers = playersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const recapDate = normalizeDateOnly(payload?.props?.matchInfo?.server_match_start_date);
+
+    const candidates = matchesSnap.docs
+        .map((doc) => ({ id: doc.id, data: doc.data() }))
+        .filter(({ data }) => !recapDate || normalizeDateOnly(data.match_date || data.scheduled_date) === recapDate)
+        .map(({ id, data }) => {
+            const context = buildScheduledMatchContextFromData(id, data, league, teamsById, allPlayers);
+            const score = scoreScheduledContextForPayload(context, payload, recapDate);
+            return {
+                context,
+                score: score.score,
+                selected: score.selected,
+                match: data
+            };
+        })
+        .sort((a, b) => b.score - a.score);
+
+    if (!candidates.length) {
+        throw new Error(recapDate
+            ? `No scheduled BRDC matches found for DartConnect date ${recapDate}`
+            : 'No scheduled BRDC matches found for this league');
+    }
+
+    const [best, second] = candidates;
+    if (best.score < 250 || (second && best.score - second.score < 80)) {
+        const bestLabel = `${best.match.home_team_name || 'Home'} vs ${best.match.away_team_name || 'Away'} (${best.context.matchId})`;
+        const secondLabel = second
+            ? `${second.match.home_team_name || 'Home'} vs ${second.match.away_team_name || 'Away'} (${second.context.matchId})`
+            : 'none';
+        throw new Error(`Unable to confidently match DartConnect recap to the schedule. Best: ${bestLabel}; next: ${secondLabel}. Select the match manually.`);
+    }
+
+    return {
+        context: best.context,
+        autoMatch: {
+            match_id: best.context.matchId,
+            score: best.score,
+            next_score: second?.score || null,
+            candidate_count: candidates.length,
+            date: recapDate,
+            home_team: best.context.home_team,
+            away_team: best.context.away_team,
+            week: best.match.week || null
+        }
     };
 }
 
@@ -973,16 +1081,13 @@ exports.parseDartConnectRecap = functions.https.onRequest(async (req, res) => {
             res.status(400).json({ error: 'Missing required field: recapUrl or html' });
             return;
         }
-        if (recapUrl && (!leagueId || !matchId)) {
-            res.status(400).json({ error: 'Schedule-anchored recap parsing requires leagueId and matchId' });
+        if (recapUrl && !leagueId) {
+            res.status(400).json({ error: 'Schedule-anchored recap parsing requires leagueId' });
             return;
         }
 
         const sourceUrl = recapUrl || null;
         const gamesUrl = sourceUrl ? buildGamesDetailUrl(sourceUrl) : null;
-        const scheduledContext = (leagueId && matchId)
-            ? await buildScheduledMatchContext(leagueId, matchId)
-            : null;
 
         let pageHtml = html;
         if (!pageHtml) {
@@ -997,7 +1102,20 @@ exports.parseDartConnectRecap = functions.https.onRequest(async (req, res) => {
         }
 
         const payload = extractRecapDataPagePayload(pageHtml);
-        const { matchData, parseSummary } = buildMatchDataFromRecapPayload(payload, sourceUrl, gamesUrl, scheduledContext);
+        let autoMatch = null;
+        const scheduledContext = (leagueId && matchId)
+            ? await buildScheduledMatchContext(leagueId, matchId)
+            : leagueId
+                ? (await resolveScheduledMatchContextFromPayload(leagueId, payload))
+                : null;
+        const resolvedContext = scheduledContext?.context || scheduledContext;
+        if (scheduledContext?.autoMatch) {
+            autoMatch = scheduledContext.autoMatch;
+        }
+        const { matchData, parseSummary } = buildMatchDataFromRecapPayload(payload, sourceUrl, gamesUrl, resolvedContext);
+        if (autoMatch) {
+            parseSummary.auto_match = autoMatch;
+        }
         const validation = validateImportedMatchPayload(matchData);
         const placeholderPlayers = collectPlaceholderThrowPlayers(matchData);
         const scheduledGameCount = parseSummary.scheduled_game_count;
