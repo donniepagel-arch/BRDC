@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://firestore.googleapis.com">
-    <link rel="preconnect" href="https://us-central1-brdc-35f92.cloudfunctions.net">
+    <link rel="preconnect" href="https://us-central1-brdc-v2.cloudfunctions.net">
     <link rel="dns-prefetch" href="https://www.gstatic.com">
 
     <link rel="icon" type="image/png" href="/images/favicon.png">
@@ -42,16 +42,27 @@
 
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; user-select: none; touch-action: manipulation; -ms-touch-action: manipulation; }
         button, .calc-key, .side-btn, .action-btn, .modal-btn, .score-value, .score-input-value, .player-chip { touch-action: manipulation; -ms-touch-action: manipulation; }
-        html { height: 100%; height: 100dvh; }
+        html { height: 100%; height: 100dvh; width: 100%; overflow: hidden; }
         body {
             height: 100%;
             height: 100dvh;
             overflow: hidden;
+            width: 100%;
+            max-width: 100vw;
             background: linear-gradient(180deg, var(--bg-dark) 0%, #050510 100%);
             color: var(--text-light);
         }
 
-        .container { display: flex; flex-direction: column; height: 100%; max-height: var(--viewport-height, 100dvh); position: relative; }
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            max-height: var(--viewport-height, 100dvh);
+            width: 100%;
+            max-width: 100vw;
+            overflow: hidden;
+            position: relative;
+        }
 
         /* Floating back button */
         .floating-back-btn {
@@ -119,6 +130,8 @@
             flex: 2;
             padding-top: env(safe-area-inset-top, 0);
             overflow: hidden;
+            min-width: 0;
+            width: 100%;
         }
 
         .team-panel {
@@ -126,6 +139,8 @@
             flex-direction: column;
             padding: 20px 10px 12px;
             position: relative;
+            min-width: 0;
+            overflow: hidden;
         }
         .team-panel.home {
             background: linear-gradient(180deg, rgba(255,70,154,0.12) 0%, transparent 100%);
@@ -152,7 +167,7 @@
         }
         .team-panel.active .score-value {
             color: #fff;
-            transform: scale(1.35);
+            transform: scale(1.18);
             transform-origin: center center;
         }
         .team-header { text-align: center; padding-top: 16px; }
@@ -182,16 +197,20 @@
 
         .thrower-name {
             font-family: 'Bebas Neue', cursive;
-            font-size: 48px;
-            letter-spacing: 4px;
+            font-size: clamp(28px, 7vw, 48px);
+            letter-spacing: clamp(1px, 0.7vw, 4px);
             text-transform: uppercase;
             margin-top: 0;
             color: #fff;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .score-value {
             font-family: 'Bebas Neue', cursive;
-            font-size: 200px;
+            font-size: clamp(64px, 26vw, 200px);
             line-height: 1;
             text-align: center;
             flex: 1;
@@ -202,6 +221,8 @@
             cursor: pointer;
             transition: transform 0.1s;
             color: #fff;
+            min-width: 0;
+            max-width: 100%;
         }
         .score-value:active {
             transform: scale(0.95);
@@ -270,7 +291,11 @@
             text-transform: uppercase;
             margin-top: auto;
             margin-bottom: 8px;
-            white-space: nowrap;
+            white-space: normal;
+            flex-wrap: wrap;
+            max-width: 100%;
+            min-width: 0;
+            overflow: hidden;
         }
         .stats-line .stat-val { color: var(--yellow); }
 
@@ -314,13 +339,17 @@
             flex: 3;
             min-height: 0;
             overflow: hidden;
+            width: 100%;
+            max-width: 100vw;
         }
 
         .input-layout {
             display: grid;
-            grid-template-columns: 1fr minmax(280px, 500px) 1fr;
+            grid-template-columns: minmax(0, 1fr) minmax(240px, min(500px, 64vw)) minmax(0, 1fr);
             width: 100%;
+            max-width: 100vw;
             height: 100%;
+            min-width: 0;
         }
 
         .keypad-area {
@@ -334,10 +363,11 @@
 
         .score-input-display {
             display: grid;
-            grid-template-columns: 70px 1fr 70px;
+            grid-template-columns: clamp(48px, 14vw, 70px) minmax(0, 1fr) clamp(48px, 14vw, 70px);
             align-items: stretch;
             gap: 8px;
             margin-bottom: 10px;
+            min-width: 0;
         }
 
         .score-input-display .action-btn {
@@ -383,9 +413,10 @@
         /* Calculator Keypad with Side Quick Buttons */
         .keypad-container {
             display: grid;
-            grid-template-columns: 90px 1fr 90px;
+            grid-template-columns: clamp(48px, 16vw, 90px) minmax(0, 1fr) clamp(48px, 16vw, 90px);
             gap: 5px;
             flex: 3;
+            min-width: 0;
         }
 
         .side-buttons {
@@ -440,9 +471,10 @@
         /* Bottom row - matches keypad-container columns */
         .calc-bottom-row {
             display: grid;
-            grid-template-columns: 90px 1fr 1fr 1fr 90px;
+            grid-template-columns: clamp(48px, 16vw, 90px) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) clamp(48px, 16vw, 90px);
             gap: 5px;
             flex: 1;
+            min-width: 0;
         }
 
         .calc-bottom-row .calc-key {
@@ -930,11 +962,40 @@
         }
 
         /* Mobile Responsiveness */
+        @media (max-width: 1100px) {
+            .team-panel.active .score-value {
+                transform: scale(1);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .team-panel.active .score-value {
+                transform: scale(1);
+            }
+
+            .input-layout {
+                grid-template-columns: minmax(24px, 44px) minmax(0, 1fr) minmax(24px, 44px);
+            }
+
+            .throw-history-col {
+                padding-left: 2px;
+                padding-right: 2px;
+            }
+
+            .throw-card {
+                font-size: clamp(16px, 4vw, 24px);
+                padding: 6px 0;
+            }
+        }
+
         @media (max-width: 480px) {
             .thrower-name { font-size: 38px; }
-            .score-value { font-size: 100px; }
-            .stats-line { font-size: 18px; }
+            .score-value { font-size: clamp(56px, 21vw, 82px); }
+            .stats-line { font-size: 14px; gap: 5px; }
             .line-score-cell { font-size: 12px; min-width: 30px; }
+            .input-layout {
+                grid-template-columns: 22px minmax(0, 1fr) 22px;
+            }
 
             /* Score input row */
             .score-input-display { grid-template-columns: 56px 1fr 56px; gap: 5px; }
@@ -1012,6 +1073,9 @@
             /* Very narrow phones */
             .score-value {
                 font-size: 60px;
+            }
+            .input-layout {
+                grid-template-columns: 18px minmax(0, 1fr) 18px;
             }
 
             .score-input-display { grid-template-columns: 48px 1fr 48px; gap: 4px; }
@@ -3311,7 +3375,7 @@ window.submitScore = function(score, dartsUsed = 3) {
     // Bust check: below 0, or remaining=1 with double/master out (can't finish from 1)
     if (newScore < 0 || (checkout !== 'straight' && newScore === 1)) {
         // Bust - no score, but track it
-        throwHistory[activeTeam].push({ value: score, bust: true, remaining: team.score });
+        throwHistory[activeTeam].push({ value: score, bust: true, remaining: team.score, player: playerName });
         team.darts += 3;
         if (typeof A11y !== 'undefined') A11y.announce('Bust! Score reverted to ' + team.score, 'assertive');
         inputValue = '0';
@@ -3323,7 +3387,7 @@ window.submitScore = function(score, dartsUsed = 3) {
     }
 
     // Add to throw history with remaining score for DartConnect format
-    throwHistory[activeTeam].push({ value: score, bust: false, remaining: newScore });
+    throwHistory[activeTeam].push({ value: score, bust: false, remaining: newScore, player: playerName });
 
     // Checkout check
     if (newScore === 0) {
@@ -4949,7 +5013,7 @@ window.saveGame = async function() {
 
                 if (homeT) {
                     roundData.home = {
-                        player: homePlayerName,
+                        player: homeT.player || homePlayerName,
                         score: homeT.value,
                         remaining: homeT.remaining,
                         bust: homeT.bust || false
@@ -4968,7 +5032,7 @@ window.saveGame = async function() {
 
                 if (awayT) {
                     roundData.away = {
-                        player: awayPlayerName,
+                        player: awayT.player || awayPlayerName,
                         score: awayT.value,
                         remaining: awayT.remaining,
                         bust: awayT.bust || false
@@ -4997,15 +5061,33 @@ window.saveGame = async function() {
                 if (p?.name) {
                     const ps = legPlayerStats[p.name] || {};
                     player_stats[p.name] = {
+                        darts_thrown: ps.darts || 0,
+                        points_scored: ps.points || 0,
                         darts: ps.darts || 0,
                         points: ps.points || 0,
                         average: ps.darts > 0 ? parseFloat(((ps.points || 0) / (ps.darts || 1) * 3).toFixed(2)) : 0,
                         tons: (ps.ton_00 || 0) + (ps.ton_20 || 0) + (ps.ton_40 || 0) + (ps.ton_60 || 0) + (ps.ton_80 || 0),
+                        ton_00: ps.ton_00 || 0,
+                        ton_20: ps.ton_20 || 0,
+                        ton_40: ps.ton_40 || 0,
+                        ton_60: ps.ton_60 || 0,
                         ton_80: ps.ton_80 || 0,
+                        ton_points: ps.ton_points || 0,
                         checkout: ps.checkout || 0,
+                        checkout_attempts: ps.checkout_attempts || 0,
+                        checkout_darts: ps.checkout_darts || 0,
                         high_score: ps.high_score || 0,
+                        first_turn_score: ps.first_turn_score || 0,
                         first9_darts: ps.first9Darts || 0,
-                        first9_points: ps.first9Points || 0
+                        first9_points: ps.first9Points || 0,
+                        co_80_attempts: ps.co_80_attempts || 0,
+                        co_80_hits: ps.co_80_hits || 0,
+                        co_120_attempts: ps.co_120_attempts || 0,
+                        co_120_hits: ps.co_120_hits || 0,
+                        co_140_attempts: ps.co_140_attempts || 0,
+                        co_140_hits: ps.co_140_hits || 0,
+                        co_161_attempts: ps.co_161_attempts || 0,
+                        co_161_hits: ps.co_161_hits || 0
                     };
                 }
             });
@@ -5026,15 +5108,33 @@ window.saveGame = async function() {
                 if (p?.name) {
                     const ps = legPlayerStats[p.name] || {};
                     player_stats[p.name] = {
+                        darts_thrown: ps.darts || 0,
+                        points_scored: ps.points || 0,
                         darts: ps.darts || 0,
                         points: ps.points || 0,
                         average: ps.darts > 0 ? parseFloat(((ps.points || 0) / (ps.darts || 1) * 3).toFixed(2)) : 0,
                         tons: (ps.ton_00 || 0) + (ps.ton_20 || 0) + (ps.ton_40 || 0) + (ps.ton_60 || 0) + (ps.ton_80 || 0),
+                        ton_00: ps.ton_00 || 0,
+                        ton_20: ps.ton_20 || 0,
+                        ton_40: ps.ton_40 || 0,
+                        ton_60: ps.ton_60 || 0,
                         ton_80: ps.ton_80 || 0,
+                        ton_points: ps.ton_points || 0,
                         checkout: ps.checkout || 0,
+                        checkout_attempts: ps.checkout_attempts || 0,
+                        checkout_darts: ps.checkout_darts || 0,
                         high_score: ps.high_score || 0,
+                        first_turn_score: ps.first_turn_score || 0,
                         first9_darts: ps.first9Darts || 0,
-                        first9_points: ps.first9Points || 0
+                        first9_points: ps.first9Points || 0,
+                        co_80_attempts: ps.co_80_attempts || 0,
+                        co_80_hits: ps.co_80_hits || 0,
+                        co_120_attempts: ps.co_120_attempts || 0,
+                        co_120_hits: ps.co_120_hits || 0,
+                        co_140_attempts: ps.co_140_attempts || 0,
+                        co_140_hits: ps.co_140_hits || 0,
+                        co_161_attempts: ps.co_161_attempts || 0,
+                        co_161_hits: ps.co_161_hits || 0
                     };
                 }
             });
@@ -5054,7 +5154,7 @@ window.saveGame = async function() {
             const legCorkWinnerValue = legCorkWinner[i] || null;
 
             legs.push({
-                leg_number: i + 1,
+                leg_number: isMixedGame ? mixedLegIndex + 1 : i + 1,
                 format: STARTING_SCORE.toString(),
                 winner: legWinner,
                 first_throw: firstThrow,
@@ -5252,7 +5352,7 @@ window.saveGame = async function() {
         try {
             if (leagueId && matchId) {
                 showLoading('Saving game...');
-                await callWithQueue(callFunction, 'submitGameResult', {
+                const saveResult = await callWithQueue(callFunction, 'submitGameResult', {
                     league_id: leagueId, match_id: matchId, game_number: gameNumber,
                     winner, home_legs_won: teams[0].legs, away_legs_won: teams[1].legs,
                     admin_pin: adminPin,
@@ -5261,6 +5361,9 @@ window.saveGame = async function() {
                     away_players: awayPlayers.map(p => ({ id: p.id, name: p.name }))
                 });
                 hideLoading();
+                if (saveResult?.unresolved_players?.length) {
+                    toastWarning(`Saved with unresolved players: ${saveResult.unresolved_players.join(', ')}`, 7000);
+                }
             }
         } catch (e) {
             hideLoading();
@@ -5302,14 +5405,18 @@ window.saveGame = async function() {
     try {
         if (leagueId && matchId) {
             // League game submission with offline queue fallback
-            await callWithQueue(callFunction, 'submitGameResult', {
+            const saveResult = await callWithQueue(callFunction, 'submitGameResult', {
                 league_id: leagueId, match_id: matchId, game_number: gameNumber,
                 winner, home_legs_won: teams[0].legs, away_legs_won: teams[1].legs,
                 admin_pin: adminPin,
                 game_stats: comprehensiveGameStats
             });
             hideLoading();
-            toastSuccess('Game saved!');
+            if (saveResult?.unresolved_players?.length) {
+                toastWarning(`Game saved with unresolved players: ${saveResult.unresolved_players.join(', ')}`, 7000);
+            } else {
+                toastSuccess('Game saved!');
+            }
         } else if (tournamentId && tournamentMatchId) {
             if (tournamentType === 'double') {
                 // Double elimination (Matchmaker/Heartbreaker) submission

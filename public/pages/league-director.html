@@ -2065,8 +2065,148 @@ Bob Wilson"></textarea>
                                     <span class="stat-value" id="forfeitsCount">0</span>
                                 </div>
                             </div>
+                            <div class="sidebar-card">
+                                <h3 style="font-family: 'Bebas Neue', cursive; font-size: 22px; margin-bottom: 15px;">Import QA</h3>
+                                <p style="color: var(--text-dim); font-size: 13px; margin-bottom: 15px;">
+                                    Flags imported player names that still are not backed by throw-level stats.
+                                </p>
+                                <div class="stat-row">
+                                    <span class="stat-label">Summary-Only</span>
+                                    <span class="stat-value" id="summaryOnlyCount">0</span>
+                                </div>
+                                <div class="stat-row">
+                                    <span class="stat-label">Listed, No Stats</span>
+                                    <span class="stat-value" id="listedNoStatsCount">0</span>
+                                </div>
+                                <button class="brdc-btn brdc-btn-secondary" onclick="refreshImportQA()" style="width: 100%; margin-top: 16px;">
+                                    Refresh Import QA
+                                </button>
+                            </div>
                         </div>
                         <div>
+                            <div class="card" style="margin-bottom: 20px;">
+                                <div class="card-header" style="background: linear-gradient(135deg, #0ea5e9, #2563eb);">
+                                    <div class="card-icon">QA</div>
+                                    <div class="card-title">Import QA Report</div>
+                                </div>
+                                <div class="card-body">
+                                    <p style="color: var(--text-dim); font-size: 13px; margin-bottom: 16px;">
+                                        Runs the live throws-first stat rebuild and exposes import cleanup gaps without hiding them.
+                                    </p>
+                                    <div id="importQaStatus" style="margin-bottom: 16px; color: var(--text-dim);">
+                                        QA report has not been run yet.
+                                    </div>
+                                    <div class="settings-grid" style="margin-bottom: 16px;">
+                                        <div>
+                                            <span class="setting-label">Players Updated</span>
+                                            <span id="importQaPlayersUpdated">-</span>
+                                        </div>
+                                        <div>
+                                            <span class="setting-label">Unresolved Names</span>
+                                            <span id="importQaUnresolvedCount">-</span>
+                                        </div>
+                                        <div>
+                                            <span class="setting-label">Summary-Only Players</span>
+                                            <span id="importQaSummaryCount">-</span>
+                                        </div>
+                                        <div>
+                                            <span class="setting-label">Listed Without Stats</span>
+                                            <span id="importQaListedCount">-</span>
+                                        </div>
+                                    </div>
+                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                                        <div>
+                                            <div style="font-weight: 700; color: var(--teal); margin-bottom: 8px;">Summary-Only Players</div>
+                                            <div id="summaryOnlyList">
+                                                <p style="color: var(--text-dim);">No report yet.</p>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div style="font-weight: 700; color: var(--yellow); margin-bottom: 8px;">Listed But No Throw Stats</div>
+                                            <div id="listedNoStatsList">
+                                                <p style="color: var(--text-dim);">No report yet.</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card" style="margin-bottom: 20px;">
+                                <div class="card-header" style="background: linear-gradient(135deg, #14b8a6, #0f766e);">
+                                    <div class="card-icon">IN</div>
+                                    <div class="card-title">Manual Import Workbench</div>
+                                </div>
+                                <div class="card-body">
+                                    <p style="color: var(--text-dim); font-size: 13px; margin-bottom: 16px;">
+                                        Select the scheduled BRDC match first. The schedule anchors team orientation, set layout, and player identity; DartConnect is only used for throw-by-throw leg data.
+                                    </p>
+                                    <div style="display: grid; grid-template-columns: minmax(120px, 180px) minmax(240px, 1fr); gap: 12px; margin-bottom: 14px;">
+                                        <div class="form-group" style="margin-bottom: 0;">
+                                            <label class="brdc-label">Week</label>
+                                            <select id="importWeekSelect" class="brdc-input" onchange="onImportWeekChanged()">
+                                                <option value="">Load schedule first...</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-group" style="margin-bottom: 0;">
+                                            <label class="brdc-label">Scheduled Match</label>
+                                            <select id="importMatchSelect" class="brdc-input" onchange="onImportMatchChanged()">
+                                                <option value="">Choose a week first...</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <input type="hidden" id="importMatchId">
+                                    <div id="importSelectedMatchSummary" style="margin: -2px 0 14px; padding: 12px 14px; border-left: 6px solid var(--teal); background: rgba(20,184,166,0.08); color: var(--text-dim); font-size: 13px;">
+                                        Select a week and scheduled match before parsing a DartConnect recap.
+                                    </div>
+                                    <div class="form-group" style="margin-bottom: 14px;">
+                                        <label class="brdc-label">DartConnect Recap URL</label>
+                                        <input type="text" id="importRecapUrl" class="brdc-input" placeholder="https://recap.dartconnect.com/matches/...">
+                                    </div>
+                                    <div class="form-group" style="margin-bottom: 14px;">
+                                        <label class="brdc-label">Match Payload JSON</label>
+                                        <textarea id="importPayloadJson" class="bulk-textarea" style="min-height: 220px; font-family: 'JetBrains Mono', monospace;" placeholder='{"home_team":"...","away_team":"...","games":[...]}'></textarea>
+                                    </div>
+                                    <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px;">
+                                        <button class="brdc-btn brdc-btn-secondary" onclick="parseRecapToWorkbench()">Parse Recap URL</button>
+                                        <button class="brdc-btn brdc-btn-secondary" onclick="validateImportWorkbench()">Validate Payload</button>
+                                        <button class="brdc-btn" onclick="importValidatedPayload()">Import Validated Payload</button>
+                                    </div>
+                                    <div id="importWorkbenchStatus" style="margin-bottom: 16px; color: var(--text-dim);">
+                                        Select a scheduled match, then parse a DartConnect recap URL.
+                                    </div>
+                                    <div class="settings-grid" style="margin-bottom: 16px;">
+                                        <div>
+                                            <span class="setting-label">Games</span>
+                                            <span id="importValidationGames">-</span>
+                                        </div>
+                                        <div>
+                                            <span class="setting-label">Legs</span>
+                                            <span id="importValidationLegs">-</span>
+                                        </div>
+                                        <div>
+                                            <span class="setting-label">Legs With Throws</span>
+                                            <span id="importValidationLegsWithThrows">-</span>
+                                        </div>
+                                        <div>
+                                            <span class="setting-label">Summary-Only Legs</span>
+                                            <span id="importValidationSummaryLegs">-</span>
+                                        </div>
+                                    </div>
+                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                                        <div>
+                                            <div style="font-weight: 700; color: var(--yellow); margin-bottom: 8px;">Warnings</div>
+                                            <div id="importValidationWarnings">
+                                                <p style="color: var(--text-dim);">No validation run yet.</p>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div style="font-weight: 700; color: #f87171; margin-bottom: 8px;">Errors</div>
+                                            <div id="importValidationErrors">
+                                                <p style="color: var(--text-dim);">No validation run yet.</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                             <!-- Match Corrections Section -->
                             <div class="card" style="margin-bottom: 20px;">
                                 <div class="card-header pink">
@@ -2643,7 +2783,10 @@ Bob Wilson"></textarea>
         async function loadMatches() {
             try {
                 const result = await callFunction('getSchedule', { league_id: leagueId });
-                if (result.success) matchesData = result.matches;
+                if (result.success) {
+                    matchesData = result.matches;
+                    populateImportWorkbenchSelectors();
+                }
             } catch (e) { console.error(e); toastError('Failed to load matches'); }
         }
 
@@ -2722,7 +2865,7 @@ Bob Wilson"></textarea>
         window.startMatch = async function(matchId) {
             if (!confirm('Start match? This generates a PIN for tablet access.')) return;
             try {
-                const result = await callFunction('startMatch', { league_id: leagueId, match_id: matchId, admin_pin: adminPin });
+                const result = await callFunction('startMatch', { league_id: leagueId, match_id: matchId });
                 if (result.success) {
                     toastSuccess(`Match started! PIN: ${result.match_pin}`, 6000);
                     await loadMatches();
@@ -2755,7 +2898,7 @@ Bob Wilson"></textarea>
             const pins = [];
             for (const m of scheduled) {
                 try {
-                    const r = await callFunction('startMatch', { league_id: leagueId, match_id: m.id, admin_pin: adminPin });
+                    const r = await callFunction('startMatch', { league_id: leagueId, match_id: m.id });
                     if (r.success) pins.push(`${m.home_team_name} vs ${m.away_team_name}: ${r.match_pin}`);
                 } catch (e) { console.error(e); toastError('Failed to start a match'); }
             }
@@ -2780,7 +2923,7 @@ Bob Wilson"></textarea>
         window.generateSchedule = async function() {
             if (!confirm('Generate schedule for entire season?')) return;
             try {
-                const result = await callFunction('generateSchedule', { league_id: leagueId, admin_pin: adminPin });
+                const result = await callFunction('generateSchedule', { league_id: leagueId });
                 if (result.success) {
                     toastSuccess(`Schedule created! ${result.matches_created} matches over ${result.total_weeks} weeks`, 5000);
                     location.reload();
@@ -2791,7 +2934,7 @@ Bob Wilson"></textarea>
         window.updateStatus = async function() {
             const status = document.getElementById('statusSelect').value;
             try {
-                const result = await callFunction('updateLeagueStatus', { league_id: leagueId, admin_pin: adminPin, status: status });
+                const result = await callFunction('updateLeagueStatus', { league_id: leagueId, status: status });
                 if (result.success) {
                     leagueData.status = status;
                     document.getElementById('leagueStatus').textContent = status.toUpperCase();
@@ -2809,7 +2952,7 @@ Bob Wilson"></textarea>
             }
 
             try {
-                const result = await callFunction('deleteLeague', { league_id: leagueId, admin_pin: adminPin });
+                const result = await callFunction('deleteLeague', { league_id: leagueId });
                 if (result.success) {
                     toastSuccess('League deleted successfully');
                     window.location.href = '/pages/dashboard.html';
@@ -2907,7 +3050,8 @@ Bob Wilson"></textarea>
             let html = `<div class="sidebar-card"><h3 style="font-family: 'Bebas Neue', cursive; font-size: 20px; margin-bottom: 15px;">${title}</h3>`;
             data.slice(0, 5).forEach((p, i) => {
                 const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}.`;
-                html += `<div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #eee;"><span>${medal} ${p.player_name}</span><span style="font-weight: 700;">${p[field]}</span></div>`;
+                const value = (p && p[field] != null && p[field] !== '') ? p[field] : 0;
+                html += `<div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #eee;"><span>${medal} ${p.player_name || 'Unknown Player'}</span><span style="font-weight: 700;">${value}</span></div>`;
             });
             return html + '</div>';
         }
@@ -3042,8 +3186,7 @@ Bob Wilson"></textarea>
             try {
                 const result = await callFunction('updatePlayer', {
                     league_id: leagueId,
-                    admin_pin: adminPin,
-                    player_id: playerId,
+                     player_id: playerId,
                     updates: {
                         team_id: teamId,
                         position: parseInt(position)
@@ -3069,8 +3212,7 @@ Bob Wilson"></textarea>
             try {
                 const result = await callFunction('updatePlayer', {
                     league_id: leagueId,
-                    admin_pin: adminPin,
-                    player_id: playerId,
+                     player_id: playerId,
                     updates: {
                         team_id: null,
                         position: null,
@@ -3106,8 +3248,7 @@ Bob Wilson"></textarea>
             try {
                 const result = await callFunction('addPlayer', {
                     league_id: leagueId,
-                    admin_pin: adminPin,
-                    name: name,
+                     name: name,
                     email: email || null,
                     phone: phone || null,
                     average: average || null,
@@ -3170,8 +3311,7 @@ Bob Wilson"></textarea>
             try {
                 const result = await callFunction('bulkAddPlayers', {
                     league_id: leagueId,
-                    admin_pin: adminPin,
-                    players: players
+                     players: players
                 });
 
                 if (result.success) {
@@ -3244,8 +3384,7 @@ Bob Wilson"></textarea>
             try {
                 const result = await callFunction('bulkRemovePlayers', {
                     league_id: leagueId,
-                    admin_pin: adminPin,
-                    player_ids: Array.from(selectedPlayers)
+                     player_ids: Array.from(selectedPlayers)
                 });
 
                 if (result.success) {
@@ -3286,8 +3425,7 @@ Bob Wilson"></textarea>
             try {
                 const result = await callFunction('bulkRemovePlayers', {
                     league_id: leagueId,
-                    admin_pin: adminPin,
-                    player_names: names
+                     player_names: names
                 });
 
                 if (result.success) {
@@ -3420,8 +3558,7 @@ Bob Wilson"></textarea>
                 const result = await callFunction('bulkSetPlayerLevels', {
                     league_id: leagueId,
                     player_updates: player_updates,
-                    director_pin: adminPin
-                });
+                  });
 
                 hideLoading();
 
@@ -3486,8 +3623,7 @@ Bob Wilson"></textarea>
                     league_id: leagueId,
                     player_ids: playerIds,
                     target_team_id: targetTeamId,
-                    director_pin: adminPin
-                });
+                  });
 
                 hideLoading();
 
@@ -3553,8 +3689,7 @@ Bob Wilson"></textarea>
                     player_ids: playerIds,
                     message: message,
                     channels: channels,
-                    director_pin: adminPin
-                });
+                  });
 
                 hideLoading();
 
@@ -3603,8 +3738,7 @@ Bob Wilson"></textarea>
             try {
                 const result = await callFunction('updatePlayer', {
                     league_id: leagueId,
-                    admin_pin: adminPin,
-                    player_id: playerId,
+                     player_id: playerId,
                     updates: {
                         name: newName.trim() || player.name,
                         email: newEmail.trim() || null,
@@ -3633,8 +3767,7 @@ Bob Wilson"></textarea>
             try {
                 const result = await callFunction('deletePlayer', {
                     league_id: leagueId,
-                    admin_pin: adminPin,
-                    player_id: playerId
+                     player_id: playerId
                 });
 
                 if (result.success) {
@@ -3696,8 +3829,7 @@ Bob Wilson"></textarea>
             try {
                 const result = await callFunction('addBotToLeague', {
                     league_id: leagueId,
-                    admin_pin: adminPin,
-                    bot_id: botId
+                     bot_id: botId
                 });
 
                 if (result.success) {
@@ -4353,8 +4485,7 @@ Bob Wilson"></textarea>
             try {
                 const result = await callFunction('updateLeagueSettings', {
                     league_id: leagueId,
-                    admin_pin: adminPin,
-                    settings: updates
+                     settings: updates
                 });
 
                 if (result.success) {
@@ -4459,8 +4590,7 @@ Bob Wilson"></textarea>
                 // First create the team
                 const result = await callFunction('createTeamWithPlayers', {
                     league_id: leagueId,
-                    pin: adminPin,
-                    team_name: teamName,
+                     team_name: teamName,
                     player_a_id: playerAId || null,
                     player_b_id: playerBId || null,
                     player_c_id: playerCId || null
@@ -4501,8 +4631,7 @@ Bob Wilson"></textarea>
 
                 const result = await callFunction('notifyLeaguePlayers', {
                     league_id: leagueId,
-                    admin_pin: adminPin
-                });
+                  });
 
                 btn.disabled = false;
                 btn.textContent = '📱 TEXT ALL PLAYERS';
@@ -4540,8 +4669,7 @@ Bob Wilson"></textarea>
             try {
                 const result = await callFunction('conductLeagueDraft', {
                     league_id: leagueId,
-                    admin_pin: adminPin
-                });
+                  });
 
                 if (result.success) {
                     toastSuccess(`Draft complete! ${result.teams_created} teams created.`, 5000);
@@ -4979,8 +5107,7 @@ Bob Wilson"></textarea>
 
                 const result = await callFunction('sendCustomLeagueMessage', {
                     league_id: leagueId,
-                    admin_pin: adminPin,
-                    message: message,
+                     message: message,
                     filters: filters
                 });
 
@@ -5003,6 +5130,11 @@ Bob Wilson"></textarea>
         // DIRECTOR TOOLS FUNCTIONS
         // ============================================================================
 
+        let importQaReport = null;
+        let importWorkbenchValidation = null;
+        let importWorkbenchPayload = null;
+        let importWorkbenchParseSummary = null;
+
         // Load Director Tools tab data
         async function loadDirectorTools() {
             populateCorrectionWeekFilter();
@@ -5013,6 +5145,7 @@ Bob Wilson"></textarea>
             renderRescheduleMatches();
             renderForfeitMatches();
             loadToolsStats();
+            loadImportQA();
             loadAuditLog(true);
         }
 
@@ -5035,6 +5168,414 @@ Bob Wilson"></textarea>
                 toastError('Failed to load tools stats');
             }
         }
+
+        async function loadImportQA(forceRefresh = false) {
+            const statusEl = document.getElementById('importQaStatus');
+
+            if (!forceRefresh && importQaReport) {
+                renderImportQA(importQaReport);
+                return;
+            }
+
+            try {
+                statusEl.textContent = 'Running throws-first import QA...';
+                const result = await callFunction('recalculateLeagueStats', {
+                    league_id: leagueId
+                });
+
+                if (!result.success) {
+                    throw new Error(result.error || 'Import QA failed');
+                }
+
+                importQaReport = result;
+                renderImportQA(result);
+            } catch (e) {
+                console.error('Error loading import QA:', e);
+                statusEl.textContent = `Import QA failed: ${e.message}`;
+                document.getElementById('summaryOnlyList').innerHTML = '<p style="color: var(--danger);">Unable to load report.</p>';
+                document.getElementById('listedNoStatsList').innerHTML = '<p style="color: var(--danger);">Unable to load report.</p>';
+            }
+        }
+
+        function renderPlayerIssueList(players, accentColor, emptyLabel) {
+            if (!players?.length) {
+                return `<p style="color: var(--text-dim);">${emptyLabel}</p>`;
+            }
+
+            return players.map(player => `
+                <div class="director-card" style="padding: 12px 14px; margin-bottom: 10px; border-left: 6px solid ${accentColor};">
+                    <div style="font-weight: 700; color: var(--text-light);">${player}</div>
+                </div>
+            `).join('');
+        }
+
+        function renderImportQA(report) {
+            const summaryOnlyPlayers = report.summary_only_players || [];
+            const listedButNoStatsPlayers = report.listed_but_no_stats_players || [];
+            const unresolvedPlayers = report.unresolved_players || [];
+            const playersUpdated = report.players_updated ?? '-';
+            const statusEl = document.getElementById('importQaStatus');
+
+            document.getElementById('summaryOnlyCount').textContent = summaryOnlyPlayers.length;
+            document.getElementById('listedNoStatsCount').textContent = listedButNoStatsPlayers.length;
+            document.getElementById('importQaPlayersUpdated').textContent = playersUpdated;
+            document.getElementById('importQaUnresolvedCount').textContent = unresolvedPlayers.length;
+            document.getElementById('importQaSummaryCount').textContent = summaryOnlyPlayers.length;
+            document.getElementById('importQaListedCount').textContent = listedButNoStatsPlayers.length;
+
+            const issueCount = summaryOnlyPlayers.length + listedButNoStatsPlayers.length + unresolvedPlayers.length;
+            statusEl.textContent = issueCount
+                ? `QA report found ${issueCount} import attribution issue${issueCount === 1 ? '' : 's'}.`
+                : 'QA report is clean. All current player stats resolve from throws.';
+
+            document.getElementById('summaryOnlyList').innerHTML = renderPlayerIssueList(
+                summaryOnlyPlayers,
+                'var(--teal)',
+                'No summary-only players.'
+            );
+            document.getElementById('listedNoStatsList').innerHTML = renderPlayerIssueList(
+                listedButNoStatsPlayers,
+                'var(--yellow)',
+                'No listed-without-stats players.'
+            );
+        }
+
+        window.refreshImportQA = async function() {
+            await loadImportQA(true);
+            toastSuccess('Import QA refreshed');
+        };
+
+        function escapeHtml(value) {
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function renderImportMessages(targetId, messages, accentColor, emptyLabel) {
+            const target = document.getElementById(targetId);
+            if (!messages?.length) {
+                target.innerHTML = `<p style="color: var(--text-dim);">${emptyLabel}</p>`;
+                return;
+            }
+
+            target.innerHTML = messages.map(message => `
+                <div class="director-card" style="padding: 12px 14px; margin-bottom: 10px; border-left: 6px solid ${accentColor};">
+                    <div style="font-size: 13px; color: var(--text-light);">${escapeHtml(message)}</div>
+                </div>
+            `).join('');
+        }
+
+        function getImportSelectedMatch() {
+            const matchId = document.getElementById('importMatchId')?.value?.trim();
+            return matchId ? matchesData.find(match => match.id === matchId) || null : null;
+        }
+
+        function formatImportMatchOption(match) {
+            const status = (match.status || 'scheduled').replace('_', ' ').toUpperCase();
+            const score = match.status && match.status !== 'scheduled'
+                ? ` - ${match.home_score ?? 0}-${match.away_score ?? 0}`
+                : '';
+            return `${match.home_team_name || 'Home'} vs ${match.away_team_name || 'Away'} (${status}${score})`;
+        }
+
+        function resetImportWorkbenchPayload(message = 'Selection changed. Parse the DartConnect recap again before importing.') {
+            importWorkbenchPayload = null;
+            importWorkbenchValidation = null;
+            importWorkbenchParseSummary = null;
+            const payload = document.getElementById('importPayloadJson');
+            const status = document.getElementById('importWorkbenchStatus');
+            if (payload) payload.value = '';
+            if (status) status.textContent = message;
+            ['importValidationGames', 'importValidationLegs', 'importValidationLegsWithThrows', 'importValidationSummaryLegs']
+                .forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.textContent = '-';
+                });
+            renderImportMessages('importValidationWarnings', [], 'var(--yellow)', 'No validation run yet.');
+            renderImportMessages('importValidationErrors', [], '#f87171', 'No validation run yet.');
+        }
+
+        function renderImportSelectedMatchSummary() {
+            const summary = document.getElementById('importSelectedMatchSummary');
+            if (!summary) return;
+
+            const match = getImportSelectedMatch();
+            if (!match) {
+                summary.textContent = 'Select a week and scheduled match before parsing a DartConnect recap.';
+                return;
+            }
+
+            const scheduledGames = Array.isArray(match.games) ? match.games.length : 0;
+            const status = (match.status || 'scheduled').replace('_', ' ').toUpperCase();
+            const date = match.match_date || match.date || 'date not set';
+            summary.innerHTML = `
+                <div style="font-weight: 800; color: var(--text-light); margin-bottom: 4px;">
+                    Week ${escapeHtml(match.week)} - ${escapeHtml(match.home_team_name || 'Home')} vs ${escapeHtml(match.away_team_name || 'Away')}
+                </div>
+                <div>
+                    Match ID: <code>${escapeHtml(match.id)}</code> - ${escapeHtml(status)} - ${escapeHtml(date)}${scheduledGames ? ` - ${scheduledGames} scheduled sets` : ''}
+                </div>
+                <div style="margin-top: 4px;">
+                    Import rule: use this scheduled match for sides/set layout; auto-swap DartConnect sides only when roster matching proves they are reversed.
+                </div>
+            `;
+        }
+
+        function populateImportMatchSelect(week, preferredMatchId = '') {
+            const matchSelect = document.getElementById('importMatchSelect');
+            const hiddenMatchId = document.getElementById('importMatchId');
+            if (!matchSelect || !hiddenMatchId) return;
+
+            const weekNumber = parseInt(week, 10);
+            const weekMatches = matchesData
+                .filter(match => parseInt(match.week, 10) === weekNumber)
+                .sort((a, b) => String(a.match_date || '').localeCompare(String(b.match_date || '')) ||
+                    String(a.home_team_name || '').localeCompare(String(b.home_team_name || '')));
+
+            if (!weekMatches.length) {
+                matchSelect.innerHTML = '<option value="">No matches for this week</option>';
+                hiddenMatchId.value = '';
+                renderImportSelectedMatchSummary();
+                return;
+            }
+
+            matchSelect.innerHTML = '<option value="">Select scheduled match...</option>' + weekMatches.map(match =>
+                `<option value="${escapeHtml(match.id)}">${escapeHtml(formatImportMatchOption(match))}</option>`
+            ).join('');
+
+            const nextMatchId = preferredMatchId && weekMatches.some(match => match.id === preferredMatchId)
+                ? preferredMatchId
+                : '';
+            matchSelect.value = nextMatchId;
+            hiddenMatchId.value = nextMatchId;
+            renderImportSelectedMatchSummary();
+        }
+
+        function populateImportWorkbenchSelectors(preferredMatchId = '') {
+            const weekSelect = document.getElementById('importWeekSelect');
+            if (!weekSelect) return;
+
+            const selectedMatch = preferredMatchId
+                ? matchesData.find(match => match.id === preferredMatchId)
+                : getImportSelectedMatch();
+            const weeks = Array.from(new Set(matchesData
+                .map(match => parseInt(match.week, 10))
+                .filter(Number.isFinite)))
+                .sort((a, b) => a - b);
+
+            if (!weeks.length) {
+                weekSelect.innerHTML = '<option value="">No scheduled matches loaded</option>';
+                populateImportMatchSelect('', '');
+                return;
+            }
+
+            const selectedWeek = selectedMatch?.week || currentWeek || weeks[0];
+            weekSelect.innerHTML = weeks.map(week =>
+                `<option value="${week}">Week ${week}</option>`
+            ).join('');
+            weekSelect.value = String(weeks.includes(parseInt(selectedWeek, 10)) ? selectedWeek : weeks[0]);
+            populateImportMatchSelect(weekSelect.value, selectedMatch?.id || preferredMatchId);
+        }
+
+        window.onImportWeekChanged = function() {
+            const week = document.getElementById('importWeekSelect').value;
+            populateImportMatchSelect(week, '');
+            resetImportWorkbenchPayload('Week changed. Select the scheduled match, then parse the DartConnect recap.');
+        };
+
+        window.onImportMatchChanged = function() {
+            const matchId = document.getElementById('importMatchSelect').value;
+            document.getElementById('importMatchId').value = matchId;
+            renderImportSelectedMatchSummary();
+            resetImportWorkbenchPayload(matchId
+                ? 'Scheduled match selected. Paste and parse the DartConnect recap URL.'
+                : 'Select a scheduled match before parsing a DartConnect recap.');
+        };
+
+        function renderImportValidation(validation) {
+            const metrics = validation?.metrics || {};
+            const statusEl = document.getElementById('importWorkbenchStatus');
+
+            document.getElementById('importValidationGames').textContent = metrics.games ?? '-';
+            document.getElementById('importValidationLegs').textContent = metrics.legs ?? '-';
+            document.getElementById('importValidationLegsWithThrows').textContent = metrics.legsWithThrows ?? '-';
+            document.getElementById('importValidationSummaryLegs').textContent = metrics.playerStatsOnlyLegs ?? '-';
+
+            if (!validation.valid) {
+                statusEl.textContent = 'Validation failed. Import is blocked until the payload errors are fixed.';
+            } else if ((validation.warnings || []).length) {
+                statusEl.textContent = `Validation passed with ${(validation.warnings || []).length} warning(s). Review them before import.`;
+            } else {
+                statusEl.textContent = 'Validation passed cleanly. Payload is ready for import.';
+            }
+
+            renderImportMessages('importValidationWarnings', validation.warnings, 'var(--yellow)', 'No warnings.');
+            renderImportMessages('importValidationErrors', validation.errors, '#f87171', 'No errors.');
+        }
+
+        window.parseRecapToWorkbench = async function() {
+            const recapUrl = document.getElementById('importRecapUrl').value.trim();
+            const matchId = document.getElementById('importMatchId').value.trim();
+            const selectedMatch = getImportSelectedMatch();
+            if (!recapUrl) {
+                toastWarning('Paste a DartConnect recap URL first');
+                return;
+            }
+            if (!matchId || !selectedMatch) {
+                toastWarning('Select the scheduled BRDC match before parsing a recap URL');
+                return;
+            }
+
+            try {
+                showLoading(`Parsing recap for Week ${selectedMatch.week}...`);
+                const result = await callFunction('parseDartConnectRecap', {
+                    recapUrl,
+                    leagueId,
+                    matchId
+                });
+                hideLoading();
+
+                importWorkbenchPayload = result.matchData;
+                importWorkbenchValidation = result.validation;
+                importWorkbenchParseSummary = result.parse_summary || null;
+
+                document.getElementById('importPayloadJson').value = JSON.stringify(importWorkbenchPayload, null, 2);
+                renderImportValidation(importWorkbenchValidation);
+
+                const parseSummary = importWorkbenchParseSummary || {};
+                const summaryOnlyLegs = parseSummary.summary_only_legs ?? '-';
+                const recapComponent = parseSummary.component || 'unknown';
+                const trimmedGroups = parseSummary.trimmed_placeholder_groups ?? 0;
+                const parsedGroups = parseSummary.parsed_group_count ?? '-';
+                const scheduledGroups = parseSummary.scheduled_game_count ?? '-';
+                const unresolvedPlayers = parseSummary.unresolved_turn_player_count ?? 0;
+                const anchorOk = parseSummary.schedule_match_id === matchId;
+                document.getElementById('importWorkbenchStatus').textContent =
+                    `Parsed DartConnect recap for Week ${selectedMatch.week} - ${selectedMatch.home_team_name} vs ${selectedMatch.away_team_name} (${recapComponent}). Schedule anchor: ${anchorOk ? 'OK' : 'MISMATCH'}. Trimmed old/placeholder groups: ${trimmedGroups}. Parsed groups: ${parsedGroups}/${scheduledGroups}. Summary-only legs: ${summaryOnlyLegs}. Unresolved players: ${unresolvedPlayers}. Review warnings before import.`;
+
+                if (!importWorkbenchValidation.valid) {
+                    toastWarning('Recap parsed, but the payload has blocking validation errors');
+                } else if (!anchorOk) {
+                    toastWarning('Recap parsed, but the schedule anchor does not match the selected match');
+                } else if ((importWorkbenchValidation.warnings || []).length) {
+                    toastWarning('Recap parsed with warnings. Review throw coverage before import.');
+                } else {
+                    toastSuccess('Recap parsed into import payload');
+                }
+            } catch (e) {
+                hideLoading();
+                importWorkbenchParseSummary = null;
+                toastError(e.message);
+                document.getElementById('importWorkbenchStatus').textContent = `Recap parse failed: ${e.message}`;
+            }
+        };
+
+        window.validateImportWorkbench = async function() {
+            const payloadText = document.getElementById('importPayloadJson').value.trim();
+            if (!payloadText) {
+                toastWarning('Paste a match payload first');
+                return;
+            }
+
+            try {
+                importWorkbenchPayload = JSON.parse(payloadText);
+            } catch (e) {
+                importWorkbenchPayload = null;
+                importWorkbenchValidation = null;
+                document.getElementById('importWorkbenchStatus').textContent = `Payload JSON is invalid: ${e.message}`;
+                renderImportMessages('importValidationWarnings', [], 'var(--yellow)', 'No warnings.');
+                renderImportMessages('importValidationErrors', [e.message], '#f87171', 'No errors.');
+                toastError('Payload JSON is invalid');
+                return;
+            }
+
+            try {
+                showLoading('Validating import payload...');
+                const result = await callFunction('validateImportMatchData', {
+                    matchData: importWorkbenchPayload
+                });
+                hideLoading();
+
+                importWorkbenchValidation = result.validation;
+                renderImportValidation(importWorkbenchValidation);
+
+                if (importWorkbenchValidation.valid) {
+                    toastSuccess('Import payload validated');
+                } else {
+                    toastWarning('Validation found blocking errors');
+                }
+            } catch (e) {
+                hideLoading();
+                toastError(e.message);
+                document.getElementById('importWorkbenchStatus').textContent = `Validation failed: ${e.message}`;
+            }
+        };
+
+        window.importValidatedPayload = async function() {
+            const matchId = document.getElementById('importMatchId').value.trim();
+            const selectedMatch = getImportSelectedMatch();
+
+            if (!matchId || !selectedMatch) {
+                toastWarning('Select the scheduled BRDC match first');
+                return;
+            }
+
+            if (!importWorkbenchPayload || !importWorkbenchValidation) {
+                toastWarning('Validate the payload before importing');
+                return;
+            }
+
+            if (!importWorkbenchValidation.valid) {
+                toastWarning('Import is blocked until validation errors are fixed');
+                return;
+            }
+
+            if (!importWorkbenchParseSummary?.schedule_match_id) {
+                toastWarning('Import blocked. Parse the DartConnect recap from the selected scheduled match before importing.');
+                document.getElementById('importWorkbenchStatus').textContent =
+                    'Import blocked: this payload is not schedule-anchored. Use Parse Recap URL after selecting the week/match.';
+                return;
+            }
+
+            if (importWorkbenchParseSummary.schedule_match_id !== matchId) {
+                toastWarning('Import blocked. Parsed payload belongs to a different scheduled match.');
+                document.getElementById('importWorkbenchStatus').textContent =
+                    `Import blocked: parse summary is anchored to ${importWorkbenchParseSummary.schedule_match_id}, but selected match is ${matchId}.`;
+                return;
+            }
+
+            try {
+                showLoading(`Importing Week ${selectedMatch.week} match...`);
+                const result = await callFunction('importMatchData', {
+                    leagueId: leagueId,
+                    matchId,
+                    matchData: importWorkbenchPayload,
+                    parseSummary: importWorkbenchParseSummary
+                });
+                hideLoading();
+
+                importWorkbenchValidation = result.validation || importWorkbenchValidation;
+                renderImportValidation(importWorkbenchValidation);
+                const importedGroups = result.importParseSummary?.parsed_group_count ?? importWorkbenchParseSummary?.parsed_group_count ?? '-';
+                const scheduledGroups = result.importParseSummary?.scheduled_game_count ?? importWorkbenchParseSummary?.scheduled_game_count ?? '-';
+                const unresolvedPlayers = result.importParseSummary?.unresolved_turn_player_count ?? importWorkbenchParseSummary?.unresolved_turn_player_count ?? 0;
+                document.getElementById('importWorkbenchStatus').textContent =
+                    `Import completed for Week ${selectedMatch.week} - ${selectedMatch.home_team_name} vs ${selectedMatch.away_team_name}. Parsed groups: ${importedGroups}/${scheduledGroups}. Unresolved players: ${unresolvedPlayers}.`;
+                toastSuccess(`Imported Week ${selectedMatch.week} match successfully`, 5000);
+
+                await loadMatches();
+                populateImportWorkbenchSelectors(matchId);
+                renderMatches();
+                loadImportQA(true);
+            } catch (e) {
+                hideLoading();
+                toastError(e.message);
+                document.getElementById('importWorkbenchStatus').textContent = `Import failed: ${e.message}`;
+            }
+        };
 
         // =============================================
         // AUDIT LOG FUNCTIONS
@@ -5062,8 +5603,7 @@ Bob Wilson"></textarea>
                 const actionFilter = document.getElementById('auditActionFilter').value;
                 const result = await callFunction('getAuditLog', {
                     league_id: leagueId,
-                    director_pin: adminPin,
-                    limit: 20,
+                     limit: 20,
                     action_filter: actionFilter !== 'all' ? actionFilter : null,
                     start_after_timestamp: auditLogCursor
                 });
@@ -5410,8 +5950,7 @@ Bob Wilson"></textarea>
                     league_id: leagueId,
                     player_id: playerId,
                     level: newLevel,
-                    director_pin: adminPin
-                });
+                  });
                 hideLoading();
 
                 if (result.success) {
@@ -5471,8 +6010,7 @@ Bob Wilson"></textarea>
                     home_score: homeScore,
                     away_score: awayScore,
                     reason: reason,
-                    director_pin: adminPin
-                });
+                  });
                 hideLoading();
 
                 if (result.success) {
@@ -5553,8 +6091,7 @@ Bob Wilson"></textarea>
                     new_date: newDate,
                     is_makeup: isMakeup,
                     notify_captains: notifyCaptains,
-                    director_pin: adminPin
-                });
+                  });
                 hideLoading();
 
                 if (result.success) {
@@ -5735,8 +6272,7 @@ Bob Wilson"></textarea>
                     partial: isPartial,
                     partial_home_score: isPartial ? partialHomeScore : undefined,
                     partial_away_score: isPartial ? partialAwayScore : undefined,
-                    director_pin: adminPin
-                });
+                  });
                 hideLoading();
 
                 if (result.success) {
@@ -5864,7 +6400,7 @@ Bob Wilson"></textarea>
 
     <script src="/js/display-helpers.js"></script>
     <script src="/js/nav-menu.js"></script>
-    <script src="/components/brdc-navigation-init.js?v=13"></script>
+    <script src="/components/brdc-navigation-init.js?v=14"></script>
     <script>initBRDCNavigation({ page: 'league-director' });</script>
 </body>
 </html>
