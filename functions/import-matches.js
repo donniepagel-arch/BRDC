@@ -373,6 +373,110 @@ function trimLeadingPlaceholderGroups(groupedSets) {
     };
 }
 
+function collectRecapGroupSideNames(setGroup, side) {
+    const names = [];
+    const addName = (name) => {
+        const normalized = normalizeRecapLabel(name, '');
+        if (!normalized || isPlaceholderSideName(normalized) || names.includes(normalized)) return;
+        names.push(normalized);
+    };
+
+    (Array.isArray(setGroup) ? setGroup : []).forEach((game) => {
+        const sidePlayers = Array.isArray(game?.[side]?.players) ? game[side].players : [];
+        sidePlayers.forEach((player) => addName(player?.player_label || player?.name));
+        (Array.isArray(game?.turns) ? game.turns : []).forEach((turn) => {
+            addName(turn?.[side]?.name);
+        });
+    });
+
+    return names;
+}
+
+function buildNameAliasSet(names) {
+    const aliases = new Set();
+    (names || []).forEach((name) => {
+        buildIdentityAliases(name).forEach((alias) => aliases.add(alias));
+    });
+    return aliases;
+}
+
+function countNameAliasMatches(names, aliasSet) {
+    return (names || []).reduce((count, name) => {
+        const aliases = buildIdentityAliases(name);
+        return count + (aliases.some((alias) => aliasSet.has(alias)) ? 1 : 0);
+    }, 0);
+}
+
+function scoreRecapGroupForScheduledGame(setGroup, scheduledGame) {
+    if (!scheduledGame) return 0;
+
+    const firstRecapGame = Array.isArray(setGroup) ? setGroup[0] : null;
+    const recapType = mapRecapGameType(firstRecapGame?.game_name);
+    const scheduledFormat = String(scheduledGame.format || '').toLowerCase();
+    const scheduledType = String(scheduledGame.type || '').toLowerCase();
+    let score = 0;
+
+    if (scheduledFormat && String(recapType.format || '').toLowerCase().includes(scheduledFormat.replace(/\s+/g, ''))) {
+        score += 8;
+    }
+    if (scheduledType && String(recapType.type || '').toLowerCase() === scheduledType) {
+        score += 4;
+    }
+
+    const recapHomeNames = collectRecapGroupSideNames(setGroup, 'home');
+    const recapAwayNames = collectRecapGroupSideNames(setGroup, 'away');
+    const scheduledHomeAliases = buildNameAliasSet(scheduledGame.home_players);
+    const scheduledAwayAliases = buildNameAliasSet(scheduledGame.away_players);
+
+    const directMatches =
+        countNameAliasMatches(recapHomeNames, scheduledHomeAliases) +
+        countNameAliasMatches(recapAwayNames, scheduledAwayAliases);
+    const swappedMatches =
+        countNameAliasMatches(recapHomeNames, scheduledAwayAliases) +
+        countNameAliasMatches(recapAwayNames, scheduledHomeAliases);
+
+    score += Math.max(directMatches, swappedMatches) * 20;
+
+    if (!recapHomeNames.length && !recapAwayNames.length) {
+        score -= 50;
+    }
+
+    return score;
+}
+
+function selectScheduledRecapGroups(groupedSets, scheduledGames) {
+    const expectedCount = Array.isArray(scheduledGames) ? scheduledGames.length : 0;
+    if (!expectedCount || groupedSets.length <= expectedCount) {
+        return {
+            groups: groupedSets,
+            selectedStart: 0,
+            selectedCount: groupedSets.length,
+            rawCount: groupedSets.length,
+            score: null
+        };
+    }
+
+    let bestStart = 0;
+    let bestScore = Number.NEGATIVE_INFINITY;
+    for (let start = 0; start <= groupedSets.length - expectedCount; start += 1) {
+        const windowScore = scheduledGames.reduce((total, scheduledGame, idx) => {
+            return total + scoreRecapGroupForScheduledGame(groupedSets[start + idx], scheduledGame);
+        }, 0);
+        if (windowScore > bestScore) {
+            bestScore = windowScore;
+            bestStart = start;
+        }
+    }
+
+    return {
+        groups: groupedSets.slice(bestStart, bestStart + expectedCount),
+        selectedStart: bestStart,
+        selectedCount: expectedCount,
+        rawCount: groupedSets.length,
+        score: bestScore
+    };
+}
+
 function normalizeIdentityName(name) {
     return String(name || '')
         .toLowerCase()
@@ -670,7 +774,8 @@ function buildMatchDataFromRecapPayload(payload, recapUrl, gamesUrl, scheduledCo
         });
     });
     const trimmed = trimLeadingPlaceholderGroups(groupedSets);
-    const activeGroupedSets = trimmed.groups;
+    const selected = selectScheduledRecapGroups(trimmed.groups, scheduledContext?.scheduledGames);
+    const activeGroupedSets = selected.groups;
     const parsedGroupCount = activeGroupedSets.length;
 
     let gameNumber = 1;
@@ -775,7 +880,7 @@ function buildMatchDataFromRecapPayload(payload, recapUrl, gamesUrl, scheduledCo
 
     const homeTeam = scheduledContext?.home_team || normalizeRecapLabel(matchInfo.home_label, 'Home');
     const awayTeam = scheduledContext?.away_team || normalizeRecapLabel(matchInfo.away_label, 'Away');
-    const matchTotalDarts = parseNumericValue(matchInfo.total_darts) ?? totalDarts;
+    const matchTotalDarts = totalDarts;
     const teamLabelsMissing = !scheduledContext && (!matchInfo.home_label || !matchInfo.away_label);
 
     return {
@@ -788,7 +893,7 @@ function buildMatchDataFromRecapPayload(payload, recapUrl, gamesUrl, scheduledCo
             },
             total_darts: matchTotalDarts,
             total_legs: totalLegs,
-            total_sets: parseNumericValue(matchInfo.total_sets) ?? groupedSets.length,
+            total_sets: games.length,
             start_time: null,
             end_time: null,
             games
@@ -808,8 +913,12 @@ function buildMatchDataFromRecapPayload(payload, recapUrl, gamesUrl, scheduledCo
             team_labels_missing: teamLabelsMissing,
             schedule_match_id: scheduledContext?.matchId || null,
             parsed_group_count: parsedGroupCount,
+            raw_group_count: selected.rawCount,
             scheduled_game_count: scheduledContext?.scheduledGames?.length || null,
             trimmed_placeholder_groups: trimmed.trimmedCount,
+            selected_group_start: selected.selectedStart,
+            selected_group_count: selected.selectedCount,
+            selected_group_score: selected.score,
             unresolved_turn_players: Array.from(unresolvedPlayers),
             unresolved_turn_player_count: unresolvedPlayers.size
         }
