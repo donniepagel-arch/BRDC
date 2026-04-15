@@ -8,6 +8,14 @@ import { state, ensurePlayersLoaded, ensureStatsLoaded, ensureTeamRecordsCalcula
 import { getOrdinal, getTeamName, getPlayerName, getTeamRecord } from '/js/league-view/helpers.js';
 // get3DA and getMPR are globals from /js/stats-helpers.js (loaded via script tag)
 
+function isFiniteStat(value) {
+    return Number.isFinite(value);
+}
+
+function formatStat(value, decimals, fallback = '-') {
+    return isFiniteStat(value) ? value.toFixed(decimals) : fallback;
+}
+
 // Common nickname → full name mappings
 const NICKNAMES = {
     'matt': 'matthew', 'nate': 'nathan', 'jenn': 'jennifer', 'dave': 'david',
@@ -370,7 +378,7 @@ export async function loadLeagueMatchCard(idx, match) {
         const homeOutPlayers = [];
         const awayOutPlayers = [];
 
-        if (matchStatus === 'completed') {
+        if (matchStatus === 'completed' || (matchStatus === 'scheduled' && (homeLineup.length > 0 || awayLineup.length > 0))) {
             // Process home lineup for fill-ins
             homeLineup.forEach(lineupEntry => {
                 if (lineupEntry.is_sub && lineupEntry.player_id && lineupEntry.replacing_player_id) {
@@ -524,7 +532,9 @@ export async function loadLeagueMatchCard(idx, match) {
 
         // Compare stat values
         const compareValues = (leftVal, rightVal) => {
-            if (!leftVal || !rightVal) return { left: '', right: '' };
+            if (!isFiniteStat(leftVal) || !isFiniteStat(rightVal) || leftVal <= 0 || rightVal <= 0) {
+                return { left: '', right: '' };
+            }
             if (Math.abs(leftVal - rightVal) < 0.1) return { left: '', right: '' };
             return leftVal > rightVal ? { left: 'better', right: 'worse' } : { left: 'worse', right: 'better' };
         };
@@ -533,10 +543,10 @@ export async function loadLeagueMatchCard(idx, match) {
         const teamMPRCompare = compareValues(homeTeamMPR, awayTeamMPR);
 
         // Format team averages
-        const home3DADisplay = homeTeam3DA ? homeTeam3DA.toFixed(1) : '-';
-        const away3DADisplay = awayTeam3DA ? awayTeam3DA.toFixed(1) : '-';
-        const homeMPRDisplay = homeTeamMPR ? homeTeamMPR.toFixed(2) : '-';
-        const awayMPRDisplay = awayTeamMPR ? awayTeamMPR.toFixed(2) : '-';
+        const home3DADisplay = isFiniteStat(homeTeam3DA) && homeTeam3DA > 0 ? homeTeam3DA.toFixed(1) : '-';
+        const away3DADisplay = isFiniteStat(awayTeam3DA) && awayTeam3DA > 0 ? awayTeam3DA.toFixed(1) : '-';
+        const homeMPRDisplay = isFiniteStat(homeTeamMPR) && homeTeamMPR > 0 ? homeTeamMPR.toFixed(2) : '-';
+        const awayMPRDisplay = isFiniteStat(awayTeamMPR) && awayTeamMPR > 0 ? awayTeamMPR.toFixed(2) : '-';
 
         const buildTeamAvgHtml = (da, mpr, winPct, daClass, mprClass) => {
             return `<div class="match-team-avg"><span class="${daClass}">${da}</span> / <span class="${mprClass}">${mpr}</span> / ${winPct}</div>`;
@@ -567,10 +577,10 @@ export async function loadLeagueMatchCard(idx, match) {
             const daCompare = (homePlayer && awayPlayer) ? compareValues(home3DA, away3DA) : { left: '', right: '' };
             const mprCompare = (homePlayer && awayPlayer) ? compareValues(homeMPR, awayMPR) : { left: '', right: '' };
 
-            const home3DAStr = home3DA != null ? home3DA.toFixed(1) : '-';
-            const homeMPRStr = homeMPR != null ? homeMPR.toFixed(2) : '-';
-            const away3DAStr = away3DA != null ? away3DA.toFixed(1) : '-';
-            const awayMPRStr = awayMPR != null ? awayMPR.toFixed(2) : '-';
+            const home3DAStr = formatStat(home3DA, 1);
+            const homeMPRStr = formatStat(homeMPR, 2);
+            const away3DAStr = formatStat(away3DA, 1);
+            const awayMPRStr = formatStat(awayMPR, 2);
 
             const homeNameClass = `match-player-name${homeCaptain ? ' captain' : ''}${homeFillIn ? ' fill-in' : ''}`;
             const awayNameClass = `match-player-name${awayCaptain ? ' captain' : ''}${awayFillIn ? ' fill-in' : ''}`;
@@ -611,10 +621,10 @@ export async function loadLeagueMatchCard(idx, match) {
             const awayOut3DA = awayOutPlayer ? get3DA(awayOutStats) : null;
             const awayOutMPR = awayOutPlayer ? getMPR(awayOutStats) : null;
 
-            const homeOut3DAStr = homeOut3DA != null ? homeOut3DA.toFixed(1) : '-.-';
-            const homeOutMPRStr = homeOutMPR != null ? homeOutMPR.toFixed(2) : '-.--';
-            const awayOut3DAStr = awayOutPlayer ? (awayOut3DA != null ? awayOut3DA.toFixed(1) : '-.-') : '-.-';
-            const awayOutMPRStr = awayOutPlayer ? (awayOutMPR != null ? awayOutMPR.toFixed(2) : '-.--') : '-.--';
+            const homeOut3DAStr = formatStat(homeOut3DA, 1, '-.-');
+            const homeOutMPRStr = formatStat(homeOutMPR, 2, '-.--');
+            const awayOut3DAStr = awayOutPlayer ? formatStat(awayOut3DA, 1, '-.-') : '-.-';
+            const awayOutMPRStr = awayOutPlayer ? formatStat(awayOutMPR, 2, '-.--') : '-.--';
 
             rosterRows += `
                 <div class="match-row out-row">

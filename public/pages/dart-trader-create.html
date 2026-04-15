@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Listing - Dart Trader - BRDC</title>
+    <link rel="icon" type="image/png" href="/images/favicon.png">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#FF469A">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap');
+
+        :root {
+            --pink: #FF469A;
+            --teal: #91D7EB;
+            --yellow: #FDD835;
+            --bg-dark: #1a1a2e;
+            --bg-panel: #16213e;
+            --bg-card: #1e2a47;
+            --text-light: #f0f0f0;
+            --text-dim: #8a8aa3;
+            --border-color: rgba(255,255,255,0.15);
+            --success: #22c55e;
+            --danger: #ef4444;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+        html, body { min-height: 100%; overflow-x: hidden; width: 100%; }
+        body {
+            background: linear-gradient(135deg, var(--bg-dark) 0%, #0f0f23 100%);
+            color: var(--text-light);
+            padding-bottom: 100px;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse at 20% 20%, rgba(255, 70, 154, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(145, 215, 235, 0.06) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        /* Header */
+        .header-bar {
+            background: var(--bg-panel);
+            border-bottom: 3px solid var(--pink);
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+        }
+
+        .back-btn {
+            background: rgba(255,255,255,0.1);
+            border: 2px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.15s;
+            text-decoration: none;
+        }
+
+        .back-btn:hover {
+            background: rgba(255,255,255,0.2);
+            border-color: var(--pink);
+        }
+
+        .header-title {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 28px;
+            letter-spacing: 2px;
+            color: var(--yellow);
+        }
+
+        /* Form Container */
+        .form-container {
+            max-width: 600px;
+            margin: 24px auto;
+            padding: 0 16px;
+        }
+
+        /* Photo Upload */
+        .photo-section {
+            margin-bottom: 24px;
+        }
+
+        .photo-dropzone {
+            border: 2px dashed rgba(255,255,255,0.25);
+            border-radius: 12px;
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: var(--bg-card);
+        }
+
+        .photo-dropzone:hover,
+        .photo-dropzone.dragover {
+            border-color: var(--teal);
+            background: rgba(145, 215, 235, 0.05);
+        }
+
+        .photo-dropzone-icon {
+            font-size: 48px;
+            margin-bottom: 8px;
+            color: var(--text-dim);
+        }
+
+        .photo-dropzone-text {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-light);
+            margin-bottom: 4px;
+        }
+
+        .photo-dropzone-hint {
+            font-size: 13px;
+            color: var(--text-dim);
+        }
+
+        .photo-previews {
+            display: flex;
+            gap: 10px;
+            margin-top: 12px;
+            flex-wrap: wrap;
+        }
+
+        .photo-thumb {
+            position: relative;
+            width: 80px;
+            height: 80px;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 2px solid rgba(255,255,255,0.15);
+        }
+
+        .photo-thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .photo-thumb .remove-photo {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            width: 22px;
+            height: 22px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            font-size: 14px;
+            line-height: 1;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .photo-thumb .cover-badge {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0,0,0,0.7);
+            color: var(--yellow);
+            font-size: 9px;
+            font-weight: 700;
+            text-align: center;
+            padding: 2px;
+            text-transform: uppercase;
+        }
+
+        /* Form Fields */
+        .form-group {
+            margin-bottom: 18px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 12px;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            font-weight: 700;
+            letter-spacing: 1px;
+            margin-bottom: 6px;
+        }
+
+        .form-label .required {
+            color: var(--pink);
+        }
+
+        .form-input,
+        .form-select,
+        .form-textarea {
+            width: 100%;
+            background: var(--bg-card);
+            border: 2px solid rgba(255,255,255,0.15);
+            border-radius: 8px;
+            color: var(--text-light);
+            padding: 12px 14px;
+            font-size: 15px;
+            transition: border-color 0.15s;
+        }
+
+        .form-input:focus,
+        .form-select:focus,
+        .form-textarea:focus {
+            outline: none;
+            border-color: var(--teal);
+        }
+
+        .form-input.error,
+        .form-select.error,
+        .form-textarea.error {
+            border-color: var(--danger);
+        }
+
+        .form-error {
+            font-size: 12px;
+            color: var(--danger);
+            margin-top: 4px;
+            display: none;
+        }
+
+        .form-error.visible {
+            display: block;
+        }
+
+        .form-input-price {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--yellow);
+        }
+
+        .form-textarea {
+            min-height: 100px;
+            resize: vertical;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .char-count {
+            font-size: 11px;
+            color: var(--text-dim);
+            text-align: right;
+            margin-top: 4px;
+        }
+
+        /* Darts-only fields */
+        .darts-fields {
+            display: none;
+            padding: 16px;
+            background: var(--bg-panel);
+            border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.08);
+            margin-bottom: 18px;
+        }
+
+        .darts-fields.visible {
+            display: block;
+        }
+
+        .darts-fields-title {
+            font-size: 11px;
+            text-transform: uppercase;
+            color: var(--teal);
+            font-weight: 700;
+            letter-spacing: 1px;
+            margin-bottom: 14px;
+        }
+
+        .darts-fields .form-group:last-child {
+            margin-bottom: 0;
+        }
+
+        /* Submit Button */
+        .submit-btn {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(180deg, var(--pink) 0%, #d63384 100%);
+            border: 2px solid rgba(255,255,255,0.2);
+            border-radius: 10px;
+            color: white;
+            font-weight: 700;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.15s;
+            box-shadow: 0 4px 15px rgba(255, 70, 154, 0.3);
+            margin-top: 8px;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(255, 70, 154, 0.5);
+        }
+
+        .submit-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 90px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--danger);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 14px;
+            z-index: 1000;
+            display: none;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+        }
+
+        .toast.visible {
+            display: block;
+        }
+
+        @media (max-width: 768px) {
+            .form-container {
+                padding: 0 12px;
+            }
+            .header-title {
+                font-size: 22px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header-bar">
+        <a href="/pages/dart-trader.html" class="back-btn">MARKETPLACE</a>
+        <div class="header-title" id="pageTitle">CREATE LISTING</div>
+    </div>
+
+    <div class="form-container">
+        <!-- Photo Upload -->
+        <div class="photo-section">
+            <div class="photo-dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()">
+                <div class="photo-dropzone-icon">&#x1F4F7;</div>
+                <div class="photo-dropzone-text">Add Photos</div>
+                <div class="photo-dropzone-hint">Up to 5 photos - click or drag & drop</div>
+            </div>
+            <input type="file" id="fileInput" accept="image/*" multiple style="display: none;">
+            <div class="photo-previews" id="photoPreviews"></div>
+        </div>
+
+        <!-- Category -->
+        <div class="form-group">
+            <label class="form-label">Category <span class="required">*</span></label>
+            <select class="form-select" id="categorySelect">
+                <option value="">Select a category</option>
+                <option value="Darts">Darts</option>
+                <option value="Flights">Flights</option>
+                <option value="Shafts">Shafts</option>
+                <option value="Cases">Cases</option>
+                <option value="Dartboards">Dartboards</option>
+                <option value="Accessories">Accessories</option>
+            </select>
+            <div class="form-error" id="categoryError">Please select a category</div>
+        </div>
+
+        <!-- Title -->
+        <div class="form-group">
+            <label class="form-label">Title <span class="required">*</span></label>
+            <input type="text" class="form-input" id="titleInput" placeholder="What are you selling?" maxlength="100">
+            <div class="form-error" id="titleError">Please enter a title</div>
+        </div>
+
+        <!-- Price -->
+        <div class="form-group">
+            <label class="form-label">Price <span class="required">*</span></label>
+            <input type="number" class="form-input form-input-price" id="priceInput" placeholder="$0" min="1" step="0.01">
+            <div class="form-error" id="priceError">Please enter a price ($1 minimum)</div>
+        </div>
+
+        <!-- Condition -->
+        <div class="form-group">
+            <label class="form-label">Condition <span class="required">*</span></label>
+            <select class="form-select" id="conditionSelect">
+                <option value="">Select condition</option>
+                <option value="New">New</option>
+                <option value="Like New">Like New</option>
+                <option value="Good">Good</option>
+                <option value="Fair">Fair</option>
+            </select>
+            <div class="form-error" id="conditionError">Please select condition</div>
+        </div>
+
+        <!-- Brand -->
+        <div class="form-group">
+            <label class="form-label">Brand</label>
+            <input type="text" class="form-input" id="brandInput" placeholder="e.g., Target, Winmau, Unicorn">
+        </div>
+
+        <!-- Description -->
+        <div class="form-group">
+            <label class="form-label">Description</label>
+            <textarea class="form-textarea" id="descriptionInput" placeholder="Describe your item..." maxlength="1000"></textarea>
+            <div class="char-count"><span id="charCount">0</span>/1000</div>
+        </div>
+
+        <!-- Darts-Specific Fields -->
+        <div class="darts-fields" id="dartsFields">
+            <div class="darts-fields-title">Darts Details</div>
+            <div class="form-group">
+                <label class="form-label">Weight (grams)</label>
+                <input type="number" class="form-input" id="weightInput" placeholder="e.g., 24" min="1" max="100" step="0.1">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Material</label>
+                <select class="form-select" id="materialSelect">
+                    <option value="">Select material</option>
+                    <option value="90% Tungsten">90% Tungsten</option>
+                    <option value="95% Tungsten">95% Tungsten</option>
+                    <option value="80% Tungsten">80% Tungsten</option>
+                    <option value="Brass">Brass</option>
+                    <option value="Nickel Silver">Nickel Silver</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Point Type</label>
+                <select class="form-select" id="pointTypeSelect">
+                    <option value="">Select type</option>
+                    <option value="Steel Tip">Steel Tip</option>
+                    <option value="Soft Tip">Soft Tip</option>
+                    <option value="Convertible">Convertible</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Submit -->
+        <button type="button" class="submit-btn" id="submitBtn" onclick="submitListing()">
+            PUBLISH LISTING
+        </button>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-storage-compat.js"></script>
+
+    <script>
+        // Firebase config
+        const firebaseConfig = {
+            apiKey: "AIzaSyApov-xE5l1EJo0CADJ3OXP5aPvFmTmrZA",
+            authDomain: "brdc-v2.firebaseapp.com",
+            projectId: "brdc-v2",
+            storageBucket: "brdc-v2.firebasestorage.app",
+            messagingSenderId: "858304543457",
+            appId: "1:858304543457:web:e119e7c6fb7d616ea57ba3"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const storage = firebase.storage();
+
+        // State
+        let session = null;
+        let editMode = false;
+        let editId = null;
+        let photoFiles = [];       // New files to upload
+        let existingPhotos = [];   // URLs from existing listing (edit mode)
+        const MAX_PHOTOS = 5;
+
+        // Auth guard
+        document.addEventListener('DOMContentLoaded', () => {
+            const saved = localStorage.getItem('brdc_session');
+            if (!saved) {
+                window.location.href = '/pages/dashboard.html';
+                return;
+            }
+            session = JSON.parse(saved);
+            if (!session.player_id) {
+                window.location.href = '/pages/dashboard.html';
+                return;
+            }
+
+            // Check edit mode
+            const params = new URLSearchParams(window.location.search);
+            editId = params.get('id');
+            if (editId) {
+                editMode = true;
+                document.getElementById('pageTitle').textContent = 'EDIT LISTING';
+                document.getElementById('submitBtn').textContent = 'SAVE CHANGES';
+                document.title = 'Edit Listing - Dart Trader - BRDC';
+                loadExistingListing();
+            }
+
+            setupEventListeners();
+        });
+
+        function setupEventListeners() {
+            // Category change → show/hide darts fields
+            document.getElementById('categorySelect').addEventListener('change', (e) => {
+                const dartsFields = document.getElementById('dartsFields');
+                if (e.target.value === 'Darts') {
+                    dartsFields.classList.add('visible');
+                } else {
+                    dartsFields.classList.remove('visible');
+                }
+            });
+
+            // Description char count
+            document.getElementById('descriptionInput').addEventListener('input', (e) => {
+                document.getElementById('charCount').textContent = e.target.value.length;
+            });
+
+            // Photo file input
+            document.getElementById('fileInput').addEventListener('change', (e) => {
+                handleFiles(Array.from(e.target.files));
+                e.target.value = ''; // Reset so same file can be re-selected
+            });
+
+            // Drag & drop
+            const dz = document.getElementById('dropzone');
+            dz.addEventListener('dragenter', (e) => { e.preventDefault(); dz.classList.add('dragover'); });
+            dz.addEventListener('dragover', (e) => { e.preventDefault(); dz.classList.add('dragover'); });
+            dz.addEventListener('dragleave', () => { dz.classList.remove('dragover'); });
+            dz.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dz.classList.remove('dragover');
+                const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+                handleFiles(files);
+            });
+        }
+
+        // Handle photo files
+        function handleFiles(files) {
+            const totalCurrent = photoFiles.length + existingPhotos.length;
+            const remaining = MAX_PHOTOS - totalCurrent;
+            if (remaining <= 0) {
+                showToast('Maximum 5 photos allowed');
+                return;
+            }
+
+            const toAdd = files.slice(0, remaining);
+            toAdd.forEach(file => {
+                if (file.size > 5 * 1024 * 1024) {
+                    showToast('Each photo must be under 5MB');
+                    return;
+                }
+                photoFiles.push(file);
+            });
+
+            renderPhotoPreviews();
+        }
+
+        function renderPhotoPreviews() {
+            const container = document.getElementById('photoPreviews');
+            container.innerHTML = '';
+
+            // Existing photos (edit mode)
+            existingPhotos.forEach((url, idx) => {
+                const thumb = document.createElement('div');
+                thumb.className = 'photo-thumb';
+                thumb.innerHTML = `
+                    <img src="${url}" alt="Photo">
+                    <button type="button" class="remove-photo" onclick="removeExistingPhoto(${idx})">&times;</button>
+                    ${idx === 0 && photoFiles.length === 0 ? '<div class="cover-badge">Cover</div>' : ''}
+                `;
+                container.appendChild(thumb);
+            });
+
+            // New photo files
+            photoFiles.forEach((file, idx) => {
+                const thumb = document.createElement('div');
+                thumb.className = 'photo-thumb';
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    thumb.innerHTML = `
+                        <img src="${e.target.result}" alt="Photo">
+                        <button type="button" class="remove-photo" onclick="removeNewPhoto(${idx})">&times;</button>
+                        ${existingPhotos.length === 0 && idx === 0 ? '<div class="cover-badge">Cover</div>' : ''}
+                    `;
+                };
+                reader.readAsDataURL(file);
+                container.appendChild(thumb);
+            });
+        }
+
+        function removeExistingPhoto(idx) {
+            existingPhotos.splice(idx, 1);
+            renderPhotoPreviews();
+        }
+
+        function removeNewPhoto(idx) {
+            photoFiles.splice(idx, 1);
+            renderPhotoPreviews();
+        }
+
+        // Load existing listing for edit mode
+        async function loadExistingListing() {
+            try {
+                const doc = await db.collection('dart_trader_listings').doc(editId).get();
+                if (!doc.exists) {
+                    showToast('Listing not found');
+                    setTimeout(() => window.location.href = '/pages/dart-trader.html', 1500);
+                    return;
+                }
+
+                const data = doc.data();
+
+                // Owner check
+                if (data.seller_id !== session.player_id) {
+                    window.location.href = `/pages/dart-trader-listing.html?id=${editId}`;
+                    return;
+                }
+
+                // Pre-fill form
+                document.getElementById('categorySelect').value = data.category || '';
+                document.getElementById('titleInput').value = data.title || '';
+                document.getElementById('priceInput').value = data.price || '';
+                document.getElementById('conditionSelect').value = data.condition || '';
+                document.getElementById('brandInput').value = data.brand || '';
+                document.getElementById('descriptionInput').value = data.description || '';
+                document.getElementById('charCount').textContent = (data.description || '').length;
+
+                // Show darts fields if applicable
+                if (data.category === 'Darts') {
+                    document.getElementById('dartsFields').classList.add('visible');
+                    document.getElementById('weightInput').value = data.weight || '';
+                    document.getElementById('materialSelect').value = data.material || '';
+                    document.getElementById('pointTypeSelect').value = data.point_type || '';
+                }
+
+                // Load existing photos
+                if (data.image_url) {
+                    existingPhotos.push(data.image_url);
+                }
+                if (data.additional_images && data.additional_images.length) {
+                    existingPhotos.push(...data.additional_images);
+                }
+                renderPhotoPreviews();
+
+            } catch (error) {
+                console.error('Error loading listing:', error);
+                showToast('Error loading listing');
+            }
+        }
+
+        // Validate form
+        function validateForm() {
+            let valid = true;
+
+            const fields = [
+                { id: 'categorySelect', errorId: 'categoryError' },
+                { id: 'titleInput', errorId: 'titleError' },
+                { id: 'priceInput', errorId: 'priceError', minVal: 1 },
+                { id: 'conditionSelect', errorId: 'conditionError' }
+            ];
+
+            fields.forEach(f => {
+                const el = document.getElementById(f.id);
+                const errEl = document.getElementById(f.errorId);
+                let fieldValid = !!el.value.trim();
+
+                if (f.minVal && fieldValid) {
+                    fieldValid = parseFloat(el.value) >= f.minVal;
+                }
+
+                if (!fieldValid) {
+                    el.classList.add('error');
+                    errEl.classList.add('visible');
+                    valid = false;
+                } else {
+                    el.classList.remove('error');
+                    errEl.classList.remove('visible');
+                }
+            });
+
+            return valid;
+        }
+
+        // Upload photos to Firebase Storage
+        async function uploadPhotos() {
+            const urls = [...existingPhotos]; // Keep existing ones
+
+            for (let i = 0; i < photoFiles.length; i++) {
+                const file = photoFiles[i];
+                const path = `dart-trader/${session.player_id}_${Date.now()}_${i}.jpg`;
+                const ref = storage.ref().child(path);
+                await ref.put(file);
+                const url = await ref.getDownloadURL();
+                urls.push(url);
+            }
+
+            return urls;
+        }
+
+        // Submit listing
+        async function submitListing() {
+            if (!validateForm()) return;
+
+            const btn = document.getElementById('submitBtn');
+            btn.disabled = true;
+            btn.textContent = editMode ? 'Saving...' : 'Publishing...';
+
+            try {
+                // Upload photos
+                const imageUrls = await uploadPhotos();
+
+                const listingData = {
+                    seller_id: session.player_id,
+                    seller_name: session.name || '',
+                    seller_email: session.email || '',
+                    seller_phone: session.phone || '',
+                    title: document.getElementById('titleInput').value.trim(),
+                    price: parseFloat(document.getElementById('priceInput').value),
+                    category: document.getElementById('categorySelect').value,
+                    condition: document.getElementById('conditionSelect').value,
+                    description: document.getElementById('descriptionInput').value.trim(),
+                    brand: document.getElementById('brandInput').value.trim(),
+                    image_url: imageUrls[0] || '',
+                    additional_images: imageUrls.slice(1),
+                    updated_at: firebase.firestore.FieldValue.serverTimestamp()
+                };
+
+                // Darts-specific fields
+                if (listingData.category === 'Darts') {
+                    const w = document.getElementById('weightInput').value;
+                    listingData.weight = w ? parseFloat(w) : null;
+                    listingData.material = document.getElementById('materialSelect').value;
+                    listingData.point_type = document.getElementById('pointTypeSelect').value;
+                } else {
+                    listingData.weight = null;
+                    listingData.material = '';
+                    listingData.point_type = '';
+                }
+
+                let docId;
+                if (editMode) {
+                    await db.collection('dart_trader_listings').doc(editId).update(listingData);
+                    docId = editId;
+                } else {
+                    listingData.status = 'active';
+                    listingData.created_at = firebase.firestore.FieldValue.serverTimestamp();
+                    const docRef = await db.collection('dart_trader_listings').add(listingData);
+                    docId = docRef.id;
+                }
+
+                // Redirect to detail page
+                window.location.href = `/pages/dart-trader-listing.html?id=${docId}`;
+
+            } catch (error) {
+                console.error('Error submitting listing:', error);
+                showToast('Failed to save listing. Please try again.');
+                btn.disabled = false;
+                btn.textContent = editMode ? 'SAVE CHANGES' : 'PUBLISH LISTING';
+            }
+        }
+
+        // Toast
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('visible');
+            setTimeout(() => toast.classList.remove('visible'), 3000);
+        }
+    </script>
+    <script src="/components/brdc-navigation-init.js?v=14"></script>
+    <script>initBRDCNavigation({ page: 'dart-trader-create' });</script>
+</body>
+</html>

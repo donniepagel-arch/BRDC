@@ -18,6 +18,19 @@ export function isRegistrationClosed(leagueData) {
 
 export function showError(message) {
     console.error(message);
+    const mainContent = document.getElementById('mainContent');
+    if (mainContent) {
+        mainContent.innerHTML = `
+            <div class="empty-state" style="padding: 32px; text-align: center;">
+                <div class="empty-state-icon" aria-hidden="true">&#9888;</div>
+                <div style="font-weight: 700; margin-bottom: 8px;">League page failed to load</div>
+                <div style="color: var(--text-dim); max-width: 520px; margin: 0 auto;">${message}</div>
+            </div>
+        `;
+        mainContent.removeAttribute('aria-busy');
+        return;
+    }
+
     alert(message);
 }
 

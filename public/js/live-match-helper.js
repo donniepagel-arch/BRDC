@@ -15,6 +15,23 @@ const LiveMatch = {
     // Config
     CLOUD_FUNCTION_BASE: 'https://us-central1-brdc-v2.cloudfunctions.net',
 
+    async getAuthHeaders() {
+        const headers = { 'Content-Type': 'application/json' };
+
+        try {
+            const { auth } = await import('/js/firebase-config.js');
+            const user = auth?.currentUser;
+            if (!user) return null;
+
+            const token = await user.getIdToken();
+            headers.Authorization = `Bearer ${token}`;
+            return headers;
+        } catch (error) {
+            console.warn('[LiveMatch] Could not get auth token:', error.message);
+            return null;
+        }
+    },
+
     /**
      * Start tracking a live match
      * @param {Object} matchData - Match metadata
@@ -43,9 +60,14 @@ const LiveMatch = {
                 return;
             }
 
+            const headers = await this.getAuthHeaders();
+            if (!headers) {
+                return;
+            }
+
             const response = await fetch(`${this.CLOUD_FUNCTION_BASE}/startLiveMatch`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers,
                 body: JSON.stringify({
                     scorer_id: scorerId,
                     match_id: matchData.match_id,
@@ -99,11 +121,13 @@ const LiveMatch = {
         try {
             const scorerId = JSON.parse(localStorage.getItem('brdc_session') || '{}').player_id;
             if (!scorerId) return;
+            const headers = await this.getAuthHeaders();
+            if (!headers) return;
 
             // Fire and forget - don't await
             fetch(`${this.CLOUD_FUNCTION_BASE}/updateLiveMatch`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers,
                 body: JSON.stringify({
                     scorer_id: scorerId,
                     match_id: this.liveMatchId,
@@ -138,10 +162,12 @@ const LiveMatch = {
         try {
             const scorerId = JSON.parse(localStorage.getItem('brdc_session') || '{}').player_id;
             if (!scorerId) return;
+            const headers = await this.getAuthHeaders();
+            if (!headers) return;
 
             await fetch(`${this.CLOUD_FUNCTION_BASE}/endLiveMatch`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers,
                 body: JSON.stringify({
                     scorer_id: scorerId,
                     match_id: this.liveMatchId,

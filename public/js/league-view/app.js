@@ -264,26 +264,36 @@ export function getTeamStanding(teamId) {
 // ===== PAGE RENDERING =====
 
 function renderPage() {
-    const totalSpots = (state.leagueData.num_teams || 8) * (state.leagueData.team_size || 3);
-    const confirmedCount = state.registrations.filter(r => r.status === 'confirmed' || r.payment_status === 'paid').length;
-    const totalCount = state.registrations.length;
-    const spotsRemaining = totalSpots - totalCount;
-    const isFull = spotsRemaining <= 0;
     const isClosed = isRegistrationClosed(state.leagueData);
-
     if (isClosed) {
-        // Show active league view with tabs
-        renderActiveLeagueView();
-    } else {
-        // Show registration view
+        try {
+            renderActiveLeagueView();
+        } catch (error) {
+            console.error('Error rendering active league view:', error);
+            showError('This league loaded, but the page renderer hit invalid league data. ' + error.message);
+        }
+        return;
+    }
+
+    try {
+        const totalSpots = (state.leagueData.num_teams || 8) * (state.leagueData.team_size || 3);
+        const totalCount = state.registrations.length;
+        const spotsRemaining = totalSpots - totalCount;
+        const isFull = spotsRemaining <= 0;
         renderRegistrationView(totalSpots, totalCount, spotsRemaining, isFull);
+    } catch (error) {
+        console.error('Error rendering registration league view:', error);
+        showError('This league loaded, but the registration view failed to render. ' + error.message);
     }
 }
 
 function renderActiveLeagueView() {
     const completedMatches = state.matches.filter(m => m.status === 'completed').length;
     const totalMatches = state.matches.length;
-    const currentWeek = state.leagueData.current_week || Math.max(...state.matches.map(m => m.week || 1).filter(w => state.matches.some(m => m.week === w && m.status === 'completed')), 1) || 1;
+    const completedWeeks = state.matches
+        .map(m => Number(m.week) || 1)
+        .filter(w => state.matches.some(m => (Number(m.week) || 1) === w && m.status === 'completed'));
+    const currentWeek = state.leagueData.current_week || Math.max(...completedWeeks, 1);
 
     let statusClass = 'active';
     let statusText = 'ACTIVE';

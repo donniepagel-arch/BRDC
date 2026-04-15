@@ -1728,6 +1728,17 @@
             this.touchCurrentX = 0;
         }
 
+        async callFunctionWithTimeout(functionName, data = {}, timeoutMs = 8000) {
+            const { callFunction } = await import('/js/firebase-config.js');
+
+            return await Promise.race([
+                callFunction(functionName, data),
+                new Promise((_, reject) => {
+                    setTimeout(() => reject(new Error(`${functionName} timed out after ${timeoutMs}ms`)), timeoutMs);
+                })
+            ]);
+        }
+
         init() {
             this.createDOM();
             this.attachListeners();
@@ -1910,16 +1921,13 @@
                     return;
                 }
 
-                const { callFunction } = await import('/js/firebase-config.js');
-
                 // Load conversations (direct messages) - fetch if no cache or stale/expired
                 if (!chatCache || chatCache.isStale || chatCache.isExpired) {
                     try {
-                        const convResult = await callFunction('getConversations', {
-                        });
+                        const convResult = await this.callFunctionWithTimeout('getConversations', {});
 
-                        if (convResult.success && convResult.conversations && convResult.conversations.length > 0) {
-                            this.chats = convResult.conversations.map(conv => ({
+                        if (convResult.success) {
+                            this.chats = (convResult.conversations || []).map(conv => ({
                                 id: conv.id,
                                 name: conv.other_participant?.name || 'Unknown',
                                 lastMessage: conv.last_message?.text || '',
@@ -1930,11 +1938,13 @@
                             CacheHelper.set(chatCacheKey, this.chats);
                             this.renderChats();
                         } else {
+                            this.chats = [];
                             listEl.innerHTML = '<div class="fb-chat-empty">No conversations yet</div>';
                         }
                     } catch (error) {
                         console.error('Error loading conversations:', error);
                         if (!chatCache) {
+                            this.chats = [];
                             listEl.innerHTML = '<div class="fb-chat-empty">No conversations yet</div>';
                         }
                     }
@@ -1943,8 +1953,7 @@
                 // Load chatrooms - fetch if no cache or stale/expired
                 if (roomListEl && (!roomCache || roomCache.isStale || roomCache.isExpired)) {
                     try {
-                        const roomsResult = await callFunction('getPlayerChatRooms', {
-                        });
+                        const roomsResult = await this.callFunctionWithTimeout('getPlayerChatRooms', {});
 
                         if (roomsResult.success && roomsResult.rooms) {
                             const allRooms = [
@@ -1960,21 +1969,24 @@
                                     id: room.id,
                                     name: room.name,
                                     lastMessage: room.last_message?.text || '',
-                                    lastMessageTime: room.last_message?.timestamp,
+                                    lastMessageTime: room.updated_at || room.last_message?.timestamp || null,
                                     unread: (room.unread_count || 0) > 0,
                                     type: room.type
                                 }));
                                 CacheHelper.set(roomCacheKey, this.rooms);
                                 this.renderRooms();
                             } else {
+                                this.rooms = [];
                                 roomListEl.innerHTML = '<div class="fb-chat-empty">No chatrooms yet</div>';
                             }
                         } else {
+                            this.rooms = [];
                             roomListEl.innerHTML = '<div class="fb-chat-empty">No chatrooms yet</div>';
                         }
                     } catch (error) {
                         console.error('Error loading rooms:', error);
                         if (!roomCache) {
+                            this.rooms = [];
                             roomListEl.innerHTML = '<div class="fb-chat-empty">No chatrooms yet</div>';
                         }
                     }
@@ -1987,7 +1999,11 @@
 
         renderChats() {
             const listEl = document.getElementById('fbChatList');
-            if (!listEl || !this.chats.length) return;
+            if (!listEl) return;
+            if (!this.chats || !this.chats.length) {
+                listEl.innerHTML = '<div class="fb-chat-empty">No conversations yet</div>';
+                return;
+            }
 
             let html = '';
             this.chats.forEach(chat => {
@@ -2012,7 +2028,11 @@
 
         renderRooms() {
             const listEl = document.getElementById('fbRoomList');
-            if (!listEl || !this.rooms || !this.rooms.length) return;
+            if (!listEl) return;
+            if (!this.rooms || !this.rooms.length) {
+                listEl.innerHTML = '<div class="fb-chat-empty">No chatrooms yet</div>';
+                return;
+            }
 
             const typeIcons = {
                 league: '🏆',
@@ -2076,7 +2096,17 @@
 
         formatTimeAgo(timestamp) {
             if (!timestamp) return '';
-            const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+            let date = null;
+            if (timestamp?.toDate) {
+                date = timestamp.toDate();
+            } else if (typeof timestamp === 'object' && timestamp !== null) {
+                const seconds = timestamp.seconds ?? timestamp._seconds;
+                if (Number.isFinite(seconds)) {
+                    date = new Date(seconds * 1000);
+                }
+            }
+            if (!date) date = new Date(timestamp);
+            if (Number.isNaN(date.getTime())) return '';
             const now = new Date();
             const diff = Math.floor((now - date) / 1000);
 
@@ -2450,8 +2480,17 @@
 
         formatTimeAgo(timestamp) {
             if (!timestamp) return '';
-
-            const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+            let date = null;
+            if (timestamp?.toDate) {
+                date = timestamp.toDate();
+            } else if (typeof timestamp === 'object' && timestamp !== null) {
+                const seconds = timestamp.seconds ?? timestamp._seconds;
+                if (Number.isFinite(seconds)) {
+                    date = new Date(seconds * 1000);
+                }
+            }
+            if (!date) date = new Date(timestamp);
+            if (Number.isNaN(date.getTime())) return '';
             const now = new Date();
             const diff = Math.floor((now - date) / 1000);
 
@@ -2532,8 +2571,8 @@
         localStorage.removeItem('brdc_player_name');
         localStorage.removeItem('brdc_player');
 
-        // Redirect to home/login
-        window.location.href = '/';
+        // Redirect to login page
+        window.location.href = '/pages/dashboard.html';
     }
 
     /**

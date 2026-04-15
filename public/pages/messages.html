@@ -1270,6 +1270,15 @@
         let searchTimeout = null;
         let presenceInterval = null;
 
+        async function callFunctionWithTimeout(functionName, data = {}, timeoutMs = 8000) {
+            return await Promise.race([
+                callFunction(functionName, data),
+                new Promise((_, reject) => {
+                    setTimeout(() => reject(new Error(`${functionName} timed out after ${timeoutMs}ms`)), timeoutMs);
+                })
+            ]);
+        }
+
         // Restore session via Firebase Auth
         async function init() {
             // Load push notifications module (fail-safe)
@@ -1370,7 +1379,7 @@
             }
 
             try {
-                const result = await callFunction('registerPlayerSimple', {
+                const result = await callFunction('registerPlayerSimpleV2', {
                     first_name: firstName,
                     last_name: lastName,
                     phone: phone,
@@ -1635,9 +1644,11 @@
 
         async function loadChannels() {
             try {
-                const result = await callFunction('getPlayerChatRooms', {});
+                const result = await callFunctionWithTimeout('getPlayerChatRooms', {});
                 if (result.success) {
-                    renderChannels(result.rooms);
+                    renderChannels(result.rooms || {});
+                } else {
+                    renderChannels({});
                 }
             } catch (error) {
                 console.error('Error loading channels:', error);
@@ -1651,7 +1662,23 @@
 
         function renderChannels(rooms) {
             const noChannels = document.getElementById('noChannels');
+            rooms = {
+                league: rooms?.league || [],
+                team: rooms?.team || [],
+                match: rooms?.match || [],
+                tournament: rooms?.tournament || [],
+                tournament_event: rooms?.tournament_event || []
+            };
             let hasAny = false;
+
+            document.getElementById('leagueChannels').style.display = 'none';
+            document.getElementById('leagueChannelsList').innerHTML = '';
+            document.getElementById('teamChannels').style.display = 'none';
+            document.getElementById('teamChannelsList').innerHTML = '';
+            document.getElementById('matchChannels').style.display = 'none';
+            document.getElementById('matchChannelsList').innerHTML = '';
+            document.getElementById('tournamentChannels').style.display = 'none';
+            document.getElementById('tournamentChannelsList').innerHTML = '';
 
             // League channels
             if (rooms.league && rooms.league.length > 0) {
@@ -1721,9 +1748,11 @@
 
         async function loadConversations() {
             try {
-                const result = await callFunction('getConversations', {});
+                const result = await callFunctionWithTimeout('getConversations', {});
                 if (result.success) {
                     renderConversations(result.conversations);
+                } else {
+                    renderConversations([]);
                 }
             } catch (error) {
                 console.error('Error loading conversations:', error);
@@ -1866,6 +1895,9 @@
                 });
 
                 renderChannels(rooms);
+            }, (error) => {
+                console.error('Error listening for chat room updates:', error);
+                renderChannels({});
             });
         }
 
@@ -2138,7 +2170,7 @@
         });
     </script>
 <script src="/js/nav-menu.js"></script>
-<script src="/components/brdc-navigation-init.js?v=13"></script>
+<script src="/components/brdc-navigation-init.js?v=14"></script>
 <script>initBRDCNavigation({ page: 'chat' });</script>
 </body>
 </html>

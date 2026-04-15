@@ -5,6 +5,12 @@
  * See docs/FIELD-STANDARDS.md for full documentation.
  */
 
+function toFiniteNumber(value) {
+    if (value == null || value === '') return null;
+    const num = Number(value);
+    return Number.isFinite(num) ? num : null;
+}
+
 /**
  * Get 3-dart average from any stats object
  * Canonical field: x01_three_dart_avg
@@ -13,7 +19,8 @@ function get3DA(stats) {
     if (!stats) return null;
 
     // Try canonical field first
-    if (stats.x01_three_dart_avg != null) return Number(stats.x01_three_dart_avg);
+    const canonical = toFiniteNumber(stats.x01_three_dart_avg);
+    if (canonical != null) return canonical;
 
     // Calculate from components if available
     if (stats.x01_total_darts > 0 && stats.x01_total_points != null) {
@@ -21,11 +28,11 @@ function get3DA(stats) {
     }
 
     // Legacy fallbacks (in order of preference)
-    if (stats.x01_3da != null) return Number(stats.x01_3da);
-    if (stats.x01_avg != null) return Number(stats.x01_avg);
-    if (stats.three_dart_avg != null) return Number(stats.three_dart_avg);
-    if (stats.ppd != null) return Number(stats.ppd);
-    if (stats.avg != null) return Number(stats.avg);
+    const legacyFields = ['x01_3da', 'x01_avg', 'three_dart_avg', 'ppd', 'avg'];
+    for (const field of legacyFields) {
+        const value = toFiniteNumber(stats[field]);
+        if (value != null) return value;
+    }
 
     return null;
 }
@@ -38,7 +45,8 @@ function getMPR(stats) {
     if (!stats) return null;
 
     // Try canonical field first
-    if (stats.cricket_mpr != null) return Number(stats.cricket_mpr);
+    const canonical = toFiniteNumber(stats.cricket_mpr);
+    if (canonical != null) return canonical;
 
     // Calculate from components if available
     if (stats.cricket_total_rounds > 0 && stats.cricket_total_marks != null) {
@@ -46,7 +54,8 @@ function getMPR(stats) {
     }
 
     // Legacy fallback
-    if (stats.mpr != null) return Number(stats.mpr);
+    const legacy = toFiniteNumber(stats.mpr);
+    if (legacy != null) return legacy;
 
     return null;
 }
@@ -59,7 +68,8 @@ function getFirst9Avg(stats) {
     if (!stats) return null;
 
     // Try canonical field first
-    if (stats.x01_first_9_avg != null) return Number(stats.x01_first_9_avg);
+    const canonical = toFiniteNumber(stats.x01_first_9_avg);
+    if (canonical != null) return canonical;
 
     // Calculate from components if available
     if (stats.x01_first9_darts > 0 && stats.x01_first9_points != null) {
@@ -67,8 +77,11 @@ function getFirst9Avg(stats) {
     }
 
     // Legacy fallbacks
-    if (stats.x01_first9_avg != null) return Number(stats.x01_first9_avg);
-    if (stats.first_9_avg != null) return Number(stats.first_9_avg);
+    const legacyFields = ['x01_first9_avg', 'first_9_avg'];
+    for (const field of legacyFields) {
+        const value = toFiniteNumber(stats[field]);
+        if (value != null) return value;
+    }
 
     return null;
 }
@@ -81,9 +94,11 @@ function getAvgCheckout(stats) {
     if (!stats) return null;
 
     // Try canonical fields
-    if (stats.x01_avg_checkout != null) return Number(stats.x01_avg_checkout);
-    if (stats.x01_avg_finish != null) return Number(stats.x01_avg_finish);
-    if (stats.avg_finish != null) return Number(stats.avg_finish);
+    const canonicalFields = ['x01_avg_checkout', 'x01_avg_finish', 'avg_finish'];
+    for (const field of canonicalFields) {
+        const value = toFiniteNumber(stats[field]);
+        if (value != null) return value;
+    }
 
     // Calculate from components if available
     if (stats.x01_checkouts_hit > 0 && stats.x01_total_checkout_points != null) {
@@ -163,8 +178,8 @@ function formatStats(stats) {
     const threeDartAvg = get3DA(stats);
     const mpr = getMPR(stats);
 
-    const avgStr = threeDartAvg != null ? threeDartAvg.toFixed(1) : '-';
-    const mprStr = mpr != null ? mpr.toFixed(2) : '-';
+    const avgStr = Number.isFinite(threeDartAvg) ? threeDartAvg.toFixed(1) : '-';
+    const mprStr = Number.isFinite(mpr) ? mpr.toFixed(2) : '-';
 
     return `${avgStr} / ${mprStr}`;
 }
@@ -177,7 +192,7 @@ function formatStats(stats) {
  */
 function format3DA(stats, decimals = 1) {
     const val = get3DA(stats);
-    return val != null ? val.toFixed(decimals) : '-';
+    return Number.isFinite(val) ? val.toFixed(decimals) : '-';
 }
 
 /**
@@ -188,7 +203,7 @@ function format3DA(stats, decimals = 1) {
  */
 function formatMPR(stats, decimals = 2) {
     const val = getMPR(stats);
-    return val != null ? val.toFixed(decimals) : '-';
+    return Number.isFinite(val) ? val.toFixed(decimals) : '-';
 }
 
 /**
@@ -202,7 +217,7 @@ function getLegWinPct(stats, gameType = 'x01') {
 
     // Try canonical field
     if (stats[`${prefix}leg_win_pct`] != null) {
-        return Number(stats[`${prefix}leg_win_pct`]);
+        return toFiniteNumber(stats[`${prefix}leg_win_pct`]);
     }
 
     // Calculate from components

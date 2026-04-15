@@ -716,7 +716,17 @@ class NotificationsPanel {
     formatTimeAgo(timestamp) {
         if (!timestamp) return '';
 
-        const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+        let date = null;
+        if (timestamp?.toDate) {
+            date = timestamp.toDate();
+        } else if (typeof timestamp === 'object' && timestamp !== null) {
+            const seconds = timestamp.seconds ?? timestamp._seconds;
+            if (Number.isFinite(seconds)) {
+                date = new Date(seconds * 1000);
+            }
+        }
+        if (!date) date = new Date(timestamp);
+        if (Number.isNaN(date.getTime())) return '';
         const now = new Date();
         const diff = Math.floor((now - date) / 1000);
 

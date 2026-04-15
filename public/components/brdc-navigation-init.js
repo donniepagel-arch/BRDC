@@ -130,7 +130,7 @@ window.initBRDCNavigation = function (options = {}) {
     }
 
     // Load chat drawer for site-wide swipe-to-chat
-    loadScript('/js/chat-drawer.js?v=2');
+    loadScript('/js/chat-drawer.js?v=4');
 };
 
 

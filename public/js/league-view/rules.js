@@ -3,7 +3,6 @@ import { state } from './app.js';
 
 export function renderRules() {
     if (!state.leagueData) return '<div class="empty-state"><div class="empty-state-icon">&#128220;</div><div>No rules data available</div></div>';
-    const rules = state.leagueData.rules || {};
     const teamSize = state.leagueData.team_size || state.leagueData.min_players || 3;
     const rounds = Array.isArray(state.leagueData.match_format) ? state.leagueData.match_format : [];
 
@@ -88,7 +87,7 @@ export function renderRules() {
 
     // Render tiebreakers
     function renderTiebreakers() {
-        const tiebreakers = state.leagueData.tiebreakers || [
+        const rawTiebreakers = state.leagueData.tiebreakers || [
             { value: 'head_to_head', enabled: true },
             { value: 'point_diff', enabled: true },
             { value: 'total_points', enabled: true }
@@ -99,6 +98,9 @@ export function renderRules() {
             total_points: 'Total Points Scored',
             cork_off: 'Cork-Off'
         };
+        const tiebreakers = Array.isArray(rawTiebreakers)
+            ? rawTiebreakers.map(t => typeof t === 'string' ? { value: t, enabled: true } : t).filter(Boolean)
+            : [];
         const enabled = tiebreakers.filter(t => t.enabled);
         if (enabled.length === 0) return 'Standard tiebreaker rules';
         return enabled.map((t, i) => `${i + 1}. ${tbLabels[t.value] || t.value}`).join(', ');

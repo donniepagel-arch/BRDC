@@ -17,6 +17,24 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const storage = getStorage(app);
 const auth = getAuth(app);
+let authReadyResolved = false;
+const authReadyPromise = new Promise((resolve) => {
+    onAuthStateChanged(auth, (user) => {
+        authReadyResolved = true;
+        resolve(user || null);
+    }, () => {
+        authReadyResolved = true;
+        resolve(null);
+    });
+});
+
+async function waitForAuthReady(timeoutMs = 1500) {
+    if (authReadyResolved || auth.currentUser) return auth.currentUser;
+    return await Promise.race([
+        authReadyPromise,
+        new Promise((resolve) => setTimeout(() => resolve(auth.currentUser || null), timeoutMs))
+    ]);
+}
 
 /**
  * Upload an image to Firebase Storage
@@ -51,7 +69,7 @@ async function callFunction(functionName, data = {}) {
     const url = `https://us-central1-brdc-v2.cloudfunctions.net/${functionName}`;
 
     const headers = { 'Content-Type': 'application/json' };
-    const user = auth.currentUser;
+    const user = auth.currentUser || await waitForAuthReady();
     if (user) {
         try {
             const token = await user.getIdToken();

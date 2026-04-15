@@ -342,6 +342,10 @@
         let filterLeagueId = null;
         let filterLeagueName = null;
 
+        function hasFiniteStat(value) {
+            return Number.isFinite(value);
+        }
+
         // Parse URL parameters
         function getUrlParams() {
             const params = new URLSearchParams(window.location.search);
@@ -633,17 +637,17 @@
                     displayName = `${lastName}, ${firstName}`;
                 }
 
-                const ppdDisplay = member.ppd !== null ? member.ppd.toFixed(1) : '-';
-                const mprDisplay = member.mpr !== null ? member.mpr.toFixed(2) : '-';
-                const winpctDisplay = member.winpct !== null ? member.winpct + '%' : '-';
+                const ppdDisplay = hasFiniteStat(member.ppd) ? member.ppd.toFixed(1) : '-';
+                const mprDisplay = hasFiniteStat(member.mpr) ? member.mpr.toFixed(2) : '-';
+                const winpctDisplay = hasFiniteStat(member.winpct) ? member.winpct + '%' : '-';
                 return `
                     <tr onclick="viewMember('${member.id}', '${member.league_id || ''}', '${member.tournament_id || ''}')">
                         <td>
                             <span class="member-name">${displayName}${subBadge}${levelBadge}</span>
                         </td>
-                        <td class="stat-cell ppd ${member.ppd === null ? 'empty' : ''}">${ppdDisplay}</td>
-                        <td class="stat-cell mpr ${member.mpr === null ? 'empty' : ''}">${mprDisplay}</td>
-                        <td class="stat-cell winpct ${member.winpct === null ? 'empty' : ''}">${winpctDisplay}</td>
+                        <td class="stat-cell ppd ${hasFiniteStat(member.ppd) ? '' : 'empty'}">${ppdDisplay}</td>
+                        <td class="stat-cell mpr ${hasFiniteStat(member.mpr) ? '' : 'empty'}">${mprDisplay}</td>
+                        <td class="stat-cell winpct ${hasFiniteStat(member.winpct) ? '' : 'empty'}">${winpctDisplay}</td>
                     </tr>
                 `;
             }).join('');
@@ -694,7 +698,7 @@
         // Initialize
         loadMembers();
     </script>
-<script src="/components/brdc-navigation-init.js?v=13"></script>
+<script src="/components/brdc-navigation-init.js?v=14"></script>
 <script>initBRDCNavigation({ page: 'members' });</script>
 </body>
 </html>

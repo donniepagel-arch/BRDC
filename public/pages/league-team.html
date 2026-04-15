@@ -511,7 +511,10 @@ async function loadTeamData() {
         const teamName = team.team_name || team.name || 'Team';
 
         // Update header
-        document.getElementById('headerTitle').textContent = teamName.toUpperCase();
+        const headerTitle = document.getElementById('headerTitle');
+        if (headerTitle) {
+            headerTitle.textContent = teamName.toUpperCase();
+        }
         document.getElementById('teamName').textContent = teamName;
         document.getElementById('teamLeague').textContent = leagueName;
         document.getElementById('teamWins').textContent = team.wins || 0;
@@ -784,10 +787,13 @@ window.viewPlayer = function(playerId) {
 };
 </script>
 <script src="/js/display-helpers.js"></script>
-<script src="/components/brdc-navigation-init.js?v=13"></script>
+<script src="/components/brdc-navigation-init.js?v=14"></script>
 <script>
-    // Use league_id from URL params for back navigation
-    const backUrl = leagueId ? `/pages/league-view.html?league_id=${leagueId}` : '/pages/dashboard.html';
+    // Use league_id from URL params for back navigation.
+    // This script runs outside the module block above, so it cannot rely on module-scoped variables.
+    const navParams = new URLSearchParams(window.location.search);
+    const navLeagueId = navParams.get('league_id');
+    const backUrl = navLeagueId ? `/pages/league-view.html?league_id=${navLeagueId}` : '/pages/dashboard.html';
     initBRDCNavigation({ page: 'league-team', backUrl });
 </script>
 </body>

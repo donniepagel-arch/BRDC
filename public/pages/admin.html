@@ -1283,7 +1283,7 @@
     </div>
 
     <script type="module">
-        import { callFunction, auth, signInWithEmailAndPassword, sendPasswordResetEmail, signInWithPopup, GoogleAuthProvider } from '/js/firebase-config.js';
+        import { callFunction, auth, signInWithEmailAndPassword, sendPasswordResetEmail, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from '/js/firebase-config.js';
 
         // HTML escape helper to prevent XSS
         function escapeHtml(text) {
@@ -1335,8 +1335,20 @@
                         document.getElementById('loginForm').style.display = 'none';
                         document.getElementById('loginLoading').style.display = 'block';
                         document.getElementById('loginMessage').textContent = 'Restoring session...';
-                        showDashboard();
-                        loadDashboard();
+                        if (auth.currentUser) {
+                            showDashboard();
+                        } else {
+                            const unsubscribe = onAuthStateChanged(auth, (user) => {
+                                unsubscribe();
+                                if (user) {
+                                    showDashboard();
+                                } else {
+                                    localStorage.removeItem('brdc_session');
+                                    document.getElementById('loginLoading').style.display = 'none';
+                                    document.getElementById('loginForm').style.display = 'block';
+                                }
+                            });
+                        }
                         return;
                     }
                 } catch (e) {
@@ -1381,7 +1393,6 @@
                 localStorage.removeItem('brdc_player_pin');
 
                 showDashboard();
-                loadDashboard();
             } catch (err) {
                 let msg = 'Login failed.';
                 if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') msg = 'Invalid email or password.';
@@ -1431,7 +1442,6 @@
                 localStorage.removeItem('brdc_player_pin');
 
                 showDashboard();
-                loadDashboard();
             } catch (err) {
                 if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') return;
                 let msg = 'Google sign-in failed. Please try again.';
@@ -2669,7 +2679,7 @@
     </script>
     <script src="/js/display-helpers.js"></script>
     <script src="/js/nav-menu.js"></script>
-    <script src="/components/brdc-navigation-init.js?v=13"></script>
+    <script src="/components/brdc-navigation-init.js?v=14"></script>
     <script>initBRDCNavigation({ page: 'admin' });</script>
 </body>
 </html>

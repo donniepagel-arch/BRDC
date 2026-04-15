@@ -164,6 +164,7 @@
             </div>
             <div class="header-actions-row">
                 <button class="header-action-btn message-btn" onclick="openMessageModal()" style="font-size: 11px; padding: 6px 14px;" aria-label="Send message to team">MESSAGE TEAM</button>
+                <button class="header-action-btn lineup-btn" id="headerLineupBtn" onclick="openNextMatchLineup()" style="font-size: 11px; padding: 6px 14px; display: none;" aria-label="Set lineup for next match">SET LINEUP</button>
             </div>
         </div>
 
@@ -738,6 +739,12 @@
             const totalWeeks = matches.length > 0 ? Math.max(...matches.map(m => m.week || 1)) : 18;
             const positions = ['A', 'B', 'C'];
 
+            // Track first upcoming match for header button
+            const firstUpcoming = matches.find(m => m.status === 'scheduled');
+            nextMatchId = firstUpcoming ? firstUpcoming.id : null;
+            const headerLineupBtn = document.getElementById('headerLineupBtn');
+            if (headerLineupBtn) headerLineupBtn.style.display = nextMatchId ? '' : 'none';
+
             container.innerHTML = matches.map(match => {
                 const isCompleted = match.status === 'completed';
                 const isUpcoming = match.status === 'scheduled';
@@ -832,7 +839,7 @@
                             `<option value="${player.id}" selected>${player.name} (Roster)</option>`,
                             ...subs.map(sub => `<option value="${sub.id}">${sub.name} (Sub - ${sub.skill_level || '?'})</option>`)
                         ].join('');
-                        return `<div class="lineup-row"><div class="lineup-position">${posLabel}</div><select class="lineup-select" data-position="${player.position}" data-match="${match.id}">${options}</select></div>`;
+                        return `<div class="lineup-row"><div class="lineup-position">${posLabel}</div><select class="lineup-select" data-position="${player.position}" data-match="${match.id}" data-original-player="${player.id}">${options}</select></div>`;
                     }).join('');
 
                     lineupHtml = `
@@ -840,7 +847,7 @@
                             <div class="schedule-lineup-title">Set Lineup</div>
                             ${lineupRows}
                             <div class="schedule-lineup-actions">
-                                <button class="lineup-save-btn" onclick="saveLineup('${match.id}')">SAVE LINEUP</button>
+                                <button class="lineup-save-btn" onclick="saveLineup('${match.id}', this)">SAVE LINEUP</button>
                             </div>
                         </div>
                     `;
@@ -919,6 +926,8 @@
             }).join('');
         }
 
+        let nextMatchId = null;
+
         window.toggleLineup = function(matchId) {
             const panel = document.getElementById(`lineup-${matchId}`);
             if (!panel) return;
@@ -927,9 +936,18 @@
                 if (p.id !== `lineup-${matchId}`) p.classList.remove('open');
             });
             panel.classList.toggle('open');
+            if (panel.classList.contains('open')) {
+                panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
         };
 
-        window.saveLineup = async function(matchId) {
+        window.openNextMatchLineup = function() {
+            if (!nextMatchId) return;
+            showTab('schedule');
+            setTimeout(() => toggleLineup(nextMatchId), 100);
+        };
+
+        window.saveLineup = async function(matchId, btnEl) {
             if (!matchId) return;
 
             const selects = document.querySelectorAll(`.lineup-select[data-match="${matchId}"]`);
@@ -940,17 +958,21 @@
             selects.forEach(select => {
                 const playerId = select.value;
                 const position = parseInt(select.dataset.position);
+                const originalPlayerId = select.dataset.originalPlayer;
                 let playerName = '', isSub = false;
 
                 const rosterPlayer = (team.players || []).find(p => p.id === playerId);
                 if (rosterPlayer) { playerName = rosterPlayer.name; }
                 else { const sub = subs.find(s => s.id === playerId); if (sub) { playerName = sub.name; isSub = true; } }
 
-                lineup.push({ position, player_id: playerId, player_name: playerName, is_sub: isSub });
+                const entry = { position, player_id: playerId, player_name: playerName, is_sub: isSub };
+                if (isSub && originalPlayerId && originalPlayerId !== playerId) {
+                    entry.replacing_player_id = originalPlayerId;
+                }
+                lineup.push(entry);
             });
 
-            // Add loading state to save button
-            const saveBtn = event?.target || document.querySelector(`#lineup-${matchId} .lineup-save-btn`);
+            const saveBtn = btnEl || document.querySelector(`#lineup-${matchId} .lineup-save-btn`);
             if (saveBtn) {
                 saveBtn.classList.add('btn-loading');
                 saveBtn.disabled = true;
@@ -958,7 +980,13 @@
 
             try {
                 const result = await callFunction('setMatchLineup', { league_id: currentLeagueId, match_id: matchId, team_id: currentTeamId, captain_id: currentPlayerId, lineup });
-                if (result.success) { toastSuccess('Lineup saved!'); } else { toastError(result.error || 'Failed to save lineup'); }
+                if (result.success) {
+                    toastSuccess('Lineup saved!');
+                    const panel = document.getElementById(`lineup-${matchId}`);
+                    if (panel) panel.classList.remove('open');
+                } else {
+                    toastError(result.error || 'Failed to save lineup');
+                }
             } catch (error) { console.error('Save lineup error:', error); toastError('Failed to save lineup'); }
             finally {
                 if (saveBtn) {
@@ -1501,7 +1529,7 @@
 
 <script src="/js/display-helpers.js"></script>
 <script src="/js/stats-helpers.js"></script>
-<script src="/components/brdc-navigation-init.js?v=13"></script>
+<script src="/components/brdc-navigation-init.js?v=14"></script>
 <script src="/js/fb-nav.js"></script>
 <script>
     // Initialize BRDC navigation with proper config

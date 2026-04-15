@@ -629,6 +629,9 @@
             this._readCurrentPlayer();
             this.createDOM();
             this.attachListeners();
+            this.loadRecentChats().catch(error => {
+                console.error('[ChatDrawer] Initial load failed:', error);
+            });
         }
 
         _readCurrentPlayer() {
@@ -636,6 +639,39 @@
                 const session = JSON.parse(localStorage.getItem('brdc_session') || '{}');
                 this.currentPlayerId = session.player_id || null;
             } catch (e) {}
+        }
+
+        async callFunctionWithTimeout(functionName, data = {}, timeoutMs = 8000) {
+            const { callFunction } = await import('/js/firebase-config.js');
+
+            return await Promise.race([
+                callFunction(functionName, data),
+                new Promise((_, reject) => {
+                    setTimeout(() => reject(new Error(`${functionName} timed out after ${timeoutMs}ms`)), timeoutMs);
+                })
+            ]);
+        }
+
+        isUnauthorizedError(error) {
+            return /unauthorized/i.test(String(error?.message || error || ''));
+        }
+
+        async callFunctionWithRetry(functionName, data = {}, options = {}) {
+            const {
+                timeoutMs = 8000,
+                retryDelayMs = 1200,
+                retryOnUnauthorized = false
+            } = options;
+
+            try {
+                return await this.callFunctionWithTimeout(functionName, data, timeoutMs);
+            } catch (error) {
+                if (!retryOnUnauthorized || !this.isUnauthorizedError(error)) {
+                    throw error;
+                }
+                await new Promise(resolve => setTimeout(resolve, retryDelayMs));
+                return await this.callFunctionWithTimeout(functionName, data, timeoutMs);
+            }
         }
 
         createDOM() {
@@ -920,18 +956,62 @@
             }
         }
 
-        openAccordion(chatId, type, name, recipientId) {
+        setAccordionOpenState(chatId, isOpen) {
             const acc = this.sidebar.querySelector(`.fb-chat-accordion[data-chat-id="${chatId}"]`);
             const item = this.sidebar.querySelector(`.fb-chat-item[data-chat-id="${chatId}"]`);
             if (!acc) return;
 
+            acc.classList.toggle('open', isOpen);
+            acc.style.maxHeight = isOpen ? `${Math.max(acc.scrollHeight, 320)}px` : '0px';
+            if (item) item.classList.toggle('fb-chat-item-open', isOpen);
+        }
+
+        rehydrateAccordions(container) {
+            if (!container) return;
+
+            const accordions = [...container.querySelectorAll('.fb-chat-accordion')];
+            accordions.forEach((acc) => {
+                if (!acc.parentNode) return;
+                const clone = acc.cloneNode(true);
+                acc.parentNode.replaceChild(clone, acc);
+                void clone.offsetHeight;
+            });
+        }
+
+        rehydrateAccordion(chatId) {
+            const acc = this.sidebar.querySelector(`.fb-chat-accordion[data-chat-id="${chatId}"]`);
+            if (!acc || !acc.parentNode) return;
+
+            const clone = acc.cloneNode(true);
+            acc.parentNode.replaceChild(clone, acc);
+            void clone.offsetHeight;
+        }
+
+        restoreOpenAccordions() {
+            Object.keys(this.openAccordions).forEach(chatId => {
+                this.setAccordionOpenState(chatId, true);
+            });
+        }
+
+        openAccordion(chatId, type, name, recipientId) {
+            const acc = this.sidebar.querySelector(`.fb-chat-accordion[data-chat-id="${chatId}"]`);
+            if (!acc) return;
+
             // Mark open
             this.openAccordions[chatId] = { type, name, recipientId, messages: [], unsubscribe: null };
-            acc.classList.add('open');
-            if (item) item.classList.add('fb-chat-item-open');
+            this.setAccordionOpenState(chatId, true);
+            requestAnimationFrame(() => {
+                this.rehydrateAccordion(chatId);
+                this.setAccordionOpenState(chatId, true);
+            });
+            setTimeout(() => {
+                this.rehydrateAccordion(chatId);
+                this.setAccordionOpenState(chatId, true);
+            }, 0);
 
             // Scroll item into view
             setTimeout(() => {
+                const item = this.sidebar.querySelector(`.fb-chat-item[data-chat-id="${chatId}"]`);
                 if (item) item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             }, 50);
 
@@ -940,11 +1020,7 @@
         }
 
         closeAccordion(chatId) {
-            const acc = this.sidebar.querySelector(`.fb-chat-accordion[data-chat-id="${chatId}"]`);
-            const item = this.sidebar.querySelector(`.fb-chat-item[data-chat-id="${chatId}"]`);
-
-            if (acc) acc.classList.remove('open');
-            if (item) item.classList.remove('fb-chat-item-open');
+            this.setAccordionOpenState(chatId, false);
 
             // Unsubscribe Firestore listener
             const state = this.openAccordions[chatId];
@@ -1123,7 +1199,11 @@
 
                 const isSent = msg.is_own;
                 const timeStr = ts ? ts.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : '';
-                const text = this.escapeHtml(msg.text || '');
+                let messageText = msg.text || '';
+                if (isRoom && msg.sender_id === 'system' && /welcome to undefined team chat/i.test(messageText)) {
+                    messageText = `Welcome to ${state?.name || 'team'}! Coordinate with your teammates here.`;
+                }
+                const text = this.escapeHtml(messageText);
 
                 let senderLine = '';
                 if (isRoom && !isSent && msg.sender_name) {
@@ -1140,6 +1220,7 @@
 
             msgContainer.innerHTML = html;
             msgContainer.scrollTop = msgContainer.scrollHeight;
+            this.setAccordionOpenState(chatId, true);
         }
 
         async sendAccordionMessage(chatId) {
@@ -1218,13 +1299,13 @@
 
                 if (chatCache && chatCache.isFresh && roomCache && roomCache.isFresh) return;
 
-                const { callFunction } = await import('/js/firebase-config.js');
-
                 if (!chatCache || chatCache.isStale || chatCache.isExpired) {
                     try {
-                        const convResult = await callFunction('getConversations', {});
-                        if (convResult.success && convResult.conversations && convResult.conversations.length > 0) {
-                            this.chats = convResult.conversations.map(conv => ({
+                        const convResult = await this.callFunctionWithRetry('getConversations', {}, {
+                            retryOnUnauthorized: true
+                        });
+                        if (convResult.success) {
+                            this.chats = (convResult.conversations || []).map(conv => ({
                                 id: conv.id,
                                 name: conv.other_participant?.name || 'Unknown',
                                 recipientId: conv.other_participant?.id || '',
@@ -1236,17 +1317,23 @@
                             CacheHelper.set(chatCacheKey, this.chats);
                             this.renderChats();
                         } else if (!chatCache) {
-                            listEl.innerHTML = '<div class="fb-chat-empty">No conversations yet</div>';
+                            this.chats = [];
+                            this.renderChats();
                         }
                     } catch (error) {
                         console.error('[ChatDrawer] Error loading conversations:', error);
-                        if (!chatCache) listEl.innerHTML = '<div class="fb-chat-empty">No conversations yet</div>';
+                        if (!chatCache) {
+                            this.chats = [];
+                            this.renderChats();
+                        }
                     }
                 }
 
                 if (!roomCache || roomCache.isStale || roomCache.isExpired) {
                     try {
-                        const roomsResult = await callFunction('getPlayerChatRooms', {});
+                        const roomsResult = await this.callFunctionWithRetry('getPlayerChatRooms', {}, {
+                            retryOnUnauthorized: true
+                        });
                         if (roomsResult.success && roomsResult.rooms) {
                             const allRooms = [
                                 ...(roomsResult.rooms.league || []),
@@ -1259,11 +1346,11 @@
                                 id: room.id,
                                 name: room.name,
                                 lastMessage: room.last_message?.text || '',
-                                lastMessageTime: room.last_message?.timestamp,
+                                lastMessageTime: room.updated_at || room.last_message?.timestamp || null,
                                 unread: (room.unread_count || 0) > 0,
                                 type: room.type
                             }));
-                            if (this.rooms.length > 0) CacheHelper.set(roomCacheKey, this.rooms);
+                            CacheHelper.set(roomCacheKey, this.rooms);
                         } else {
                             this.rooms = [];
                         }
@@ -1327,6 +1414,9 @@
 
             if (!this.chats || !this.chats.length) {
                 if (section) section.style.display = 'none';
+                if (countEl) countEl.textContent = '';
+                listEl.innerHTML = '<div class="fb-chat-empty">No conversations yet</div>';
+                this.updateUnreadIndicator();
                 return;
             }
 
@@ -1346,6 +1436,8 @@
                 );
             });
             listEl.innerHTML = html;
+            this.rehydrateAccordions(listEl);
+            this.restoreOpenAccordions();
             this.updateUnreadIndicator();
         }
 
@@ -1431,6 +1523,8 @@
                 );
             });
             listEl.innerHTML = html;
+            this.rehydrateAccordions(listEl);
+            this.restoreOpenAccordions();
         }
 
         renderLeaguePlayers() {
@@ -1467,6 +1561,8 @@
                 );
             });
             listEl.innerHTML = html;
+            this.rehydrateAccordions(listEl);
+            this.restoreOpenAccordions();
         }
 
         filterChatSearch(query) {
@@ -1853,6 +1949,8 @@
                 );
             });
             listEl.innerHTML = html;
+            this.rehydrateAccordions(listEl);
+            this.restoreOpenAccordions();
 
             this.updateUnreadIndicator();
         }
@@ -1910,7 +2008,17 @@
 
         formatTimeAgo(timestamp) {
             if (!timestamp) return '';
-            const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+            let date = null;
+            if (timestamp?.toDate) {
+                date = timestamp.toDate();
+            } else if (typeof timestamp === 'object' && timestamp !== null) {
+                const seconds = timestamp.seconds ?? timestamp._seconds;
+                if (Number.isFinite(seconds)) {
+                    date = new Date(seconds * 1000);
+                }
+            }
+            if (!date) date = new Date(timestamp);
+            if (Number.isNaN(date.getTime())) return '';
             const now = new Date();
             const diff = Math.floor((now - date) / 1000);
             if (diff < 60) return 'now';

@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://firestore.googleapis.com">
-    <link rel="preconnect" href="https://us-central1-brdc-35f92.cloudfunctions.net">
+    <link rel="preconnect" href="https://us-central1-brdc-v2.cloudfunctions.net">
     <link rel="dns-prefetch" href="https://www.gstatic.com">
 
     <link rel="icon" type="image/png" href="/images/favicon.png">
@@ -488,6 +488,35 @@
                 homeOutPlayers = [];
                 awayOutPlayers = [];
 
+                // Apply lineup substitutions for scheduled (pre-match) and completed matches
+                const homeLineupPre = matchData.home_lineup || [];
+                const awayLineupPre = matchData.away_lineup || [];
+                if (matchData.status === 'scheduled' && (homeLineupPre.length > 0 || awayLineupPre.length > 0)) {
+                    homeLineupPre.forEach(entry => {
+                        if (entry.is_sub && entry.player_id && entry.replacing_player_id) {
+                            const fillIn = allPlayersById[entry.player_id];
+                            const idx = homeDisplayRoster.findIndex(p => p.id === entry.replacing_player_id);
+                            if (fillIn && idx !== -1) {
+                                homeOutPlayers.push({ ...homeDisplayRoster[idx], isOut: true });
+                                homeDisplayRoster[idx] = { ...fillIn, isFillIn: true, position: homeDisplayRoster[idx].position };
+                            }
+                        }
+                    });
+                    awayLineupPre.forEach(entry => {
+                        if (entry.is_sub && entry.player_id && entry.replacing_player_id) {
+                            const fillIn = allPlayersById[entry.player_id];
+                            const idx = awayDisplayRoster.findIndex(p => p.id === entry.replacing_player_id);
+                            if (fillIn && idx !== -1) {
+                                awayOutPlayers.push({ ...awayDisplayRoster[idx], isOut: true });
+                                awayDisplayRoster[idx] = { ...fillIn, isFillIn: true, position: awayDisplayRoster[idx].position };
+                            }
+                        }
+                    });
+                    // Sync homeRoster/awayRoster so scorer URLs use correct players
+                    homeRoster = [...homeDisplayRoster];
+                    awayRoster = [...awayDisplayRoster];
+                }
+
                 if (matchData.status === 'completed' && matchData.games && matchData.games.length > 0) {
                     // First try explicit lineup data
                     const homeLineup = matchData.home_lineup || [];
@@ -939,6 +968,7 @@
 
                 // Get players from first game in set (they should be same throughout set)
                 const firstGame = setGames[0];
+                const configuredBestOf = leagueData?.match_format?.[firstGame.originalIdx]?.best_of || totalLegsInSet || 3;
                 const homePlayers = (firstGame.home_players || []).map(p => typeof p === 'string' ? p : (p?.name || 'TBD'));
                 const awayPlayers = (firstGame.away_players || []).map(p => typeof p === 'string' ? p : (p?.name || 'TBD'));
 
@@ -1065,7 +1095,7 @@
 
                 html += '<div class="game-card" data-set-idx="' + setIdx + '" data-set-num="' + setNum + '">';
                 html += '<div class="set-label-bar">';
-                html += '<span class="set-label-num">SET ' + setNum + '</span> <span class="set-label-info">\u2014 ' + gameType + ' \u2014 Best of ' + totalLegsInSet + ' \u2014 ' + formatBadge + '</span>';
+                html += '<span class="set-label-num">SET ' + setNum + '</span> <span class="set-label-info">\u2014 ' + gameType + ' \u2014 Best of ' + configuredBestOf + ' \u2014 ' + formatBadge + '</span>';
                 html += '<div class="set-label-cork">' + postCorkLine + '</div>';
                 html += '</div>';
                 html += '<div class="set-roster">';
@@ -4702,9 +4732,9 @@
             const rosterContainer = document.getElementById(containerId || 'preMatchRoster');
             const isPostMatch = containerId === 'postMatchRoster';
 
-            // Use displayRoster (includes subs) for post-match, original roster for pre-match
-            const homeList = isPostMatch && homeDisplayRoster.length > 0 ? homeDisplayRoster : homeRoster;
-            const awayList = isPostMatch && awayDisplayRoster.length > 0 ? awayDisplayRoster : awayRoster;
+            // Use displayRoster (includes subs) — it equals homeRoster when no lineup changes
+            const homeList = homeDisplayRoster.length > 0 ? homeDisplayRoster : homeRoster;
+            const awayList = awayDisplayRoster.length > 0 ? awayDisplayRoster : awayRoster;
 
             if (homeList.length === 0 && awayList.length === 0) {
                 rosterContainer.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 20px;">No roster information available</div>';
@@ -4713,8 +4743,8 @@
 
             function renderPlayerRow(player, isOut, compClass, side) {
                 const stats = allPlayersById[player.id] || player;
-                const avg = stats.x01_three_dart_avg?.toFixed(1) || '-';
-                const mpr = stats.cricket_mpr?.toFixed(2) || '-';
+                const avg = formatStat(stats.x01_three_dart_avg, 1);
+                const mpr = formatStat(stats.cricket_mpr, 2);
                 const rawLevel = String(player.level || '').toUpperCase();
                 const level = ['A', 'B', 'C'].includes(rawLevel) ? rawLevel : '';
                 const isSub = player.isFillIn;
@@ -4754,8 +4784,8 @@
                 if (hPlayer && aPlayer) {
                     const hStats = allPlayersById[hPlayer.id] || hPlayer;
                     const aStats = allPlayersById[aPlayer.id] || aPlayer;
-                    const hAvg = hStats.x01_three_dart_avg || 0;
-                    const aAvg = aStats.x01_three_dart_avg || 0;
+                    const hAvg = finiteStat(hStats.x01_three_dart_avg);
+                    const aAvg = finiteStat(aStats.x01_three_dart_avg);
                     if (hAvg > aAvg) { homeCompClasses[i] = 'stat-better'; awayCompClasses[i] = 'stat-worse'; }
                     else if (aAvg > hAvg) { awayCompClasses[i] = 'stat-better'; homeCompClasses[i] = 'stat-worse'; }
                     else { homeCompClasses[i] = ''; awayCompClasses[i] = ''; }
@@ -4860,7 +4890,9 @@
                 return 'x01-scorer.html';
             }
 
-            // Build scorer URL with parameters - passes ALL league settings for zero-setup scoring
+            // Build scorer URL with parameters - match-hub is only a scorer launcher.
+            // The actual match/stat writes still flow through the canonical scorer backend
+            // via submitGameResult; match-hub itself does not write scoring data directly.
             function buildScorerUrl(round, roundIndex, homePlayers, awayPlayers) {
                 const scorerPage = getScorerPage(round);
                 const totalGames = matchFormat.length;
@@ -5001,14 +5033,14 @@
                     let aAvgSum = 0, aMprSum = 0, aCount = 0;
                     homePlayers.forEach(p => {
                         const s = allPlayersById[p.id] || p;
-                        const a = s.x01_three_dart_avg || 0;
-                        const m = s.cricket_mpr || 0;
+                        const a = finiteStat(s.x01_three_dart_avg);
+                        const m = finiteStat(s.cricket_mpr);
                         if (a > 0 || m > 0) { hAvgSum += a; hMprSum += m; hCount++; }
                     });
                     awayPlayers.forEach(p => {
                         const s = allPlayersById[p.id] || p;
-                        const a = s.x01_three_dart_avg || 0;
-                        const m = s.cricket_mpr || 0;
+                        const a = finiteStat(s.x01_three_dart_avg);
+                        const m = finiteStat(s.cricket_mpr);
                         if (a > 0 || m > 0) { aAvgSum += a; aMprSum += m; aCount++; }
                     });
                     const hAvg = hCount > 0 ? hAvgSum / hCount : 0;
@@ -5028,8 +5060,8 @@
                 // Compute per-player stat values for red/green comparison
                 function getPlayerVal(p) {
                     const s = allPlayersById[p.id] || p;
-                    const avg = s.x01_three_dart_avg || 0;
-                    const mpr = s.cricket_mpr || 0;
+                    const avg = finiteStat(s.x01_three_dart_avg);
+                    const mpr = finiteStat(s.cricket_mpr);
                     return { avg, mpr, combined: avg + mpr, avgStr: avg > 0 ? avg.toFixed(1) : '-', mprStr: mpr > 0 ? mpr.toFixed(2) : '-' };
                 }
                 const hVals = homePlayers.map(getPlayerVal);
@@ -5164,6 +5196,16 @@
             const s = ['th', 'st', 'nd', 'rd'];
             const v = n % 100;
             return n + (s[(v - 20) % 10] || s[v] || s[0]);
+        }
+
+        function finiteStat(value, fallback = 0) {
+            const num = Number(value);
+            return Number.isFinite(num) ? num : fallback;
+        }
+
+        function formatStat(value, decimals = 1) {
+            const num = finiteStat(value, null);
+            return num != null && num > 0 ? num.toFixed(decimals) : '-';
         }
 
         function formatTime(timeStr) {

@@ -1,10 +1,10 @@
 /**
  * BRDC Service Worker
  * Provides offline caching and IndexedDB storage for game data
- * v45 - Fixes #2-4: Viewport adjustments, validation improvements
+ * v56 - Scorer pages use network-first to avoid stale live scoring code
  */
 
-const CACHE_VERSION = 'brdc-v55';
+const CACHE_VERSION = 'brdc-v56';
 const CACHE_NAME = `brdc-cache-${CACHE_VERSION}`;
 
 // Critical pages - scorer pages prioritized for offline use
@@ -108,7 +108,7 @@ const PRECACHE_ASSETS = [
 
 // Install event - cache static assets
 self.addEventListener('install', (event) => {
-    console.log('[SW] Installing service worker v46...');
+    console.log('[SW] Installing service worker', CACHE_VERSION + '...');
     event.waitUntil(
         caches.open(CACHE_NAME)
             .then((cache) => {
@@ -130,7 +130,7 @@ self.addEventListener('install', (event) => {
 
 // Activate event - clean ALL old caches
 self.addEventListener('activate', (event) => {
-    console.log('[SW] Activating service worker v46...');
+    console.log('[SW] Activating service worker', CACHE_VERSION + '...');
     event.waitUntil(
         caches.keys()
             .then((cacheNames) => {
@@ -168,13 +168,14 @@ self.addEventListener('fetch', (event) => {
     if (url.pathname.includes('cloudfunctions.net')) return;
     if (url.pathname.includes('__')) return; // Firebase internal
 
-    // Scorer pages: CACHE-FIRST (critical for offline scoring)
+    // Scorer pages: NETWORK-FIRST with offline fallback. These pages change often
+    // and must not silently run stale scoring logic from an old cache.
     const isScorerPage = url.pathname.includes('x01-scorer') ||
         url.pathname.includes('league-cricket') ||
         url.pathname.includes('game-setup');
 
     if (isScorerPage) {
-        event.respondWith(cacheFirstWithNetworkUpdate(request));
+        event.respondWith(networkFirstWithOfflineFallback(request));
         return;
     }
 
