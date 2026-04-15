@@ -1,85 +1,94 @@
 # Match Data Import Guide
 
-## ✅ USE THIS SCRIPT
+## Canonical Path
 
-**`import-match-from-rtf.js`** is the ONLY working importer.
+Use the cloud-function pipeline below as the source of truth for match imports:
 
-## Quick Start
+1. `parseDartConnectRecap`
+2. `validateImportMatchData`
+3. `importMatchData`
 
-1. **Add your match to the MATCHES array:**
-```javascript
-const MATCHES = [
-    {
-        name: 'Team A v Team B (Week X)',
-        matchId: 'FIRESTORE_MATCH_ID',  // Get from Firestore leagues/{leagueId}/matches
-        rtfFile: 'trips league/week X/filename.rtf',  // Path relative to /temp
-        homeTeam: 'Team A',
-        awayTeam: 'Team B'
-    }
-];
-```
+For local helper scripts, use these files:
 
-2. **Add team rosters if new:**
-```javascript
-const TEAM_ROSTERS = {
-    'Team A': ['Player 1', 'Player 2', 'Player 3'],
-    'Team B': ['Player 4', 'Player 5', 'Player 6']
-};
-```
+- `import-dc-match.js`
+  Primary generic importer for DartConnect web recap data.
+- `import-match-from-rtf.js`
+  Legacy fallback for older RTF-based exports when a recap page is not available.
+- `fetch-dc-matches.js`
+  Fixture fetch helper for saving DartConnect recap/game-detail HTML into `temp/dc-web`.
+- `audit-match-imports.js`
+  Read-only audit helper for verifying imported match completeness before any repair.
 
-3. **Run it:**
+## Recommended Usage
+
+### 1. Fetch recap detail pages when needed
+
 ```bash
-cd C:\Users\gcfrp\projects\brdc-firebase\scripts
+cd E:\projects\brdc-firebase\scripts
+node fetch-dc-matches.js
+```
+
+### 2. Run the generic DartConnect importer
+
+```bash
+cd E:\projects\brdc-firebase\scripts
+node import-dc-match.js
+```
+
+### 3. Use the RTF fallback only for historical edge cases
+
+```bash
+cd E:\projects\brdc-firebase\scripts
 node import-match-from-rtf.js
 ```
 
-## What It Does
+## Current Rules
 
-✅ Parses RTF files from DartConnect exports
-✅ Extracts `checkout_darts` from `DO (n)` markers
-✅ Handles player name variations
-✅ Maps players to correct teams
-✅ Posts data to `importMatchData` cloud function
-✅ Updates player stats via `updateImportedMatchStats`
+- Throws are the source of truth.
+- Do not import precomputed aggregated stats as authoritative match data.
+- Match identity must resolve against the BRDC schedule, not whatever names happen to appear in the recap.
+- Old one-off scripts are archived and should not be reused for new imports.
 
-## Output
+## Manual Repair Scripts
 
-```
-=== Importing: Team A v Team B ===
-Reading: C:\Users\gcfrp\projects\brdc-firebase\temp\trips league\week X\filename.rtf
-Parsed 9 games
-Converted to 9 sets, 21 legs
-Score: Team A 4 - 5 Team B
-Import result: { success: true, matchId: '...', games: 9, totalLegs: 21 }
-Stats result: { success: true, playersUpdated: 5 }
+These remain in place for controlled repair work, but they are not the default import flow:
 
-=== SUMMARY ===
-[OK] Team A v Team B
-```
+- `smart-reimport.js`
+- `reimport-all-matches.js`
+- `reset-and-reimport-weeks-1-3.js`
 
-## Important Files
+Use them only when the match-level audit shows an existing import needs repair.
 
-- **Parser**: `../temp/parse-rtf.js` - Extracts structured data from RTF
-- **Importer**: `import-match-from-rtf.js` - Converts and uploads to Firestore
-- **Cloud Function**: `importMatchData` - Stores match data
-- **Cloud Function**: `updateImportedMatchStats` - Recalculates player stats
+Classification:
 
-## Troubleshooting
+- `smart-reimport.js`
+  Reusable targeted repair helper for a single audited match.
+- `reimport-all-matches.js`
+  Historical batch repair for a bounded set of early matches. Not for routine use.
+- `reset-and-reimport-weeks-1-3.js`
+  Destructive reset-and-rebuild utility. Requires explicit operator review before any live run.
 
-**"No ID for player"** warnings:
-- Add player name variations to TEAM_ROSTERS
-- Example: `'Dillon Ulisses'` and `'Dillon U'` both map to same player
+## Archived / Do Not Use
 
-**"Teams swapped"**:
-- Normal! The script auto-detects if RTF home/away differs from Firestore
-- Data is corrected automatically
+The following scripts have been moved under `scripts/_archive_review/import-legacy-2026-04-14/`:
 
-**Missing checkout_darts**:
-- Check that `temp/parse-rtf.js` returns `checkout_darts` in parse501Leg()
-- Check that `functions/import-matches.js` includes `checkout_darts` in baseLeg
+- `DEPRECATED-convert-rtf-to-match-json.js`
+- `import-from-dc-web.js`
+- `import-dpagel-vs-ragnoni.js`
+- `import-eo-vs-neon.js`
+- `import-nkull-vs-drussano.js`
+- `import-weeks-9-10.js`
+- `import-stats-to-firestore.js`
 
-## DO NOT USE
+These were one-off or superseded approaches and are retained only for reference.
 
-❌ `DEPRECATED-convert-rtf-to-match-json.js` - Output format incompatible with cloud function
-❌ `functions/populate-*-match.js` - Old approach, not scalable
-❌ Any scripts in `/temp/trips league/week X/` - Test files, use this one instead
+The following script has been moved under `scripts/_archive_review/manual-repair-legacy-2026-04-14/`:
+
+- `fix-partlo-pagel-score.js`
+- `fix-partlo-pagel.js`
+- `import-mezlak-eo-proper.js`
+- `import-pagel-match.js`
+- `import-all-matches.js`
+- `reimport-russano-ragnoni.js`
+
+These were one-off repair or pre-contract payload scripts and should not remain in the active tool surface.

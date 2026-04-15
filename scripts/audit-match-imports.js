@@ -10,6 +10,7 @@
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
+const admin = require('../functions/node_modules/firebase-admin');
 
 const LEAGUE_ID = 'aOq4Y0ETxPZ66tM1uUtP';
 const BASE_URL = 'https://us-central1-brdc-v2.cloudfunctions.net';
@@ -33,6 +34,8 @@ const MATCH_RTF_MAP = {
     'Iychqt7Wto8S9m7proeH': { file: 'week 2/pagel v kull.rtf', name: 'D.Pagel vs Kull' },
     '9unWmN7TmQgNEhFlhpuB': { file: 'week 2/russano v ragnoni.rtf', name: 'Russano vs Ragnoni' }
 };
+
+let firestore = null;
 
 async function httpGet(url) {
     return new Promise((resolve, reject) => {
@@ -93,9 +96,34 @@ async function listMatches() {
     return httpPost(url, { league_id: LEAGUE_ID });
 }
 
+async function getRawMatch(matchId) {
+    const snap = await firestore.collection('leagues').doc(LEAGUE_ID).collection('matches').doc(matchId).get();
+    return snap.exists ? snap.data() : null;
+}
+
+function isLegacySummaryMatch(rawMatch) {
+    if (!rawMatch) return false;
+    if (rawMatch.legacy_summary_only === true) return true;
+    if (rawMatch.import_truth_source === 'legacy_summary_stats') return true;
+    if (typeof rawMatch.import_review_status === 'string' && rawMatch.import_review_status.startsWith('legacy_summary')) {
+        return true;
+    }
+    return false;
+}
+
+function getLegacyMissingThrowGames(rawMatch) {
+    if (!rawMatch || !Array.isArray(rawMatch.legacy_summary_missing_throw_games)) {
+        return [];
+    }
+    return rawMatch.legacy_summary_missing_throw_games;
+}
+
 function auditMatch(matchDetails) {
     const issues = [];
     const warnings = [];
+    const metadata = {
+        missingThrowGames: []
+    };
 
     // Check basic info
     if (!matchDetails.homeTeam) issues.push('Missing home team name');
@@ -107,7 +135,7 @@ function auditMatch(matchDetails) {
     // Check games array
     if (!matchDetails.games || matchDetails.gamesCount === 0) {
         issues.push('No games array');
-        return { issues, warnings, stats: null };
+        return { issues, warnings, stats: null, metadata };
     }
 
     if (matchDetails.gamesCount < EXPECTED_GAMES) {
@@ -123,7 +151,12 @@ function auditMatch(matchDetails) {
     let totalLegs = 0;
 
     for (const game of matchDetails.games) {
-        if (game.hasThrows) gamesWithThrows++;
+        if (game.hasThrows) {
+            gamesWithThrows++;
+        } else {
+            metadata.missingThrowGames.push(game.game);
+        }
+
         if (game.hasPlayerStats) gamesWithPlayerStats++;
         if (game.winner) gamesWithWinner++;
         if (game.legsCount) totalLegs += game.legsCount;
@@ -166,12 +199,35 @@ function auditMatch(matchDetails) {
         totalDarts: matchDetails.totalDarts || 0
     };
 
-    // Check if all games have data
     if (gamesWithThrows < matchDetails.gamesCount) {
         issues.push(`Only ${gamesWithThrows}/${matchDetails.gamesCount} games have throw data`);
     }
 
-    return { issues, warnings, stats };
+    return { issues, warnings, stats, metadata };
+}
+
+function summarizeLegacyNote(rawMatch) {
+    if (!rawMatch) return null;
+    return rawMatch.legacy_summary_note || 'Stored match retains leg winners and player stats, but not full throw-by-throw detail.';
+}
+
+function determineStatus(audit, rawMatch) {
+    if (audit.issues.length === 0) {
+        return 'PASS';
+    }
+
+    if (isLegacySummaryMatch(rawMatch)) {
+        const nonThrowIssues = audit.issues.filter(issue => (
+            !issue.includes('missing throws data') &&
+            !issue.includes('games have throw data')
+        ));
+
+        if (nonThrowIssues.length === 0) {
+            return 'LEGACY_SUMMARY';
+        }
+    }
+
+    return 'FAIL';
 }
 
 async function runAudit() {
@@ -179,7 +235,11 @@ async function runAudit() {
     console.log(`League ID: ${LEAGUE_ID}`);
     console.log(`Expected: ${EXPECTED_GAMES} sets per match, best of ${EXPECTED_LEGS_PER_GAME} legs\n`);
 
-    // Get list of all matches
+    if (!admin.apps.length) {
+        admin.initializeApp({ projectId: 'brdc-v2' });
+    }
+    firestore = admin.firestore();
+
     console.log('Fetching match list...\n');
     const matchListResponse = await listMatches();
 
@@ -191,21 +251,22 @@ async function runAudit() {
     const matches = matchListResponse.matches;
     console.log(`Found ${matches.length} total matches\n`);
 
-    // Separate by status
     const completedMatches = matches.filter(m => m.status === 'completed');
     const scheduledMatches = matches.filter(m => m.status === 'scheduled');
 
     console.log(`Completed: ${completedMatches.length}`);
     console.log(`Scheduled: ${scheduledMatches.length}\n`);
 
-    // Audit each completed match
     const results = [];
 
     for (const match of completedMatches) {
         console.log(`Auditing ${match.id}...`);
 
         try {
-            const details = await getMatchDetails(match.id);
+            const [details, rawMatch] = await Promise.all([
+                getMatchDetails(match.id),
+                getRawMatch(match.id)
+            ]);
 
             if (details.error) {
                 results.push({
@@ -217,12 +278,15 @@ async function runAudit() {
                     issues: [`API Error: ${details.error}`],
                     warnings: [],
                     stats: null,
-                    rtfFile: MATCH_RTF_MAP[match.id]?.file || null
+                    rtfFile: MATCH_RTF_MAP[match.id]?.file || null,
+                    legacy: false,
+                    rawMatch
                 });
                 continue;
             }
 
             const audit = auditMatch(details);
+            const status = determineStatus(audit, rawMatch);
 
             results.push({
                 id: match.id,
@@ -230,11 +294,15 @@ async function runAudit() {
                 homeTeam: details.homeTeam,
                 awayTeam: details.awayTeam,
                 score: `${details.homeScore}-${details.awayScore}`,
-                status: audit.issues.length === 0 ? 'PASS' : 'FAIL',
+                status,
                 issues: audit.issues,
                 warnings: audit.warnings,
                 stats: audit.stats,
-                rtfFile: MATCH_RTF_MAP[match.id]?.file || null
+                metadata: audit.metadata,
+                rtfFile: MATCH_RTF_MAP[match.id]?.file || null,
+                legacy: status === 'LEGACY_SUMMARY',
+                legacyNote: summarizeLegacyNote(rawMatch),
+                rawMatch
             });
 
         } catch (error) {
@@ -247,18 +315,16 @@ async function runAudit() {
                 issues: [`Exception: ${error.message}`],
                 warnings: [],
                 stats: null,
-                rtfFile: MATCH_RTF_MAP[match.id]?.file || null
+                rtfFile: MATCH_RTF_MAP[match.id]?.file || null,
+                legacy: false
             });
         }
     }
 
-    // Generate report
     const report = generateReport(results, matches.length, completedMatches.length, scheduledMatches.length);
 
-    // Print to console
     console.log('\n' + report);
 
-    // Save to file
     const reportPath = path.join(__dirname, '..', 'docs', 'work-tracking', 'MATCH-IMPORT-AUDIT.md');
     fs.writeFileSync(reportPath, report);
     console.log(`\nReport saved to: ${reportPath}`);
@@ -277,6 +343,7 @@ function generateReport(results, totalMatches, completedCount, scheduledCount) {
     });
 
     const passCount = results.filter(r => r.status === 'PASS').length;
+    const legacyCount = results.filter(r => r.status === 'LEGACY_SUMMARY').length;
     const failCount = results.filter(r => r.status === 'FAIL').length;
     const errorCount = results.filter(r => r.status === 'ERROR').length;
 
@@ -293,6 +360,7 @@ League ID: ${LEAGUE_ID}
 | Completed | ${completedCount} |
 | Scheduled | ${scheduledCount} |
 | **PASS** | ${passCount} |
+| **LEGACY SUMMARY** | ${legacyCount} |
 | **FAIL** | ${failCount} |
 | **ERROR** | ${errorCount} |
 
@@ -302,22 +370,21 @@ League ID: ${LEAGUE_ID}
 
 - **9 sets** per match (5 singles + 4 doubles)
 - **Best of 3 legs** per set (1-3 legs depending on winner)
-- Each leg should have:
+- Preferred source-of-truth:
   - \`throws[]\` array with actual throw data
   - \`player_stats\` with player names
   - \`winner\` field
+- Legacy-summary matches are separated instead of being counted as clean throw-complete imports.
 
 ---
 
 `;
 
-    // Failed matches first
     const failedMatches = results.filter(r => r.status === 'FAIL' || r.status === 'ERROR');
     if (failedMatches.length > 0) {
         report += `## FAILED MATCHES - ${failedMatches.length} items\n\n`;
-        report += `These matches need to be reimported:\n\n`;
+        report += `These matches still need source recovery or import repair:\n\n`;
 
-        // Group by week
         const byWeek = {};
         failedMatches.forEach(m => {
             const week = m.week || 'unknown';
@@ -361,7 +428,43 @@ League ID: ${LEAGUE_ID}
         });
     }
 
-    // Passed matches
+    const legacyMatches = results.filter(r => r.status === 'LEGACY_SUMMARY');
+    if (legacyMatches.length > 0) {
+        report += `## LEGACY SUMMARY MATCHES - ${legacyMatches.length} items\n\n`;
+        report += `These matches preserve winners and player stats, but stored source no longer contains full turn-by-turn throws. They were normalized and tagged so they no longer masquerade as throw-complete imports.\n\n`;
+
+        legacyMatches.forEach(match => {
+            report += `### Week ${match.week}: ${match.homeTeam} vs ${match.awayTeam}\n\n`;
+            report += `- **Match ID:** \`${match.id}\`\n`;
+            report += `- **Score:** ${match.score}\n`;
+            report += `- **Status:** LEGACY SUMMARY\n`;
+
+            if (match.stats) {
+                report += `- **Games:** ${match.stats.gamesCount} (${match.stats.gamesWithThrows} with throws)\n`;
+                report += `- **Total Legs:** ${match.stats.totalLegs}\n`;
+                report += `- **Total Darts:** ${match.stats.totalDarts}\n`;
+            }
+
+            const missingGames = match.rawMatch ? getLegacyMissingThrowGames(match.rawMatch) : [];
+            if (missingGames.length > 0) {
+                report += `- **Missing Throw Games:** ${missingGames.join(', ')}\n`;
+            }
+
+            if (match.legacyNote) {
+                report += `- **Legacy Note:** ${match.legacyNote}\n`;
+            }
+
+            if (match.warnings.length > 0) {
+                report += `\n**Warnings:**\n`;
+                match.warnings.forEach(warn => {
+                    report += `- ${warn}\n`;
+                });
+            }
+
+            report += '\n';
+        });
+    }
+
     const passedMatches = results.filter(r => r.status === 'PASS');
     if (passedMatches.length > 0) {
         report += `## PASSED MATCHES - ${passedMatches.length} items\n\n`;
@@ -387,22 +490,6 @@ League ID: ${LEAGUE_ID}
             report += '\n';
         });
     }
-
-    // RTF files available for reimport
-    report += `## RTF Files Available for Reimport\n\n`;
-    report += `Located in \`temp/trips league/\`:\n\n`;
-    report += `### Week 1\n`;
-    report += `- pagel v pagel MATCH.rtf\n`;
-    report += `- yasenchak v kull.rtf\n`;
-    report += `- partlo v olschansky.rtf\n`;
-    report += `- mezlak v russano.rtf\n`;
-    report += `- massimiani v ragnoni.rtf\n\n`;
-    report += `### Week 2\n`;
-    report += `- dpartlo v mpagel.rtf\n`;
-    report += `- massimiani v yasenchak.rtf\n`;
-    report += `- mezlak V e.o.rtf\n`;
-    report += `- pagel v kull.rtf\n`;
-    report += `- russano v ragnoni.rtf\n\n`;
 
     return report;
 }
