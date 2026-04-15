@@ -3,7 +3,7 @@
  * Challenge system, match scheduling, rematch, online stats
  */
 
-const functions = require('firebase-functions');
+const functions = require('firebase-functions/v1');
 // const { onSchedule } = require('firebase-functions/scheduler'); // DISABLED - v2 scheduler not compatible with v4
 const { logger } = require('firebase-functions');
 const admin = require('firebase-admin');

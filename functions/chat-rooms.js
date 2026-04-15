@@ -3,7 +3,7 @@
  * Handles league, team, and match chat rooms with group messaging
  */
 
-const functions = require('firebase-functions');
+const functions = require('firebase-functions/v1');
 const admin = require('firebase-admin');
 const cors = require('cors')({ origin: true });
 const { verifyFirebaseAuth } = require('./src/firebase-auth-helper');
@@ -367,13 +367,15 @@ exports.createTeamChatRoom = functions.https.onRequest((req, res) => {
                 participantIds.push(team.captain_id);
             }
 
+            const teamName = team.team_name || team.name || 'Unknown Team';
+
             // Captain is admin of team chat
             const adminIds = team.captain_id ? [team.captain_id] : [];
 
             // Create chat room
             const roomRef = await db.collection('chat_rooms').add({
                 type: 'team',
-                name: `${team.name} Team Chat`,
+                name: `${teamName} Team Chat`,
                 league_id: league_id,
                 team_id: team_id,
                 match_id: null,
@@ -391,7 +393,7 @@ exports.createTeamChatRoom = functions.https.onRequest((req, res) => {
             await roomRef.collection('messages').add({
                 sender_id: 'system',
                 sender_name: 'System',
-                text: `Welcome to ${team.name} team chat! Coordinate with your teammates here.`,
+                text: `Welcome to ${teamName} team chat! Coordinate with your teammates here.`,
                 timestamp: admin.firestore.FieldValue.serverTimestamp(),
                 type: 'system',
                 pinned: false

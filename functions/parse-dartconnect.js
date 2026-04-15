@@ -47,7 +47,8 @@ const knownPlayers = new Set([
     'Nick Mezlak', 'Cory Jacobs', 'Dillon Ulisses',
     'Dan Partlo', 'Joe Donley', 'Kevin Mckelvey',
     'Danny Russano', 'Chris Russano', 'Eric Duale',
-    'John Ragnoni', 'Marc Tate', 'David Brunner'
+    'John Ragnoni', 'Marc Tate', 'David Brunner',
+    'Tony Rook'
 ]);
 
 // Check if a string is a player name

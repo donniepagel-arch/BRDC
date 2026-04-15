@@ -3,7 +3,7 @@
  * Handles registration, listing, and management of bot players with granular skill stats
  */
 
-const functions = require('firebase-functions');
+const functions = require('firebase-functions/v1');
 const admin = require('firebase-admin');
 
 const db = admin.firestore();

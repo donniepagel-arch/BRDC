@@ -3,7 +3,7 @@
  * Handles saving and stats aggregation for casual/pickup games
  */
 
-const functions = require('firebase-functions');
+const functions = require('firebase-functions/v1');
 const admin = require('firebase-admin');
 
 // Initialize if not already done

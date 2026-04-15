@@ -3,10 +3,11 @@
  * Tiered notification delivery: Push > SMS > Email
  */
 
-const functions = require('firebase-functions');
+const functions = require('firebase-functions/v1');
 const { onDocumentCreated, onDocumentUpdated } = require('firebase-functions/v2/firestore');
 const admin = require('firebase-admin');
 const { verifyFirebaseAuth } = require('./src/firebase-auth-helper');
+const { sendManagedSms, sendManagedEmail } = require('./src/messaging-config');
 
 // Initialize if not already done
 if (!admin.apps.length) {
@@ -14,35 +15,6 @@ if (!admin.apps.length) {
 }
 
 const db = admin.firestore();
-
-// Configuration
-const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
-const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN;
-const TWILIO_PHONE = process.env.TWILIO_PHONE_NUMBER;
-const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
-const FROM_EMAIL = process.env.FROM_EMAIL || 'noreply@burningriverdarts.com';
-
-// Initialize Twilio (optional)
-let twilioClient = null;
-try {
-    if (TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN) {
-        const twilio = require('twilio');
-        twilioClient = twilio(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN);
-    }
-} catch (e) {
-    console.log('Twilio not configured');
-}
-
-// Initialize SendGrid (optional)
-let sgMail = null;
-try {
-    if (SENDGRID_API_KEY) {
-        sgMail = require('@sendgrid/mail');
-        sgMail.setApiKey(SENDGRID_API_KEY);
-    }
-} catch (e) {
-    console.log('SendGrid not configured');
-}
 
 /**
  * Send push notification via FCM
@@ -99,46 +71,22 @@ async function sendPushNotification(fcmToken, title, body, data = {}) {
  * Send SMS via Twilio
  */
 async function sendSMS(to, body) {
-    if (!twilioClient) {
-        console.log('SMS (simulated):', { to, body });
-        return { success: true, method: 'sms', simulated: true };
-    }
-
-    try {
-        const message = await twilioClient.messages.create({
-            body,
-            to,
-            from: TWILIO_PHONE
-        });
-        return { success: true, method: 'sms', sid: message.sid };
-    } catch (error) {
-        console.error('SMS error:', error);
-        return { success: false, error: error.message };
-    }
+    const result = await sendManagedSms(to, body);
+    return {
+        method: 'sms',
+        ...result
+    };
 }
 
 /**
  * Send Email via SendGrid
  */
 async function sendEmail(to, subject, html, text) {
-    if (!sgMail) {
-        console.log('Email (simulated):', { to, subject });
-        return { success: true, method: 'email', simulated: true };
-    }
-
-    try {
-        await sgMail.send({
-            to,
-            from: FROM_EMAIL,
-            subject,
-            html,
-            text: text || html.replace(/<[^>]*>/g, '')
-        });
-        return { success: true, method: 'email' };
-    } catch (error) {
-        console.error('Email error:', error);
-        return { success: false, error: error.message };
-    }
+    const result = await sendManagedEmail(to, subject, html, text);
+    return {
+        method: 'email',
+        ...result
+    };
 }
 
 /**

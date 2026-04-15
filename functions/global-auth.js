@@ -3,43 +3,19 @@
  * Handles PIN-based login with phone verification and rate limiting
  */
 
-const functions = require('firebase-functions');
+const functions = require('firebase-functions/v1');
 const admin = require('firebase-admin');
+const { getMessagingServices } = require('./src/messaging-config');
+const { createAuthHandlers } = require('./src/auth-http-handlers');
 
 const db = admin.firestore();
-
-// Twilio setup for SMS
-const TWILIO_SID = process.env.TWILIO_ACCOUNT_SID;
-const TWILIO_TOKEN = process.env.TWILIO_AUTH_TOKEN;
-const TWILIO_PHONE = process.env.TWILIO_PHONE_NUMBER;
-
-// SendGrid setup for emails (backup)
-const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
-const FROM_EMAIL = process.env.FROM_EMAIL || 'noreply@burningriverdarts.com';
-
-let twilioClient = null;
-let sgMail = null;
-
-try {
-    if (TWILIO_SID && TWILIO_TOKEN) {
-        twilioClient = require('twilio')(TWILIO_SID, TWILIO_TOKEN);
-    }
-} catch (e) {
-    console.log('Twilio not configured in global-auth');
-}
-
-try {
-    if (SENDGRID_API_KEY) {
-        sgMail = require('@sendgrid/mail');
-        sgMail.setApiKey(SENDGRID_API_KEY);
-    }
-} catch (e) {
-    console.log('SendGrid not configured in global-auth');
-}
+const sharedAuthHandlers = createAuthHandlers({ admin, db, getMessagingServices });
 
 async function sendWelcomeSMS(phone, name, pin) {
+    const { twilioClient, config } = await getMessagingServices();
+
     if (!twilioClient) {
-        console.log('Welcome SMS (simulated):', { phone, name, pin });
+        console.log('Welcome SMS (simulated):', { phone, name, pin, source: config.source });
         return { success: true, simulated: true };
     }
 
@@ -48,7 +24,7 @@ async function sendWelcomeSMS(phone, name, pin) {
         const result = await twilioClient.messages.create({
             body: message,
             to: phone.startsWith('+') ? phone : '+1' + phone.replace(/\D/g, ''),
-            from: TWILIO_PHONE
+            from: config.twilioPhone
         });
         return { success: true, sid: result.sid };
     } catch (err) {
@@ -58,8 +34,10 @@ async function sendWelcomeSMS(phone, name, pin) {
 }
 
 async function sendWelcomeEmail(email, name, pin) {
+    const { sgMail, config } = await getMessagingServices();
+
     if (!sgMail) {
-        console.log('Welcome email (simulated):', { email, name, pin });
+        console.log('Welcome email (simulated):', { email, name, pin, source: config.source });
         return { success: true, simulated: true };
     }
 
@@ -88,7 +66,7 @@ async function sendWelcomeEmail(email, name, pin) {
     try {
         await sgMail.send({
             to: email,
-            from: FROM_EMAIL,
+            from: config.fromEmail,
             subject: 'Welcome to BRDC - Your Player PIN',
             html: emailHtml,
             text: textVersion
@@ -553,58 +531,7 @@ async function recordFailedAttempt(rateLimitRef, rateLimitDoc) {
 /**
  * Recover PIN by email - sends PIN to email address
  */
-exports.recoverPin = functions.https.onRequest(async (req, res) => {
-    setCorsHeaders(res);
-    if (req.method === 'OPTIONS') return res.status(204).send('');
-
-    try {
-        const { email } = req.body;
-
-        if (!email) {
-            return res.status(400).json({ success: false, error: 'Email is required' });
-        }
-
-        const emailLower = email.toLowerCase().trim();
-
-        // Find player by email
-        const playerSnapshot = await db.collection('players')
-            .where('email', '==', emailLower)
-            .limit(1)
-            .get();
-
-        if (playerSnapshot.empty) {
-            // Don't reveal if email exists or not (security)
-            return res.json({
-                success: true,
-                message: 'If an account exists with this email, your PIN has been sent.'
-            });
-        }
-
-        const player = playerSnapshot.docs[0].data();
-
-        // Queue email notification with full 8-digit PIN
-        await db.collection('notifications_queue').add({
-            type: 'pin_recovery',
-            to_email: emailLower,
-            to_name: player.name,
-            pin: player.pin,                    // Full 8-digit PIN
-            chosen_pin: player.chosen_pin,      // 4-digit chosen portion
-            phone_last4: player.phone_last4,
-            created_at: admin.firestore.FieldValue.serverTimestamp()
-        });
-
-        console.log(`PIN recovery requested for ${emailLower}`);
-
-        res.json({
-            success: true,
-            message: 'If an account exists with this email, your 8-digit PIN has been sent.'
-        });
-
-    } catch (error) {
-        console.error('PIN recovery error:', error);
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
+exports.recoverPin = functions.https.onRequest(sharedAuthHandlers.recoverPin);
 
 // ============================================================================
 // GET PLAYER DASHBOARD DATA
@@ -1922,254 +1849,13 @@ async function generateUniqueFullPin() {
  * Register new player from signup page
  * Auto-generates 8-digit PIN, phone is optional
  */
-exports.registerNewPlayer = functions.https.onRequest(async (req, res) => {
-    setCorsHeaders(res);
-    if (req.method === 'OPTIONS') return res.status(204).send('');
-
-    try {
-        const { first_name, last_name, email, phone, preferred_level } = req.body;
-
-        // Validate required fields
-        if (!first_name || !last_name) {
-            return res.status(400).json({ success: false, error: 'First name and last name are required' });
-        }
-
-        if (!email) {
-            return res.status(400).json({ success: false, error: 'Email is required' });
-        }
-
-        const emailLower = email.toLowerCase().trim();
-        const fullName = `${first_name.trim()} ${last_name.trim()}`;
-
-        // Validate email format
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(emailLower)) {
-            return res.status(400).json({ success: false, error: 'Please enter a valid email address' });
-        }
-
-        // Check if player already exists (by email)
-        const existingByEmail = await db.collection('players')
-            .where('email', '==', emailLower)
-            .limit(1)
-            .get();
-
-        if (!existingByEmail.empty) {
-            return res.status(400).json({
-                success: false,
-                error: 'An account with this email already exists. Use your PIN to login.'
-            });
-        }
-
-        // Clean phone if provided
-        let phoneClean = null;
-        let phoneLast4 = null;
-        if (phone) {
-            phoneClean = phone.replace(/\D/g, '');
-            if (phoneClean.length >= 4) {
-                phoneLast4 = phoneClean.slice(-4);
-            }
-
-            // Check if phone already registered
-            if (phoneClean.length >= 10) {
-                const existingByPhone = await db.collection('players')
-                    .where('phone', '==', phoneClean)
-                    .limit(1)
-                    .get();
-
-                if (!existingByPhone.empty) {
-                    return res.status(400).json({
-                        success: false,
-                        error: 'An account with this phone number already exists. Use your PIN to login.'
-                    });
-                }
-            }
-        }
-
-        // Generate unique 8-digit PIN
-        let pin;
-        if (phoneLast4) {
-            // If phone provided, use phone-based PIN generation
-            pin = await generateUniquePinWithPhone(phoneLast4);
-        } else {
-            // Otherwise use fully random PIN
-            pin = await generateUniqueFullPin();
-        }
-
-        // Create player document
-        const playerData = {
-            name: fullName,
-            first_name: first_name.trim(),
-            last_name: last_name.trim(),
-            email: emailLower,
-            phone: phoneClean,
-            phone_last4: phoneLast4,
-            pin: pin,
-            preferred_level: preferred_level || null,
-            photo_url: null,
-            isBot: false,
-            notification_preference: phoneClean ? 'sms' : 'email',
-            created_at: admin.firestore.FieldValue.serverTimestamp(),
-            updated_at: admin.firestore.FieldValue.serverTimestamp(),
-            stats: {
-                matches_played: 0,
-                matches_won: 0,
-                x01: { legs_played: 0, legs_won: 0, total_points: 0, total_darts: 0, ton_eighties: 0, high_checkout: 0 },
-                cricket: { legs_played: 0, legs_won: 0, total_marks: 0, total_rounds: 0 }
-            },
-            involvements: { leagues: [], tournaments: [], directing: [], captaining: [] }
-        };
-
-        const playerRef = await db.collection('players').add(playerData);
-
-        // Send welcome email with PIN
-        const emailResult = await sendWelcomeEmail(emailLower, fullName, pin);
-        let emailSent = emailResult.success || emailResult.simulated || false;
-
-        // Also send SMS if phone provided
-        let smsSent = false;
-        if (phoneClean && phoneClean.length >= 10) {
-            const smsResult = await sendWelcomeSMS(phoneClean, fullName, pin);
-            smsSent = smsResult.success || smsResult.simulated || false;
-        }
-
-        // Log the registration
-        await db.collection('notifications').add({
-            type: 'player_signup',
-            to_phone: phoneClean || null,
-            to_email: emailLower,
-            player_id: playerRef.id,
-            player_name: fullName,
-            sms_sent: smsSent,
-            email_sent: emailSent,
-            created_at: admin.firestore.FieldValue.serverTimestamp()
-        });
-
-        console.log(`New player signed up: ${fullName} (${playerRef.id})`);
-
-        res.json({
-            success: true,
-            player_id: playerRef.id,
-            message: `Welcome ${fullName}! Your PIN is ${pin}. Save this - you'll use it to login.`
-        });
-
-    } catch (error) {
-        console.error('Register new player error:', error);
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
+exports.registerNewPlayer = functions.https.onRequest(sharedAuthHandlers.registerNewPlayer);
 
 /**
  * Simple player registration - for game setup page
  * Auto-generates PIN and sends via SMS
  */
-exports.registerPlayerSimple = functions.https.onRequest(async (req, res) => {
-    setCorsHeaders(res);
-    if (req.method === 'OPTIONS') return res.status(204).send('');
-
-    try {
-        const { first_name, last_name, phone, email } = req.body;
-
-        // Validate required fields
-        if (!first_name || !last_name) {
-            return res.status(400).json({ success: false, error: 'First name and last name are required' });
-        }
-
-        if (!phone) {
-            return res.status(400).json({ success: false, error: 'Phone number is required' });
-        }
-
-        // Clean and validate phone
-        const phoneClean = phone.replace(/\D/g, '');
-        if (phoneClean.length < 10) {
-            return res.status(400).json({ success: false, error: 'Please enter a valid 10-digit phone number' });
-        }
-
-        const fullName = `${first_name.trim()} ${last_name.trim()}`;
-        const emailLower = email ? email.toLowerCase().trim() : null;
-
-        // Check if player already exists (by phone)
-        const existingPlayer = await db.collection('players')
-            .where('phone', '==', phoneClean)
-            .limit(1)
-            .get();
-
-        if (!existingPlayer.empty) {
-            return res.status(400).json({
-                success: false,
-                error: 'An account with this phone number already exists. Use your PIN to login.'
-            });
-        }
-
-        // Generate unique 8-digit PIN (phone last 4 + 4 random)
-        const phoneLast4 = phoneClean.slice(-4);
-        const pin = await generateUniquePinWithPhone(phoneLast4);
-
-        // Create player document
-        const playerData = {
-            name: fullName,
-            first_name: first_name.trim(),
-            last_name: last_name.trim(),
-            email: emailLower,
-            phone: phoneClean,
-            phone_last4: phoneClean.slice(-4),
-            pin: pin,
-            photo_url: null,
-            isBot: false,
-            notification_preference: 'sms', // Default to SMS
-            created_at: admin.firestore.FieldValue.serverTimestamp(),
-            updated_at: admin.firestore.FieldValue.serverTimestamp(),
-            stats: {
-                matches_played: 0,
-                matches_won: 0,
-                x01: { legs_played: 0, legs_won: 0, total_points: 0, total_darts: 0, ton_eighties: 0, high_checkout: 0 },
-                cricket: { legs_played: 0, legs_won: 0, total_marks: 0, total_rounds: 0 }
-            },
-            involvements: { leagues: [], tournaments: [], directing: [], captaining: [] }
-        };
-
-        const playerRef = await db.collection('players').add(playerData);
-
-        // Send welcome SMS with PIN
-        const smsResult = await sendWelcomeSMS(phoneClean, fullName, pin);
-        if (!smsResult.success && !smsResult.simulated) {
-            console.warn(`Welcome SMS failed for ${phoneClean}:`, smsResult.error);
-        }
-
-        // Also send email if provided
-        let emailSent = false;
-        if (emailLower) {
-            const emailResult = await sendWelcomeEmail(emailLower, fullName, pin);
-            emailSent = emailResult.success || emailResult.simulated || false;
-        }
-
-        // Log the registration
-        await db.collection('notifications').add({
-            type: 'player_welcome',
-            to_phone: phoneClean,
-            to_email: emailLower || null,
-            player_id: playerRef.id,
-            player_name: fullName,
-            sms_sent: smsResult.success || smsResult.simulated || false,
-            email_sent: emailSent,
-            created_at: admin.firestore.FieldValue.serverTimestamp()
-        });
-
-        console.log(`New player registered: ${fullName} (${playerRef.id})`);
-
-        res.json({
-            success: true,
-            player: {
-                id: playerRef.id,
-                name: fullName
-            },
-            message: `Welcome ${fullName}! Your PIN has been sent via text.`
-        });
-
-    } catch (error) {
-        console.error('Simple register player error:', error);
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
+exports.registerPlayerSimple = functions.https.onRequest(sharedAuthHandlers.registerPlayerSimple);
 
 // ============================================================================
 // GET PLAYER SESSION (Firebase Auth token → session data)

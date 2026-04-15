@@ -3,28 +3,13 @@
  * Sends SMS digests for unread messages to offline players
  */
 
-const functions = require('firebase-functions');
+const functions = require('firebase-functions/v1');
 const { onSchedule } = require('firebase-functions/scheduler');
 const { logger } = require('firebase-functions');
 const admin = require('firebase-admin');
+const { sendManagedSms } = require('./src/messaging-config');
 
 const db = admin.firestore();
-
-// Twilio configuration (from environment)
-const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
-const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN;
-const TWILIO_PHONE_NUMBER = process.env.TWILIO_PHONE_NUMBER;
-
-let twilioClient = null;
-
-if (TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN) {
-    try {
-        twilioClient = require('twilio')(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN);
-        console.log('Twilio client initialized for message digest');
-    } catch (e) {
-        console.log('Twilio not available for message digest');
-    }
-}
 
 /**
  * Send SMS via Twilio
@@ -39,23 +24,7 @@ async function sendSMS(to, body) {
         cleanPhone = '+' + cleanPhone;
     }
 
-    if (!twilioClient) {
-        console.log('SMS (simulated):', { to: cleanPhone, body });
-        return { success: true, simulated: true };
-    }
-
-    try {
-        const message = await twilioClient.messages.create({
-            body: body,
-            to: cleanPhone,
-            from: TWILIO_PHONE_NUMBER
-        });
-        console.log('SMS sent:', message.sid);
-        return { success: true, sid: message.sid };
-    } catch (error) {
-        console.error('SMS error:', error);
-        return { success: false, error: error.message };
-    }
+    return sendManagedSms(cleanPhone, body);
 }
 
 /**

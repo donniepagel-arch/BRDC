@@ -3,11 +3,43 @@
  * League System + Notifications + PayPal Integration
  */
 
-const functions = require('firebase-functions');
+const functions = require('firebase-functions/v1');
 const admin = require('firebase-admin');
 const cors = require('cors')({origin: true});
+const { verifyFirebaseAuth } = require('./src/firebase-auth-helper');
+const { sendManagedSms, sendManagedEmail } = require('./src/messaging-config');
 
 const { sendLeagueRegistrationConfirmation, sendTournamentRegistrationConfirmation } = require('./registration-notifications');
+function formatPhoneE164(phone) {
+    if (!phone) return null;
+    const digits = phone.replace(/\D/g, '');
+    if (digits.length === 10) return '+1' + digits;
+    if (digits.length === 11 && digits.startsWith('1')) return '+' + digits;
+    if (phone.startsWith('+')) return phone;
+    return '+' + digits;
+}
+
+function authPlayerReferencesLeague(authPlayer, leagueId) {
+    if (!authPlayer || !leagueId) return false;
+    if (authPlayer.league_id === leagueId) return true;
+
+    const directing = Array.isArray(authPlayer.involvements?.directing) ? authPlayer.involvements.directing : [];
+    const leagues = Array.isArray(authPlayer.involvements?.leagues) ? authPlayer.involvements.leagues : [];
+    return [...directing, ...leagues].some(ref => ref && (ref.id === leagueId || ref.league_id === leagueId));
+}
+
+async function hasLeagueDirectorOrAdminAccess(req, leagueId, league, providedPin) {
+    if (providedPin && (providedPin === league.admin_pin || providedPin === league.director_pin)) {
+        return true;
+    }
+
+    const authPlayer = await verifyFirebaseAuth(req);
+    if (!authPlayer) return false;
+    if (authPlayer.is_admin || authPlayer.is_master_admin) return true;
+    if (league.director_player_id && authPlayer.id === league.director_player_id) return true;
+
+    return authPlayer.is_director === true && authPlayerReferencesLeague(authPlayer, leagueId);
+}
 // ============================================================================
 // PHASE 5: LEAGUE MANAGEMENT SYSTEM
 // ============================================================================
@@ -381,15 +413,7 @@ exports.registerTeam = functions.https.onRequest(async (req, res) => {
                 }
 
                 try {
-                    const twilioClient = require('twilio')(
-                        process.env.TWILIO_ACCOUNT_SID,
-                        process.env.TWILIO_AUTH_TOKEN
-                    );
-                    await twilioClient.messages.create({
-                        body: msg,
-                        from: process.env.TWILIO_PHONE_NUMBER,
-                        to: e164Phone
-                    });
+                    const smsResult = await sendManagedSms(e164Phone, msg);
 
                     await db.collection('notifications').add({
                         type: 'sms',
@@ -398,9 +422,13 @@ exports.registerTeam = functions.https.onRequest(async (req, res) => {
                         context: 'team_registration',
                         league_id,
                         team_id: teamRef.id,
-                        status: 'sent',
+                        status: smsResult.success || smsResult.simulated ? 'sent' : 'failed',
+                        error: smsResult.success || smsResult.simulated ? null : smsResult.error,
                         sent_at: admin.firestore.FieldValue.serverTimestamp()
                     });
+                    if (!(smsResult.success || smsResult.simulated)) {
+                        console.error(`Twilio SMS failed for ${reg.full_name}:`, smsResult.error);
+                    }
                 } catch (twilioErr) {
                     console.error(`Twilio SMS failed for ${reg.full_name}:`, twilioErr.message);
                     // Log failed attempt
@@ -522,15 +550,7 @@ exports.registerFreeAgent = functions.https.onRequest(async (req, res) => {
                 const msg = `BRDC: You're registered as a free agent for ${leagueName}. Teams can now invite you! Your PIN: ${playerPin || 'check your account'}. Login at brdc-v2.web.app`;
 
                 try {
-                    const twilioClient = require('twilio')(
-                        process.env.TWILIO_ACCOUNT_SID,
-                        process.env.TWILIO_AUTH_TOKEN
-                    );
-                    await twilioClient.messages.create({
-                        body: msg,
-                        from: process.env.TWILIO_PHONE_NUMBER,
-                        to: e164Phone
-                    });
+                    const smsResult = await sendManagedSms(e164Phone, msg);
 
                     await db.collection('notifications').add({
                         type: 'sms',
@@ -538,9 +558,13 @@ exports.registerFreeAgent = functions.https.onRequest(async (req, res) => {
                         message: msg,
                         context: 'free_agent_registration',
                         league_id,
-                        status: 'sent',
+                        status: smsResult.success || smsResult.simulated ? 'sent' : 'failed',
+                        error: smsResult.success || smsResult.simulated ? null : smsResult.error,
                         sent_at: admin.firestore.FieldValue.serverTimestamp()
                     });
+                    if (!(smsResult.success || smsResult.simulated)) {
+                        console.error('Twilio SMS failed for free agent registration:', smsResult.error);
+                    }
                 } catch (twilioErr) {
                     console.error('Twilio SMS failed for free agent:', twilioErr.message);
                     // Log failed attempt
@@ -741,15 +765,7 @@ exports.sendTeamInvite = functions.https.onRequest(async (req, res) => {
                 const msg = `BRDC: ${teamName} has invited you to join their team! Login at brdc-v2.web.app to accept or decline.`;
 
                 try {
-                    const twilioClient = require('twilio')(
-                        process.env.TWILIO_ACCOUNT_SID,
-                        process.env.TWILIO_AUTH_TOKEN
-                    );
-                    await twilioClient.messages.create({
-                        body: msg,
-                        from: process.env.TWILIO_PHONE_NUMBER,
-                        to: e164Phone
-                    });
+                    const smsResult = await sendManagedSms(e164Phone, msg);
 
                     await db.collection('notifications').add({
                         type: 'sms',
@@ -758,9 +774,13 @@ exports.sendTeamInvite = functions.https.onRequest(async (req, res) => {
                         context: 'team_invite',
                         league_id,
                         team_id,
-                        status: 'sent',
+                        status: smsResult.success || smsResult.simulated ? 'sent' : 'failed',
+                        error: smsResult.success || smsResult.simulated ? null : smsResult.error,
                         sent_at: admin.firestore.FieldValue.serverTimestamp()
                     });
+                    if (!(smsResult.success || smsResult.simulated)) {
+                        console.error('Twilio SMS failed for team invite:', smsResult.error);
+                    }
                 } catch (twilioErr) {
                     console.error('Twilio SMS failed for team invite:', twilioErr.message);
                     // Log failed attempt
@@ -1286,18 +1306,13 @@ exports.registerFillin = functions.https.onRequest(async (req, res) => {
         // Send welcome SMS if requested and this is a new signup
         if (send_welcome_sms && phone) {
             try {
-                const twilioClient = require('twilio')(
-                    process.env.TWILIO_ACCOUNT_SID,
-                    process.env.TWILIO_AUTH_TOKEN
-                );
                 const formattedPhone = phone.replace(/\D/g, '');
                 const e164Phone = formattedPhone.startsWith('1') ? `+${formattedPhone}` : `+1${formattedPhone}`;
 
-                await twilioClient.messages.create({
-                    body: `Welcome to BRDC! You're signed up as a sub for ${league.league_name || league.name}. Your PIN is ${playerPin}. Captains will text you when they need a fill-in.`,
-                    from: process.env.TWILIO_PHONE_NUMBER,
-                    to: e164Phone
-                });
+                await sendManagedSms(
+                    e164Phone,
+                    `Welcome to BRDC! You're signed up as a sub for ${league.league_name || league.name}. Your PIN is ${playerPin}. Captains will text you when they need a fill-in.`
+                );
             } catch (smsError) {
                 console.error('Failed to send welcome SMS:', smsError);
                 // Don't fail the registration if SMS fails
@@ -1756,7 +1771,7 @@ exports.conductLeagueDraft = functions.https.onRequest(async (req, res) => {
     if (req.method === 'OPTIONS') return res.status(204).send('');
 
     try {
-        const { league_id } = req.body;
+        const { league_id, admin_pin } = req.body;
 
         // Get league
         const leagueDoc = await admin.firestore().collection('leagues').doc(league_id).get();
@@ -1765,6 +1780,9 @@ exports.conductLeagueDraft = functions.https.onRequest(async (req, res) => {
         }
 
         const league = leagueDoc.data();
+        if (!(await hasLeagueDirectorOrAdminAccess(req, league_id, league, admin_pin))) {
+            return res.status(403).json({ success: false, error: 'Director or admin access required' });
+        }
 
         // Get registrations (human players)
         const regsSnapshot = await admin.firestore()
@@ -2054,7 +2072,7 @@ exports.getLeagueStandings = functions.https.onRequest(async (req, res) => {
 
 /**
  * Send SMS notification via Twilio
- * Configure with: firebase functions:config:set twilio.sid="ACxxxxx" twilio.token="xxxxx" twilio.from="+1234567890"
+ * Credentials are expected through the current environment/secret management path.
  */
 exports.sendSMS = functions.https.onRequest(async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
@@ -2070,28 +2088,16 @@ exports.sendSMS = functions.https.onRequest(async (req, res) => {
             return res.status(400).json({ success: false, error: 'Missing to or message' });
         }
 
-        // Get Twilio config from environment
-        const accountSid = process.env.TWILIO_ACCOUNT_SID;
-        const authToken = process.env.TWILIO_AUTH_TOKEN;
-        const fromNumber = process.env.TWILIO_PHONE_NUMBER;
-
         let twilioResult = null;
         let status = 'pending';
 
-        // Only send if Twilio is configured and not in test mode
-        if (accountSid && authToken && fromNumber && !test_mode) {
-            const twilio = require('twilio');
-            const client = twilio(accountSid, authToken);
-
-            twilioResult = await client.messages.create({
-                body: message,
-                from: fromNumber,
-                to: to
-            });
-            status = 'sent';
-            console.log('SMS sent via Twilio:', twilioResult.sid);
+        // Only send if not in test mode
+        if (!test_mode) {
+            twilioResult = await sendManagedSms(to, message);
+            status = twilioResult.success || twilioResult.simulated ? 'sent' : 'failed';
+            console.log('SMS processed:', twilioResult.sid || twilioResult.source || status);
         } else {
-            status = test_mode ? 'test_mode' : 'twilio_not_configured';
+            status = 'test_mode';
             console.log('SMS not sent - ' + status);
         }
 
@@ -2150,17 +2156,6 @@ exports.sendBulkSMS = functions.https.onRequest(async (req, res) => {
             return res.status(400).json({ success: false, error: 'Message required' });
         }
 
-        // Get Twilio config from environment
-        const accountSid = process.env.TWILIO_ACCOUNT_SID;
-        const authToken = process.env.TWILIO_AUTH_TOKEN;
-        const fromNumber = process.env.TWILIO_PHONE_NUMBER;
-
-        let client = null;
-        if (accountSid && authToken && fromNumber) {
-            const twilio = require('twilio');
-            client = twilio(accountSid, authToken);
-        }
-
         const results = [];
         const batchId = `bulk_${Date.now()}`;
 
@@ -2175,18 +2170,14 @@ exports.sendBulkSMS = functions.https.onRequest(async (req, res) => {
                 let status = 'pending';
                 let messageSid = null;
 
-                if (client) {
-                    const result = await client.messages.create({
-                        body: message,
-                        from: fromNumber,
-                        to: recipient.phone
-                    });
-                    messageSid = result.sid;
+                const result = await sendManagedSms(recipient.phone, message);
+                if (result.success || result.simulated) {
+                    messageSid = result.sid || null;
                     status = 'sent';
-                    // Delay between sends to avoid carrier rate-limit violations
                     await new Promise(r => setTimeout(r, 1500));
                 } else {
-                    status = 'twilio_not_configured';
+                    status = 'failed';
+                    throw new Error(result.error || 'SMS send failed');
                 }
 
                 results.push({ phone: recipient.phone, status, message_sid: messageSid });
@@ -2254,8 +2245,8 @@ exports.notifyLeaguePlayers = functions.https.onRequest(async (req, res) => {
         const league = leagueDoc.data();
 
         // Verify admin PIN
-        if (admin_pin && admin_pin !== league.admin_pin && admin_pin !== league.director_pin) {
-            return res.status(403).json({ success: false, error: 'Invalid PIN' });
+        if (!(await hasLeagueDirectorOrAdminAccess(req, league_id, league, admin_pin))) {
+            return res.status(403).json({ success: false, error: 'Director or admin access required' });
         }
 
         // Get all teams
@@ -2293,38 +2284,6 @@ exports.notifyLeaguePlayers = functions.https.onRequest(async (req, res) => {
         const results = { sent: 0, failed: 0, skipped: 0, details: [] };
         // Use shorter URL format - full URLs with https:// often trigger carrier spam filters
         const dashboardUrl = `brdc-v2.web.app`;
-
-        // Initialize Twilio
-        const twilioSid = process.env.TWILIO_ACCOUNT_SID;
-        const twilioToken = process.env.TWILIO_AUTH_TOKEN;
-        const twilioPhone = process.env.TWILIO_PHONE_NUMBER;
-
-        let twilioClient = null;
-        if (twilioSid && twilioToken) {
-            const twilio = require('twilio');
-            twilioClient = twilio(twilioSid, twilioToken);
-        }
-
-        // Helper to format phone to E.164
-        function formatPhoneE164(phone) {
-            if (!phone) return null;
-            // Remove all non-digits
-            const digits = phone.replace(/\D/g, '');
-            // If 10 digits, assume US and add +1
-            if (digits.length === 10) {
-                return '+1' + digits;
-            }
-            // If 11 digits starting with 1, add +
-            if (digits.length === 11 && digits.startsWith('1')) {
-                return '+' + digits;
-            }
-            // If already has +, return as-is
-            if (phone.startsWith('+')) {
-                return phone;
-            }
-            // Otherwise return with + prefix
-            return '+' + digits;
-        }
 
         for (const player of players) {
             if (!player.phone) {
@@ -2373,21 +2332,16 @@ exports.notifyLeaguePlayers = functions.https.onRequest(async (req, res) => {
 
             // Send SMS
             try {
-                if (twilioClient) {
-                    await twilioClient.messages.create({
-                        body: message,
-                        to: formattedPhone,
-                        from: twilioPhone
-                    });
-                    results.sent++;
-                    results.details.push({ name: player.full_name || player.name, phone: formattedPhone, status: 'sent' });
-                    // Delay between sends to avoid carrier rate-limit violations
-                    await new Promise(r => setTimeout(r, 1500));
-                } else {
-                    console.log('SMS (simulated):', { to: formattedPhone, message });
-                    results.sent++;
-                    results.details.push({ name: player.full_name || player.name, phone: formattedPhone, status: 'simulated' });
-                }
+                const smsResult = await sendManagedSms(formattedPhone, message);
+                results.sent++;
+                results.details.push({
+                    name: player.full_name || player.name,
+                    phone: formattedPhone,
+                    status: smsResult.success ? 'sent' : 'simulated',
+                    sid: smsResult.sid || null,
+                    source: smsResult.source || null
+                });
+                await new Promise(r => setTimeout(r, 1500));
             } catch (smsError) {
                 results.failed++;
                 results.details.push({ name: player.full_name || player.name, phone: formattedPhone, status: 'failed', error: smsError.message });
@@ -2442,8 +2396,8 @@ exports.sendCustomLeagueMessage = functions.https.onRequest(async (req, res) => 
         const league = leagueDoc.data();
 
         // Verify admin PIN
-        if (admin_pin && admin_pin !== league.admin_pin && admin_pin !== league.director_pin) {
-            return res.status(403).json({ success: false, error: 'Invalid PIN' });
+        if (!(await hasLeagueDirectorOrAdminAccess(req, league_id, league, admin_pin))) {
+            return res.status(403).json({ success: false, error: 'Director or admin access required' });
         }
 
         // Get all teams
@@ -2498,33 +2452,6 @@ exports.sendCustomLeagueMessage = functions.https.onRequest(async (req, res) => 
         const results = { sent: 0, failed: 0, skipped: 0, details: [] };
         // Use shorter URL format - full URLs with https:// often trigger carrier spam filters
         const dashboardUrl = `brdc-v2.web.app`;
-
-        // Initialize Twilio
-        const twilioSid = process.env.TWILIO_ACCOUNT_SID;
-        const twilioToken = process.env.TWILIO_AUTH_TOKEN;
-        const twilioPhone = process.env.TWILIO_PHONE_NUMBER;
-
-        let twilioClient = null;
-        if (twilioSid && twilioToken) {
-            const twilio = require('twilio');
-            twilioClient = twilio(twilioSid, twilioToken);
-        }
-
-        // Helper to format phone to E.164
-        function formatPhoneE164(phone) {
-            if (!phone) return null;
-            const digits = phone.replace(/\D/g, '');
-            if (digits.length === 10) {
-                return '+1' + digits;
-            }
-            if (digits.length === 11 && digits.startsWith('1')) {
-                return '+' + digits;
-            }
-            if (phone.startsWith('+')) {
-                return phone;
-            }
-            return '+' + digits;
-        }
 
         for (const player of filteredPlayers) {
             const formattedPhone = formatPhoneE164(player.phone);
@@ -2582,21 +2509,16 @@ exports.sendCustomLeagueMessage = functions.https.onRequest(async (req, res) => 
 
             // Send SMS
             try {
-                if (twilioClient) {
-                    await twilioClient.messages.create({
-                        body: personalizedMessage,
-                        to: formattedPhone,
-                        from: twilioPhone
-                    });
-                    results.sent++;
-                    results.details.push({ name: fullName, phone: formattedPhone, status: 'sent' });
-                    // Delay between sends to avoid carrier rate-limit violations
-                    await new Promise(r => setTimeout(r, 1500));
-                } else {
-                    console.log('SMS (simulated):', { to: formattedPhone, message: personalizedMessage });
-                    results.sent++;
-                    results.details.push({ name: fullName, phone: formattedPhone, status: 'simulated' });
-                }
+                const smsResult = await sendManagedSms(formattedPhone, personalizedMessage);
+                results.sent++;
+                results.details.push({
+                    name: fullName,
+                    phone: formattedPhone,
+                    status: smsResult.success ? 'sent' : 'simulated',
+                    sid: smsResult.sid || null,
+                    source: smsResult.source || null
+                });
+                await new Promise(r => setTimeout(r, 1500));
             } catch (smsError) {
                 results.failed++;
                 results.details.push({ name: fullName, phone: formattedPhone, status: 'failed', error: smsError.message });
@@ -2973,28 +2895,19 @@ exports.updatePlayerAvailability = functions.https.onRequest(async (req, res) =>
 
                     // Send SMS notification to captain
                     if (captainPhone) {
-                        const twilioSid = process.env.TWILIO_ACCOUNT_SID;
-                        const twilioToken = process.env.TWILIO_AUTH_TOKEN;
-                        const twilioPhone = process.env.TWILIO_PHONE_NUMBER;
+                        const formattedPhone = formatPhoneE164(captainPhone);
 
-                        if (twilioSid && twilioToken) {
-                            const twilio = require('twilio');
-                            const client = twilio(twilioSid, twilioToken);
+                        const dateStr = matchData.match_date
+                            ? new Date(matchData.match_date.toDate ? matchData.match_date.toDate() : matchData.match_date)
+                                .toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+                            : 'upcoming match';
 
-                            // Format phone
-                            const digits = captainPhone.replace(/\D/g, '');
-                            const formattedPhone = digits.length === 10 ? '+1' + digits : '+' + digits;
-
-                            const dateStr = matchData.match_date
-                                ? new Date(matchData.match_date.toDate ? matchData.match_date.toDate() : matchData.match_date)
-                                    .toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
-                                : 'upcoming match';
-
-                            await client.messages.create({
-                                body: `BRDC Alert: ${playerName} can't make the ${dateStr} match. Please find a substitute.`,
-                                to: formattedPhone,
-                                from: twilioPhone
-                            });
+                        const smsResult = await sendManagedSms(
+                            formattedPhone,
+                            `BRDC Alert: ${playerName} can't make the ${dateStr} match. Please find a substitute.`
+                        );
+                        if (!(smsResult.success || smsResult.simulated)) {
+                            console.error('Captain alert SMS failed:', smsResult.error);
                         }
                     }
                 }
@@ -3474,17 +3387,6 @@ exports.sendCaptainMessage = functions.https.onRequest(async (req, res) => {
             }
         }
 
-        // Initialize Twilio
-        const twilioSid = process.env.TWILIO_ACCOUNT_SID;
-        const twilioToken = process.env.TWILIO_AUTH_TOKEN;
-        const twilioPhone = process.env.TWILIO_PHONE_NUMBER;
-
-        let twilioClient = null;
-        if (twilioSid && twilioToken) {
-            const twilio = require('twilio');
-            twilioClient = twilio(twilioSid, twilioToken);
-        }
-
         let sent = 0;
         let failed = 0;
         let smsSent = 0;
@@ -3547,16 +3449,14 @@ exports.sendCaptainMessage = functions.https.onRequest(async (req, res) => {
             sent++; // Count as sent (in-app via chat room)
 
             // Only send SMS if requested
-            if (send_sms && player.phone && twilioClient) {
-                const digits = player.phone.replace(/\D/g, '');
-                const formattedPhone = digits.length === 10 ? '+1' + digits : '+' + digits;
+            if (send_sms && player.phone) {
+                const formattedPhone = formatPhoneE164(player.phone);
 
                 try {
-                    await twilioClient.messages.create({
-                        body: personalizedMsg,
-                        to: formattedPhone,
-                        from: twilioPhone
-                    });
+                    const smsResult = await sendManagedSms(formattedPhone, personalizedMsg);
+                    if (!(smsResult.success || smsResult.simulated)) {
+                        throw new Error(smsResult.error || 'SMS send failed');
+                    }
                     smsSent++;
                 } catch (smsError) {
                     console.error('SMS error:', smsError);
@@ -3586,15 +3486,10 @@ exports.sendEmail = functions.https.onRequest(async (req, res) => {
     try {
         const { to, subject, body } = req.body;
         
-        const sgMail = require('@sendgrid/mail');
-        sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-
-        await sgMail.send({
-            to: to,
-            from: process.env.FROM_EMAIL || 'noreply@burningriverdarts.com',
-            subject: subject,
-            html: body
-        });
+        const emailResult = await sendManagedEmail(to, subject, body);
+        if (!(emailResult.success || emailResult.simulated)) {
+            throw new Error(emailResult.error || 'Email send failed');
+        }
 
         // Log notification
         await admin.firestore().collection('notifications').add({
@@ -3688,15 +3583,10 @@ exports.notifyMatchAssignment = functions.https.onRequest(async (req, res) => {
                     const e164Phone = formattedPhone.startsWith('1') ? `+${formattedPhone}` : `+1${formattedPhone}`;
 
                     try {
-                        const twilioClient = require('twilio')(
-                            process.env.TWILIO_ACCOUNT_SID,
-                            process.env.TWILIO_AUTH_TOKEN
-                        );
-                        await twilioClient.messages.create({
-                            body: notification.message,
-                            from: process.env.TWILIO_PHONE_NUMBER,
-                            to: e164Phone
-                        });
+                        const smsResult = await sendManagedSms(e164Phone, notification.message);
+                        if (!(smsResult.success || smsResult.simulated)) {
+                            throw new Error(smsResult.error || 'SMS send failed');
+                        }
                         sentCount++;
 
                         await db.collection('notifications').add({

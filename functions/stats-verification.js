@@ -7,7 +7,7 @@
  * Player must win at least 2 of the 3 counting legs.
  */
 
-const functions = require('firebase-functions');
+const functions = require('firebase-functions/v1');
 const admin = require('firebase-admin');
 const cors = require('cors')({ origin: true });
 const { verifyFirebaseAuth } = require('./src/firebase-auth-helper');

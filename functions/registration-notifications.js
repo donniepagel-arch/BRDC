@@ -4,62 +4,20 @@
  */
 
 const admin = require('firebase-admin');
-
-// Environment variables for Twilio and SendGrid
-const TWILIO_SID = process.env.TWILIO_ACCOUNT_SID;
-const TWILIO_TOKEN = process.env.TWILIO_AUTH_TOKEN;
-const TWILIO_PHONE = process.env.TWILIO_PHONE_NUMBER;
-const SENDGRID_KEY = process.env.SENDGRID_API_KEY;
-const FROM_EMAIL = process.env.FROM_EMAIL || 'noreply@burningriverdarts.com';
-
-let twilioClient = null;
-let sgMail = null;
-
-try {
-    if (TWILIO_SID && TWILIO_TOKEN) {
-        twilioClient = require('twilio')(TWILIO_SID, TWILIO_TOKEN);
-    }
-} catch (e) { console.log('Twilio not configured'); }
-
-try {
-    if (SENDGRID_KEY) {
-        sgMail = require('@sendgrid/mail');
-        sgMail.setApiKey(SENDGRID_KEY);
-    }
-} catch (e) { console.log('SendGrid not configured'); }
+const { sendManagedSms, sendManagedEmail } = require('./src/messaging-config');
 
 /**
  * Send SMS via Twilio
  */
 async function sendSMS(to, body) {
-    if (!twilioClient) {
-        console.log('SMS (simulated):', { to, body });
-        return { success: true, simulated: true };
-    }
-    try {
-        const msg = await twilioClient.messages.create({ body, to, from: TWILIO_PHONE });
-        return { success: true, sid: msg.sid };
-    } catch (err) {
-        console.error('SMS error:', err);
-        return { success: false, error: err.message };
-    }
+    return sendManagedSms(to, body);
 }
 
 /**
  * Send Email via SendGrid
  */
 async function sendEmail(to, subject, html, text) {
-    if (!sgMail) {
-        console.log('Email (simulated):', { to, subject });
-        return { success: true, simulated: true };
-    }
-    try {
-        await sgMail.send({ to, from: FROM_EMAIL, subject, html, text });
-        return { success: true };
-    } catch (err) {
-        console.error('Email error:', err);
-        return { success: false, error: err.message };
-    }
+    return sendManagedEmail(to, subject, html, text);
 }
 
 /**
@@ -237,6 +195,8 @@ async function sendTournamentRegistrationConfirmation(registration, tournament, 
 }
 
 module.exports = {
+    sendSMS,
+    sendEmail,
     sendLeagueRegistrationConfirmation,
     sendTournamentRegistrationConfirmation
 };

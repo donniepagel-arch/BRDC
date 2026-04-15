@@ -3,8 +3,11 @@
  * Temporary functions for importing DartConnect match data with throws
  */
 
-const functions = require('firebase-functions');
+const functions = require('firebase-functions/v1');
 const admin = require('firebase-admin');
+const axios = require('axios');
+const { parseMatch: parseDartConnectMatch } = require('./parse-dartconnect');
+const importMatchesAdmin = require('./import-matches-admin');
 
 // Initialize if not already
 if (!admin.apps.length) {
@@ -13,131 +16,25 @@ if (!admin.apps.length) {
 
 const db = admin.firestore();
 
+const TRIPLES_MATCH_FORMAT = [
+    { game: 1, homePositions: [1, 2], awayPositions: [1, 2], type: 'doubles', format: '501' },
+    { game: 2, homePositions: [3], awayPositions: [3], type: 'singles', format: 'Cricket' },
+    { game: 3, homePositions: [1], awayPositions: [1], type: 'singles', format: 'Cricket' },
+    { game: 4, homePositions: [2, 3], awayPositions: [2, 3], type: 'doubles', format: '501' },
+    { game: 5, homePositions: [2], awayPositions: [2], type: 'singles', format: 'Cricket' },
+    { game: 6, homePositions: [1], awayPositions: [1], type: 'singles', format: '501' },
+    { game: 7, homePositions: [1, 3], awayPositions: [1, 3], type: 'doubles', format: '501' },
+    { game: 8, homePositions: [2], awayPositions: [2], type: 'singles', format: '501' },
+    { game: 9, homePositions: [3], awayPositions: [3], type: 'singles', format: '501' }
+];
+
 /**
  * Create global player documents from league player roster
  * This ensures every player in a league has a global player document
  * Players are stored in leagues/{leagueId}/players collection
  * POST { leagueId: "xxx", dryRun: true/false }
  */
-exports.createGlobalPlayersFromRosters = functions.https.onRequest(async (req, res) => {
-    res.set('Access-Control-Allow-Origin', '*');
-    if (req.method === 'OPTIONS') {
-        res.set('Access-Control-Allow-Methods', 'POST');
-        res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-        res.status(204).send('');
-        return;
-    }
-
-    try {
-        const { leagueId, dryRun = true } = req.body;
-
-        if (!leagueId) {
-            res.status(400).json({ error: 'Missing leagueId' });
-            return;
-        }
-
-        const results = {
-            existingPlayers: [],
-            newPlayersCreated: [],
-            leaguePlayersUpdated: [],
-            errors: []
-        };
-
-        // Get all existing global players (indexed by email and name)
-        const globalPlayersSnapshot = await db.collection('players').get();
-        const existingByEmail = {};
-        const existingByName = {};
-
-        globalPlayersSnapshot.forEach(doc => {
-            const data = doc.data();
-            const email = (data.email || '').toLowerCase().trim();
-            const name = (data.name || data.full_name || '').toLowerCase().trim();
-
-            if (email) existingByEmail[email] = { id: doc.id, ...data };
-            if (name) existingByName[name] = { id: doc.id, ...data };
-        });
-
-        // Get all players in the league's players subcollection
-        const leaguePlayersSnapshot = await db.collection('leagues').doc(leagueId).collection('players').get();
-
-        for (const playerDoc of leaguePlayersSnapshot.docs) {
-            const rosterPlayer = playerDoc.data();
-            const rosterPlayerId = playerDoc.id;
-            const email = (rosterPlayer.email || '').toLowerCase().trim();
-            const name = (rosterPlayer.name || '').toLowerCase().trim();
-
-            // Check if player already exists globally
-            let existingPlayer = existingByEmail[email] || existingByName[name];
-
-            if (existingPlayer) {
-                // Player exists globally - check if league player ID matches
-                results.existingPlayers.push({
-                    name: rosterPlayer.name,
-                    globalId: existingPlayer.id,
-                    leaguePlayerId: rosterPlayerId,
-                    needsUpdate: existingPlayer.id !== rosterPlayerId
-                });
-
-                if (existingPlayer.id !== rosterPlayerId) {
-                    // League player has different ID than global - need to update stats later
-                    results.leaguePlayersUpdated.push({
-                        name: rosterPlayer.name,
-                        oldId: rosterPlayerId,
-                        newId: existingPlayer.id
-                    });
-                }
-            } else {
-                // Player doesn't exist globally - create global document using league player ID
-                const newPlayerData = {
-                    name: rosterPlayer.name,
-                    email: rosterPlayer.email || null,
-                    phone: rosterPlayer.phone || null,
-                    skill_level: rosterPlayer.skill_level || null,
-                    preferred_level: rosterPlayer.preferred_level || null,
-                    pin: rosterPlayer.pin || null,
-                    created_at: admin.firestore.FieldValue.serverTimestamp(),
-                    created_from_league: leagueId,
-                    stats: {
-                        matches_played: 0,
-                        matches_won: 0,
-                        x01: { legs_played: 0, legs_won: 0, total_points: 0, total_darts: 0 },
-                        cricket: { legs_played: 0, legs_won: 0, total_marks: 0, total_darts: 0 }
-                    }
-                };
-
-                results.newPlayersCreated.push({
-                    id: rosterPlayerId,
-                    name: rosterPlayer.name,
-                    email: rosterPlayer.email,
-                    team_id: rosterPlayer.team_id
-                });
-
-                if (!dryRun) {
-                    await db.collection('players').doc(rosterPlayerId).set(newPlayerData);
-                }
-
-                // Add to existing lookup so we don't create duplicates
-                if (email) existingByEmail[email] = { id: rosterPlayerId, ...newPlayerData };
-                if (name) existingByName[name] = { id: rosterPlayerId, ...newPlayerData };
-            }
-        }
-
-        res.json({
-            success: true,
-            dryRun,
-            results,
-            summary: {
-                existingGlobalPlayers: results.existingPlayers.length,
-                newPlayersCreated: results.newPlayersCreated.length,
-                leaguePlayersNeedingUpdate: results.leaguePlayersUpdated.length
-            }
-        });
-
-    } catch (error) {
-        console.error('Error creating global players:', error);
-        res.status(500).json({ error: error.message });
-    }
-});
+exports.createGlobalPlayersFromRosters = importMatchesAdmin.createGlobalPlayersFromRosters;
 
 /**
  * Consolidate player IDs across the system
@@ -149,278 +46,14 @@ exports.createGlobalPlayersFromRosters = functions.https.onRequest(async (req, r
  *
  * POST { leagueId: "xxx", dryRun: true/false }
  */
-exports.consolidatePlayerIds = functions.https.onRequest(async (req, res) => {
-    res.set('Access-Control-Allow-Origin', '*');
-    if (req.method === 'OPTIONS') {
-        res.set('Access-Control-Allow-Methods', 'POST');
-        res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-        res.status(204).send('');
-        return;
-    }
-
-    // Name alias mappings for common variations/nicknames/typos
-    const NAME_ALIASES = {
-        'nate kull': 'nathan kull',
-        'steph kull': 'stephanie kull',
-        'jenn m': 'jennifer malek',
-        'dom russano': 'dominick russano',
-        'mike gonzales': 'michael gonzalez',
-        'mike gonzalez': 'michael gonzalez',
-        'eddie olschanskey': 'eddie olschansky',
-        'cesar arroyo': 'cesar andino',
-        'matt pagel': 'matt pagel',
-        'christian ketchem': 'christian ketchum',
-        'christian ketchum': 'christian ketchum'
-    };
-
-    try {
-        const { leagueId, dryRun = true } = req.body;
-
-        if (!leagueId) {
-            res.status(400).json({ error: 'Missing leagueId' });
-            return;
-        }
-
-        const results = {
-            playersFound: [],
-            rosterUpdates: [],
-            statsUpdates: [],
-            statsMigrations: [],
-            errors: []
-        };
-
-        // Step 1: Get all players from global players collection
-        const playersSnapshot = await db.collection('players').get();
-        const globalPlayers = {};
-        playersSnapshot.forEach(doc => {
-            const data = doc.data();
-            const name = (data.name || data.full_name || '').toLowerCase().trim();
-            const email = (data.email || '').toLowerCase().trim();
-            if (name) {
-                globalPlayers[name] = { id: doc.id, name: data.name || data.full_name, email: data.email };
-            }
-            if (email) {
-                globalPlayers[`email:${email}`] = { id: doc.id, name: data.name || data.full_name, email: data.email };
-            }
-        });
-
-        // Helper function to find player by name with aliases
-        const findGlobalPlayer = (playerName) => {
-            const normalizedName = playerName.toLowerCase().trim();
-            // Try exact match first
-            if (globalPlayers[normalizedName]) {
-                return globalPlayers[normalizedName];
-            }
-            // Try alias mapping
-            const aliasedName = NAME_ALIASES[normalizedName];
-            if (aliasedName && globalPlayers[aliasedName]) {
-                return globalPlayers[aliasedName];
-            }
-            return null;
-        };
-
-        results.playersFound = Object.values(globalPlayers).filter((v, i, a) =>
-            a.findIndex(t => t.id === v.id) === i
-        );
-
-        // Step 2: Get all teams in the league and check roster player IDs
-        const teamsSnapshot = await db.collection('leagues').doc(leagueId).collection('teams').get();
-
-        for (const teamDoc of teamsSnapshot.docs) {
-            const team = teamDoc.data();
-            const players = team.players || [];
-            const updatedPlayers = [];
-            let teamNeedsUpdate = false;
-
-            for (const player of players) {
-                const playerEmail = (player.email || '').toLowerCase().trim();
-
-                // Try to find matching global player (using helper with alias support)
-                let globalPlayer = findGlobalPlayer(player.name) || globalPlayers[`email:${playerEmail}`];
-
-                if (globalPlayer && globalPlayer.id !== player.id) {
-                    // Found a match but IDs differ - need to update
-                    results.rosterUpdates.push({
-                        team: team.team_name,
-                        playerName: player.name,
-                        oldId: player.id,
-                        newId: globalPlayer.id
-                    });
-
-                    updatedPlayers.push({
-                        ...player,
-                        id: globalPlayer.id,
-                        _previousId: player.id
-                    });
-                    teamNeedsUpdate = true;
-                } else {
-                    updatedPlayers.push(player);
-                }
-            }
-
-            // Update team roster if needed
-            if (teamNeedsUpdate && !dryRun) {
-                await db.collection('leagues').doc(leagueId).collection('teams').doc(teamDoc.id).update({
-                    players: updatedPlayers
-                });
-            }
-        }
-
-        // Step 3: Get all stats and migrate to correct player IDs
-        const statsSnapshot = await db.collection('leagues').doc(leagueId).collection('stats').get();
-
-        for (const statDoc of statsSnapshot.docs) {
-            const stats = statDoc.data();
-            const statPlayerId = statDoc.id;
-
-            // Try to find matching global player (using helper with alias support)
-            let globalPlayer = findGlobalPlayer(stats.player_name);
-
-            if (globalPlayer && globalPlayer.id !== statPlayerId) {
-                // Stats are under wrong ID - need to migrate
-                results.statsMigrations.push({
-                    playerName: stats.player_name,
-                    oldId: statPlayerId,
-                    newId: globalPlayer.id,
-                    stats: {
-                        x01_three_dart_avg: stats.x01_three_dart_avg,
-                        cricket_mpr: stats.cricket_mpr,
-                        matches_played: stats.matches_played
-                    }
-                });
-
-                if (!dryRun) {
-                    // Check if stats already exist under correct ID
-                    const existingStats = await db.collection('leagues').doc(leagueId)
-                        .collection('stats').doc(globalPlayer.id).get();
-
-                    if (existingStats.exists) {
-                        // Merge stats (add values together)
-                        const existing = existingStats.data();
-                        const merged = {
-                            player_id: globalPlayer.id,
-                            player_name: stats.player_name,
-                            x01_legs_played: (existing.x01_legs_played || 0) + (stats.x01_legs_played || 0),
-                            x01_legs_won: (existing.x01_legs_won || 0) + (stats.x01_legs_won || 0),
-                            x01_total_darts: (existing.x01_total_darts || 0) + (stats.x01_total_darts || 0),
-                            x01_total_points: (existing.x01_total_points || 0) + (stats.x01_total_points || 0),
-                            x01_high_checkout: Math.max(existing.x01_high_checkout || 0, stats.x01_high_checkout || 0),
-                            cricket_legs_played: (existing.cricket_legs_played || 0) + (stats.cricket_legs_played || 0),
-                            cricket_legs_won: (existing.cricket_legs_won || 0) + (stats.cricket_legs_won || 0),
-                            cricket_total_marks: (existing.cricket_total_marks || 0) + (stats.cricket_total_marks || 0),
-                            cricket_total_darts: (existing.cricket_total_darts || 0) + (stats.cricket_total_darts || 0),
-                            matches_played: (existing.matches_played || 0) + (stats.matches_played || 0),
-                            updated_at: admin.firestore.FieldValue.serverTimestamp()
-                        };
-
-                        // Recalculate averages
-                        if (merged.x01_total_darts > 0) {
-                            merged.x01_three_dart_avg = parseFloat(((merged.x01_total_points / merged.x01_total_darts) * 3).toFixed(2));
-                        }
-                        if (merged.cricket_total_darts > 0) {
-                            merged.cricket_mpr = parseFloat(((merged.cricket_total_marks / merged.cricket_total_darts) * 3).toFixed(2));
-                        }
-
-                        await db.collection('leagues').doc(leagueId).collection('stats').doc(globalPlayer.id).update(merged);
-                    } else {
-                        // Copy stats to correct ID
-                        await db.collection('leagues').doc(leagueId).collection('stats').doc(globalPlayer.id).set({
-                            ...stats,
-                            player_id: globalPlayer.id,
-                            updated_at: admin.firestore.FieldValue.serverTimestamp()
-                        });
-                    }
-
-                    // Delete old stats document
-                    await db.collection('leagues').doc(leagueId).collection('stats').doc(statPlayerId).delete();
-                }
-            } else if (!globalPlayer) {
-                // No matching global player found
-                results.errors.push({
-                    type: 'no_global_player',
-                    playerName: stats.player_name,
-                    statId: statPlayerId
-                });
-            }
-        }
-
-        res.json({
-            success: true,
-            dryRun,
-            results
-        });
-
-    } catch (error) {
-        console.error('Error consolidating player IDs:', error);
-        res.status(500).json({ error: error.message });
-    }
-});
+exports.consolidatePlayerIds = importMatchesAdmin.consolidatePlayerIds;
 
 /**
  * Look up player IDs by email to create proper mapping
  * POST { emails: ["email1@example.com", "email2@example.com"] }
  * Returns { success: true, mapping: { "email1@example.com": { id: "xxx", name: "..." }, ... } }
  */
-exports.lookupPlayersByEmail = functions.https.onRequest(async (req, res) => {
-    res.set('Access-Control-Allow-Origin', '*');
-    if (req.method === 'OPTIONS') {
-        res.set('Access-Control-Allow-Methods', 'POST');
-        res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-        res.status(204).send('');
-        return;
-    }
-
-    try {
-        const { emails } = req.body;
-
-        if (!emails || !Array.isArray(emails)) {
-            res.status(400).json({ error: 'Missing emails array' });
-            return;
-        }
-
-        const mapping = {};
-
-        for (const email of emails) {
-            const normalizedEmail = email.toLowerCase().trim();
-
-            // Query players collection by email
-            const playersSnapshot = await db.collection('players')
-                .where('email', '==', normalizedEmail)
-                .limit(1)
-                .get();
-
-            if (!playersSnapshot.empty) {
-                const playerDoc = playersSnapshot.docs[0];
-                const playerData = playerDoc.data();
-                mapping[email] = {
-                    id: playerDoc.id,
-                    name: playerData.name || playerData.full_name || 'Unknown'
-                };
-            } else {
-                // Try with original case
-                const altSnapshot = await db.collection('players')
-                    .where('email', '==', email)
-                    .limit(1)
-                    .get();
-
-                if (!altSnapshot.empty) {
-                    const playerDoc = altSnapshot.docs[0];
-                    const playerData = playerDoc.data();
-                    mapping[email] = {
-                        id: playerDoc.id,
-                        name: playerData.name || playerData.full_name || 'Unknown'
-                    };
-                }
-            }
-        }
-
-        res.json({ success: true, mapping });
-
-    } catch (error) {
-        console.error('Error looking up players:', error);
-        res.status(500).json({ error: error.message });
-    }
-});
+exports.lookupPlayersByEmail = importMatchesAdmin.lookupPlayersByEmail;
 
 /**
  * Fully migrate league to use global player IDs everywhere
@@ -431,203 +64,7 @@ exports.lookupPlayersByEmail = functions.https.onRequest(async (req, res) => {
  *
  * POST { leagueId: "xxx", dryRun: true/false }
  */
-exports.migrateLeagueToGlobalIds = functions.https.onRequest(async (req, res) => {
-    res.set('Access-Control-Allow-Origin', '*');
-    if (req.method === 'OPTIONS') {
-        res.set('Access-Control-Allow-Methods', 'POST');
-        res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-        res.status(204).send('');
-        return;
-    }
-
-    try {
-        const { leagueId, dryRun = true } = req.body;
-
-        if (!leagueId) {
-            res.status(400).json({ error: 'Missing leagueId' });
-            return;
-        }
-
-        const results = {
-            leaguePlayersUpdated: [],
-            leaguePlayersCreated: [],
-            leaguePlayersDeleted: [],
-            teamRostersUpdated: [],
-            errors: []
-        };
-
-        // Step 1: Build global player lookup by name and email
-        const globalPlayersSnapshot = await db.collection('players').get();
-        const globalByName = {};
-        const globalByEmail = {};
-
-        globalPlayersSnapshot.forEach(doc => {
-            const data = doc.data();
-            const name = (data.name || data.full_name || '').toLowerCase().trim();
-            const email = (data.email || '').toLowerCase().trim();
-
-            if (name) globalByName[name] = { id: doc.id, ...data };
-            if (email) globalByEmail[email] = { id: doc.id, ...data };
-        });
-
-        // Step 2: Get all league players
-        const leaguePlayersSnapshot = await db.collection('leagues').doc(leagueId)
-            .collection('players').get();
-
-        const idMigrationMap = {}; // oldId -> newId
-
-        for (const playerDoc of leaguePlayersSnapshot.docs) {
-            const playerData = playerDoc.data();
-            const oldId = playerDoc.id;
-            const name = (playerData.name || '').toLowerCase().trim();
-            const email = (playerData.email || '').toLowerCase().trim();
-
-            // Find matching global player
-            const globalPlayer = globalByEmail[email] || globalByName[name];
-
-            if (globalPlayer && globalPlayer.id !== oldId) {
-                // Need to migrate this player to global ID
-                idMigrationMap[oldId] = globalPlayer.id;
-
-                results.leaguePlayersUpdated.push({
-                    name: playerData.name,
-                    oldId: oldId,
-                    newId: globalPlayer.id
-                });
-
-                if (!dryRun) {
-                    // Create new document with global ID
-                    const newPlayerData = {
-                        ...playerData,
-                        id: globalPlayer.id,
-                        _migratedFrom: oldId,
-                        _migratedAt: admin.firestore.FieldValue.serverTimestamp()
-                    };
-
-                    await db.collection('leagues').doc(leagueId)
-                        .collection('players').doc(globalPlayer.id).set(newPlayerData);
-
-                    results.leaguePlayersCreated.push({
-                        name: playerData.name,
-                        id: globalPlayer.id
-                    });
-
-                    // Delete old document
-                    await db.collection('leagues').doc(leagueId)
-                        .collection('players').doc(oldId).delete();
-
-                    results.leaguePlayersDeleted.push({
-                        name: playerData.name,
-                        id: oldId
-                    });
-                }
-            } else if (!globalPlayer) {
-                // No global player found - this shouldn't happen if createGlobalPlayersFromRosters was run
-                results.errors.push({
-                    type: 'no_global_player',
-                    name: playerData.name,
-                    leaguePlayerId: oldId
-                });
-            }
-            // If IDs already match, nothing to do
-        }
-
-        // Step 3: Update team rosters
-        const teamsSnapshot = await db.collection('leagues').doc(leagueId)
-            .collection('teams').get();
-
-        for (const teamDoc of teamsSnapshot.docs) {
-            const teamData = teamDoc.data();
-            const players = teamData.players || [];
-            let needsUpdate = false;
-            const updatedPlayers = [];
-
-            for (const player of players) {
-                const oldId = player.id;
-                const newId = idMigrationMap[oldId];
-
-                if (newId) {
-                    // Update player ID in roster
-                    updatedPlayers.push({
-                        ...player,
-                        id: newId,
-                        _previousId: oldId
-                    });
-                    needsUpdate = true;
-                } else {
-                    updatedPlayers.push(player);
-                }
-            }
-
-            if (needsUpdate) {
-                results.teamRostersUpdated.push({
-                    teamId: teamDoc.id,
-                    teamName: teamData.team_name,
-                    playersUpdated: updatedPlayers.filter(p => p._previousId).map(p => ({
-                        name: p.name,
-                        oldId: p._previousId,
-                        newId: p.id
-                    }))
-                });
-
-                if (!dryRun) {
-                    await db.collection('leagues').doc(leagueId)
-                        .collection('teams').doc(teamDoc.id).update({
-                            players: updatedPlayers
-                        });
-                }
-            }
-        }
-
-        // Step 4: Also migrate any stats that might still be under old IDs
-        const statsSnapshot = await db.collection('leagues').doc(leagueId)
-            .collection('stats').get();
-
-        for (const statDoc of statsSnapshot.docs) {
-            const oldId = statDoc.id;
-            const newId = idMigrationMap[oldId];
-
-            if (newId) {
-                results.statsUpdated = results.statsUpdated || [];
-                results.statsUpdated.push({
-                    playerName: statDoc.data().player_name,
-                    oldId: oldId,
-                    newId: newId
-                });
-
-                if (!dryRun) {
-                    // Copy to new ID
-                    const statData = statDoc.data();
-                    statData.player_id = newId;
-                    statData._migratedFrom = oldId;
-
-                    await db.collection('leagues').doc(leagueId)
-                        .collection('stats').doc(newId).set(statData);
-
-                    // Delete old
-                    await db.collection('leagues').doc(leagueId)
-                        .collection('stats').doc(oldId).delete();
-                }
-            }
-        }
-
-        res.json({
-            success: true,
-            dryRun,
-            results,
-            summary: {
-                playersToMigrate: results.leaguePlayersUpdated.length,
-                teamsToUpdate: results.teamRostersUpdated.length,
-                statsToMigrate: (results.statsUpdated || []).length,
-                errors: results.errors.length
-            }
-        });
-
-    } catch (error) {
-        console.error('Error migrating league to global IDs:', error);
-        res.status(500).json({ error: error.message });
-    }
-});
+exports.migrateLeagueToGlobalIds = importMatchesAdmin.migrateLeagueToGlobalIds;
 
 // Helper to normalize team name for comparison
 function normalizeTeamName(name) {
@@ -658,10 +95,844 @@ function swapLegData(leg) {
     };
 }
 
+function validateImportedMatchPayload(matchData) {
+    const errors = [];
+    const warnings = [];
+    const placeholderThrowPlayers = new Set();
+    const metrics = {
+        games: 0,
+        legs: 0,
+        legsWithThrows: 0,
+        legsWithoutThrows: 0,
+        throws: 0,
+        throwsMissingPlayer: 0,
+        throwsUnresolvedPlayerId: 0,
+        throwsMissingSideData: 0,
+        playerStatsOnlyLegs: 0
+    };
+
+    if (!matchData || typeof matchData !== 'object') {
+        return {
+            valid: false,
+            errors: ['matchData must be an object'],
+            warnings: [],
+            metrics
+        };
+    }
+
+    if (!Array.isArray(matchData.games) || matchData.games.length === 0) {
+        errors.push('matchData.games must contain at least one game');
+        return { valid: false, errors, warnings, metrics };
+    }
+
+    metrics.games = matchData.games.length;
+
+    matchData.games.forEach((game, gameIdx) => {
+        const legs = Array.isArray(game.legs) ? game.legs : [];
+        if (legs.length === 0) {
+            warnings.push(`game ${gameIdx + 1} has no legs`);
+        }
+
+        legs.forEach((leg, legIdx) => {
+            metrics.legs++;
+            const throws = Array.isArray(leg.throws) ? leg.throws : [];
+            const playerStats = leg.player_stats && typeof leg.player_stats === 'object' ? leg.player_stats : null;
+
+            if (throws.length === 0) {
+                metrics.legsWithoutThrows++;
+                if (playerStats && Object.keys(playerStats).length > 0) {
+                    metrics.playerStatsOnlyLegs++;
+                    warnings.push(`game ${gameIdx + 1} leg ${legIdx + 1} has player_stats but no throws`);
+                } else {
+                    warnings.push(`game ${gameIdx + 1} leg ${legIdx + 1} has no throw data`);
+                }
+            } else {
+                metrics.legsWithThrows++;
+            }
+
+            throws.forEach((round, roundIdx) => {
+                metrics.throws++;
+                const hasHome = !!round?.home;
+                const hasAway = !!round?.away;
+
+                if (!hasHome && !hasAway) {
+                    metrics.throwsMissingSideData++;
+                    warnings.push(`game ${gameIdx + 1} leg ${legIdx + 1} round ${roundIdx + 1} has no home/away throw payload`);
+                    return;
+                }
+
+                ['home', 'away'].forEach(side => {
+                    const throwInfo = round?.[side];
+                    if (!throwInfo) return;
+                    if (!throwInfo.player) {
+                        metrics.throwsMissingPlayer++;
+                        warnings.push(`game ${gameIdx + 1} leg ${legIdx + 1} round ${roundIdx + 1} ${side} throw is missing player attribution`);
+                        return;
+                    }
+                    if (isPlaceholderSideName(throwInfo.player)) {
+                        placeholderThrowPlayers.add(normalizeRecapLabel(throwInfo.player, side));
+                        return;
+                    }
+                    if (!throwInfo.player_id && !isPlaceholderSideName(throwInfo.player)) {
+                        metrics.throwsUnresolvedPlayerId++;
+                        warnings.push(`game ${gameIdx + 1} leg ${legIdx + 1} round ${roundIdx + 1} ${side} throw could not be resolved to a canonical player id (${throwInfo.player})`);
+                    }
+                });
+            });
+        });
+    });
+
+    if (metrics.legs === 0) {
+        errors.push('matchData.games contains no legs');
+    }
+
+    const placeholderPlayers = Array.from(placeholderThrowPlayers.size ? placeholderThrowPlayers : new Set(collectPlaceholderThrowPlayers(matchData)));
+    if (placeholderPlayers.length) {
+        errors.push(`matchData still contains placeholder throw owners: ${placeholderPlayers.join(', ')}`);
+    }
+
+    return {
+        valid: errors.length === 0,
+        errors,
+        warnings,
+        metrics
+    };
+}
+
+function htmlDecode(value) {
+    if (!value || typeof value !== 'string') return value;
+    return value
+        .replace(/&quot;/g, '"')
+        .replace(/&#039;/g, "'")
+        .replace(/&#39;/g, "'")
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>');
+}
+
+function parseNumericValue(value) {
+    if (value == null || value === '') return null;
+    if (typeof value === 'number') return value;
+    const normalized = String(value).replace(/,/g, '').trim();
+    if (!normalized) return null;
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : null;
+}
+
+function normalizeRecapLabel(label, fallback) {
+    const normalized = String(label || '').replace(/\s+/g, ' ').trim();
+    return normalized || fallback;
+}
+
+function buildGamesDetailUrl(sourceUrl) {
+    const url = new URL(sourceUrl);
+    if (url.pathname.startsWith('/matches/')) {
+        url.pathname = url.pathname.replace('/matches/', '/games/');
+    }
+    return url.toString();
+}
+
+function extractRecapDataPagePayload(html) {
+    const marker = 'data-page="';
+    const startIdx = html.indexOf(marker);
+    if (startIdx < 0) {
+        throw new Error('DartConnect recap page is missing data-page payload');
+    }
+
+    const jsonStart = startIdx + marker.length;
+    const endMarker = '"></div>';
+    const endIdx = html.indexOf(endMarker, jsonStart);
+    if (endIdx < 0) {
+        throw new Error('Unable to find end of DartConnect data-page payload');
+    }
+
+    const encoded = html.slice(jsonStart, endIdx);
+    const decoded = htmlDecode(encoded);
+    return JSON.parse(decoded);
+}
+
+function mapRecapGameType(gameName) {
+    const normalized = String(gameName || '').trim().toLowerCase();
+    if (normalized === 'cricket') {
+        return { type: 'cricket', format: 'Cricket' };
+    }
+    const x01Match = normalized.match(/^(\d{3,4})$/);
+    if (x01Match) {
+        return { type: 'x01', format: x01Match[1] };
+    }
+    return { type: normalized || 'unknown', format: String(gameName || '').trim() || 'Unknown' };
+}
+
+function parseCheckoutDarts(notable) {
+    const match = String(notable || '').match(/DO\s*\((\d)\)/i);
+    return match ? parseInt(match[1], 10) : null;
+}
+
+function countCricketMarks(turnScore) {
+    const text = String(turnScore || '').trim();
+    if (!text) return 0;
+    return text.split(/\s*,\s*/).reduce((total, part) => {
+        const token = part.trim().toUpperCase();
+        if (!token) return total;
+        if (token === 'DB') return total + 2;
+        if (token === 'SB') return total + 1;
+        const mult = token.match(/^([STD])(\d+)(X(\d+))?$/);
+        if (!mult) return total;
+        const base = mult[1] === 'T' ? 3 : mult[1] === 'D' ? 2 : 1;
+        const repeat = mult[4] ? parseInt(mult[4], 10) : 1;
+        return total + (base * repeat);
+    }, 0);
+}
+
+function mapX01TurnSide(turnSide, scheduledContext, unresolvedPlayers) {
+    if (!turnSide || !turnSide.name) return null;
+    const resolved = resolveThrowSidePlayer(turnSide, scheduledContext, unresolvedPlayers);
+    return {
+        ...resolved,
+        score: parseNumericValue(turnSide.turn_score) || 0,
+        remaining: turnSide.current_score == null ? null : parseNumericValue(turnSide.current_score),
+        checkout_darts: parseCheckoutDarts(turnSide.notable)
+    };
+}
+
+function mapCricketTurnSide(turnSide, isWinningSide, scheduledContext, unresolvedPlayers) {
+    if (!turnSide || !turnSide.name) return null;
+    const resolved = resolveThrowSidePlayer(turnSide, scheduledContext, unresolvedPlayers);
+    return {
+        ...resolved,
+        marks: countCricketMarks(turnSide.turn_score),
+        hit: turnSide.turn_score || null,
+        score: parseNumericValue(turnSide.current_score) || 0,
+        closed_out: Boolean(isWinningSide && turnSide.current_score == null),
+        closeout_darts: 3
+    };
+}
+
+function mapGameTurnsToThrows(recapGame, winner, scheduledContext, unresolvedPlayers) {
+    const turns = Array.isArray(recapGame?.turns) ? recapGame.turns : [];
+    const isCricket = String(recapGame?.score_type || '').toUpperCase() === 'M';
+    return turns.map((turn) => ({
+        home: isCricket
+            ? mapCricketTurnSide(turn.home, winner === 'home', scheduledContext, unresolvedPlayers)
+            : mapX01TurnSide(turn.home, scheduledContext, unresolvedPlayers),
+        away: isCricket
+            ? mapCricketTurnSide(turn.away, winner === 'away', scheduledContext, unresolvedPlayers)
+            : mapX01TurnSide(turn.away, scheduledContext, unresolvedPlayers)
+    }));
+}
+
+function extractRosterNames(players) {
+    if (!Array.isArray(players)) return [];
+    return players
+        .map((player, idx) => normalizeRecapLabel(player?.name, `Player ${idx + 1}`))
+        .filter(Boolean);
+}
+
+function chooseSideRosterNames(sidePlayerNames, rosterNames, fallback) {
+    const cleanSideNames = (sidePlayerNames || []).filter(name => name && !/^home$|^away$/i.test(name));
+    if (cleanSideNames.length) return cleanSideNames;
+    if (rosterNames.length) return rosterNames;
+    return [fallback];
+}
+
+function extractTurnPlayerNames(turns, side) {
+    const names = [];
+    (Array.isArray(turns) ? turns : []).forEach((turn) => {
+        const name = normalizeRecapLabel(turn?.[side]?.name, '');
+        if (!name || /^home$|^away$/i.test(name) || names.includes(name)) return;
+        names.push(name);
+    });
+    return names;
+}
+
+function isPlaceholderSideName(name) {
+    return /^home$|^away$/i.test(normalizeRecapLabel(name, ''));
+}
+
+function trimLeadingPlaceholderGroups(groupedSets) {
+    let startIndex = 0;
+    while (startIndex < groupedSets.length) {
+        const setGroup = Array.isArray(groupedSets[startIndex]) ? groupedSets[startIndex] : [];
+        const names = [];
+        setGroup.forEach((game) => {
+            (game?.turns || []).forEach((turn) => {
+                if (turn?.home?.name) names.push(turn.home.name);
+                if (turn?.away?.name) names.push(turn.away.name);
+            });
+        });
+        const normalized = names.map(name => normalizeRecapLabel(name, '')).filter(Boolean);
+        if (!normalized.length || normalized.every(isPlaceholderSideName)) {
+            startIndex += 1;
+            continue;
+        }
+        break;
+    }
+    return {
+        groups: groupedSets.slice(startIndex),
+        trimmedCount: startIndex
+    };
+}
+
+function normalizeIdentityName(name) {
+    return String(name || '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, ' ')
+        .trim();
+}
+
+const FIRST_NAME_VARIANT_GROUPS = [
+    ['brian'],
+    ['cesar'],
+    ['chris', 'christopher'],
+    ['danny', 'daniel'],
+    ['david', 'dave'],
+    ['dillon'],
+    ['dom', 'dominick', 'dominique'],
+    ['eddie', 'edward'],
+    ['eric'],
+    ['jennifer', 'jenn'],
+    ['josh', 'joshua'],
+    ['kevin'],
+    ['matt', 'matthew', 'matty'],
+    ['michael', 'mike'],
+    ['nathan', 'nate'],
+    ['nicholas', 'nick'],
+    ['stephanie', 'steph'],
+    ['vince', 'vincent']
+];
+
+const FIRST_NAME_VARIANTS = {};
+FIRST_NAME_VARIANT_GROUPS.forEach((group) => {
+    const normalizedGroup = group.map(normalizeIdentityName);
+    normalizedGroup.forEach((name) => {
+        FIRST_NAME_VARIANTS[name] = normalizedGroup;
+    });
+});
+
+function getIdentityTokens(name) {
+    return normalizeIdentityName(name).split(' ').filter(Boolean);
+}
+
+function getIdentityFirstNameVariants(firstName) {
+    const normalized = normalizeIdentityName(firstName);
+    return FIRST_NAME_VARIANTS[normalized] || [normalized];
+}
+
+function buildIdentityAliases(name) {
+    const normalized = normalizeIdentityName(name);
+    const tokens = getIdentityTokens(name);
+    if (!tokens.length) return [];
+
+    const firstName = tokens[0];
+    const lastName = tokens[tokens.length - 1];
+    const lastInitial = lastName?.[0] || '';
+    const aliases = new Set([normalized]);
+
+    getIdentityFirstNameVariants(firstName).forEach((variant) => {
+        aliases.add(`${variant} ${lastName}`.trim());
+        if (lastInitial) {
+            aliases.add(`${variant} ${lastInitial}`.trim());
+        }
+    });
+
+    return Array.from(aliases).filter(Boolean);
+}
+
+function choosePreferredResolvedPlayer(current, candidate, preferredIds = new Set()) {
+    if (!current) return candidate;
+    if (preferredIds.has(candidate.id) !== preferredIds.has(current.id)) {
+        return preferredIds.has(candidate.id) ? candidate : current;
+    }
+    if (!!candidate.team_id !== !!current.team_id) {
+        return candidate.team_id ? candidate : current;
+    }
+    return current;
+}
+
+function buildPlayerAliasResolver(players, preferredIds = new Set()) {
+    const aliasMap = new Map();
+
+    const setAlias = (alias, player) => {
+        const normalizedAlias = normalizeIdentityName(alias);
+        if (!normalizedAlias) return;
+        aliasMap.set(
+            normalizedAlias,
+            choosePreferredResolvedPlayer(aliasMap.get(normalizedAlias), player, preferredIds)
+        );
+    };
+
+    (players || []).forEach((player) => {
+        buildIdentityAliases(player.name).forEach((alias) => setAlias(alias, player));
+    });
+
+    Object.entries(DEFAULT_PLAYER_IDS).forEach(([alias, playerId]) => {
+        const matchingPlayer = (players || []).find((player) => player.id === playerId);
+        if (matchingPlayer) {
+            setAlias(alias, matchingPlayer);
+        }
+    });
+
+    return function resolveImportedPlayer(rawName) {
+        const normalized = normalizeIdentityName(rawName);
+        if (!normalized) return null;
+
+        const direct = aliasMap.get(normalized);
+        if (direct) return direct;
+
+        const tokens = getIdentityTokens(rawName);
+        if (!tokens.length) return null;
+
+        const firstName = tokens[0];
+        const lastName = tokens[tokens.length - 1];
+        const lastInitial = lastName?.[0] || '';
+        const firstVariants = getIdentityFirstNameVariants(firstName);
+
+        const byLastInitial = (players || []).filter((player) => {
+            const playerTokens = getIdentityTokens(player.name);
+            if (!playerTokens.length) return false;
+            return firstVariants.includes(playerTokens[0]) &&
+                lastInitial &&
+                (playerTokens[playerTokens.length - 1]?.[0] || '') === lastInitial;
+        });
+        if (byLastInitial.length === 1) return byLastInitial[0];
+
+        const byLastName = (players || []).filter((player) => {
+            const playerTokens = getIdentityTokens(player.name);
+            if (!playerTokens.length) return false;
+            return firstVariants.includes(playerTokens[0]) &&
+                playerTokens[playerTokens.length - 1] === lastName;
+        });
+        if (byLastName.length === 1) return byLastName[0];
+
+        return null;
+    };
+}
+
+function buildRosterAliasSet(rosterPlayers) {
+    const aliases = new Set();
+    const rosterIds = new Set((rosterPlayers || []).map(player => player.id).filter(Boolean));
+    (rosterPlayers || []).forEach((player) => {
+        aliases.add(normalizeIdentityName(player.name));
+    });
+    Object.entries(DEFAULT_PLAYER_IDS).forEach(([alias, playerId]) => {
+        if (rosterIds.has(playerId)) {
+            aliases.add(normalizeIdentityName(alias));
+        }
+    });
+    return aliases;
+}
+
+function resolveThrowSidePlayer(turnSide, scheduledContext, unresolvedPlayers) {
+    if (!turnSide || !turnSide.name) return null;
+
+    const importedLabel = normalizeRecapLabel(turnSide.name, 'Unknown Player');
+    const resolvedPlayer = scheduledContext?.resolveImportedPlayer
+        ? scheduledContext.resolveImportedPlayer(importedLabel)
+        : null;
+
+    if (!resolvedPlayer && unresolvedPlayers && importedLabel && !isPlaceholderSideName(importedLabel)) {
+        unresolvedPlayers.add(importedLabel);
+    }
+
+    return {
+        imported_player_label: importedLabel,
+        player: resolvedPlayer?.name || importedLabel,
+        player_name: resolvedPlayer?.name || importedLabel,
+        player_id: resolvedPlayer?.id || null
+    };
+}
+
+function countRosterMatches(names, aliasSet) {
+    return (names || []).reduce((count, name) => count + (aliasSet.has(normalizeIdentityName(name)) ? 1 : 0), 0);
+}
+
+function swapMappedGameSides(game) {
+    return {
+        ...game,
+        home_players: game.away_players,
+        away_players: game.home_players,
+        result: {
+            home_legs: game.result?.away_legs || 0,
+            away_legs: game.result?.home_legs || 0
+        },
+        winner: game.winner === 'home' ? 'away' : game.winner === 'away' ? 'home' : game.winner,
+        legs: (game.legs || []).map(swapLegData)
+    };
+}
+
+function orientGameToSchedule(game, scheduledContext) {
+    if (!scheduledContext) return game;
+    const homeMatchesHome = countRosterMatches(game.home_players, scheduledContext.homeAliasSet);
+    const homeMatchesAway = countRosterMatches(game.home_players, scheduledContext.awayAliasSet);
+    const awayMatchesHome = countRosterMatches(game.away_players, scheduledContext.homeAliasSet);
+    const awayMatchesAway = countRosterMatches(game.away_players, scheduledContext.awayAliasSet);
+
+    const shouldSwap =
+        homeMatchesAway > homeMatchesHome &&
+        awayMatchesHome > awayMatchesAway;
+
+    if (!shouldSwap) return game;
+    return swapMappedGameSides(game);
+}
+
+function collectPlaceholderThrowPlayers(matchData) {
+    const placeholders = new Set();
+    (matchData?.games || []).forEach((game) => {
+        (game?.legs || []).forEach((leg) => {
+            (leg?.throws || []).forEach((round) => {
+                ['home', 'away'].forEach((side) => {
+                    const player = normalizeRecapLabel(round?.[side]?.player, '');
+                    if (/^home$|^away$/i.test(player)) placeholders.add(player);
+                });
+            });
+        });
+    });
+    return Array.from(placeholders);
+}
+
+async function buildScheduledMatchContext(leagueId, matchId) {
+    if (!leagueId || !matchId) return null;
+
+    const matchRef = db.collection('leagues').doc(leagueId).collection('matches').doc(matchId);
+    const matchDoc = await matchRef.get();
+    if (!matchDoc.exists) {
+        throw new Error('Scheduled match not found for supplied leagueId/matchId');
+    }
+
+    const match = matchDoc.data();
+    const leagueDoc = await db.collection('leagues').doc(leagueId).get();
+    const league = leagueDoc.exists ? leagueDoc.data() : {};
+    const teamRefs = await Promise.all([
+        db.collection('leagues').doc(leagueId).collection('teams').doc(match.home_team_id).get(),
+        db.collection('leagues').doc(leagueId).collection('teams').doc(match.away_team_id).get()
+    ]);
+    const homeTeam = teamRefs[0].exists ? teamRefs[0].data() : null;
+    const awayTeam = teamRefs[1].exists ? teamRefs[1].data() : null;
+    const playersSnap = await db.collection('leagues').doc(leagueId).collection('players').get();
+    const allPlayers = playersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const homeRoster = allPlayers.filter(player => player.team_id === match.home_team_id);
+    const awayRoster = allPlayers.filter(player => player.team_id === match.away_team_id);
+    const preferredPlayerIds = new Set([
+        ...homeRoster.map(player => player.id),
+        ...awayRoster.map(player => player.id)
+    ]);
+
+    const scheduledGames = Array.isArray(match.games) && match.games.length
+        ? match.games.map((game, idx) => ({
+            game_number: game.game_number || idx + 1,
+            type: game.type || null,
+            format: game.format || null,
+            home_players: (game.home_players || []).map(player => typeof player === 'string' ? player : player?.name).filter(Boolean),
+            away_players: (game.away_players || []).map(player => typeof player === 'string' ? player : player?.name).filter(Boolean)
+        }))
+        : ((league?.league_type === 'triples_draft' && homeTeam?.players && awayTeam?.players)
+            ? TRIPLES_MATCH_FORMAT.map((format) => ({
+                game_number: format.game,
+                type: format.type,
+                format: format.format,
+                home_players: format.homePositions
+                    .map(pos => homeTeam.players.find(player => player.position === pos)?.name)
+                    .filter(Boolean),
+                away_players: format.awayPositions
+                    .map(pos => awayTeam.players.find(player => player.position === pos)?.name)
+                    .filter(Boolean)
+            }))
+            : []);
+
+    return {
+        matchId,
+        home_team: match.home_team_name,
+        away_team: match.away_team_name,
+        homeRoster,
+        awayRoster,
+        homeAliasSet: buildRosterAliasSet(homeRoster),
+        awayAliasSet: buildRosterAliasSet(awayRoster),
+        scheduledGames,
+        resolveImportedPlayer: buildPlayerAliasResolver(allPlayers, preferredPlayerIds)
+    };
+}
+
+function buildMatchDataFromRecapPayload(payload, recapUrl, gamesUrl, scheduledContext = null) {
+    const props = payload?.props || {};
+    const matchInfo = props.matchInfo || {};
+    const segments = props.segments || {};
+    const homeRoster = scheduledContext?.homeRoster?.map(player => player.name) || extractRosterNames(props.homePlayers);
+    const awayRoster = scheduledContext?.awayRoster?.map(player => player.name) || extractRosterNames(props.awayPlayers);
+    const segmentKeys = Object.keys(segments);
+    const groupedSets = [];
+
+    segmentKeys.forEach((segmentKey) => {
+        const segmentGroups = Array.isArray(segments[segmentKey]) ? segments[segmentKey] : [];
+        segmentGroups.forEach((setGroup) => {
+            if (Array.isArray(setGroup) && setGroup.length) {
+                groupedSets.push(setGroup);
+            }
+        });
+    });
+    const trimmed = trimLeadingPlaceholderGroups(groupedSets);
+    const activeGroupedSets = trimmed.groups;
+    const parsedGroupCount = activeGroupedSets.length;
+
+    let gameNumber = 1;
+    let homeWins = 0;
+    let awayWins = 0;
+    let totalLegs = 0;
+    let summaryOnlyLegs = 0;
+    let totalDarts = 0;
+    const unresolvedPlayers = new Set();
+
+    const games = activeGroupedSets.map((setGroup, setIdx) => {
+        const scheduledGame = scheduledContext?.scheduledGames?.[setIdx] || null;
+        const firstRecapGame = setGroup[0] || {};
+        const defaultType = scheduledGame?.type || mapRecapGameType(firstRecapGame?.game_name).type;
+        const defaultFormat = scheduledGame?.format || mapRecapGameType(firstRecapGame?.game_name).format;
+
+        const setHomePlayers = [];
+        const setAwayPlayers = [];
+        const addUnique = (target, names) => {
+            (names || []).forEach((name) => {
+                if (!name || target.includes(name)) return;
+                target.push(name);
+            });
+        };
+
+        const legs = setGroup.map((recapGame, legIdx) => {
+            const { format } = mapRecapGameType(recapGame?.game_name);
+            const recapHomePlayers = Array.isArray(recapGame?.home?.players)
+                ? recapGame.home.players.map((player, idx) => normalizeRecapLabel(player?.player_label, `Home Player ${idx + 1}`))
+                : [];
+            const recapAwayPlayers = Array.isArray(recapGame?.away?.players)
+                ? recapGame.away.players.map((player, idx) => normalizeRecapLabel(player?.player_label, `Away Player ${idx + 1}`))
+                : [];
+            const turnHomePlayers = extractTurnPlayerNames(recapGame?.turns, 'home');
+            const turnAwayPlayers = extractTurnPlayerNames(recapGame?.turns, 'away');
+            addUnique(setHomePlayers, turnHomePlayers.length ? turnHomePlayers : recapHomePlayers);
+            addUnique(setAwayPlayers, turnAwayPlayers.length ? turnAwayPlayers : recapAwayPlayers);
+
+            const winner = recapGame?.winner_index === 0 ? 'home' : recapGame?.winner_index === 1 ? 'away' : null;
+            totalLegs += 1;
+            totalDarts += parseNumericValue(recapGame?.home?.darts_thrown) || 0;
+            totalDarts += parseNumericValue(recapGame?.away?.darts_thrown) || 0;
+            const throws = mapGameTurnsToThrows(recapGame, winner, scheduledContext, unresolvedPlayers);
+            if (!throws.length) summaryOnlyLegs += 1;
+
+            return {
+                leg_number: legIdx + 1,
+                format,
+                winner,
+                home_stats: {
+                    ppr: parseNumericValue(recapGame?.home?.ppr),
+                    mpr: parseNumericValue(recapGame?.home?.mpr),
+                    starting_points: parseNumericValue(recapGame?.home?.starting_points),
+                    ending_points: parseNumericValue(recapGame?.home?.ending_points),
+                    double_out_points: parseNumericValue(recapGame?.home?.double_out_points),
+                    ending_marks: parseNumericValue(recapGame?.home?.ending_marks)
+                },
+                away_stats: {
+                    ppr: parseNumericValue(recapGame?.away?.ppr),
+                    mpr: parseNumericValue(recapGame?.away?.mpr),
+                    starting_points: parseNumericValue(recapGame?.away?.starting_points),
+                    ending_points: parseNumericValue(recapGame?.away?.ending_points),
+                    double_out_points: parseNumericValue(recapGame?.away?.double_out_points),
+                    ending_marks: parseNumericValue(recapGame?.away?.ending_marks)
+                },
+                player_stats: {},
+                throws
+            };
+        });
+
+        const homePlayers = scheduledGame?.home_players?.length
+            ? scheduledGame.home_players
+            : chooseSideRosterNames(setHomePlayers, homeRoster, 'Home');
+        const awayPlayers = scheduledGame?.away_players?.length
+            ? scheduledGame.away_players
+            : chooseSideRosterNames(setAwayPlayers, awayRoster, 'Away');
+
+        const homeLegsWon = legs.filter(leg => leg.winner === 'home').length;
+        const awayLegsWon = legs.filter(leg => leg.winner === 'away').length;
+        const winner = homeLegsWon > awayLegsWon ? 'home' : awayLegsWon > homeLegsWon ? 'away' : null;
+
+        if (winner === 'home') homeWins += 1;
+        if (winner === 'away') awayWins += 1;
+
+        const mappedGame = {
+            game_number: scheduledGame?.game_number || gameNumber++,
+            set: setIdx + 1,
+            type: defaultType,
+            format: defaultFormat,
+            home_players: homePlayers,
+            away_players: awayPlayers,
+            result: {
+                home_legs: homeLegsWon,
+                away_legs: awayLegsWon
+            },
+            winner,
+            legs
+        };
+
+        return orientGameToSchedule(mappedGame, scheduledContext);
+    });
+
+    const homeTeam = scheduledContext?.home_team || normalizeRecapLabel(matchInfo.home_label, 'Home');
+    const awayTeam = scheduledContext?.away_team || normalizeRecapLabel(matchInfo.away_label, 'Away');
+    const matchTotalDarts = parseNumericValue(matchInfo.total_darts) ?? totalDarts;
+    const teamLabelsMissing = !scheduledContext && (!matchInfo.home_label || !matchInfo.away_label);
+
+    return {
+        matchData: {
+            home_team: homeTeam,
+            away_team: awayTeam,
+            final_score: {
+                home: homeWins,
+                away: awayWins
+            },
+            total_darts: matchTotalDarts,
+            total_legs: totalLegs,
+            total_sets: parseNumericValue(matchInfo.total_sets) ?? groupedSets.length,
+            start_time: null,
+            end_time: null,
+            games
+        },
+        parseSummary: {
+            recap_url: recapUrl,
+            games_url: gamesUrl,
+            component: payload?.component || null,
+            page_url: payload?.url || null,
+            recapv1_url: matchInfo.recapv1_url || null,
+            games: games.length,
+            legs: totalLegs,
+            summary_only_legs: summaryOnlyLegs,
+            segment_keys: segmentKeys,
+            home_label: matchInfo.home_label || null,
+            away_label: matchInfo.away_label || null,
+            team_labels_missing: teamLabelsMissing,
+            schedule_match_id: scheduledContext?.matchId || null,
+            parsed_group_count: parsedGroupCount,
+            scheduled_game_count: scheduledContext?.scheduledGames?.length || null,
+            trimmed_placeholder_groups: trimmed.trimmedCount,
+            unresolved_turn_players: Array.from(unresolvedPlayers),
+            unresolved_turn_player_count: unresolvedPlayers.size
+        }
+    };
+}
+
+exports.validateImportMatchData = functions.https.onRequest(async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    if (req.method === 'OPTIONS') {
+        res.set('Access-Control-Allow-Methods', 'POST');
+        res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+        res.status(204).send('');
+        return;
+    }
+
+    if (req.method !== 'POST') {
+        res.status(405).json({ error: 'Method not allowed' });
+        return;
+    }
+
+    try {
+        const { matchData } = req.body;
+        const validation = validateImportedMatchPayload(matchData);
+
+        res.json({
+            success: true,
+            validation
+        });
+    } catch (error) {
+        console.error('Import validation error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+exports.parseDartConnectRecap = functions.https.onRequest(async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    if (req.method === 'OPTIONS') {
+        res.set('Access-Control-Allow-Methods', 'POST');
+        res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+        res.status(204).send('');
+        return;
+    }
+
+    if (req.method !== 'POST') {
+        res.status(405).json({ error: 'Method not allowed' });
+        return;
+    }
+
+    try {
+        const { recapUrl, html, leagueId, matchId } = req.body || {};
+        if (!recapUrl && !html) {
+            res.status(400).json({ error: 'Missing required field: recapUrl or html' });
+            return;
+        }
+        if (recapUrl && (!leagueId || !matchId)) {
+            res.status(400).json({ error: 'Schedule-anchored recap parsing requires leagueId and matchId' });
+            return;
+        }
+
+        const sourceUrl = recapUrl || null;
+        const gamesUrl = sourceUrl ? buildGamesDetailUrl(sourceUrl) : null;
+        const scheduledContext = (leagueId && matchId)
+            ? await buildScheduledMatchContext(leagueId, matchId)
+            : null;
+
+        let pageHtml = html;
+        if (!pageHtml) {
+            const response = await axios.get(gamesUrl, {
+                responseType: 'text',
+                timeout: 30000,
+                headers: {
+                    'User-Agent': 'BRDC-Import-Parser/1.0'
+                }
+            });
+            pageHtml = response.data;
+        }
+
+        const payload = extractRecapDataPagePayload(pageHtml);
+        const { matchData, parseSummary } = buildMatchDataFromRecapPayload(payload, sourceUrl, gamesUrl, scheduledContext);
+        const validation = validateImportedMatchPayload(matchData);
+        const placeholderPlayers = collectPlaceholderThrowPlayers(matchData);
+        const scheduledGameCount = parseSummary.scheduled_game_count;
+        const parsedGroupCount = parseSummary.parsed_group_count;
+        if (parseSummary.team_labels_missing) {
+            validation.valid = false;
+            validation.errors = validation.errors || [];
+            validation.errors.push('Game detail page does not expose reliable home/away team labels. Set matchData.home_team and matchData.away_team manually before import.');
+        }
+        if (scheduledGameCount && parsedGroupCount !== scheduledGameCount) {
+            validation.valid = false;
+            validation.errors = validation.errors || [];
+            validation.errors.push(`Parsed game-detail structure does not match the scheduled BRDC layout: parsed ${parsedGroupCount} groups, scheduled ${scheduledGameCount} games.`);
+        }
+        if (placeholderPlayers.length) {
+            validation.valid = false;
+            validation.errors = validation.errors || [];
+            validation.errors.push(`Game detail turns still contain placeholder player labels: ${placeholderPlayers.join(', ')}. Resolve player names before import.`);
+        }
+
+        res.json({
+            success: true,
+            parse_summary: parseSummary,
+            matchData,
+            validation
+        });
+    } catch (error) {
+        console.error('DartConnect recap parse error:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
 /**
- * Import match data with throws and player_stats
- * Called with match data JSON in request body
- * Automatically detects and handles home/away team swaps
+ * Import match data with throw-level detail.
+ * Called with match data JSON in request body.
+ * Automatically detects and handles home/away team swaps.
+ *
+ * Contract:
+ * - leg.throws is the canonical source of truth for downstream stats
+ * - leg.player_stats is retained only as non-authoritative import context
+ * - callers should normalize imported reports into throws before storage
  */
 exports.importMatchData = functions.https.onRequest(async (req, res) => {
     // CORS
@@ -679,12 +950,60 @@ exports.importMatchData = functions.https.onRequest(async (req, res) => {
     }
 
     try {
-        const { matchId, leagueId, matchData } = req.body;
+        const { matchId, leagueId, matchData, parseSummary } = req.body;
 
         if (!matchId || !leagueId || !matchData) {
             res.status(400).json({ error: 'Missing required fields: matchId, leagueId, matchData' });
             return;
         }
+
+        const validation = validateImportedMatchPayload(matchData);
+        if (!validation.valid) {
+            res.status(400).json({
+                error: 'Import payload failed validation',
+                validation
+            });
+            return;
+        }
+
+        const hasParseSummary = parseSummary && typeof parseSummary === 'object';
+        const hasScheduleAnchor = hasParseSummary &&
+            parseSummary.schedule_match_id &&
+            parseSummary.schedule_match_id === matchId;
+        const parsedGroupCount = hasParseSummary ? parseSummary.parsed_group_count : null;
+        const scheduledGameCount = hasParseSummary ? parseSummary.scheduled_game_count : null;
+        const hasMatchingScheduleShape = !scheduledGameCount ||
+            !parsedGroupCount ||
+            parsedGroupCount === scheduledGameCount;
+
+        if (hasParseSummary && parseSummary.schedule_match_id && parseSummary.schedule_match_id !== matchId) {
+            res.status(400).json({
+                error: `Import parse summary is anchored to ${parseSummary.schedule_match_id}, but the request targets ${matchId}`
+            });
+            return;
+        }
+
+        if (hasParseSummary && parseSummary.team_labels_missing) {
+            res.status(400).json({
+                error: 'Import parse summary indicates missing home/away team labels; import must be corrected before storage'
+            });
+            return;
+        }
+
+        if (hasParseSummary && !hasMatchingScheduleShape) {
+            res.status(400).json({
+                error: `Import parse summary does not match scheduled structure: parsed ${parsedGroupCount} groups, scheduled ${scheduledGameCount} games`
+            });
+            return;
+        }
+
+        const canonicalScheduleAnchoredImport = hasScheduleAnchor && hasMatchingScheduleShape;
+        const importSource = canonicalScheduleAnchoredImport
+            ? 'dartconnect_recap_canonical'
+            : 'manual_review_import';
+        const importReviewStatus = canonicalScheduleAnchoredImport
+            ? 'validated_canonical'
+            : 'manual_review_required';
 
         // Fetch existing match to check team orientation
         const matchRef = db.collection('leagues').doc(leagueId).collection('matches').doc(matchId);
@@ -771,9 +1090,36 @@ exports.importMatchData = functions.https.onRequest(async (req, res) => {
             total_sets: matchData.total_sets || firestoreGames.length,
             status: 'completed',
             updated_at: admin.firestore.FieldValue.serverTimestamp(),
-            import_source: 'dartconnect_rtf',
+            import_source: importSource,
+            import_truth_source: 'throws',
+            import_contract_version: '2026-04-09-throws-first',
+            import_review_status: importReviewStatus,
+            import_validation: {
+                ...validation.metrics,
+                warning_count: validation.warnings.length,
+                canonical_schedule_anchored: canonicalScheduleAnchoredImport
+            },
             teams_swapped: needsSwap
         };
+
+        if (parseSummary && typeof parseSummary === 'object') {
+            updateData.import_parse_summary = {
+                component: parseSummary.component || null,
+                recap_url: parseSummary.recap_url || null,
+                games_url: parseSummary.games_url || null,
+                trimmed_placeholder_groups: parseSummary.trimmed_placeholder_groups ?? 0,
+                parsed_group_count: parseSummary.parsed_group_count ?? null,
+                scheduled_game_count: parseSummary.scheduled_game_count ?? null,
+                schedule_match_id: parseSummary.schedule_match_id || null,
+                summary_only_legs: parseSummary.summary_only_legs ?? 0,
+                unresolved_turn_players: Array.isArray(parseSummary.unresolved_turn_players)
+                    ? parseSummary.unresolved_turn_players
+                    : [],
+                unresolved_turn_player_count: parseSummary.unresolved_turn_player_count ?? 0,
+                team_labels_missing: Boolean(parseSummary.team_labels_missing),
+                imported_at: admin.firestore.FieldValue.serverTimestamp()
+            };
+        }
 
         // Add timing metadata if available
         if (matchData.start_time) {
@@ -797,7 +1143,11 @@ exports.importMatchData = functions.https.onRequest(async (req, res) => {
             games: firestoreGames.length,
             totalLegs: matchData.total_legs,
             teamsSwapped: needsSwap,
-            finalScore: { home: homeScore, away: awayScore }
+            importSource,
+            importReviewStatus,
+            finalScore: { home: homeScore, away: awayScore },
+            validation,
+            importParseSummary: updateData.import_parse_summary || null
         });
 
     } catch (error) {
@@ -903,232 +1253,13 @@ exports.listMatches = functions.https.onRequest(async (req, res) => {
  * Fix swapped scores in existing matches
  * Pass matchIds and their correct scores
  */
-exports.fixMatchScores = functions.https.onRequest(async (req, res) => {
-    res.set('Access-Control-Allow-Origin', '*');
-    if (req.method === 'OPTIONS') {
-        res.set('Access-Control-Allow-Methods', 'POST');
-        res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-        res.status(204).send('');
-        return;
-    }
-
-    if (req.method !== 'POST') {
-        res.status(405).json({ error: 'Method not allowed' });
-        return;
-    }
-
-    try {
-        const { leagueId, fixes } = req.body;
-
-        if (!leagueId || !fixes || !Array.isArray(fixes)) {
-            res.status(400).json({ error: 'Missing leagueId or fixes array' });
-            return;
-        }
-
-        const results = [];
-
-        for (const fix of fixes) {
-            const { matchId, homeScore, awayScore } = fix;
-
-            if (!matchId || homeScore === undefined || awayScore === undefined) {
-                results.push({ matchId, success: false, error: 'Missing data' });
-                continue;
-            }
-
-            const matchRef = db.collection('leagues').doc(leagueId).collection('matches').doc(matchId);
-            const matchDoc = await matchRef.get();
-
-            if (!matchDoc.exists) {
-                results.push({ matchId, success: false, error: 'Not found' });
-                continue;
-            }
-
-            const match = matchDoc.data();
-            const games = match.games || [];
-
-            // Swap all game/leg data
-            const fixedGames = games.map(game => {
-                const fixedLegs = (game.legs || []).map(leg => {
-                    const fixedLeg = {
-                        ...leg,
-                        winner: leg.winner === 'home' ? 'away' : leg.winner === 'away' ? 'home' : leg.winner
-                    };
-
-                    // Swap stats (only if they exist)
-                    if (leg.home_stats || leg.away_stats) {
-                        fixedLeg.home_stats = leg.away_stats || null;
-                        fixedLeg.away_stats = leg.home_stats || null;
-                    }
-
-                    // Swap throws (only if they exist)
-                    if (leg.throws && Array.isArray(leg.throws)) {
-                        fixedLeg.throws = leg.throws.map(t => {
-                            const swapped = { ...t };
-                            // Only swap if at least one side exists
-                            if (t.home !== undefined || t.away !== undefined) {
-                                swapped.home = t.away || null;
-                                swapped.away = t.home || null;
-                            }
-                            return swapped;
-                        });
-                    }
-
-                    return fixedLeg;
-                });
-
-                return {
-                    ...game,
-                    home_players: game.away_players || [],
-                    away_players: game.home_players || [],
-                    home_legs_won: game.away_legs_won || 0,
-                    away_legs_won: game.home_legs_won || 0,
-                    winner: game.winner === 'home' ? 'away' : game.winner === 'away' ? 'home' : game.winner,
-                    legs: fixedLegs
-                };
-            });
-
-            await matchRef.update({
-                home_score: homeScore,
-                away_score: awayScore,
-                winner: homeScore > awayScore ? 'home' : awayScore > homeScore ? 'away' : 'tie',
-                games: fixedGames,
-                score_corrected: true,
-                corrected_at: admin.firestore.FieldValue.serverTimestamp()
-            });
-
-            results.push({
-                matchId,
-                success: true,
-                homeTeam: match.home_team_name,
-                awayTeam: match.away_team_name,
-                oldScore: `${match.home_score}-${match.away_score}`,
-                newScore: `${homeScore}-${awayScore}`
-            });
-        }
-
-        res.json({ success: true, results });
-
-    } catch (error) {
-        console.error('Fix scores error:', error);
-        res.status(500).json({ error: error.message });
-    }
-});
+exports.fixMatchScores = importMatchesAdmin.fixMatchScores;
 
 /**
  * Update match scores to use sets (games won) instead of legs
  * Also updates team standings
  */
-exports.updateToSetScores = functions.https.onRequest(async (req, res) => {
-    res.set('Access-Control-Allow-Origin', '*');
-    if (req.method === 'OPTIONS') {
-        res.set('Access-Control-Allow-Methods', 'POST');
-        res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-        res.status(204).send('');
-        return;
-    }
-
-    try {
-        const { leagueId, overrides } = req.body;
-        // overrides: { matchId: { homeScore, awayScore } } for manual corrections
-
-        if (!leagueId) {
-            res.status(400).json({ error: 'Missing leagueId' });
-            return;
-        }
-
-        const matchesRef = db.collection('leagues').doc(leagueId).collection('matches');
-        const snapshot = await matchesRef.where('status', '==', 'completed').get();
-
-        const results = [];
-        const teamStats = {};
-
-        for (const doc of snapshot.docs) {
-            const match = doc.data();
-            const matchId = doc.id;
-
-            let homeScore, awayScore;
-
-            // Check for manual override
-            if (overrides && overrides[matchId]) {
-                homeScore = overrides[matchId].homeScore;
-                awayScore = overrides[matchId].awayScore;
-            } else {
-                // Calculate from game winners
-                homeScore = 0;
-                awayScore = 0;
-                (match.games || []).forEach(g => {
-                    if (g.winner === 'home') homeScore++;
-                    else if (g.winner === 'away') awayScore++;
-                });
-            }
-
-            // Update match score
-            await matchesRef.doc(matchId).update({
-                home_score: homeScore,
-                away_score: awayScore,
-                winner: homeScore > awayScore ? 'home' : awayScore > homeScore ? 'away' : 'tie',
-                score_type: 'sets'
-            });
-
-            results.push({
-                matchId,
-                homeTeam: match.home_team_name,
-                awayTeam: match.away_team_name,
-                oldScore: `${match.home_score}-${match.away_score}`,
-                newScore: `${homeScore}-${awayScore}`
-            });
-
-            // Accumulate team stats
-            const homeTeamId = match.home_team_id;
-            const awayTeamId = match.away_team_id;
-
-            if (!teamStats[homeTeamId]) {
-                teamStats[homeTeamId] = { wins: 0, losses: 0, ties: 0, sets_won: 0, sets_lost: 0 };
-            }
-            if (!teamStats[awayTeamId]) {
-                teamStats[awayTeamId] = { wins: 0, losses: 0, ties: 0, sets_won: 0, sets_lost: 0 };
-            }
-
-            teamStats[homeTeamId].sets_won += homeScore;
-            teamStats[homeTeamId].sets_lost += awayScore;
-            teamStats[awayTeamId].sets_won += awayScore;
-            teamStats[awayTeamId].sets_lost += homeScore;
-
-            if (homeScore > awayScore) {
-                teamStats[homeTeamId].wins++;
-                teamStats[awayTeamId].losses++;
-            } else if (awayScore > homeScore) {
-                teamStats[awayTeamId].wins++;
-                teamStats[homeTeamId].losses++;
-            } else {
-                teamStats[homeTeamId].ties++;
-                teamStats[awayTeamId].ties++;
-            }
-        }
-
-        // Update team standings
-        const teamsRef = db.collection('leagues').doc(leagueId).collection('teams');
-        for (const [teamId, stats] of Object.entries(teamStats)) {
-            if (teamId) {
-                await teamsRef.doc(teamId).update({
-                    wins: stats.wins,
-                    losses: stats.losses,
-                    ties: stats.ties,
-                    sets_won: stats.sets_won,
-                    sets_lost: stats.sets_lost,
-                    games_won: stats.sets_won,  // Alias for compatibility
-                    games_lost: stats.sets_lost
-                });
-            }
-        }
-
-        res.json({ success: true, results, teamStats });
-
-    } catch (error) {
-        console.error('Update to set scores error:', error);
-        res.status(500).json({ error: error.message });
-    }
-});
+exports.updateToSetScores = importMatchesAdmin.updateToSetScores;
 
 // Default player mapping from names to IDs (can be overridden via API)
 const DEFAULT_PLAYER_IDS = {
@@ -1209,7 +1340,9 @@ const DEFAULT_PLAYER_IDS = {
             'Eric': 'NCeaIaMXsXVN135pX91L',  // RTF first name only
             // Fill-ins / Alternates
             'Luke Kollias': 'mFyX9sv1l95V0czECUKu',
-            'Anthony Donley': 'YHCbJsXKYjFMPk5Wk7kd'
+            'Anthony Donley': 'YHCbJsXKYjFMPk5Wk7kd',
+            'Tony Rook': 'AwrGDvwsdPQ52kfRTLMk',
+            'TR': 'AwrGDvwsdPQ52kfRTLMk'
 };
 
 // Canonical display names per player ID (used for consistent stat doc names)
@@ -1249,7 +1382,8 @@ const DEFAULT_CANONICAL_NAMES = {
             'NJgDQ0d4RzpDVuCnqYZO': 'Chris Russano',
             'NCeaIaMXsXVN135pX91L': 'Eric Duale',
             'mFyX9sv1l95V0czECUKu': 'Luke Kollias',
-            'YHCbJsXKYjFMPk5Wk7kd': 'Anthony Donley'
+            'YHCbJsXKYjFMPk5Wk7kd': 'Anthony Donley',
+            'AwrGDvwsdPQ52kfRTLMk': 'Tony Rook'
 };
 
 // Helper: create empty stats object with all tracked fields
@@ -1270,6 +1404,7 @@ function createEmptyMatchStats(playerId, playerName, CANONICAL_NAMES) {
                 x01_ton_20: 0,  // 120-139
                 x01_ton_00: 0,  // 100-119
                 x01_tons: 0,    // Total 100+
+                x01_one_seventy_ones: 0,
                 x01_high_score: 0,
                 // First 9
                 x01_first9_darts: 0,
@@ -1278,6 +1413,7 @@ function createEmptyMatchStats(playerId, playerName, CANONICAL_NAMES) {
                 x01_checkouts_hit: 0,
                 x01_checkout_attempts: 0,
                 x01_total_checkout_points: 0,
+                x01_ton_plus_checkouts: 0,
                 x01_high_checkout: 0,
                 x01_best_leg: 999,
                 // Checkout by range
@@ -1358,7 +1494,7 @@ function processX01LegThrows(leg, statsUpdates, getPlayerId, detailedOnly = fals
     if (lastProcessed) {
         ['home', 'away'].forEach(side => {
             if (lastProcessed[side] && lastProcessed[side].remaining === 0) {
-                winningPlayerId = getPlayerId(lastProcessed[side].player);
+                winningPlayerId = getPlayerId(lastProcessed[side]);
             }
         });
     }
@@ -1385,7 +1521,7 @@ function processX01LegThrows(leg, statsUpdates, getPlayerId, detailedOnly = fals
         ['home', 'away'].forEach(side => {
             const info = throwData[side];
             if (!info) return;
-            const playerId = getPlayerId(info.player);
+            const playerId = getPlayerId(info);
             if (!playerId) return;
             if (!playerThrowsMap[playerId]) playerThrowsMap[playerId] = [];
             playerThrowsMap[playerId].push(info);
@@ -1419,6 +1555,7 @@ function processX01LegThrows(leg, statsUpdates, getPlayerId, detailedOnly = fals
 
             // Tons tracking
             if (actualScore !== null) {
+                if (actualScore === 171) stats.x01_one_seventy_ones++;
                 if (actualScore >= 180) stats.x01_ton_80++;
                 else if (actualScore >= 160) stats.x01_ton_60++;
                 else if (actualScore >= 140) stats.x01_ton_40++;
@@ -1449,6 +1586,7 @@ function processX01LegThrows(leg, statsUpdates, getPlayerId, detailedOnly = fals
             if (isCheckout) {
                 stats.x01_checkouts_hit++;
                 stats.x01_total_checkout_points += remainingAtStart;
+                if (remainingAtStart >= 100) stats.x01_ton_plus_checkouts++;
                 if (remainingAtStart > stats.x01_high_checkout) stats.x01_high_checkout = remainingAtStart;
                 if (totalDarts < stats.x01_best_leg) stats.x01_best_leg = totalDarts;
             }
@@ -1486,8 +1624,8 @@ function processCricketLegThrows(leg, statsUpdates, getPlayerId, detailedOnly = 
     let winningPlayerId = null;
     const lastThrow = throws[throws.length - 1];
     if (lastThrow && winningSide) {
-        const winnerName = lastThrow[winningSide]?.player;
-        if (winnerName) winningPlayerId = getPlayerId(winnerName);
+        const winningThrow = lastThrow[winningSide];
+        if (winningThrow?.player) winningPlayerId = getPlayerId(winningThrow);
     }
 
     // Cork inference: determine who threw first from final round
@@ -1515,7 +1653,7 @@ function processCricketLegThrows(leg, statsUpdates, getPlayerId, detailedOnly = 
         ['home', 'away'].forEach(side => {
             const throwInfo = throwData[side];
             if (!throwInfo || !throwInfo.player) return;
-            const playerId = getPlayerId(throwInfo.player);
+            const playerId = getPlayerId(throwInfo);
             if (!playerId) return;
             if (!playerThrowsMap[playerId]) playerThrowsMap[playerId] = [];
             playerThrowsMap[playerId].push({ ...throwInfo, side });
@@ -1579,6 +1717,7 @@ function processCricketLegThrows(leg, statsUpdates, getPlayerId, detailedOnly = 
 function processMatchGamesForStats(games, PLAYER_IDS, CANONICAL_NAMES) {
     const statsUpdates = {};
     const getPlayerId = (name) => PLAYER_IDS[name] || null;
+    const getThrowPlayerId = (throwInfo) => throwInfo?.player_id || getPlayerId(throwInfo?.player);
 
     for (const game of games) {
         const homePlayerNames = (game.home_players || []).map(p => typeof p === 'string' ? p : p.name);
@@ -1591,7 +1730,9 @@ function processMatchGamesForStats(games, PLAYER_IDS, CANONICAL_NAMES) {
             }
         });
 
-        // Process each leg: player_stats for basic counts, throws for detailed stats
+        // Process each leg using a throws-first contract.
+        // throws are authoritative for both basic and detailed stats.
+        // player_stats is only a fallback for historical legs with no throw data.
         for (const leg of (game.legs || [])) {
             // Use leg-level format first, fall back to game-level (mixed format sets have cricket legs in 501 games)
             const legFormat = leg.format || game.format || '';
@@ -1600,9 +1741,17 @@ function processMatchGamesForStats(games, PLAYER_IDS, CANONICAL_NAMES) {
             const playerStats = leg.player_stats || {};
             const hasPlayerStats = Object.keys(playerStats).length > 0;
 
-            // ALWAYS use player_stats for basic stats (darts, points, legs) when available
+            // Throws are canonical when they exist.
             // player_stats is the authoritative source — correct for both singles and doubles
-            if (hasPlayerStats) {
+            if (hasThrows) {
+                if (isX01) {
+                    processX01LegThrows(leg, statsUpdates, getThrowPlayerId, false);
+                } else {
+                    processCricketLegThrows(leg, statsUpdates, getThrowPlayerId, false);
+                }
+            }
+
+            if (!hasThrows && hasPlayerStats) {
                 for (const [playerName, pStats] of Object.entries(playerStats)) {
                     const playerId = PLAYER_IDS[playerName];
                     if (!playerId || !statsUpdates[playerId]) continue;
@@ -1637,17 +1786,6 @@ function processMatchGamesForStats(games, PLAYER_IDS, CANONICAL_NAMES) {
                 }
             }
 
-            // Use throws for detailed stats (tons, checkouts, first-9, mark rounds, etc.)
-            // If player_stats exists, pass detailedOnly=true to skip basic counters
-            // If no player_stats, throws provide everything (fallback)
-            if (hasThrows) {
-                const detailedOnly = hasPlayerStats;
-                if (isX01) {
-                    processX01LegThrows(leg, statsUpdates, getPlayerId, detailedOnly);
-                } else {
-                    processCricketLegThrows(leg, statsUpdates, getPlayerId, detailedOnly);
-                }
-            }
         }
 
         // Update games played/won
@@ -1855,538 +1993,31 @@ exports.updateImportedMatchStats = functions.https.onRequest(async (req, res) =>
  * - Cricket: MPR, marks, 5M+ turns, bulls, triples, hatTricks
  * - Record: legs, matches, wins, with/against darts
  */
-exports.setPlayerStatsFromPerformance = functions.https.onRequest(async (req, res) => {
-    res.set('Access-Control-Allow-Origin', '*');
-    if (req.method === 'OPTIONS') {
-        res.set('Access-Control-Allow-Methods', 'POST');
-        res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-        res.status(204).send('');
-        return;
-    }
-
-    if (req.method !== 'POST') {
-        res.status(405).json({ error: 'Method not allowed' });
-        return;
-    }
-
-    try {
-        const { leagueId, playerStats, resetExisting } = req.body;
-
-        if (!leagueId || !playerStats || !Array.isArray(playerStats)) {
-            res.status(400).json({ error: 'Missing leagueId or playerStats array' });
-            return;
-        }
-
-        const statsRef = db.collection('leagues').doc(leagueId).collection('stats');
-        const results = [];
-
-        for (const ps of playerStats) {
-            if (!ps.playerId) continue;
-
-            // Calculate averages from raw totals
-            const x01_three_dart_avg = ps.x01_darts > 0
-                ? parseFloat(((ps.x01_points / ps.x01_darts) * 3).toFixed(2))
-                : 0;
-            const cricket_mpr = ps.cricket_darts > 0
-                ? parseFloat(((ps.cricket_marks / ps.cricket_darts) * 3).toFixed(2))
-                : 0;
-
-            // Calculate checkout percentage
-            const checkout_pct = ps.checkout_opportunities > 0
-                ? parseFloat(((ps.checkout_darts || 0) / ps.checkout_opportunities * 100).toFixed(1))
-                : 0;
-
-            // Calculate leg win percentage
-            const x01_leg_win_pct = ps.x01_legs_played > 0
-                ? parseFloat(((ps.x01_legs_won || 0) / ps.x01_legs_played * 100).toFixed(1))
-                : 0;
-            const cricket_leg_win_pct = ps.cricket_legs_played > 0
-                ? parseFloat(((ps.cricket_legs_won || 0) / ps.cricket_legs_played * 100).toFixed(1))
-                : 0;
-
-            const statsData = {
-                player_id: ps.playerId,
-                player_name: ps.playerName,
-
-                // X01 Core Stats
-                x01_legs_played: ps.x01_legs_played || 0,
-                x01_legs_won: ps.x01_legs_won || 0,
-                x01_leg_win_pct,
-                x01_total_darts: ps.x01_darts || 0,
-                x01_total_points: ps.x01_points || 0,
-                x01_three_dart_avg,
-
-                // X01 Performance Stats
-                x01_first_9_avg: ps.first_9_avg || 0,
-                x01_avg_checkout: ps.avg_finish || 0,
-                x01_high_turn: ps.high_turn || 0,
-                x01_high_checkout: ps.high_checkout || 0,
-                x01_low_dart_game: ps.low_dart_game || 0,
-                x01_best_match_avg: ps.best_match_avg || 0,
-
-                // X01 Ton Counts
-                x01_tons_100: ps.tons_100 || 0,
-                x01_tons_140: ps.tons_140 || 0,
-                x01_tons_180: ps.tons_180 || 0,
-                x01_ton_points: ps.ton_points || 0,
-
-                // X01 Checkout Stats
-                x01_checkout_darts: ps.checkout_darts || 0,
-                x01_checkout_opportunities: ps.checkout_opportunities || 0,
-                x01_checkout_pct: checkout_pct,
-
-                // X01 With/Against Darts
-                x01_legs_with_darts: ps.legs_with_darts || 0,
-                x01_legs_with_darts_won: ps.legs_with_darts_won || 0,
-                x01_legs_against_darts: ps.legs_against_darts || 0,
-                x01_legs_against_darts_won: ps.legs_against_darts_won || 0,
-
-                // Cricket Core Stats
-                cricket_legs_played: ps.cricket_legs_played || 0,
-                cricket_legs_won: ps.cricket_legs_won || 0,
-                cricket_leg_win_pct,
-                cricket_total_marks: ps.cricket_marks || 0,
-                cricket_total_darts: ps.cricket_darts || 0,
-                cricket_mpr,
-
-                // Cricket Performance Stats
-                cricket_high_turn: ps.cricket_high_turn || 0,
-                cricket_5m_plus_turns: ps.cricket_5m_plus || 0,
-                cricket_bulls: ps.cricket_bulls || 0,
-                cricket_triples: ps.cricket_triples || 0,
-                cricket_double_bulls: ps.cricket_double_bulls || 0,
-                cricket_hat_tricks: ps.cricket_hat_tricks || 0,
-
-                // Overall Record
-                games_played: ps.games_played || 0,
-                games_won: ps.games_won || 0,
-                matches_played: ps.matches_played || 1,
-                matches_won: ps.matches_won || 0,
-
-                updated_at: admin.firestore.FieldValue.serverTimestamp()
-            };
-
-            if (resetExisting) {
-                // Overwrite existing stats
-                statsData.created_at = admin.firestore.FieldValue.serverTimestamp();
-                await statsRef.doc(ps.playerId).set(statsData);
-            } else {
-                // Merge with existing
-                const existingDoc = await statsRef.doc(ps.playerId).get();
-                if (existingDoc.exists) {
-                    const existing = existingDoc.data();
-                    const merged = {
-                        player_id: ps.playerId,
-                        player_name: ps.playerName,
-
-                        // X01 Core - Additive
-                        x01_legs_played: (existing.x01_legs_played || 0) + statsData.x01_legs_played,
-                        x01_legs_won: (existing.x01_legs_won || 0) + statsData.x01_legs_won,
-                        x01_total_darts: (existing.x01_total_darts || 0) + statsData.x01_total_darts,
-                        x01_total_points: (existing.x01_total_points || 0) + statsData.x01_total_points,
-
-                        // X01 Performance - Max values
-                        x01_high_turn: Math.max(existing.x01_high_turn || 0, statsData.x01_high_turn),
-                        x01_high_checkout: Math.max(existing.x01_high_checkout || 0, statsData.x01_high_checkout),
-                        x01_best_match_avg: Math.max(existing.x01_best_match_avg || 0, statsData.x01_best_match_avg),
-
-                        // X01 Performance - Min values (only if > 0)
-                        x01_low_dart_game: statsData.x01_low_dart_game > 0
-                            ? (existing.x01_low_dart_game > 0
-                                ? Math.min(existing.x01_low_dart_game, statsData.x01_low_dart_game)
-                                : statsData.x01_low_dart_game)
-                            : (existing.x01_low_dart_game || 0),
-
-                        // X01 Tons - Additive
-                        x01_tons_100: (existing.x01_tons_100 || 0) + statsData.x01_tons_100,
-                        x01_tons_140: (existing.x01_tons_140 || 0) + statsData.x01_tons_140,
-                        x01_tons_180: (existing.x01_tons_180 || 0) + statsData.x01_tons_180,
-                        x01_ton_points: (existing.x01_ton_points || 0) + statsData.x01_ton_points,
-
-                        // X01 Checkout - Additive
-                        x01_checkout_darts: (existing.x01_checkout_darts || 0) + statsData.x01_checkout_darts,
-                        x01_checkout_opportunities: (existing.x01_checkout_opportunities || 0) + statsData.x01_checkout_opportunities,
-
-                        // X01 With/Against - Additive
-                        x01_legs_with_darts: (existing.x01_legs_with_darts || 0) + statsData.x01_legs_with_darts,
-                        x01_legs_with_darts_won: (existing.x01_legs_with_darts_won || 0) + statsData.x01_legs_with_darts_won,
-                        x01_legs_against_darts: (existing.x01_legs_against_darts || 0) + statsData.x01_legs_against_darts,
-                        x01_legs_against_darts_won: (existing.x01_legs_against_darts_won || 0) + statsData.x01_legs_against_darts_won,
-
-                        // Cricket Core - Additive
-                        cricket_legs_played: (existing.cricket_legs_played || 0) + statsData.cricket_legs_played,
-                        cricket_legs_won: (existing.cricket_legs_won || 0) + statsData.cricket_legs_won,
-                        cricket_total_marks: (existing.cricket_total_marks || 0) + statsData.cricket_total_marks,
-                        cricket_total_darts: (existing.cricket_total_darts || 0) + statsData.cricket_total_darts,
-
-                        // Cricket Performance - Max/Additive
-                        cricket_high_turn: Math.max(existing.cricket_high_turn || 0, statsData.cricket_high_turn),
-                        cricket_5m_plus_turns: (existing.cricket_5m_plus_turns || 0) + statsData.cricket_5m_plus_turns,
-                        cricket_bulls: (existing.cricket_bulls || 0) + statsData.cricket_bulls,
-                        cricket_triples: (existing.cricket_triples || 0) + statsData.cricket_triples,
-                        cricket_double_bulls: (existing.cricket_double_bulls || 0) + statsData.cricket_double_bulls,
-                        cricket_hat_tricks: (existing.cricket_hat_tricks || 0) + statsData.cricket_hat_tricks,
-
-                        // Overall Record - Additive
-                        games_played: (existing.games_played || 0) + statsData.games_played,
-                        games_won: (existing.games_won || 0) + statsData.games_won,
-                        matches_played: (existing.matches_played || 0) + 1,
-                        matches_won: (existing.matches_won || 0) + (statsData.matches_won || 0),
-
-                        updated_at: admin.firestore.FieldValue.serverTimestamp()
-                    };
-
-                    // Recalculate averages from merged totals
-                    merged.x01_three_dart_avg = merged.x01_total_darts > 0
-                        ? parseFloat(((merged.x01_total_points / merged.x01_total_darts) * 3).toFixed(2))
-                        : 0;
-                    merged.cricket_mpr = merged.cricket_total_darts > 0
-                        ? parseFloat(((merged.cricket_total_marks / merged.cricket_total_darts) * 3).toFixed(2))
-                        : 0;
-                    merged.x01_checkout_pct = merged.x01_checkout_opportunities > 0
-                        ? parseFloat((merged.x01_checkout_darts / merged.x01_checkout_opportunities * 100).toFixed(1))
-                        : 0;
-                    merged.x01_leg_win_pct = merged.x01_legs_played > 0
-                        ? parseFloat((merged.x01_legs_won / merged.x01_legs_played * 100).toFixed(1))
-                        : 0;
-                    merged.cricket_leg_win_pct = merged.cricket_legs_played > 0
-                        ? parseFloat((merged.cricket_legs_won / merged.cricket_legs_played * 100).toFixed(1))
-                        : 0;
-
-                    // Calculate weighted first 9 average (approximate - use latest if both have values)
-                    if (statsData.x01_first_9_avg > 0) {
-                        merged.x01_first_9_avg = existing.x01_first_9_avg > 0
-                            ? parseFloat((((existing.x01_first_9_avg * existing.x01_legs_played) +
-                                (statsData.x01_first_9_avg * statsData.x01_legs_played)) /
-                                merged.x01_legs_played).toFixed(2))
-                            : statsData.x01_first_9_avg;
-                    } else {
-                        merged.x01_first_9_avg = existing.x01_first_9_avg || 0;
-                    }
-
-                    // Calculate weighted avg checkout
-                    if (statsData.x01_avg_checkout > 0) {
-                        merged.x01_avg_checkout = existing.x01_avg_checkout > 0
-                            ? parseFloat((((existing.x01_avg_checkout * (existing.x01_checkout_darts || 1)) +
-                                (statsData.x01_avg_checkout * (statsData.x01_checkout_darts || 1))) /
-                                (merged.x01_checkout_darts || 1)).toFixed(2))
-                            : statsData.x01_avg_checkout;
-                    } else {
-                        merged.x01_avg_checkout = existing.x01_avg_checkout || 0;
-                    }
-
-                    await statsRef.doc(ps.playerId).update(merged);
-                } else {
-                    statsData.created_at = admin.firestore.FieldValue.serverTimestamp();
-                    await statsRef.doc(ps.playerId).set(statsData);
-                }
-            }
-
-            results.push({
-                playerId: ps.playerId,
-                playerName: ps.playerName,
-                x01Avg: x01_three_dart_avg,
-                cricketMpr: cricket_mpr
-            });
-        }
-
-        res.json({
-            success: true,
-            playersUpdated: results.length,
-            stats: results
-        });
-
-    } catch (error) {
-        console.error('Set player stats error:', error);
-        res.status(500).json({ error: error.message });
-    }
-});
+exports.setPlayerStatsFromPerformance = importMatchesAdmin.setPlayerStatsFromPerformance;
 
 /**
  * Debug endpoint to check match data including games array
  * GET ?leagueId=xxx&week=1
  */
-exports.debugMatchData = functions.https.onRequest(async (req, res) => {
-    res.set('Access-Control-Allow-Origin', '*');
-    if (req.method === 'OPTIONS') {
-        res.set('Access-Control-Allow-Methods', 'GET');
-        res.status(204).send('');
-        return;
-    }
-
-    try {
-        const { leagueId, week, matchId } = req.query;
-
-        if (!leagueId) {
-            res.status(400).json({ error: 'Missing leagueId' });
-            return;
-        }
-
-        const result = { matches: [] };
-
-        let query = db.collection('leagues').doc(leagueId).collection('matches');
-        if (week) {
-            query = query.where('week', '==', parseInt(week));
-        }
-
-        const matchesSnap = await query.get();
-        matchesSnap.forEach(doc => {
-            if (matchId && doc.id !== matchId) return;
-            const data = doc.data();
-            const playerNames = new Set();
-            if (data.games && Array.isArray(data.games)) {
-                data.games.forEach(game => {
-                    (game.home_players || []).forEach(n => playerNames.add(n));
-                    (game.away_players || []).forEach(n => playerNames.add(n));
-                });
-            }
-            result.matches.push({
-                id: doc.id,
-                week: data.week,
-                home_team_id: data.home_team_id,
-                home_team_name: data.home_team_name,
-                away_team_id: data.away_team_id,
-                away_team_name: data.away_team_name,
-                status: data.status,
-                playerNamesFromGames: Array.from(playerNames),
-                gamesCount: (data.games || []).length
-            });
-        });
-
-        res.json(result);
-
-    } catch (error) {
-        console.error('Debug match data error:', error);
-        res.status(500).json({ error: error.message });
-    }
-});
+exports.debugMatchData = importMatchesAdmin.debugMatchData;
 
 /**
  * Debug endpoint to check player stats structure
  * GET ?leagueId=xxx&playerName=xxx
  */
-exports.debugPlayerStats = functions.https.onRequest(async (req, res) => {
-    res.set('Access-Control-Allow-Origin', '*');
-    if (req.method === 'OPTIONS') {
-        res.set('Access-Control-Allow-Methods', 'GET');
-        res.status(204).send('');
-        return;
-    }
-
-    try {
-        const { leagueId, playerName } = req.query;
-
-        if (!leagueId) {
-            res.status(400).json({ error: 'Missing leagueId' });
-            return;
-        }
-
-        const result = {
-            leagueId,
-            searchName: playerName || 'all',
-            players: [],
-            aggregatedStats: [],
-            statsCollection: []
-        };
-
-        // Get all players
-        const playersSnap = await db.collection('leagues').doc(leagueId).collection('players').get();
-        playersSnap.forEach(doc => {
-            const data = doc.data();
-            const name = data.name || data.player_name || '';
-            if (!playerName || name.toLowerCase().includes(playerName.toLowerCase())) {
-                result.players.push({
-                    id: doc.id,
-                    name: name,
-                    team_id: data.team_id,
-                    email: data.email,
-                    embeddedStats: {
-                        x01_three_dart_avg: data.x01_three_dart_avg,
-                        cricket_mpr: data.cricket_mpr,
-                        ppd: data.ppd,
-                        mpr: data.mpr
-                    }
-                });
-            }
-        });
-
-        // Get aggregated_stats
-        const aggSnap = await db.collection('leagues').doc(leagueId).collection('aggregated_stats').get();
-        aggSnap.forEach(doc => {
-            const data = doc.data();
-            const name = data.player_name || '';
-            if (!playerName || name.toLowerCase().includes(playerName.toLowerCase())) {
-                result.aggregatedStats.push({
-                    id: doc.id,
-                    player_name: name,
-                    x01_three_dart_avg: data.x01_three_dart_avg,
-                    cricket_mpr: data.cricket_mpr,
-                    x01_legs_played: data.x01_legs_played,
-                    cricket_legs_played: data.cricket_legs_played
-                });
-            }
-        });
-
-        // Get stats collection
-        const statsSnap = await db.collection('leagues').doc(leagueId).collection('stats').get();
-        statsSnap.forEach(doc => {
-            const data = doc.data();
-            const name = data.player_name || '';
-            if (!playerName || name.toLowerCase().includes(playerName.toLowerCase())) {
-                result.statsCollection.push({
-                    id: doc.id,
-                    player_name: name,
-                    x01_three_dart_avg: data.x01_three_dart_avg,
-                    cricket_mpr: data.cricket_mpr
-                });
-            }
-        });
-
-        res.json(result);
-
-    } catch (error) {
-        console.error('Debug player stats error:', error);
-        res.status(500).json({ error: error.message });
-    }
-});
+exports.debugPlayerStats = importMatchesAdmin.debugPlayerStats;
 
 /**
  * Sync player names from players collection to stats collection
  * This ensures stats.player_name matches players.name
  * POST { leagueId: "xxx", dryRun: true/false }
  */
-exports.syncPlayerNames = functions.https.onRequest(async (req, res) => {
-    res.set('Access-Control-Allow-Origin', '*');
-    if (req.method === 'OPTIONS') {
-        res.set('Access-Control-Allow-Methods', 'POST');
-        res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-        res.status(204).send('');
-        return;
-    }
-
-    try {
-        const { leagueId, dryRun = true } = req.body;
-
-        if (!leagueId) {
-            res.status(400).json({ error: 'Missing leagueId' });
-            return;
-        }
-
-        const results = {
-            checked: 0,
-            updated: [],
-            skipped: [],
-            noStats: []
-        };
-
-        // Get all players
-        const playersSnap = await db.collection('leagues').doc(leagueId).collection('players').get();
-
-        for (const playerDoc of playersSnap.docs) {
-            const playerId = playerDoc.id;
-            const playerData = playerDoc.data();
-            const officialName = playerData.name;
-            results.checked++;
-
-            // Get stats doc for this player
-            const statsDoc = await db.collection('leagues').doc(leagueId).collection('stats').doc(playerId).get();
-
-            if (!statsDoc.exists) {
-                results.noStats.push({ id: playerId, name: officialName });
-                continue;
-            }
-
-            const statsData = statsDoc.data();
-            const statsName = statsData.player_name;
-
-            if (statsName === officialName) {
-                results.skipped.push({ id: playerId, name: officialName });
-                continue;
-            }
-
-            // Names don't match - update stats doc
-            if (!dryRun) {
-                await db.collection('leagues').doc(leagueId).collection('stats').doc(playerId).update({
-                    player_name: officialName
-                });
-            }
-
-            results.updated.push({
-                id: playerId,
-                oldName: statsName,
-                newName: officialName
-            });
-        }
-
-        res.json({
-            success: true,
-            dryRun,
-            results
-        });
-
-    } catch (error) {
-        console.error('Sync player names error:', error);
-        res.status(500).json({ error: error.message });
-    }
-});
+exports.syncPlayerNames = importMatchesAdmin.syncPlayerNames;
 
 /**
  * Clear all stats documents for a league (used before full recalculation)
  */
-exports.clearLeagueStats = functions.https.onRequest(async (req, res) => {
-    res.set('Access-Control-Allow-Origin', '*');
-    if (req.method === 'OPTIONS') {
-        res.set('Access-Control-Allow-Methods', 'POST');
-        res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-        res.status(204).send('');
-        return;
-    }
-
-    try {
-        const { leagueId } = req.body;
-        if (!leagueId) {
-            res.status(400).json({ error: 'Missing leagueId' });
-            return;
-        }
-
-        const statsRef = db.collection('leagues').doc(leagueId).collection('stats');
-        const snap = await statsRef.get();
-        const count = snap.size;
-
-        if (count === 0) {
-            res.json({ success: true, deleted: 0 });
-            return;
-        }
-
-        // Delete in batches of 500
-        const batches = [];
-        let batch = db.batch();
-        let batchCount = 0;
-
-        snap.forEach(doc => {
-            batch.delete(doc.ref);
-            batchCount++;
-            if (batchCount === 500) {
-                batches.push(batch);
-                batch = db.batch();
-                batchCount = 0;
-            }
-        });
-
-        if (batchCount > 0) {
-            batches.push(batch);
-        }
-
-        for (const b of batches) {
-            await b.commit();
-        }
-
-        res.json({ success: true, deleted: count });
-    } catch (error) {
-        console.error('Clear league stats error:', error);
-        res.status(500).json({ error: error.message });
-    }
-});
+exports.clearLeagueStats = importMatchesAdmin.clearLeagueStats;
 
 /**
  * Recalculate ALL player stats for a league from scratch.

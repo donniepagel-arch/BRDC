@@ -3,9 +3,10 @@
  * Secure admin operations with Firebase Auth authentication
  */
 
-const functions = require('firebase-functions');
+const functions = require('firebase-functions/v1');
 const admin = require('firebase-admin');
 const { verifyFirebaseAuth } = require('./src/firebase-auth-helper');
+const { sendManagedSms } = require('./src/messaging-config');
 
 /**
  * Clear all data except bots
@@ -484,25 +485,14 @@ exports.adminFixPlayerPin = functions.https.onRequest(async (req, res) => {
 
 // Helper function to send PIN update SMS
 async function sendPinUpdateSMS(phone, name, newPin) {
-    const TWILIO_SID = process.env.TWILIO_ACCOUNT_SID;
-    const TWILIO_TOKEN = process.env.TWILIO_AUTH_TOKEN;
-    const TWILIO_PHONE = process.env.TWILIO_PHONE_NUMBER;
-
-    if (!TWILIO_SID || !TWILIO_TOKEN) {
-        console.log('PIN update SMS (simulated):', { phone, name, newPin });
-        return { success: true, simulated: true };
-    }
-
     try {
-        const twilioClient = require('twilio')(TWILIO_SID, TWILIO_TOKEN);
         const message = `BRDC: Hey ${name}! Your player PIN has been updated to ${newPin}. Use this PIN to log in and track your stats. See you at the boards!`;
-        const result = await twilioClient.messages.create({
-            body: message,
-            to: phone.startsWith('+') ? phone : '+1' + phone.replace(/\D/g, ''),
-            from: TWILIO_PHONE
-        });
-        console.log('PIN update SMS sent:', result.sid);
-        return { success: true, sid: result.sid };
+        const result = await sendManagedSms(
+            phone.startsWith('+') ? phone : '+1' + phone.replace(/\D/g, ''),
+            message
+        );
+        console.log('PIN update SMS processed:', result.sid || result.source || 'unknown');
+        return result;
     } catch (err) {
         console.error('PIN update SMS error:', err);
         return { success: false, error: err.message };
@@ -1520,6 +1510,11 @@ exports.adminImportLeagueStats = functions.https.onRequest(async (req, res) => {
 /**
  * Import match data to Firestore (admin only)
  * Updates an existing match with detailed game/leg/throw data
+ *
+ * Noncanonical review-only bypass:
+ * this is an admin escape hatch, not the approved BRDC import workflow.
+ * Normal import work must go through parseDartConnectRecap ->
+ * validateImportMatchData -> importMatchData.
  */
 exports.adminImportMatchData = functions.https.onRequest(async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');

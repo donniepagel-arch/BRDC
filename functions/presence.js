@@ -8,7 +8,7 @@
  * - Viewer lists per match/channel
  */
 
-const functions = require('firebase-functions');
+const functions = require('firebase-functions/v1');
 const { logger } = require('firebase-functions');
 const admin = require('firebase-admin');
 const cors = require('cors')({origin: true});

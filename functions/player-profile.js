@@ -3,7 +3,7 @@
  * Handles player authentication, profiles, availability, and captain features
  */
 
-const functions = require('firebase-functions');
+const functions = require('firebase-functions/v1');
 const admin = require('firebase-admin');
 
 const db = admin.firestore();
@@ -169,9 +169,7 @@ exports.resetPlayerPin = functions.https.onRequest(async (req, res) => {
 
                 return res.json({
                     success: true,
-                    message: 'PIN has been sent to your email',
-                    // In production, don't send PIN in response - just for testing
-                    debug_pin: process.env.NODE_ENV === 'development' ? playerPin : undefined
+                    message: 'PIN has been sent to your email'
                 });
             }
         }

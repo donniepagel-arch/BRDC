@@ -9,7 +9,7 @@
  * - /chat_channels/{channelId}/typing/{playerId} - Typing indicators
  */
 
-const functions = require('firebase-functions');
+const functions = require('firebase-functions/v1');
 const { onDocumentCreated } = require('firebase-functions/v2/firestore');
 const { logger } = require('firebase-functions');
 const admin = require('firebase-admin');
