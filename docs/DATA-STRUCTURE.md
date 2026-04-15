@@ -1,6 +1,6 @@
 # Firestore Data Structure
 
-**Last Updated:** 2026-01-18
+**Last Updated:** 2026-04-10
 
 ---
 
@@ -106,6 +106,81 @@ Global player registry - ONE record per person across all features.
   updated_at: Timestamp
 }
 ```
+
+## Canonical Match Data Rules
+
+- `leagues/{leagueId}/matches/{matchId}.games[].legs[].throws[]` is the source of truth.
+- Team standings are derived from completed match records.
+- `leagues/{leagueId}/stats/{playerId}` is a cached derived view.
+- `player_stats` inside imported legs is non-authoritative audit context.
+- Scheduled match structure is the source of truth for orientation and slot layout.
+- Stored throws should carry canonical `player_id` whenever identity is resolved.
+- Original imported names should be preserved as `imported_player_label`.
+
+## Import And Scorer Audit Fields
+
+Current imported or scorer-normalized match docs may carry:
+
+```javascript
+{
+  import_source: "dartconnect_rtf",
+  import_truth_source: "throws",
+  import_contract_version: "2026-04-09-throws-first",
+  import_validation: {
+    games: 9,
+    legs: 21,
+    legsWithThrows: 21,
+    throws: 370,
+    throwsMissingPlayer: 0,
+    throwsUnresolvedPlayerId: 0
+  },
+  import_parse_summary: {
+    recap_url: "https://recap.dartconnect.com/matches/...",
+    games_url: "https://recap.dartconnect.com/games/...",
+    trimmed_placeholder_groups: 5,
+    parsed_group_count: 9,
+    scheduled_game_count: 9,
+    summary_only_legs: 0,
+    unresolved_turn_player_count: 0,
+    unresolved_turn_players: []
+  }
+}
+```
+
+## Stored Throw Shape
+
+Current throws-first stored shape should look like:
+
+```javascript
+{
+  home: {
+    imported_player_label: "Kevin Y",
+    player: "Kevin Yasenchak",
+    player_name: "Kevin Yasenchak",
+    player_id: "dr4ML1i9ZeMI7SNisX6E",
+    score: 100,
+    remaining: 401
+  },
+  away: {
+    imported_player_label: "Danny Russano",
+    player: "Danny Russano",
+    player_name: "Danny Russano",
+    player_id: "gmZ8d6De0ZlqPVV0V9Q6",
+    score: 85,
+    remaining: 416
+  }
+}
+```
+
+## Operational Rule
+
+BRDC now uses:
+
+- schedule as structural truth
+- throws as statistical truth
+- canonical `player_id` as identity truth
+
+If any of those cannot be resolved cleanly, the system should surface a warning instead of silently storing ambiguous data.
 
 ---
 
@@ -361,7 +436,9 @@ Global player registry - ONE record per person across all features.
 **Key Points:**
 - `throws[]` array stores every single turn with individual dart scores
 - Players can review throw-by-throw history
+- `throws[]` is the canonical source of truth for league stat rebuilds
 - `*_stats` objects are computed from throws (can be recalculated)
+- imported `player_stats` and side summaries are non-authoritative and should only be used when throw data is missing
 - Cricket tracks marks per number and special achievements
 
 ---
