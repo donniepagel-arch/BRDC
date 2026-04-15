@@ -13,6 +13,7 @@ import { collection, doc, getDoc, getDocs, query, where, orderBy, limit } from '
 import { currentPlayer, dashboardData, setCurrentPlayer, setDashboardData } from '/js/dashboard/dashboard-state.js';
 import { loadScheduleStories } from '/js/dashboard/dashboard-schedule.js';
 import { loadFeed } from '/js/dashboard/dashboard-feed.js';
+import { initMemberImportCard } from '/js/dashboard/dashboard-import.js';
 
 // ===== INITIALIZATION =====
 
@@ -271,6 +272,7 @@ function renderDashboard() {
 
     // Load schedule stories and feed
     loadScheduleStories(roles);
+    initMemberImportCard();
     loadFeed();
 
     // Update composer avatar with logged-in player initial

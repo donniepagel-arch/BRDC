@@ -786,21 +786,21 @@ function normalizeDateOnly(value) {
     return null;
 }
 
-async function verifyCaptainImportAccess(req, leagueId, match, captainId, teamId) {
-    if (!captainId && !teamId) {
+async function verifyTeamMemberImportAccess(req, leagueId, match, actorId, teamId) {
+    if (!actorId && !teamId) {
         return { checked: false };
     }
-    if (!captainId || !teamId) {
-        return { checked: true, ok: false, error: 'Captain imports require captain_id and team_id' };
+    if (!actorId || !teamId) {
+        return { checked: true, ok: false, error: 'Member imports require player_id and team_id' };
     }
     if (![match.home_team_id, match.away_team_id].includes(teamId)) {
-        return { checked: true, ok: false, error: 'Captain can only import matches involving their team' };
+        return { checked: true, ok: false, error: 'Members can only import matches involving their team' };
     }
 
     const authHeader = req.headers.authorization || '';
     const idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
     if (!idToken) {
-        return { checked: true, ok: false, error: 'Captain import requires Firebase authentication' };
+        return { checked: true, ok: false, error: 'Member import requires Firebase authentication' };
     }
 
     let decoded;
@@ -810,9 +810,7 @@ async function verifyCaptainImportAccess(req, leagueId, match, captainId, teamId
         return { checked: true, ok: false, error: 'Invalid Firebase authentication token' };
     }
 
-    const teamDoc = await db.collection('leagues').doc(leagueId).collection('teams').doc(teamId).get();
-    const team = teamDoc.exists ? teamDoc.data() : {};
-    const playerDoc = await db.collection('leagues').doc(leagueId).collection('players').doc(captainId).get();
+    const playerDoc = await db.collection('leagues').doc(leagueId).collection('players').doc(actorId).get();
     let player = playerDoc.exists ? { id: playerDoc.id, ...playerDoc.data() } : null;
 
     if (!player && decoded.email) {
@@ -829,23 +827,17 @@ async function verifyCaptainImportAccess(req, leagueId, match, captainId, teamId
 
     const emailMatches = decoded.email && player?.email &&
         String(player.email).toLowerCase() === decoded.email.toLowerCase();
-    const globalMatches = player?.global_player_id && player.global_player_id === captainId;
-    const captainMatches = team.captain_id === captainId || team.captain_id === player?.id;
-    const captainRole = captainMatches ||
-        player?.is_captain === true ||
-        player?.skill_level === 'A' ||
-        player?.preferred_level === 'A' ||
-        player?.position === 1;
+    const globalMatches = player?.global_player_id && player.global_player_id === actorId;
 
-    if (!player || !emailMatches || !captainRole || player.team_id !== teamId) {
-        return { checked: true, ok: false, error: 'Not authorized as captain for this team' };
+    if (!player || !emailMatches || player.team_id !== teamId) {
+        return { checked: true, ok: false, error: 'Not authorized as a member of this team' };
     }
 
     return {
         checked: true,
         ok: true,
         player_id: player.id,
-        global_player_id: globalMatches ? captainId : player.global_player_id || null
+        global_player_id: globalMatches ? actorId : player.global_player_id || null
     };
 }
 
@@ -1240,7 +1232,7 @@ exports.importMatchData = functions.https.onRequest(async (req, res) => {
     }
 
     try {
-        const { matchId, leagueId, matchData, parseSummary, captain_id, team_id } = req.body;
+        const { matchId, leagueId, matchData, parseSummary, captain_id, player_id, team_id } = req.body;
 
         if (!matchId || !leagueId || !matchData) {
             res.status(400).json({ error: 'Missing required fields: matchId, leagueId, matchData' });
@@ -1305,9 +1297,9 @@ exports.importMatchData = functions.https.onRequest(async (req, res) => {
         }
 
         const existingMatch = matchDoc.data();
-        const captainAccess = await verifyCaptainImportAccess(req, leagueId, existingMatch, captain_id, team_id);
-        if (captainAccess.checked && !captainAccess.ok) {
-            res.status(403).json({ error: captainAccess.error });
+        const memberAccess = await verifyTeamMemberImportAccess(req, leagueId, existingMatch, player_id || captain_id, team_id);
+        if (memberAccess.checked && !memberAccess.ok) {
+            res.status(403).json({ error: memberAccess.error });
             return;
         }
         const needsSwap = !teamsMatch(matchData.home_team, existingMatch.home_team_name);
