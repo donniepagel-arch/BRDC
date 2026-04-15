@@ -39,6 +39,51 @@ function setStatus(message) {
     if (status) status.textContent = message;
 }
 
+function countSetThrows(game) {
+    return (game?.legs || []).reduce((total, leg) => {
+        return total + (Array.isArray(leg.throws) ? leg.throws.length : 0);
+    }, 0);
+}
+
+function renderSetSummary(matchData, targetId) {
+    const target = document.getElementById(targetId);
+    if (!target) return;
+    const games = Array.isArray(matchData?.games) ? matchData.games : [];
+    if (!games.length) {
+        target.innerHTML = '';
+        return;
+    }
+
+    target.innerHTML = `
+        <div style="border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; overflow: hidden;">
+            <div style="display: grid; grid-template-columns: 44px 78px 1fr 70px 70px; gap: 8px; padding: 8px 10px; background: rgba(255,255,255,0.06); color: var(--text-dim); font-size: 11px; font-weight: 800; text-transform: uppercase;">
+                <span>Set</span>
+                <span>Game</span>
+                <span>Players</span>
+                <span>Legs</span>
+                <span>Turns</span>
+            </div>
+            ${games.map((game, idx) => {
+                const homePlayers = (game.home_players || []).join(' + ') || 'Home';
+                const awayPlayers = (game.away_players || []).join(' + ') || 'Away';
+                const homeLegs = game.result?.home_legs ?? 0;
+                const awayLegs = game.result?.away_legs ?? 0;
+                const winner = game.winner === 'home' ? 'H' : game.winner === 'away' ? 'A' : '-';
+                const label = `${game.format || game.type || 'Game'}`;
+                return `
+                    <div style="display: grid; grid-template-columns: 44px 78px 1fr 70px 70px; gap: 8px; padding: 9px 10px; border-top: 1px solid rgba(255,255,255,0.08); align-items: center; font-size: 12px;">
+                        <strong>${idx + 1}</strong>
+                        <span>${escapeText(label)}</span>
+                        <span>${escapeText(homePlayers)} <span style="color: var(--text-dim);">vs</span> ${escapeText(awayPlayers)}</span>
+                        <strong>${homeLegs}-${awayLegs} ${winner}</strong>
+                        <span>${countSetThrows(game)}</span>
+                    </div>
+                `;
+            }).join('')}
+        </div>
+    `;
+}
+
 function resetMemberImport(message = 'Any league member can import a DartConnect recap for their own team match.') {
     memberImportPayload = null;
     memberImportValidation = null;
@@ -47,8 +92,10 @@ function resetMemberImport(message = 'Any league member can import a DartConnect
     if (importBtn) importBtn.disabled = true;
     setStatus(message);
     const summary = document.getElementById('memberImportSummary');
+    const setSummary = document.getElementById('memberImportSetSummary');
     const errors = document.getElementById('memberImportErrors');
     if (summary) summary.innerHTML = '';
+    if (setSummary) setSummary.innerHTML = '';
     if (errors) errors.innerHTML = '';
 }
 
@@ -106,6 +153,7 @@ window.parseMemberRecap = async function() {
             const title = escapeText(autoMatch ? `${autoMatch.home_team} vs ${autoMatch.away_team}` : matchId || 'Matched schedule');
             summaryEl.innerHTML = `<strong>${title}</strong><br>${lines.join('<br>')}`;
         }
+        renderSetSummary(memberImportPayload, 'memberImportSetSummary');
         if (errorsEl) {
             const allMessages = [...errors, ...warnings];
             errorsEl.innerHTML = allMessages.length
