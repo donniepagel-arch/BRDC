@@ -786,6 +786,69 @@ function normalizeDateOnly(value) {
     return null;
 }
 
+async function verifyCaptainImportAccess(req, leagueId, match, captainId, teamId) {
+    if (!captainId && !teamId) {
+        return { checked: false };
+    }
+    if (!captainId || !teamId) {
+        return { checked: true, ok: false, error: 'Captain imports require captain_id and team_id' };
+    }
+    if (![match.home_team_id, match.away_team_id].includes(teamId)) {
+        return { checked: true, ok: false, error: 'Captain can only import matches involving their team' };
+    }
+
+    const authHeader = req.headers.authorization || '';
+    const idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    if (!idToken) {
+        return { checked: true, ok: false, error: 'Captain import requires Firebase authentication' };
+    }
+
+    let decoded;
+    try {
+        decoded = await admin.auth().verifyIdToken(idToken);
+    } catch (error) {
+        return { checked: true, ok: false, error: 'Invalid Firebase authentication token' };
+    }
+
+    const teamDoc = await db.collection('leagues').doc(leagueId).collection('teams').doc(teamId).get();
+    const team = teamDoc.exists ? teamDoc.data() : {};
+    const playerDoc = await db.collection('leagues').doc(leagueId).collection('players').doc(captainId).get();
+    let player = playerDoc.exists ? { id: playerDoc.id, ...playerDoc.data() } : null;
+
+    if (!player && decoded.email) {
+        const playerSnap = await db.collection('leagues').doc(leagueId)
+            .collection('players')
+            .where('email', '==', decoded.email.toLowerCase())
+            .where('team_id', '==', teamId)
+            .limit(1)
+            .get();
+        if (!playerSnap.empty) {
+            player = { id: playerSnap.docs[0].id, ...playerSnap.docs[0].data() };
+        }
+    }
+
+    const emailMatches = decoded.email && player?.email &&
+        String(player.email).toLowerCase() === decoded.email.toLowerCase();
+    const globalMatches = player?.global_player_id && player.global_player_id === captainId;
+    const captainMatches = team.captain_id === captainId || team.captain_id === player?.id;
+    const captainRole = captainMatches ||
+        player?.is_captain === true ||
+        player?.skill_level === 'A' ||
+        player?.preferred_level === 'A' ||
+        player?.position === 1;
+
+    if (!player || !emailMatches || !captainRole || player.team_id !== teamId) {
+        return { checked: true, ok: false, error: 'Not authorized as captain for this team' };
+    }
+
+    return {
+        checked: true,
+        ok: true,
+        player_id: player.id,
+        global_player_id: globalMatches ? captainId : player.global_player_id || null
+    };
+}
+
 function scoreScheduledContextForPayload(context, payload, recapDate) {
     const props = payload?.props || {};
     const segments = props.segments || {};
@@ -1177,7 +1240,7 @@ exports.importMatchData = functions.https.onRequest(async (req, res) => {
     }
 
     try {
-        const { matchId, leagueId, matchData, parseSummary } = req.body;
+        const { matchId, leagueId, matchData, parseSummary, captain_id, team_id } = req.body;
 
         if (!matchId || !leagueId || !matchData) {
             res.status(400).json({ error: 'Missing required fields: matchId, leagueId, matchData' });
@@ -1242,6 +1305,11 @@ exports.importMatchData = functions.https.onRequest(async (req, res) => {
         }
 
         const existingMatch = matchDoc.data();
+        const captainAccess = await verifyCaptainImportAccess(req, leagueId, existingMatch, captain_id, team_id);
+        if (captainAccess.checked && !captainAccess.ok) {
+            res.status(403).json({ error: captainAccess.error });
+            return;
+        }
         const needsSwap = !teamsMatch(matchData.home_team, existingMatch.home_team_name);
 
         console.log(`Import: ${matchData.home_team} vs ${matchData.away_team}`);

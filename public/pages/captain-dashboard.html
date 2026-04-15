@@ -181,6 +181,7 @@
 
         <nav class="tab-nav" role="tablist" aria-label="Captain dashboard sections">
             <button class="tab-btn active" role="tab" aria-selected="true" aria-controls="tab-schedule" onclick="showTab('schedule', event)">SCHEDULE</button>
+            <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-import" onclick="showTab('import', event)">IMPORT</button>
             <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-subs" onclick="showTab('subs', event)">SUBSTITUTES</button>
             <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-freeagents" id="freeAgentsTab" onclick="showTab('freeagents', event)" style="display: none;">FREE AGENTS</button>
             <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-notifications" onclick="showTab('notifications', event)">ALERTS <span id="alertCount" aria-label="alert count"></span></button>
@@ -189,6 +190,66 @@
         <!-- Schedule Tab -->
         <section class="tab-content active" id="tab-schedule" role="tabpanel" aria-label="Match schedule">
             <div id="scheduleCards"></div>
+        </section>
+
+        <!-- Import Tab -->
+        <section class="tab-content" id="tab-import" role="tabpanel" aria-label="DartConnect import">
+            <div class="match-card">
+                <div class="match-card-header">
+                    <div class="match-team-side left">
+                        <div class="match-team-name">DartConnect Import</div>
+                        <div class="match-team-meta-row">
+                            <span class="match-team-record">Paste recap link only</span>
+                        </div>
+                    </div>
+                    <div class="match-center">
+                        <div class="match-week-label">CAPTAIN TOOL</div>
+                        <div class="match-vs">DC</div>
+                    </div>
+                    <div class="match-team-side right">
+                        <div class="match-team-name">Schedule Anchored</div>
+                        <div class="match-team-meta-row">
+                            <span class="match-team-record">throws first</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="match-card-body" style="padding: 18px;">
+                    <p style="color: var(--text-dim); margin-bottom: 14px; font-size: 14px;">
+                        Paste the DartConnect recap URL. BRDC will match it to your scheduled match by date, set format, player names, levels, and roster identity. Import is blocked unless the recap resolves to one of your team's matches.
+                    </p>
+                    <div class="form-group" style="margin-bottom: 14px;">
+                        <label class="form-label" for="captainImportRecapUrl">DartConnect Recap URL</label>
+                        <input type="text" class="form-input" id="captainImportRecapUrl" placeholder="https://recap.dartconnect.com/matches/..." autocomplete="off">
+                    </div>
+                    <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 14px;">
+                        <button class="brdc-btn brdc-btn-secondary" onclick="parseCaptainRecap()">PARSE RECAP</button>
+                        <button class="brdc-btn" id="captainImportBtn" onclick="importCaptainRecap()" disabled>IMPORT MATCH</button>
+                    </div>
+                    <div id="captainImportStatus" style="color: var(--text-dim); margin-bottom: 14px;">
+                        Paste a DartConnect recap URL to begin.
+                    </div>
+                    <div class="settings-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin-bottom: 14px;">
+                        <div>
+                            <span class="setting-label">Match</span>
+                            <span id="captainImportMatch">-</span>
+                        </div>
+                        <div>
+                            <span class="setting-label">Score</span>
+                            <span id="captainImportScore">-</span>
+                        </div>
+                        <div>
+                            <span class="setting-label">Games</span>
+                            <span id="captainImportGames">-</span>
+                        </div>
+                        <div>
+                            <span class="setting-label">Throws</span>
+                            <span id="captainImportThrows">-</span>
+                        </div>
+                    </div>
+                    <div id="captainImportErrors" style="color: #f87171; font-size: 13px;"></div>
+                    <div id="captainImportWarnings" style="color: var(--yellow); font-size: 13px; margin-top: 8px;"></div>
+                </div>
+            </div>
         </section>
 
         <!-- Subs Tab -->
@@ -1444,6 +1505,184 @@
                 document.getElementById('fillinPosition').value = level.toUpperCase();
             }
             openFillinModal();
+        };
+
+        // ============================================================================
+        // DARTCONNECT IMPORT FUNCTIONS
+        // ============================================================================
+
+        let captainImportPayload = null;
+        let captainImportValidation = null;
+        let captainImportParseSummary = null;
+
+        function resetCaptainImportState(message = 'Paste a DartConnect recap URL to begin.') {
+            captainImportPayload = null;
+            captainImportValidation = null;
+            captainImportParseSummary = null;
+            document.getElementById('captainImportBtn').disabled = true;
+            document.getElementById('captainImportStatus').textContent = message;
+            document.getElementById('captainImportMatch').textContent = '-';
+            document.getElementById('captainImportScore').textContent = '-';
+            document.getElementById('captainImportGames').textContent = '-';
+            document.getElementById('captainImportThrows').textContent = '-';
+            document.getElementById('captainImportErrors').innerHTML = '';
+            document.getElementById('captainImportWarnings').innerHTML = '';
+        }
+
+        function escapeText(value) {
+            return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function renderCaptainImportMessages(elementId, messages) {
+            const el = document.getElementById(elementId);
+            const list = Array.isArray(messages) ? messages.filter(Boolean) : [];
+            el.innerHTML = list.length
+                ? `<ul style="margin: 0; padding-left: 18px;">${list.map(msg => `<li>${escapeText(msg)}</li>`).join('')}</ul>`
+                : '';
+        }
+
+        function getCaptainMatch(matchId) {
+            return (dashboardData?.matches || []).find(match => match.id === matchId) || null;
+        }
+
+        function formatCaptainImportMatch(match) {
+            if (!match) return '-';
+            const opponent = match.is_home ? match.away_team_name : match.home_team_name;
+            return `Week ${match.week} - ${match.is_home ? 'vs' : '@'} ${opponent}`;
+        }
+
+        window.parseCaptainRecap = async function() {
+            const recapUrl = document.getElementById('captainImportRecapUrl').value.trim();
+            if (!recapUrl) {
+                toastWarning('Paste a DartConnect recap URL first');
+                return;
+            }
+
+            resetCaptainImportState('Parsing recap and matching your schedule...');
+            const parseBtn = event?.target;
+            if (parseBtn) {
+                parseBtn.disabled = true;
+                parseBtn.classList.add('btn-loading');
+            }
+
+            try {
+                const result = await callFunction('parseDartConnectRecap', {
+                    recapUrl,
+                    leagueId: currentLeagueId
+                });
+
+                captainImportPayload = result.matchData;
+                captainImportValidation = result.validation;
+                captainImportParseSummary = result.parse_summary || null;
+
+                const matchId = captainImportParseSummary?.schedule_match_id;
+                const match = getCaptainMatch(matchId);
+                const isOwnMatch = Boolean(match);
+                const valid = Boolean(captainImportValidation?.valid);
+                const warnings = captainImportValidation?.warnings || [];
+                const errors = captainImportValidation?.errors || [];
+                const score = captainImportPayload?.final_score || {};
+                const metrics = captainImportValidation?.metrics || {};
+                const autoMatch = captainImportParseSummary?.auto_match;
+
+                document.getElementById('captainImportMatch').textContent = match
+                    ? formatCaptainImportMatch(match)
+                    : (autoMatch ? `${autoMatch.home_team} vs ${autoMatch.away_team}` : '-');
+                document.getElementById('captainImportScore').textContent =
+                    Number.isFinite(score.home) && Number.isFinite(score.away) ? `${score.home}-${score.away}` : '-';
+                document.getElementById('captainImportGames').textContent =
+                    `${captainImportParseSummary?.parsed_group_count ?? '-'} / ${captainImportParseSummary?.scheduled_game_count ?? '-'}`;
+                document.getElementById('captainImportThrows').textContent = metrics.throws ?? '-';
+
+                renderCaptainImportMessages('captainImportErrors', errors);
+                renderCaptainImportMessages('captainImportWarnings', warnings);
+
+                if (!isOwnMatch) {
+                    document.getElementById('captainImportStatus').textContent =
+                        'Import blocked: this recap matched a scheduled match that is not on your captain schedule.';
+                    toastWarning('Recap matched a different team match');
+                    return;
+                }
+
+                if (!valid) {
+                    document.getElementById('captainImportStatus').textContent =
+                        'Import blocked: parser found validation errors. Send this recap to the league director.';
+                    toastWarning('Recap parsed with blocking validation errors');
+                    return;
+                }
+
+                const autoText = autoMatch
+                    ? ` Auto-match score ${autoMatch.score}${autoMatch.next_score ? `, next ${autoMatch.next_score}` : ''}.`
+                    : '';
+                document.getElementById('captainImportStatus').textContent =
+                    `Ready to import ${formatCaptainImportMatch(match)}.${autoText} Games ${captainImportParseSummary?.parsed_group_count}/${captainImportParseSummary?.scheduled_game_count}, throws ${metrics.throws ?? '-'}.`;
+                document.getElementById('captainImportBtn').disabled = false;
+                toastSuccess('Recap parsed and matched to your schedule');
+            } catch (error) {
+                console.error('Captain recap parse error:', error);
+                resetCaptainImportState(`Recap parse failed: ${error.message}`);
+                toastError(error.message);
+            } finally {
+                if (parseBtn) {
+                    parseBtn.disabled = false;
+                    parseBtn.classList.remove('btn-loading');
+                }
+            }
+        };
+
+        window.importCaptainRecap = async function() {
+            const matchId = captainImportParseSummary?.schedule_match_id;
+            const match = getCaptainMatch(matchId);
+            if (!captainImportPayload || !captainImportValidation || !captainImportParseSummary || !match) {
+                toastWarning('Parse a recap for one of your matches first');
+                return;
+            }
+            if (!captainImportValidation.valid) {
+                toastWarning('Import is blocked until validation errors are fixed');
+                return;
+            }
+            if (!confirm(`Import DartConnect results for ${formatCaptainImportMatch(match)}? This will update the match report and stats.`)) {
+                return;
+            }
+
+            const importBtn = document.getElementById('captainImportBtn');
+            importBtn.disabled = true;
+            importBtn.classList.add('btn-loading');
+            document.getElementById('captainImportStatus').textContent = 'Importing match...';
+
+            try {
+                const result = await callFunction('importMatchData', {
+                    leagueId: currentLeagueId,
+                    matchId,
+                    matchData: captainImportPayload,
+                    parseSummary: captainImportParseSummary,
+                    captain_id: currentPlayerId,
+                    team_id: currentTeamId
+                });
+
+                if (!result.success) {
+                    throw new Error(result.error || 'Import failed');
+                }
+
+                document.getElementById('captainImportStatus').textContent =
+                    `Import completed for ${formatCaptainImportMatch(match)}. Refreshing dashboard...`;
+                toastSuccess('Match imported successfully', 5000);
+                await loadDashboard();
+                resetCaptainImportState('Import completed. Paste another DartConnect recap URL if needed.');
+                showTab('import');
+            } catch (error) {
+                console.error('Captain import error:', error);
+                document.getElementById('captainImportStatus').textContent = `Import failed: ${error.message}`;
+                toastError(error.message);
+                importBtn.disabled = false;
+            } finally {
+                importBtn.classList.remove('btn-loading');
+            }
         };
 
         window.showTab = function(tabName, clickEvent) {
