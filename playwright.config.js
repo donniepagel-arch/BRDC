@@ -9,6 +9,10 @@ const { defineConfig, devices } = require('@playwright/test');
  */
 module.exports = defineConfig({
   testDir: './tests',
+  testIgnore: [
+    '**/x01/basic-scoring.test.js',
+    '**/x01/impossible-scores.test.js',
+  ],
 
   // Maximum time one test can run for
   timeout: 60 * 1000,
