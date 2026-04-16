@@ -126,21 +126,21 @@ function updateImportApprovalState() {
 export function initMemberImportCard() {
     const card = document.getElementById('memberImportCard');
     if (!card) return;
-    const { leagueId, teamId, playerId } = getPlayerLeague();
-    const canImport = Boolean(leagueId && teamId && playerId);
+    const { leagueId, playerId } = getPlayerLeague();
+    const canImport = Boolean(leagueId && playerId);
     card.style.display = canImport ? '' : 'none';
     if (canImport) resetMemberImport();
 }
 
 window.parseMemberRecap = async function(event) {
     const recapUrl = document.getElementById('memberImportRecapUrl')?.value?.trim();
-    const { leagueId, teamId } = getPlayerLeague();
+    const { leagueId } = getPlayerLeague();
     if (!recapUrl) {
         window.toastWarning?.('Paste a DartConnect recap URL first');
         return;
     }
-    if (!leagueId || !teamId) {
-        window.toastWarning?.('No league team found for this account');
+    if (!leagueId) {
+        window.toastWarning?.('No league found for this account');
         return;
     }
 
@@ -213,7 +213,7 @@ window.parseMemberRecap = async function(event) {
 window.importMemberRecap = async function() {
     const { leagueId, teamId, playerId } = getPlayerLeague();
     const matchId = memberImportParseSummary?.schedule_match_id;
-    if (!leagueId || !teamId || !playerId || !matchId || !memberImportPayload || !memberImportValidation?.valid) {
+    if (!leagueId || !playerId || !matchId || !memberImportPayload || !memberImportValidation?.valid) {
         window.toastWarning?.('Parse a valid recap for your team first');
         return;
     }
@@ -236,7 +236,7 @@ window.importMemberRecap = async function() {
             matchData: memberImportPayload,
             parseSummary: memberImportParseSummary,
             player_id: playerId,
-            team_id: teamId
+            team_id: teamId || null
         });
         if (!result.success) throw new Error(result.error || 'Import failed');
         window.toastSuccess?.('Match imported successfully', 5000);

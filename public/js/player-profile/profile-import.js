@@ -144,7 +144,7 @@ export async function initProfileImportCard() {
 
     try {
         importContext = await resolveImportContext();
-        const canImport = Boolean(importContext?.leagueId && importContext?.teamId && importContext?.playerId);
+        const canImport = Boolean(importContext?.leagueId && importContext?.playerId);
         card.style.display = canImport ? '' : 'none';
         if (canImport) resetMemberImport();
     } catch (error) {
@@ -159,8 +159,8 @@ window.parseMemberRecap = async function(event) {
         window.toastWarning?.('Paste a DartConnect recap URL first');
         return;
     }
-    if (!importContext?.leagueId || !importContext?.teamId) {
-        window.toastWarning?.('No league team found for this account');
+    if (!importContext?.leagueId) {
+        window.toastWarning?.('No league found for this account');
         return;
     }
 
@@ -228,7 +228,7 @@ window.parseMemberRecap = async function(event) {
 
 window.importMemberRecap = async function() {
     const matchId = memberImportParseSummary?.schedule_match_id;
-    if (!importContext?.leagueId || !importContext?.teamId || !importContext?.playerId || !matchId || !memberImportPayload || !memberImportValidation?.valid) {
+    if (!importContext?.leagueId || !importContext?.playerId || !matchId || !memberImportPayload || !memberImportValidation?.valid) {
         window.toastWarning?.('Parse a valid recap for your team first');
         return;
     }
@@ -252,7 +252,7 @@ window.importMemberRecap = async function() {
             matchData: memberImportPayload,
             parseSummary: memberImportParseSummary,
             player_id: importContext.playerId,
-            team_id: importContext.teamId
+            team_id: importContext.teamId || null
         });
         if (!result.success) throw new Error(result.error || 'Import failed');
         window.toastSuccess?.('Match imported successfully', 5000);

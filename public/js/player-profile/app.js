@@ -14,7 +14,7 @@ import { initProfileTab, loadStatsForSource } from '/js/player-profile/profile-s
 import { initFeedTab, loadFeedTab } from '/js/player-profile/profile-feed.js';
 import { initCareerTab, loadCareerTab } from '/js/player-profile/profile-career.js';
 import { initPhotosTab, loadPhotosTab } from '/js/player-profile/profile-photos.js';
-import { initProfileImportCard } from '/js/player-profile/profile-import.js?v=1';
+import { initProfileImportCard } from '/js/player-profile/profile-import.js?v=2';
 
 // ===== SHARED STATE =====
 

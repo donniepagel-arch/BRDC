@@ -845,10 +845,10 @@ async function verifyTeamMemberImportAccess(req, leagueId, match, actorId, teamI
     if (!actorId && !teamId) {
         return { checked: false };
     }
-    if (!actorId || !teamId) {
-        return { checked: true, ok: false, error: 'Member imports require player_id and team_id' };
+    if (!actorId) {
+        return { checked: true, ok: false, error: 'Member imports require player_id' };
     }
-    if (![match.home_team_id, match.away_team_id].includes(teamId)) {
+    if (teamId && ![match.home_team_id, match.away_team_id].includes(teamId)) {
         return { checked: true, ok: false, error: 'Members can only import matches involving their team' };
     }
 
@@ -889,19 +889,28 @@ async function verifyTeamMemberImportAccess(req, leagueId, match, actorId, teamI
     const emailMatches = decoded.email && player?.email &&
         String(player.email).toLowerCase() === decoded.email.toLowerCase();
     const globalMatches = player?.global_player_id && player.global_player_id === actorId;
-    const teamDoc = await db.collection('leagues').doc(leagueId).collection('teams').doc(teamId).get();
-    const team = teamDoc.exists ? teamDoc.data() : {};
     const playerName = normalizeIdentityName(player?.name);
-    const rosterIds = Array.isArray(team.player_ids) ? team.player_ids : [];
-    const rosterNames = Array.isArray(team.player_names) ? team.player_names : [];
-    const rosterMatches = Boolean(player) && (
-        player.team_id === teamId ||
-        rosterIds.includes(player.id) ||
-        rosterIds.includes(player.global_player_id) ||
-        (playerName && rosterNames.some(name => normalizeIdentityName(name) === playerName))
-    );
+    const possibleTeamIds = [match.home_team_id, match.away_team_id].filter(Boolean);
+    const teamMatches = [];
 
-    if (!player || !emailMatches || !rosterMatches) {
+    for (const possibleTeamId of possibleTeamIds) {
+        if (teamId && possibleTeamId !== teamId) continue;
+        const teamDoc = await db.collection('leagues').doc(leagueId).collection('teams').doc(possibleTeamId).get();
+        const team = teamDoc.exists ? teamDoc.data() : {};
+        const rosterIds = Array.isArray(team.player_ids) ? team.player_ids : [];
+        const rosterNames = Array.isArray(team.player_names) ? team.player_names : [];
+        const rosterMatches = Boolean(player) && (
+            player.team_id === possibleTeamId ||
+            rosterIds.includes(player.id) ||
+            rosterIds.includes(player.global_player_id) ||
+            (playerName && rosterNames.some(name => isLikelySamePlayerName(playerName, name) || normalizeIdentityName(name) === playerName))
+        );
+        if (rosterMatches) {
+            teamMatches.push(possibleTeamId);
+        }
+    }
+
+    if (!player || !emailMatches || teamMatches.length !== 1) {
         return { checked: true, ok: false, error: 'Not authorized as a member of this team' };
     }
 
@@ -909,6 +918,7 @@ async function verifyTeamMemberImportAccess(req, leagueId, match, actorId, teamI
         checked: true,
         ok: true,
         player_id: player.id,
+        team_id: teamMatches[0],
         global_player_id: globalMatches ? actorId : player.global_player_id || null
     };
 }
