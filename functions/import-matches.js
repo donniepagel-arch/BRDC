@@ -978,20 +978,23 @@ async function resolveScheduledMatchContextFromPayload(leagueId, payload) {
     }
 
     const [best, second] = candidates;
-    if (best.score < 250 || (second && best.score - second.score < 80)) {
+    if (best.score < 250) {
         const bestLabel = `${best.match.home_team_name || 'Home'} vs ${best.match.away_team_name || 'Away'} (${best.context.matchId})`;
         const secondLabel = second
             ? `${second.match.home_team_name || 'Home'} vs ${second.match.away_team_name || 'Away'} (${second.context.matchId})`
             : 'none';
-        throw new Error(`Unable to confidently match DartConnect recap to the schedule. Best: ${bestLabel}; next: ${secondLabel}. Select the match manually.`);
+        throw new Error(`Unable to match DartConnect recap to the schedule. Best candidate was too weak: ${bestLabel}; next: ${secondLabel}.`);
     }
 
+    const confidenceGap = second ? best.score - second.score : null;
     return {
         context: best.context,
         autoMatch: {
             match_id: best.context.matchId,
             score: best.score,
             next_score: second?.score || null,
+            confidence_gap: confidenceGap,
+            low_confidence: second ? confidenceGap < 80 : false,
             candidate_count: candidates.length,
             date: recapDate,
             home_team: best.context.home_team,

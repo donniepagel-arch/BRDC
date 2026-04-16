@@ -5535,7 +5535,7 @@ Bob Wilson"></textarea>
                 const anchorOk = parseSummary.schedule_match_id === matchId;
                 const autoMatch = parseSummary.auto_match;
                 const autoMatchText = autoMatch
-                    ? ` Auto-match score: ${autoMatch.score}${autoMatch.next_score ? ` (next ${autoMatch.next_score})` : ''}.`
+                    ? ` Auto-match score: ${autoMatch.score}${autoMatch.next_score ? ` (next ${autoMatch.next_score})` : ''}${autoMatch.low_confidence ? ' - LOW CONFIDENCE, REVIEW CAREFULLY' : ''}.`
                     : '';
                 const matchLabel = selectedMatch
                     ? `Week ${selectedMatch.week} - ${selectedMatch.home_team_name} vs ${selectedMatch.away_team_name}`
@@ -5552,6 +5552,8 @@ Bob Wilson"></textarea>
 
                 if (!importWorkbenchValidation.valid) {
                     toastWarning('Recap parsed, but the payload has blocking validation errors');
+                } else if (autoMatch?.low_confidence) {
+                    toastWarning('Recap auto-matched, but confidence is low. Review the matched week/match and set scores carefully.');
                 } else if (!anchorOk) {
                     toastWarning('Recap parsed, but the schedule anchor does not match the selected match');
                 } else if ((importWorkbenchValidation.warnings || []).length) {
