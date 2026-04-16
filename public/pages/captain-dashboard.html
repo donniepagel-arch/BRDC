@@ -18,6 +18,54 @@
 
     <!-- Toast Notifications -->
     <script src="/js/brdc-toast.js"></script>
+    <style>
+        .dc-import-set-table {
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .dc-import-set-header,
+        .dc-import-set-row {
+            display: grid;
+            grid-template-columns: 44px 78px minmax(0, 1fr) 70px 70px;
+            gap: 8px;
+            align-items: center;
+            padding: 9px 10px;
+        }
+        .dc-import-set-header {
+            background: rgba(255,255,255,0.06);
+            color: var(--text-dim);
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+        .dc-import-set-row {
+            border-top: 1px solid rgba(255,255,255,0.08);
+            font-size: 12px;
+        }
+        .dc-import-set-players {
+            min-width: 0;
+            overflow-wrap: anywhere;
+        }
+        @media (max-width: 640px) {
+            .dc-import-set-header {
+                display: none;
+            }
+            .dc-import-set-row {
+                grid-template-columns: 44px 1fr 64px;
+                grid-template-areas:
+                    "set game legs"
+                    "set players turns";
+                gap: 4px 10px;
+                padding: 12px 10px;
+            }
+            .dc-import-set-row > .dc-set-num { grid-area: set; align-self: center; }
+            .dc-import-set-row > .dc-set-game { grid-area: game; font-weight: 800; text-transform: uppercase; }
+            .dc-import-set-row > .dc-import-set-players { grid-area: players; line-height: 1.45; }
+            .dc-import-set-row > .dc-set-legs { grid-area: legs; text-align: right; }
+            .dc-import-set-row > .dc-set-turns { grid-area: turns; text-align: right; color: var(--text-dim); }
+        }
+    </style>
 </head>
 <body>
     <!-- Skip to content link -->
@@ -1562,8 +1610,8 @@
             }
 
             target.innerHTML = `
-                <div style="border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; overflow: hidden;">
-                    <div style="display: grid; grid-template-columns: 44px 78px 1fr 70px 70px; gap: 8px; padding: 8px 10px; background: rgba(255,255,255,0.06); color: var(--text-dim); font-size: 11px; font-weight: 800; text-transform: uppercase;">
+                <div class="dc-import-set-table">
+                    <div class="dc-import-set-header">
                         <span>Set</span>
                         <span>Game</span>
                         <span>Players</span>
@@ -1578,12 +1626,12 @@
                         const winner = game.winner === 'home' ? 'H' : game.winner === 'away' ? 'A' : '-';
                         const label = `${game.format || game.type || 'Game'}`;
                         return `
-                            <div style="display: grid; grid-template-columns: 44px 78px 1fr 70px 70px; gap: 8px; padding: 9px 10px; border-top: 1px solid rgba(255,255,255,0.08); align-items: center; font-size: 12px;">
-                                <strong>${idx + 1}</strong>
-                                <span>${escapeText(label)}</span>
-                                <span>${escapeText(homePlayers)} <span style="color: var(--text-dim);">vs</span> ${escapeText(awayPlayers)}</span>
-                                <strong>${homeLegs}-${awayLegs} ${winner}</strong>
-                                <span>${countImportSetThrows(game)}</span>
+                            <div class="dc-import-set-row">
+                                <strong class="dc-set-num">${idx + 1}</strong>
+                                <span class="dc-set-game">${escapeText(label)}</span>
+                                <span class="dc-import-set-players">${escapeText(homePlayers)} <span style="color: var(--text-dim);">vs</span> ${escapeText(awayPlayers)}</span>
+                                <strong class="dc-set-legs">${homeLegs}-${awayLegs} ${winner}</strong>
+                                <span class="dc-set-turns">${countImportSetThrows(game)} turns</span>
                             </div>
                         `;
                     }).join('')}

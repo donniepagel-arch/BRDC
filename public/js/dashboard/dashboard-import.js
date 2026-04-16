@@ -55,8 +55,8 @@ function renderSetSummary(matchData, targetId) {
     }
 
     target.innerHTML = `
-        <div style="border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; overflow: hidden;">
-            <div style="display: grid; grid-template-columns: 44px 78px 1fr 70px 70px; gap: 8px; padding: 8px 10px; background: rgba(255,255,255,0.06); color: var(--text-dim); font-size: 11px; font-weight: 800; text-transform: uppercase;">
+        <div class="dc-import-set-table">
+            <div class="dc-import-set-header">
                 <span>Set</span>
                 <span>Game</span>
                 <span>Players</span>
@@ -71,12 +71,12 @@ function renderSetSummary(matchData, targetId) {
                 const winner = game.winner === 'home' ? 'H' : game.winner === 'away' ? 'A' : '-';
                 const label = `${game.format || game.type || 'Game'}`;
                 return `
-                    <div style="display: grid; grid-template-columns: 44px 78px 1fr 70px 70px; gap: 8px; padding: 9px 10px; border-top: 1px solid rgba(255,255,255,0.08); align-items: center; font-size: 12px;">
-                        <strong>${idx + 1}</strong>
-                        <span>${escapeText(label)}</span>
-                        <span>${escapeText(homePlayers)} <span style="color: var(--text-dim);">vs</span> ${escapeText(awayPlayers)}</span>
-                        <strong>${homeLegs}-${awayLegs} ${winner}</strong>
-                        <span>${countSetThrows(game)}</span>
+                    <div class="dc-import-set-row">
+                        <strong class="dc-set-num">${idx + 1}</strong>
+                        <span class="dc-set-game">${escapeText(label)}</span>
+                        <span class="dc-import-set-players">${escapeText(homePlayers)} <span style="color: var(--text-dim);">vs</span> ${escapeText(awayPlayers)}</span>
+                        <strong class="dc-set-legs">${homeLegs}-${awayLegs} ${winner}</strong>
+                        <span class="dc-set-turns">${countSetThrows(game)} turns</span>
                     </div>
                 `;
             }).join('')}
