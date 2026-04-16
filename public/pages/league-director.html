@@ -2133,13 +2133,13 @@ Bob Wilson"></textarea>
                             <div class="card" style="margin-bottom: 20px;">
                                 <div class="card-header" style="background: linear-gradient(135deg, #14b8a6, #0f766e);">
                                     <div class="card-icon">IN</div>
-                                    <div class="card-title">Manual Import Workbench</div>
+                                    <div class="card-title">DartConnect Auto Import</div>
                                 </div>
                                     <div class="card-body">
                                         <p style="color: var(--text-dim); font-size: 13px; margin-bottom: 16px;">
-                                        Paste a DartConnect recap URL. The importer will match it to the BRDC schedule by match date, set format, and player identity; the selectors below are only needed if auto-match is ambiguous.
+                                        Paste a DartConnect recap URL. BRDC will auto-match it to the schedule by match date, set format, player identity, levels, and roster identity. No week or match selection is required.
                                     </p>
-                                    <div style="display: grid; grid-template-columns: minmax(120px, 180px) minmax(240px, 1fr); gap: 12px; margin-bottom: 14px;">
+                                    <div style="display: none; grid-template-columns: minmax(120px, 180px) minmax(240px, 1fr); gap: 12px; margin-bottom: 14px;">
                                         <div class="form-group" style="margin-bottom: 0;">
                                             <label class="brdc-label">Week</label>
                                             <select id="importWeekSelect" class="brdc-input" onchange="onImportWeekChanged()">
@@ -2155,24 +2155,29 @@ Bob Wilson"></textarea>
                                     </div>
                                     <input type="hidden" id="importMatchId">
                                     <div id="importSelectedMatchSummary" style="margin: -2px 0 14px; padding: 12px 14px; border-left: 6px solid var(--teal); background: rgba(20,184,166,0.08); color: var(--text-dim); font-size: 13px;">
-                                        Paste a DartConnect recap URL to auto-match it, or manually select a week and match first.
+                                        Paste a DartConnect recap URL to auto-match the scheduled BRDC match.
                                     </div>
                                     <div class="form-group" style="margin-bottom: 14px;">
                                         <label class="brdc-label">DartConnect Recap URL</label>
                                         <input type="text" id="importRecapUrl" class="brdc-input" placeholder="https://recap.dartconnect.com/matches/...">
                                     </div>
-                                    <div class="form-group" style="margin-bottom: 14px;">
+                                    <div class="form-group" style="display: none; margin-bottom: 14px;">
                                         <label class="brdc-label">Match Payload JSON</label>
                                         <textarea id="importPayloadJson" class="bulk-textarea" style="min-height: 220px; font-family: 'JetBrains Mono', monospace;" placeholder='{"home_team":"...","away_team":"...","games":[...]}'></textarea>
                                     </div>
                                     <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px;">
                                         <button class="brdc-btn brdc-btn-secondary" onclick="parseRecapToWorkbench()">Parse Recap URL</button>
-                                        <button class="brdc-btn brdc-btn-secondary" onclick="validateImportWorkbench()">Validate Payload</button>
-                                        <button class="brdc-btn" onclick="importValidatedPayload()">Import Validated Payload</button>
+                                        <button class="brdc-btn brdc-btn-secondary" style="display: none;" onclick="validateImportWorkbench()">Validate Payload</button>
+                                        <button class="brdc-btn" id="importWorkbenchImportBtn" onclick="importValidatedPayload()" disabled>Import Matched Recap</button>
                                     </div>
                                     <div id="importWorkbenchStatus" style="margin-bottom: 16px; color: var(--text-dim);">
                                         Paste a DartConnect recap URL. Auto-match will select the scheduled BRDC match before import.
                                     </div>
+                                    <div id="importSetSummary" style="margin-bottom: 16px;"></div>
+                                    <label style="display: flex; gap: 8px; align-items: flex-start; margin-bottom: 16px; color: var(--text-dim); font-size: 13px; line-height: 1.4;">
+                                        <input type="checkbox" id="importConfirmScores" onchange="updateImportWorkbenchApproval()" disabled>
+                                        <span>I reviewed the matched week/match, final score, and every set score. They match the DartConnect recap.</span>
+                                    </label>
                                     <div class="settings-grid" style="margin-bottom: 16px;">
                                         <div>
                                             <span class="setting-label">Games</span>
@@ -5287,8 +5292,17 @@ Bob Wilson"></textarea>
             importWorkbenchParseSummary = null;
             const payload = document.getElementById('importPayloadJson');
             const status = document.getElementById('importWorkbenchStatus');
+            const setSummary = document.getElementById('importSetSummary');
+            const confirmScores = document.getElementById('importConfirmScores');
+            const importBtn = document.getElementById('importWorkbenchImportBtn');
             if (payload) payload.value = '';
             if (status) status.textContent = message;
+            if (setSummary) setSummary.innerHTML = '';
+            if (confirmScores) {
+                confirmScores.checked = false;
+                confirmScores.disabled = true;
+            }
+            if (importBtn) importBtn.disabled = true;
             ['importValidationGames', 'importValidationLegs', 'importValidationLegsWithThrows', 'importValidationSummaryLegs']
                 .forEach(id => {
                     const el = document.getElementById(id);
@@ -5298,13 +5312,71 @@ Bob Wilson"></textarea>
             renderImportMessages('importValidationErrors', [], '#f87171', 'No validation run yet.');
         }
 
+        function updateImportWorkbenchApproval() {
+            const importBtn = document.getElementById('importWorkbenchImportBtn');
+            const confirmScores = document.getElementById('importConfirmScores');
+            const matchId = document.getElementById('importMatchId')?.value?.trim();
+            const canImport = Boolean(
+                matchId &&
+                importWorkbenchPayload &&
+                importWorkbenchValidation?.valid &&
+                importWorkbenchParseSummary?.schedule_match_id === matchId &&
+                confirmScores?.checked
+            );
+            if (importBtn) importBtn.disabled = !canImport;
+        }
+
+        window.updateImportWorkbenchApproval = updateImportWorkbenchApproval;
+
+        function countImportSetThrows(game) {
+            return (game?.legs || []).reduce((total, leg) => total + (Array.isArray(leg.throws) ? leg.throws.length : 0), 0);
+        }
+
+        function renderImportSetSummary(matchData) {
+            const target = document.getElementById('importSetSummary');
+            if (!target) return;
+            const games = Array.isArray(matchData?.games) ? matchData.games : [];
+            if (!games.length) {
+                target.innerHTML = '';
+                return;
+            }
+
+            target.innerHTML = `
+                <div style="border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; overflow: hidden;">
+                    <div style="display: grid; grid-template-columns: 44px 78px minmax(0, 1fr) 70px 70px; gap: 10px; align-items: center; padding: 9px 11px; color: var(--text-dim); background: rgba(0,0,0,0.28); font-size: 11px; text-transform: uppercase; letter-spacing: 0.7px;">
+                        <span>Set</span>
+                        <span>Game</span>
+                        <span>Players</span>
+                        <span>Legs</span>
+                        <span>Turns</span>
+                    </div>
+                    ${games.map((game, idx) => {
+                        const homePlayers = (game.home_players || []).join(' + ') || 'Home';
+                        const awayPlayers = (game.away_players || []).join(' + ') || 'Away';
+                        const homeLegs = game.result?.home_legs ?? 0;
+                        const awayLegs = game.result?.away_legs ?? 0;
+                        const winner = game.winner === 'home' ? 'H' : game.winner === 'away' ? 'A' : '-';
+                        return `
+                            <div style="display: grid; grid-template-columns: 44px 78px minmax(0, 1fr) 70px 70px; gap: 10px; align-items: center; padding: 9px 11px; border-top: 1px solid rgba(255,255,255,0.08); font-size: 13px;">
+                                <strong>${idx + 1}</strong>
+                                <span>${escapeHtml(game.format || game.type || 'Game')}</span>
+                                <span style="overflow-wrap: anywhere;">${escapeHtml(homePlayers)} <span style="color: var(--text-dim);">vs</span> ${escapeHtml(awayPlayers)}</span>
+                                <strong>${homeLegs}-${awayLegs} ${winner}</strong>
+                                <span>${countImportSetThrows(game)} turns</span>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+        }
+
         function renderImportSelectedMatchSummary() {
             const summary = document.getElementById('importSelectedMatchSummary');
             if (!summary) return;
 
             const match = getImportSelectedMatch();
             if (!match) {
-                summary.textContent = 'Select a week and scheduled match before parsing a DartConnect recap.';
+                summary.textContent = 'Paste a DartConnect recap URL to auto-match the scheduled BRDC match.';
                 return;
             }
 
@@ -5418,24 +5490,18 @@ Bob Wilson"></textarea>
 
         window.parseRecapToWorkbench = async function() {
             const recapUrl = document.getElementById('importRecapUrl').value.trim();
-            const selectedMatchBeforeParse = getImportSelectedMatch();
-            const selectedMatchIdBeforeParse = document.getElementById('importMatchId').value.trim();
             if (!recapUrl) {
                 toastWarning('Paste a DartConnect recap URL first');
                 return;
             }
 
             try {
-                showLoading(selectedMatchBeforeParse
-                    ? `Parsing recap for Week ${selectedMatchBeforeParse.week}...`
-                    : 'Parsing recap and matching schedule...');
+                resetImportWorkbenchPayload('Parsing recap and matching schedule...');
+                showLoading('Parsing recap and matching schedule...');
                 const parseRequest = {
                     recapUrl,
                     leagueId
                 };
-                if (selectedMatchIdBeforeParse) {
-                    parseRequest.matchId = selectedMatchIdBeforeParse;
-                }
                 const result = await callFunction('parseDartConnectRecap', parseRequest);
                 hideLoading();
 
@@ -5457,6 +5523,7 @@ Bob Wilson"></textarea>
 
                 document.getElementById('importPayloadJson').value = JSON.stringify(importWorkbenchPayload, null, 2);
                 renderImportValidation(importWorkbenchValidation);
+                renderImportSetSummary(importWorkbenchPayload);
 
                 const parseSummary = importWorkbenchParseSummary || {};
                 const summaryOnlyLegs = parseSummary.summary_only_legs ?? '-';
@@ -5475,6 +5542,13 @@ Bob Wilson"></textarea>
                     : 'selected scheduled match';
                 document.getElementById('importWorkbenchStatus').textContent =
                     `Parsed DartConnect recap for ${matchLabel} (${recapComponent}). Schedule anchor: ${anchorOk ? 'OK' : 'MISMATCH'}.${autoMatchText} Trimmed old/placeholder groups: ${trimmedGroups}. Parsed groups: ${parsedGroups}/${scheduledGroups}. Summary-only legs: ${summaryOnlyLegs}. Unresolved players: ${unresolvedPlayers}. Review warnings before import.`;
+
+                const confirmScores = document.getElementById('importConfirmScores');
+                if (confirmScores) {
+                    confirmScores.checked = false;
+                    confirmScores.disabled = !(importWorkbenchValidation.valid && anchorOk);
+                }
+                updateImportWorkbenchApproval();
 
                 if (!importWorkbenchValidation.valid) {
                     toastWarning('Recap parsed, but the payload has blocking validation errors');
@@ -5539,7 +5613,7 @@ Bob Wilson"></textarea>
             const selectedMatch = getImportSelectedMatch();
 
             if (!matchId || !selectedMatch) {
-                toastWarning('Select the scheduled BRDC match first');
+                toastWarning('Parse a DartConnect recap first so BRDC can auto-match the scheduled match');
                 return;
             }
 
@@ -5564,6 +5638,11 @@ Bob Wilson"></textarea>
                 toastWarning('Import blocked. Parsed payload belongs to a different scheduled match.');
                 document.getElementById('importWorkbenchStatus').textContent =
                     `Import blocked: parse summary is anchored to ${importWorkbenchParseSummary.schedule_match_id}, but selected match is ${matchId}.`;
+                return;
+            }
+
+            if (!document.getElementById('importConfirmScores')?.checked) {
+                toastWarning('Confirm the matched week/match, final score, and set scores before importing');
                 return;
             }
 
