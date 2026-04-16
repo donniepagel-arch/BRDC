@@ -1,41 +1,9 @@
 import { callFunction } from '/js/firebase-config.js';
-import { currentPlayer, dashboardData } from '/js/dashboard/dashboard-state.js';
 
+let importContext = null;
 let memberImportPayload = null;
 let memberImportValidation = null;
 let memberImportParseSummary = null;
-
-function getPlayerLeague() {
-    let session = {};
-    try {
-        session = JSON.parse(localStorage.getItem('brdc_session') || '{}');
-    } catch (e) {
-        session = {};
-    }
-
-    const roles = dashboardData?.roles || {};
-    const playing = Array.isArray(roles.playing) ? roles.playing : [];
-    const firstPlaying = playing.find(role => role?.team_id) || playing[0] || {};
-    const player = currentPlayer || dashboardData?.player || {};
-    const involvements = player?.involvements || session?.involvements || {};
-    const involvedLeagues = Array.isArray(involvements.leagues) ? involvements.leagues : [];
-    const firstInvolvedLeague = involvedLeagues.find(league => league?.team_id) || involvedLeagues[0] || {};
-
-    return {
-        leagueId: player.league_id || session.league_id || firstPlaying.league_id || firstPlaying.id || firstInvolvedLeague.id || null,
-        teamId: player.team_id || session.team_id || firstPlaying.team_id || firstInvolvedLeague.team_id || null,
-        playerId: player.id || session.player_id || null
-    };
-}
-
-function getTeamMatch(matchId) {
-    const schedule = [
-        ...(dashboardData?.schedule || []),
-        ...(dashboardData?.matches || []),
-        ...(dashboardData?.events || [])
-    ];
-    return schedule.find(item => item.id === matchId || item.match_id === matchId) || null;
-}
 
 function escapeText(value) {
     return String(value ?? '')
@@ -46,19 +14,69 @@ function escapeText(value) {
         .replace(/'/g, '&#039;');
 }
 
+function getStoredSession() {
+    try {
+        return JSON.parse(localStorage.getItem('brdc_session') || '{}');
+    } catch (e) {
+        return {};
+    }
+}
+
+function getFirstTeamContext(player, dashboard) {
+    const roles = dashboard?.roles || {};
+    const playing = Array.isArray(roles.playing) ? roles.playing : [];
+    const firstPlaying = playing.find(role => role?.team_id) || playing[0] || {};
+    const involvements = player?.involvements || {};
+    const leagues = Array.isArray(involvements.leagues) ? involvements.leagues : [];
+    const firstLeague = leagues.find(league => league?.team_id) || leagues[0] || {};
+
+    return {
+        playerId: player?.id || dashboard?.player?.id || null,
+        leagueId: player?.league_id || dashboard?.player?.league_id || firstPlaying.league_id || firstPlaying.id || firstLeague.id || null,
+        teamId: player?.team_id || dashboard?.player?.team_id || firstPlaying.team_id || firstLeague.team_id || null
+    };
+}
+
+async function resolveImportContext() {
+    const session = getStoredSession();
+    let player = {
+        id: session.player_id || session.id || null,
+        name: session.name || '',
+        league_id: session.league_id || null,
+        team_id: session.team_id || null,
+        involvements: session.involvements || {}
+    };
+
+    if (!player.id) {
+        const sessionResult = await callFunction('getPlayerSession', {});
+        if (!sessionResult?.success) throw new Error(sessionResult?.error || 'Could not load your player session');
+        player = sessionResult.player;
+    }
+
+    const context = getFirstTeamContext(player, null);
+    if (context.leagueId && context.teamId && context.playerId) return context;
+
+    const dashboardResult = await callFunction('getDashboardData', {
+        player_id: player.id,
+        source_type: player.source_type || 'global',
+        league_id: player.league_id || context.leagueId || null
+    });
+    if (!dashboardResult?.success) throw new Error(dashboardResult?.error || 'Could not load league team context');
+
+    return getFirstTeamContext(dashboardResult.dashboard?.player || player, dashboardResult.dashboard);
+}
+
 function setStatus(message) {
     const status = document.getElementById('memberImportStatus');
     if (status) status.textContent = message;
 }
 
 function countSetThrows(game) {
-    return (game?.legs || []).reduce((total, leg) => {
-        return total + (Array.isArray(leg.throws) ? leg.throws.length : 0);
-    }, 0);
+    return (game?.legs || []).reduce((total, leg) => total + (Array.isArray(leg.throws) ? leg.throws.length : 0), 0);
 }
 
-function renderSetSummary(matchData, targetId) {
-    const target = document.getElementById(targetId);
+function renderSetSummary(matchData) {
+    const target = document.getElementById('memberImportSetSummary');
     if (!target) return;
     const games = Array.isArray(matchData?.games) ? matchData.games : [];
     if (!games.length) {
@@ -81,11 +99,10 @@ function renderSetSummary(matchData, targetId) {
                 const homeLegs = game.result?.home_legs ?? 0;
                 const awayLegs = game.result?.away_legs ?? 0;
                 const winner = game.winner === 'home' ? 'H' : game.winner === 'away' ? 'A' : '-';
-                const label = `${game.format || game.type || 'Game'}`;
                 return `
                     <div class="dc-import-set-row">
                         <strong class="dc-set-num">${idx + 1}</strong>
-                        <span class="dc-set-game">${escapeText(label)}</span>
+                        <span class="dc-set-game">${escapeText(game.format || game.type || 'Game')}</span>
                         <span class="dc-import-set-players">${escapeText(homePlayers)} <span style="color: var(--text-dim);">vs</span> ${escapeText(awayPlayers)}</span>
                         <strong class="dc-set-legs">${homeLegs}-${awayLegs} ${winner}</strong>
                         <span class="dc-set-turns">${countSetThrows(game)} turns</span>
@@ -96,7 +113,7 @@ function renderSetSummary(matchData, targetId) {
     `;
 }
 
-function resetMemberImport(message = 'Any league member can import a DartConnect recap for their own team match.') {
+function resetMemberImport(message = 'Paste a DartConnect recap link. You must confirm the final and set scores before importing.') {
     memberImportPayload = null;
     memberImportValidation = null;
     memberImportParseSummary = null;
@@ -108,12 +125,10 @@ function resetMemberImport(message = 'Any league member can import a DartConnect
         confirmBox.disabled = true;
     }
     setStatus(message);
-    const summary = document.getElementById('memberImportSummary');
-    const setSummary = document.getElementById('memberImportSetSummary');
-    const errors = document.getElementById('memberImportErrors');
-    if (summary) summary.innerHTML = '';
-    if (setSummary) setSummary.innerHTML = '';
-    if (errors) errors.innerHTML = '';
+    ['memberImportSummary', 'memberImportSetSummary', 'memberImportErrors'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.innerHTML = '';
+    });
 }
 
 function updateImportApprovalState() {
@@ -123,42 +138,45 @@ function updateImportApprovalState() {
     if (importBtn) importBtn.disabled = !(hasValidPreview && confirmBox?.checked);
 }
 
-export function initMemberImportCard() {
+export async function initProfileImportCard() {
     const card = document.getElementById('memberImportCard');
     if (!card) return;
-    const { leagueId, teamId, playerId } = getPlayerLeague();
-    const canImport = Boolean(leagueId && teamId && playerId);
-    card.style.display = canImport ? '' : 'none';
-    if (canImport) resetMemberImport();
+
+    try {
+        importContext = await resolveImportContext();
+        const canImport = Boolean(importContext?.leagueId && importContext?.teamId && importContext?.playerId);
+        card.style.display = canImport ? '' : 'none';
+        if (canImport) resetMemberImport();
+    } catch (error) {
+        console.warn('Profile import unavailable:', error.message);
+        card.style.display = 'none';
+    }
 }
 
 window.parseMemberRecap = async function(event) {
     const recapUrl = document.getElementById('memberImportRecapUrl')?.value?.trim();
-    const { leagueId, teamId } = getPlayerLeague();
     if (!recapUrl) {
         window.toastWarning?.('Paste a DartConnect recap URL first');
         return;
     }
-    if (!leagueId || !teamId) {
+    if (!importContext?.leagueId || !importContext?.teamId) {
         window.toastWarning?.('No league team found for this account');
         return;
     }
 
     resetMemberImport('Parsing recap and matching your team schedule...');
-    const parseBtn = event?.target || null;
+    const parseBtn = event?.target;
     if (parseBtn) parseBtn.disabled = true;
 
     try {
         const result = await callFunction('parseDartConnectRecap', {
             recapUrl,
-            leagueId
+            leagueId: importContext.leagueId
         });
         memberImportPayload = result.matchData;
         memberImportValidation = result.validation;
         memberImportParseSummary = result.parse_summary || null;
 
-        const matchId = memberImportParseSummary?.schedule_match_id;
-        const match = getTeamMatch(matchId);
         const autoMatch = memberImportParseSummary?.auto_match;
         const score = memberImportPayload?.final_score || {};
         const metrics = memberImportValidation?.metrics || {};
@@ -168,16 +186,16 @@ window.parseMemberRecap = async function(event) {
         const errorsEl = document.getElementById('memberImportErrors');
 
         if (summaryEl) {
+            const title = escapeText(autoMatch ? `${autoMatch.home_team} vs ${autoMatch.away_team}` : memberImportParseSummary?.schedule_match_id || 'Matched schedule');
             const lines = [
-                `Score: ${Number.isFinite(score.home) && Number.isFinite(score.away) ? `${score.home}-${score.away}` : '-'}`,
-                `Games: ${memberImportParseSummary?.parsed_group_count ?? '-'} / ${memberImportParseSummary?.scheduled_game_count ?? '-'}`,
+                `Final score: ${Number.isFinite(score.home) && Number.isFinite(score.away) ? `${score.home}-${score.away}` : '-'}`,
+                `Sets parsed: ${memberImportParseSummary?.parsed_group_count ?? '-'} / ${memberImportParseSummary?.scheduled_game_count ?? '-'}`,
                 `Throws: ${metrics.throws ?? '-'}`,
-                autoMatch ? `Auto-match score: ${autoMatch.score}${autoMatch.next_score ? `, next ${autoMatch.next_score}` : ''}` : ''
+                autoMatch ? `Auto-match confidence: ${autoMatch.score}${autoMatch.next_score ? `, next ${autoMatch.next_score}` : ''}` : ''
             ].filter(Boolean).map(escapeText);
-            const title = escapeText(autoMatch ? `${autoMatch.home_team} vs ${autoMatch.away_team}` : matchId || 'Matched schedule');
             summaryEl.innerHTML = `<strong>${title}</strong><br>${lines.join('<br>')}`;
         }
-        renderSetSummary(memberImportPayload, 'memberImportSetSummary');
+        renderSetSummary(memberImportPayload);
         if (errorsEl) {
             const allMessages = [...errors, ...warnings];
             errorsEl.innerHTML = allMessages.length
@@ -196,13 +214,11 @@ window.parseMemberRecap = async function(event) {
             confirmBox.disabled = false;
             confirmBox.checked = false;
         }
-        setStatus(match
-            ? 'Review the night score and every set score, then check the confirmation box to enable import.'
-            : 'Review the parsed scores. Server will verify this match belongs to your team before saving.');
+        setStatus('Review the final night score and every set score, then check the confirmation box to enable import.');
         updateImportApprovalState();
         window.toastSuccess?.('Recap parsed and matched');
     } catch (error) {
-        console.error('Member recap parse error:', error);
+        console.error('Profile recap parse error:', error);
         resetMemberImport(`Recap parse failed: ${error.message}`);
         window.toastError?.(error.message);
     } finally {
@@ -211,9 +227,8 @@ window.parseMemberRecap = async function(event) {
 };
 
 window.importMemberRecap = async function() {
-    const { leagueId, teamId, playerId } = getPlayerLeague();
     const matchId = memberImportParseSummary?.schedule_match_id;
-    if (!leagueId || !teamId || !playerId || !matchId || !memberImportPayload || !memberImportValidation?.valid) {
+    if (!importContext?.leagueId || !importContext?.teamId || !importContext?.playerId || !matchId || !memberImportPayload || !memberImportValidation?.valid) {
         window.toastWarning?.('Parse a valid recap for your team first');
         return;
     }
@@ -221,6 +236,7 @@ window.importMemberRecap = async function() {
         window.toastWarning?.('Confirm the set and match scores before importing');
         return;
     }
+
     const score = memberImportPayload?.final_score || {};
     const scoreText = Number.isFinite(score.home) && Number.isFinite(score.away) ? `${score.home}-${score.away}` : 'parsed score';
     if (!confirm(`Import this DartConnect recap with final score ${scoreText}? This updates the match report and league stats.`)) return;
@@ -231,18 +247,18 @@ window.importMemberRecap = async function() {
 
     try {
         const result = await callFunction('importMatchData', {
-            leagueId,
+            leagueId: importContext.leagueId,
             matchId,
             matchData: memberImportPayload,
             parseSummary: memberImportParseSummary,
-            player_id: playerId,
-            team_id: teamId
+            player_id: importContext.playerId,
+            team_id: importContext.teamId
         });
         if (!result.success) throw new Error(result.error || 'Import failed');
         window.toastSuccess?.('Match imported successfully', 5000);
         resetMemberImport('Import completed. Paste another DartConnect recap URL if needed.');
     } catch (error) {
-        console.error('Member import error:', error);
+        console.error('Profile import error:', error);
         setStatus(`Import failed: ${error.message}`);
         window.toastError?.(error.message);
         if (importBtn) importBtn.disabled = false;

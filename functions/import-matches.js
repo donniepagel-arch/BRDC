@@ -542,6 +542,58 @@ function buildIdentityAliases(name) {
     return Array.from(aliases).filter(Boolean);
 }
 
+function editDistance(a, b) {
+    const left = normalizeIdentityName(a);
+    const right = normalizeIdentityName(b);
+    if (!left || !right) return Math.max(left.length, right.length);
+    if (left === right) return 0;
+
+    const previous = Array.from({ length: right.length + 1 }, (_, idx) => idx);
+    const current = new Array(right.length + 1);
+
+    for (let i = 1; i <= left.length; i++) {
+        current[0] = i;
+        for (let j = 1; j <= right.length; j++) {
+            const cost = left[i - 1] === right[j - 1] ? 0 : 1;
+            current[j] = Math.min(
+                previous[j] + 1,
+                current[j - 1] + 1,
+                previous[j - 1] + cost
+            );
+        }
+        for (let j = 0; j <= right.length; j++) previous[j] = current[j];
+    }
+
+    return previous[right.length];
+}
+
+function isLikelySamePlayerName(importedName, rosterName) {
+    const importedTokens = getIdentityTokens(importedName);
+    const rosterTokens = getIdentityTokens(rosterName);
+    if (importedTokens.length < 2 || rosterTokens.length < 2) return false;
+
+    const importedFirst = importedTokens[0];
+    const importedLast = importedTokens[importedTokens.length - 1];
+    const rosterFirst = rosterTokens[0];
+    const rosterLast = rosterTokens[rosterTokens.length - 1];
+    const firstCompatible = getIdentityFirstNameVariants(importedFirst).includes(rosterFirst) ||
+        importedFirst[0] === rosterFirst[0] && editDistance(importedFirst, rosterFirst) <= 1;
+    const lastCompatible = importedLast[0] === rosterLast[0] && editDistance(importedLast, rosterLast) <= 2;
+
+    return firstCompatible && lastCompatible;
+}
+
+function nameAliasSetHasMatch(name, aliasSet) {
+    const aliases = buildIdentityAliases(name);
+    if (aliases.some((alias) => aliasSet.has(alias))) return true;
+    return aliases.some((alias) => {
+        for (const candidate of aliasSet) {
+            if (isLikelySamePlayerName(alias, candidate)) return true;
+        }
+        return false;
+    });
+}
+
 function choosePreferredResolvedPlayer(current, candidate, preferredIds = new Set()) {
     if (!current) return candidate;
     if (preferredIds.has(candidate.id) !== preferredIds.has(current.id)) {
@@ -608,6 +660,9 @@ function buildPlayerAliasResolver(players, preferredIds = new Set()) {
         });
         if (byLastName.length === 1) return byLastName[0];
 
+        const fuzzyMatches = (players || []).filter((player) => isLikelySamePlayerName(rawName, player.name));
+        if (fuzzyMatches.length === 1) return fuzzyMatches[0];
+
         return null;
     };
 }
@@ -616,7 +671,7 @@ function buildRosterAliasSet(rosterPlayers) {
     const aliases = new Set();
     const rosterIds = new Set((rosterPlayers || []).map(player => player.id).filter(Boolean));
     (rosterPlayers || []).forEach((player) => {
-        aliases.add(normalizeIdentityName(player.name));
+        buildIdentityAliases(player.name).forEach((alias) => aliases.add(alias));
     });
     Object.entries(DEFAULT_PLAYER_IDS).forEach(([alias, playerId]) => {
         if (rosterIds.has(playerId)) {
@@ -647,7 +702,7 @@ function resolveThrowSidePlayer(turnSide, scheduledContext, unresolvedPlayers) {
 }
 
 function countRosterMatches(names, aliasSet) {
-    return (names || []).reduce((count, name) => count + (aliasSet.has(normalizeIdentityName(name)) ? 1 : 0), 0);
+    return (names || []).reduce((count, name) => count + (nameAliasSetHasMatch(name, aliasSet) ? 1 : 0), 0);
 }
 
 function swapMappedGameSides(game) {

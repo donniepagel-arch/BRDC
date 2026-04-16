@@ -224,6 +224,107 @@
             letter-spacing: 0.5px;
         }
 
+        .dc-import-card {
+            background: var(--bg-panel);
+            border-top: 1px solid var(--pink);
+            border-bottom: 1px solid rgba(255,255,255,0.16);
+            padding: 14px 16px;
+            margin-bottom: 8px;
+        }
+        .dc-import-row { display: flex; align-items: center; gap: 10px; }
+        .dc-import-avatar {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--pink), var(--teal));
+            color: #fff;
+            font-family: 'Oswald', sans-serif;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .dc-import-input-wrap { flex: 1; min-width: 0; }
+        .dc-import-chip {
+            display: inline-block;
+            color: var(--yellow);
+            font-family: 'Oswald', sans-serif;
+            font-size: 11px;
+            letter-spacing: 1px;
+            margin-bottom: 5px;
+        }
+        .dc-import-input {
+            width: 100%;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.14);
+            color: var(--text-light);
+            border-radius: 8px;
+            padding: 11px 12px;
+            font-size: 13px;
+        }
+        .dc-import-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+        .dc-import-btn {
+            border: 0;
+            border-radius: 7px;
+            padding: 9px 14px;
+            background: var(--pink);
+            color: #fff;
+            font-family: 'Oswald', sans-serif;
+            font-weight: 800;
+            letter-spacing: 1px;
+            cursor: pointer;
+        }
+        .dc-import-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+        .dc-import-set-table {
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .dc-import-set-header,
+        .dc-import-set-row {
+            display: grid;
+            grid-template-columns: 44px 78px minmax(0, 1fr) 70px 70px;
+            gap: 10px;
+            align-items: center;
+            padding: 9px 11px;
+        }
+        .dc-import-set-header {
+            color: var(--text-dim);
+            background: rgba(0,0,0,0.28);
+            font-family: 'Oswald', sans-serif;
+            font-size: 11px;
+            letter-spacing: 0.7px;
+            text-transform: uppercase;
+        }
+        .dc-import-set-row { border-top: 1px solid rgba(255,255,255,0.08); font-size: 13px; }
+        .dc-import-set-players { min-width: 0; overflow-wrap: anywhere; }
+        @media (max-width: 640px) {
+            .dc-import-card { padding-bottom: 76px; }
+            .dc-import-row { align-items: flex-start; }
+            .dc-import-set-header { display: none; }
+            .dc-import-set-row {
+                grid-template-columns: 44px 1fr 64px;
+                grid-template-areas:
+                    "num game legs"
+                    "num players players"
+                    "num turns turns";
+                gap: 4px 10px;
+                padding: 10px 12px;
+            }
+            .dc-set-num { grid-area: num; }
+            .dc-set-game { grid-area: game; }
+            .dc-set-legs { grid-area: legs; text-align: right; }
+            .dc-import-set-players { grid-area: players; }
+            .dc-set-turns { grid-area: turns; color: var(--text-dim); font-size: 12px; }
+        }
+
         /* Quick Nav Cards */
         .quick-nav-row {
             display: flex;
@@ -1070,6 +1171,28 @@
             </div>
         </div>
 
+        <section class="dc-import-card" id="memberImportCard" style="display: none;" aria-label="DartConnect match import">
+            <div class="dc-import-row">
+                <div class="dc-import-avatar">DC</div>
+                <div class="dc-import-input-wrap">
+                    <div class="dc-import-chip">MATCH IMPORT</div>
+                    <input id="memberImportRecapUrl" class="dc-import-input" type="text" placeholder="Paste DartConnect recap link to import your team's match" autocomplete="off" aria-label="DartConnect recap URL">
+                </div>
+            </div>
+            <div id="memberImportStatus" style="color: var(--text-dim); font-size: 12px; margin-top: 8px;">Paste a DartConnect recap link. You must confirm the final and set scores before importing.</div>
+            <div class="dc-import-actions">
+                <button type="button" class="dc-import-btn" onclick="parseMemberRecap(event)">PARSE</button>
+                <button type="button" class="dc-import-btn" id="memberImportBtn" onclick="importMemberRecap()" disabled>IMPORT</button>
+            </div>
+            <div id="memberImportSummary" style="color: var(--text-dim); font-size: 13px; margin-top: 10px;"></div>
+            <div id="memberImportSetSummary" style="margin-top: 12px;"></div>
+            <label style="display: flex; gap: 8px; align-items: flex-start; margin-top: 10px; color: var(--text-dim); font-size: 12px; line-height: 1.4;">
+                <input type="checkbox" id="memberImportConfirm" onchange="confirmMemberImportPreview()" disabled>
+                <span>I reviewed the final night score and each set score above. They match the DartConnect recap.</span>
+            </label>
+            <div id="memberImportErrors" style="color: #f87171; font-size: 13px; margin-top: 8px;"></div>
+        </section>
+
         <div class="brdc-card">
             <div style="padding: 0;">
 
@@ -1295,7 +1418,7 @@
     <script src="/js/presence.js"></script>
     <script src="/js/social.js"></script>
     <script type="module">
-        import { init } from '/js/player-profile/app.js';
+        import { init } from '/js/player-profile/app.js?v=2';
         // Module initialization happens in app.js
     </script>
 
