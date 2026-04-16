@@ -13,7 +13,7 @@ import { collection, doc, getDoc, getDocs, query, where, orderBy, limit } from '
 import { currentPlayer, dashboardData, setCurrentPlayer, setDashboardData } from '/js/dashboard/dashboard-state.js';
 import { loadScheduleStories } from '/js/dashboard/dashboard-schedule.js';
 import { loadFeed } from '/js/dashboard/dashboard-feed.js';
-import { initMemberImportCard } from '/js/dashboard/dashboard-import.js';
+import { initMemberImportCard } from '/js/dashboard/dashboard-import.js?v=2';
 
 // ===== INITIALIZATION =====
 
@@ -60,6 +60,7 @@ function initDashboard() {
                 name: player.name,
                 source_type: 'global',
                 league_id: player.league_id || null,
+                team_id: player.team_id || null,
                 is_admin: player.is_admin || false,
                 is_master_admin: player.is_master_admin || false,
                 is_director: player.is_director || false,
@@ -185,7 +186,7 @@ const CacheHelper = {
 // ===== DATA LOADING =====
 
 async function loadDashboard(playerId, sourceType, leagueId) {
-    const cacheKey = `dashboard_data_${playerId}_${sourceType}_${leagueId}`;
+    const cacheKey = `dashboard_data_v2_${playerId}_${sourceType}_${leagueId}`;
     const cached = CacheHelper.get(cacheKey);
 
     // If cache is fresh, use it immediately and skip API call
@@ -321,6 +322,7 @@ window.login = async function() {
             name: player.name,
             source_type: 'global',
             league_id: player.league_id || null,
+            team_id: player.team_id || null,
             is_admin: player.is_admin || false,
             is_master_admin: player.is_master_admin || false,
             is_director: player.is_director || false,
@@ -379,6 +381,7 @@ window.loginWithGoogle = async function() {
             name: player.name,
             source_type: 'global',
             league_id: player.league_id || null,
+            team_id: player.team_id || null,
             is_admin: player.is_admin || false,
             is_master_admin: player.is_master_admin || false,
             is_director: player.is_director || false,

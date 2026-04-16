@@ -813,11 +813,17 @@ async function verifyTeamMemberImportAccess(req, leagueId, match, actorId, teamI
     const playerDoc = await db.collection('leagues').doc(leagueId).collection('players').doc(actorId).get();
     let player = playerDoc.exists ? { id: playerDoc.id, ...playerDoc.data() } : null;
 
+    if (!player) {
+        const globalPlayerDoc = await db.collection('players').doc(actorId).get();
+        if (globalPlayerDoc.exists) {
+            player = { id: globalPlayerDoc.id, ...globalPlayerDoc.data() };
+        }
+    }
+
     if (!player && decoded.email) {
         const playerSnap = await db.collection('leagues').doc(leagueId)
             .collection('players')
             .where('email', '==', decoded.email.toLowerCase())
-            .where('team_id', '==', teamId)
             .limit(1)
             .get();
         if (!playerSnap.empty) {
@@ -828,8 +834,19 @@ async function verifyTeamMemberImportAccess(req, leagueId, match, actorId, teamI
     const emailMatches = decoded.email && player?.email &&
         String(player.email).toLowerCase() === decoded.email.toLowerCase();
     const globalMatches = player?.global_player_id && player.global_player_id === actorId;
+    const teamDoc = await db.collection('leagues').doc(leagueId).collection('teams').doc(teamId).get();
+    const team = teamDoc.exists ? teamDoc.data() : {};
+    const playerName = normalizeIdentityName(player?.name);
+    const rosterIds = Array.isArray(team.player_ids) ? team.player_ids : [];
+    const rosterNames = Array.isArray(team.player_names) ? team.player_names : [];
+    const rosterMatches = Boolean(player) && (
+        player.team_id === teamId ||
+        rosterIds.includes(player.id) ||
+        rosterIds.includes(player.global_player_id) ||
+        (playerName && rosterNames.some(name => normalizeIdentityName(name) === playerName))
+    );
 
-    if (!player || !emailMatches || player.team_id !== teamId) {
+    if (!player || !emailMatches || !rosterMatches) {
         return { checked: true, ok: false, error: 'Not authorized as a member of this team' };
     }
 

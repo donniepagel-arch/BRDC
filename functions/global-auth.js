@@ -11,6 +11,33 @@ const { createAuthHandlers } = require('./src/auth-http-handlers');
 const db = admin.firestore();
 const sharedAuthHandlers = createAuthHandlers({ admin, db, getMessagingServices });
 
+function normalizeLeagueMemberName(name) {
+    return String(name || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+async function resolvePlayerTeamFromRoster(leagueId, playerId, player) {
+    if (!leagueId || !player) return null;
+    const playerName = normalizeLeagueMemberName(player.name);
+    const teamsSnap = await db.collection('leagues').doc(leagueId).collection('teams').get();
+
+    for (const teamDoc of teamsSnap.docs) {
+        const team = teamDoc.data();
+        const playerIds = Array.isArray(team.player_ids) ? team.player_ids : [];
+        const playerNames = Array.isArray(team.player_names) ? team.player_names : [];
+        const hasId = playerIds.includes(playerId) || playerIds.includes(player.global_player_id);
+        const hasName = playerName && playerNames.some(name => normalizeLeagueMemberName(name) === playerName);
+
+        if (hasId || hasName) {
+            return {
+                team_id: teamDoc.id,
+                team_name: team.team_name || team.name || null
+            };
+        }
+    }
+
+    return null;
+}
+
 async function sendWelcomeSMS(phone, name, pin) {
     const { twilioClient, config } = await getMessagingServices();
 
@@ -593,6 +620,23 @@ exports.getDashboardData = functions.https.onRequest(async (req, res) => {
 
         player = playerDoc.data();
         const involvements = player.involvements || {};
+        const primaryLeagueInvolvement = Array.isArray(involvements.leagues)
+            ? (involvements.leagues.find(lg => lg && lg.team_id) || involvements.leagues[0] || null)
+            : null;
+        const effectiveLeagueId = playerLeagueId || player.league_id || primaryLeagueInvolvement?.id || null;
+        let effectiveTeamId = player.team_id || primaryLeagueInvolvement?.team_id || null;
+        let effectiveTeamName = primaryLeagueInvolvement?.team_name || null;
+        if (!effectiveTeamId && effectiveLeagueId) {
+            try {
+                const rosterTeam = await resolvePlayerTeamFromRoster(effectiveLeagueId, playerDoc.id, player);
+                if (rosterTeam) {
+                    effectiveTeamId = rosterTeam.team_id;
+                    effectiveTeamName = rosterTeam.team_name;
+                }
+            } catch (e) {
+                console.log('Could not resolve player team from roster:', e.message);
+            }
+        }
 
         // Use unified_stats for league players, stats for global players
         let playerStats = player.stats || player.unified_stats || {};
@@ -768,12 +812,12 @@ exports.getDashboardData = functions.https.onRequest(async (req, res) => {
         let isCaptain = player.is_captain === true;
 
         // Determine league ID to check - use playerLeagueId or player's league_id field
-        const checkLeagueId = playerLeagueId || player.league_id;
+        const checkLeagueId = effectiveLeagueId;
 
-        if (!isCaptain && player.team_id && checkLeagueId) {
+        if (!isCaptain && effectiveTeamId && checkLeagueId) {
             try {
                 const teamDoc = await db.collection('leagues').doc(checkLeagueId)
-                    .collection('teams').doc(player.team_id).get();
+                    .collection('teams').doc(effectiveTeamId).get();
                 if (teamDoc.exists) {
                     const team = teamDoc.data();
                     isCaptain = team.captain_id === playerDoc.id ||
@@ -819,7 +863,7 @@ exports.getDashboardData = functions.https.onRequest(async (req, res) => {
             is_admin: player.is_admin,
             is_master_admin: player.is_master_admin,
             checkLeagueId,
-            team_id: player.team_id,
+            team_id: effectiveTeamId,
             involvements_captaining: involvements.captaining?.length || 0,
             involvements_directing: involvements.directing?.length || 0
         });
@@ -840,8 +884,8 @@ exports.getDashboardData = functions.https.onRequest(async (req, res) => {
                 privacy: player.privacy || {},
                 notifications: player.notifications || {},
                 source_type: sourceType,
-                league_id: playerLeagueId,
-                team_id: player.team_id || null,
+                league_id: effectiveLeagueId,
+                team_id: effectiveTeamId,
                 position: player.position || null,
                 // Role flags for sidebar menu
                 is_captain: isCaptain,
@@ -862,18 +906,18 @@ exports.getDashboardData = functions.https.onRequest(async (req, res) => {
         };
 
         // For league-only players, add their league involvement automatically
-        if (playerLeagueId && sourceType === 'league') {
-            const leagueDoc = await db.collection('leagues').doc(playerLeagueId).get();
+        if (effectiveLeagueId && sourceType === 'league') {
+            const leagueDoc = await db.collection('leagues').doc(effectiveLeagueId).get();
             if (leagueDoc.exists) {
                 const league = leagueDoc.data();
                 // Find their team name if they have a team_id
-                let teamName = null;
+                let teamName = effectiveTeamName;
                 let isLevelA = false;
 
-                if (player.team_id) {
+                if (effectiveTeamId) {
                     // Get team from subcollection
-                    const teamDoc = await db.collection('leagues').doc(playerLeagueId)
-                        .collection('teams').doc(player.team_id).get();
+                    const teamDoc = await db.collection('leagues').doc(effectiveLeagueId)
+                        .collection('teams').doc(effectiveTeamId).get();
                     if (teamDoc.exists) {
                         const team = teamDoc.data();
                         teamName = team.team_name || team.name;
@@ -898,9 +942,9 @@ exports.getDashboardData = functions.https.onRequest(async (req, res) => {
 
                         if (isCaptain || isLevelA) {
                             dashboard.roles.captaining.push({
-                                league_id: playerLeagueId,
+                                league_id: effectiveLeagueId,
                                 league_name: league.league_name,
-                                team_id: player.team_id,
+                                team_id: effectiveTeamId,
                                 team_name: teamName,
                                 status: league.status
                             });
@@ -910,9 +954,9 @@ exports.getDashboardData = functions.https.onRequest(async (req, res) => {
 
                 dashboard.roles.playing.push({
                     type: 'league',
-                    id: playerLeagueId,
+                    id: effectiveLeagueId,
                     name: league.league_name,
-                    team_id: player.team_id || null,
+                    team_id: effectiveTeamId,
                     team_name: teamName,
                     status: league.status,
                     season: league.season,

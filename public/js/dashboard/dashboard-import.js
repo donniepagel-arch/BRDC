@@ -6,13 +6,25 @@ let memberImportValidation = null;
 let memberImportParseSummary = null;
 
 function getPlayerLeague() {
+    let session = {};
+    try {
+        session = JSON.parse(localStorage.getItem('brdc_session') || '{}');
+    } catch (e) {
+        session = {};
+    }
+
     const roles = dashboardData?.roles || {};
     const playing = Array.isArray(roles.playing) ? roles.playing : [];
-    const firstPlaying = playing[0] || {};
+    const firstPlaying = playing.find(role => role?.team_id) || playing[0] || {};
+    const player = currentPlayer || dashboardData?.player || {};
+    const involvements = player?.involvements || session?.involvements || {};
+    const involvedLeagues = Array.isArray(involvements.leagues) ? involvements.leagues : [];
+    const firstInvolvedLeague = involvedLeagues.find(league => league?.team_id) || involvedLeagues[0] || {};
+
     return {
-        leagueId: currentPlayer?.league_id || dashboardData?.player?.league_id || firstPlaying.league_id || firstPlaying.id || null,
-        teamId: currentPlayer?.team_id || dashboardData?.player?.team_id || firstPlaying.team_id || null,
-        playerId: currentPlayer?.id || dashboardData?.player?.id || null
+        leagueId: player.league_id || session.league_id || firstPlaying.league_id || firstPlaying.id || firstInvolvedLeague.id || null,
+        teamId: player.team_id || session.team_id || firstPlaying.team_id || firstInvolvedLeague.team_id || null,
+        playerId: player.id || session.player_id || null
     };
 }
 
