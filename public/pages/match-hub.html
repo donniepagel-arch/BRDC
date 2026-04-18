@@ -383,6 +383,130 @@
             if (!name || name === 'undefined' || name === 'null') return '';
             return name.split(' ')[0];
         }
+        function normalizePlayerName(name) {
+            return safeName(name).trim().toLowerCase();
+        }
+        function getGamePlayers(game) {
+            return {
+                home: (game?.home_players || []).map(p => typeof p === 'string' ? p : (p?.name || 'TBD')),
+                away: (game?.away_players || []).map(p => typeof p === 'string' ? p : (p?.name || 'TBD'))
+            };
+        }
+        function getThrowPlayerName(throwData) {
+            return safeName(throwData?.player_name || throwData?.player || throwData?.name || throwData?.imported_player_label);
+        }
+        function isCricketGame(game, leg = null) {
+            const values = [leg?.format, game?.format, game?.type]
+                .map(v => String(v || '').toLowerCase());
+            return values.some(v => v.includes('cricket'));
+        }
+        function getGamePlayerSideLookup(game) {
+            if (game._playerSideLookup) return game._playerSideLookup;
+            const players = getGamePlayers(game);
+            const lookup = {};
+            players.home.forEach(name => {
+                const key = normalizePlayerName(name);
+                if (key) lookup[key] = 'home';
+            });
+            players.away.forEach(name => {
+                const key = normalizePlayerName(name);
+                if (key) lookup[key] = 'away';
+            });
+            game._playerSideLookup = lookup;
+            return lookup;
+        }
+        function getGameThrowSlotMap(game) {
+            if (game._throwSlotMap) return game._throwSlotMap;
+            const sideLookup = getGamePlayerSideLookup(game);
+            const counts = { homeHome: 0, homeAway: 0, awayHome: 0, awayAway: 0 };
+
+            (game?.legs || []).forEach(leg => {
+                (leg?.throws || []).forEach(turn => {
+                    const homeName = normalizePlayerName(getThrowPlayerName(turn?.home));
+                    const awayName = normalizePlayerName(getThrowPlayerName(turn?.away));
+
+                    if (homeName) {
+                        if (sideLookup[homeName] === 'home') counts.homeHome++;
+                        if (sideLookup[homeName] === 'away') counts.homeAway++;
+                    }
+                    if (awayName) {
+                        if (sideLookup[awayName] === 'home') counts.awayHome++;
+                        if (sideLookup[awayName] === 'away') counts.awayAway++;
+                    }
+                });
+            });
+
+            game._throwSlotMap = {
+                home: counts.homeAway > counts.homeHome ? 'away' : 'home',
+                away: counts.awayHome > counts.awayAway ? 'home' : 'away'
+            };
+            return game._throwSlotMap;
+        }
+        function resolveThrowSide(game, slot, throwData) {
+            const sideLookup = getGamePlayerSideLookup(game);
+            const playerKey = normalizePlayerName(getThrowPlayerName(throwData));
+            if (playerKey && sideLookup[playerKey]) return sideLookup[playerKey];
+            const slotMap = getGameThrowSlotMap(game);
+            return slotMap[slot] || slot;
+        }
+        function getLegPlayerStats(leg, game) {
+            const storedStats = leg?.player_stats || {};
+            const hasStoredStats = Object.keys(storedStats).some(name => {
+                if (!safeName(name)) return false;
+                const stats = storedStats[name] || {};
+                return (stats.darts || stats.points || stats.marks || stats.mpr);
+            });
+            if (hasStoredStats) return storedStats;
+
+            const isCricket = isCricketGame(game, leg);
+            const synthesized = {};
+
+            (leg?.throws || []).forEach(turn => {
+                ['home', 'away'].forEach(slot => {
+                    const throwData = turn?.[slot];
+                    const playerName = getThrowPlayerName(throwData);
+                    if (!playerName) return;
+
+                    if (!synthesized[playerName]) {
+                        synthesized[playerName] = {
+                            darts: 0,
+                            points: 0,
+                            marks: 0,
+                            bulls: 0,
+                            triples: 0,
+                            mpr: 0,
+                            side: resolveThrowSide(game, slot, throwData)
+                        };
+                    }
+
+                    const entry = synthesized[playerName];
+                    const dartsUsed = Number(throwData?.checkout_darts ?? throwData?.closeout_darts ?? 3) || 3;
+
+                    if (isCricket) {
+                        if (throwData?.marks == null && throwData?.score == null && !throwData?.hit) return;
+                        entry.darts += dartsUsed;
+                        entry.marks += Number(throwData?.marks) || 0;
+                        entry.points += Number(throwData?.score) || 0;
+                        if (throwData?.closed_out) entry.closeout_darts = dartsUsed;
+                    } else {
+                        if (throwData?.score == null) return;
+                        entry.darts += dartsUsed;
+                        entry.points += Number(throwData?.score) || 0;
+                        if ((throwData?.checkout || throwData?.remaining === 0) && (Number(throwData?.score) || 0) > 0) {
+                            entry.checkout = Math.max(entry.checkout || 0, Number(throwData.score) || 0);
+                        }
+                    }
+                });
+            });
+
+            Object.values(synthesized).forEach(stats => {
+                if (isCricket && stats.darts > 0) {
+                    stats.mpr = stats.marks / (stats.darts / 3);
+                }
+            });
+
+            return synthesized;
+        }
 
         // Check if a player is a fill-in
         function isFillInPlayer(playerName) {
@@ -666,13 +790,14 @@
                 awayPl.forEach(p => awayPlayerSet.add(p));
 
                 (game.legs || []).forEach(leg => {
-                    const fmt = leg.format || game.format;
-                    const isCrk = fmt === 'cricket';
+                    const isCrk = isCricketGame(game, leg);
+                    const legPlayerStats = getLegPlayerStats(leg, game);
 
-                    // Aggregate from player_stats
-                    Object.entries(leg.player_stats || {}).forEach(([name, stats]) => {
+                    // Aggregate from stored player_stats or throw-derived fallback
+                    Object.entries(legPlayerStats).forEach(([name, stats]) => {
                         if (!name || name === 'undefined') return;
-                        const isHome = homePl.includes(name);
+                        const resolvedSide = stats.side || (homePl.includes(name) ? 'home' : (awayPl.includes(name) ? 'away' : null));
+                        const isHome = resolvedSide === 'home';
                         if (isCrk) {
                             if (isHome) { homeCrkDarts += stats.darts || 0; homeCrkMarks += stats.marks || 0; }
                             else { awayCrkDarts += stats.darts || 0; awayCrkMarks += stats.marks || 0; }
@@ -684,22 +809,44 @@
 
                     // Miss tracking from throws (score === 0 for X01, marks === 0 for cricket)
                     (leg.throws || []).forEach(t => {
-                        if (t.home && t.home.player) {
+                        if (t.home && getThrowPlayerName(t.home)) {
+                            const side = resolveThrowSide(game, 'home', t.home);
                             if (isCrk && t.home.marks != null) {
-                                homeTotalThrows++;
-                                if (t.home.marks === 0) homeMissThrows++;
+                                if (side === 'home') {
+                                    homeTotalThrows++;
+                                    if (t.home.marks === 0) homeMissThrows++;
+                                } else {
+                                    awayTotalThrows++;
+                                    if (t.home.marks === 0) awayMissThrows++;
+                                }
                             } else if (!isCrk && t.home.score != null) {
-                                homeTotalThrows++;
-                                if (t.home.score === 0) homeMissThrows++;
+                                if (side === 'home') {
+                                    homeTotalThrows++;
+                                    if (t.home.score === 0) homeMissThrows++;
+                                } else {
+                                    awayTotalThrows++;
+                                    if (t.home.score === 0) awayMissThrows++;
+                                }
                             }
                         }
-                        if (t.away && t.away.player) {
+                        if (t.away && getThrowPlayerName(t.away)) {
+                            const side = resolveThrowSide(game, 'away', t.away);
                             if (isCrk && t.away.marks != null) {
-                                awayTotalThrows++;
-                                if (t.away.marks === 0) awayMissThrows++;
+                                if (side === 'home') {
+                                    homeTotalThrows++;
+                                    if (t.away.marks === 0) homeMissThrows++;
+                                } else {
+                                    awayTotalThrows++;
+                                    if (t.away.marks === 0) awayMissThrows++;
+                                }
                             } else if (!isCrk && t.away.score != null) {
-                                awayTotalThrows++;
-                                if (t.away.score === 0) awayMissThrows++;
+                                if (side === 'home') {
+                                    homeTotalThrows++;
+                                    if (t.away.score === 0) homeMissThrows++;
+                                } else {
+                                    awayTotalThrows++;
+                                    if (t.away.score === 0) awayMissThrows++;
+                                }
                             }
                         }
                     });
@@ -996,11 +1143,11 @@
                 // Build format label matching pre-match style
                 const allLegs = setGames.flatMap(g => (g.legs || []));
                 const legFormats = allLegs.map(leg => (leg.format || firstGame.format || '501').toLowerCase());
-                const hasX01Legs = legFormats.some(f => f !== 'cricket');
-                const hasCricketLegs = legFormats.some(f => f === 'cricket');
+                const hasX01Legs = legFormats.some(f => !f.includes('cricket'));
+                const hasCricketLegs = legFormats.some(f => f.includes('cricket'));
                 let formatBadge;
                 if (hasX01Legs && hasCricketLegs) {
-                    const x01Val = allLegs.find(l => (l.format || firstGame.format) !== 'cricket')?.format || firstGame.format || '501';
+                    const x01Val = allLegs.find(l => !String(l.format || firstGame.format || '').toLowerCase().includes('cricket'))?.format || firstGame.format || '501';
                     formatBadge = x01Val + '/Crkt/Choice';
                 } else if (hasCricketLegs) {
                     formatBadge = 'Cricket';
@@ -1016,15 +1163,14 @@
                 let awayCombined = { x01Darts: 0, x01Points: 0, cricketDarts: 0, cricketMarks: 0 };
                 setGames.forEach(game => {
                     (game.legs || []).forEach(leg => {
-                        const fmt = leg.format || game.format;
                         const hp = (game.home_players || []).map(p => typeof p === 'string' ? p : (p?.name || ''));
                         const ap = (game.away_players || []).map(p => typeof p === 'string' ? p : (p?.name || ''));
-                        Object.entries(leg.player_stats || {}).forEach(([name, stats]) => {
+                        Object.entries(getLegPlayerStats(leg, game)).forEach(([name, stats]) => {
                             const isHome = hp.includes(name);
                             const isAway = ap.includes(name);
                             const target = isHome ? homeCombined : isAway ? awayCombined : null;
                             if (!target) return;
-                            if (fmt === 'cricket') {
+                            if (isCricketGame(game, leg)) {
                                 target.cricketDarts += stats.darts || 0;
                                 target.cricketMarks += stats.marks || 0;
                             } else {
@@ -1131,12 +1277,12 @@
 
             setGames.forEach(game => {
                 (game.legs || []).forEach(leg => {
-                    const fmt = leg.format || game.format;
-                    Object.entries(leg.player_stats || {}).filter(([name]) => name && name !== 'undefined').forEach(([name, stats]) => {
+                    const fmtIsCricket = isCricketGame(game, leg);
+                    Object.entries(getLegPlayerStats(leg, game)).filter(([name]) => name && name !== 'undefined').forEach(([name, stats]) => {
                         if (!playerTotals[name]) {
                             playerTotals[name] = { x01Darts: 0, x01Points: 0, cricketDarts: 0, cricketMarks: 0 };
                         }
-                        if (fmt === 'cricket') {
+                        if (fmtIsCricket) {
                             playerTotals[name].cricketDarts += stats.darts || 0;
                             playerTotals[name].cricketMarks += stats.marks || 0;
                         } else {
@@ -1202,7 +1348,7 @@
                 const homeWon = leg.winner === 'home';
                 const awayWon = leg.winner === 'away';
                 const legFormat = leg.format || game.format || '501';
-                const legIsCricket = legFormat === 'cricket';
+                const legIsCricket = isCricketGame(game, leg);
 
                 // Format label
                 let formatLabel = (legFormat || '').toUpperCase();
@@ -1213,7 +1359,7 @@
                 }
 
                 // Get player stats for this specific leg
-                const playerStats = leg.player_stats || {};
+                const playerStats = getLegPlayerStats(leg, game);
                 const homePlayers = (game.home_players || []).map(p => typeof p === 'string' ? p : (p?.name || 'TBD'));
                 const awayPlayers = (game.away_players || []).map(p => typeof p === 'string' ? p : (p?.name || 'TBD'));
 
@@ -1571,9 +1717,8 @@
             };
 
             games.forEach(game => {
-                const isCricket = game.format === 'cricket';
-                const homePlayers = (game.home_players || []).map(p => typeof p === 'string' ? p : (p?.name || 'TBD'));
-                const awayPlayers = (game.away_players || []).map(p => typeof p === 'string' ? p : (p?.name || 'TBD'));
+                const homePlayers = getGamePlayers(game).home;
+                const awayPlayers = getGamePlayers(game).away;
                 homePlayers.forEach(p => homePlayerNames.add(p));
                 awayPlayers.forEach(p => awayPlayerNames.add(p));
 
@@ -1586,8 +1731,11 @@
                 const gameType = homePlayers.length === 1 ? 'S' : 'D'; // Singles or Doubles
 
                 (game.legs || []).forEach(leg => {
-                    Object.entries(leg.player_stats || {}).filter(([name]) => name && name !== 'undefined').forEach(([name, stats]) => {
-                        const side = homePlayerNames.has(name) ? 'home' : 'away';
+                    const isCricket = isCricketGame(game, leg);
+                    const legPlayerStats = getLegPlayerStats(leg, game);
+
+                    Object.entries(legPlayerStats).filter(([name]) => name && name !== 'undefined').forEach(([name, stats]) => {
+                        const side = stats.side || (homePlayerNames.has(name) ? 'home' : 'away');
 
                         if (!playerStats[name]) {
                             playerStats[name] = {
@@ -1641,14 +1789,14 @@
                     });
 
                     // Track First 9 average (first 3 rounds = 9 darts) for X01 games
-                    if (!isCricket && leg.format !== 'cricket') {
+                    if (!isCricket) {
                         const throws = leg.throws || [];
                         const playerRoundCounts = {};
                         throws.forEach(t => {
                             ['home', 'away'].forEach(side => {
                                 const throwData = t[side];
-                                if (throwData && safeName(throwData.player) && throwData.score !== undefined) {
-                                    const name = safeName(throwData.player);
+                                const name = getThrowPlayerName(throwData);
+                                if (throwData && name && throwData.score !== undefined) {
                                     if (!playerRoundCounts[name]) playerRoundCounts[name] = 0;
                                     playerRoundCounts[name]++;
                                     // First 3 rounds = First 9 darts
@@ -1668,17 +1816,18 @@
 
                         if (t.home && t.home.score !== undefined) {
                             const score = t.home.score;
-                            const playerName = safeName(t.home.player) || homePlayers[0];
+                            const playerName = getThrowPlayerName(t.home) || homePlayers[0];
+                            const throwSide = resolveThrowSide(game, 'home', t.home);
                             if (!isCricket && score > leaders.highTurn.value) {
-                                leaders.highTurn = { value: score, player: playerName, side: 'home' };
+                                leaders.highTurn = { value: score, player: playerName, side: throwSide };
                             }
                             // Track checkout from throws
                             if (t.home.checkout && score > leaders.highDO.value) {
-                                leaders.highDO = { value: score, player: playerName, side: 'home' };
+                                leaders.highDO = { value: score, player: playerName, side: throwSide };
                             }
 
                             // Track checkout range attempts/successes (X01 only)
-                            if (!isCricket && leg.format !== 'cricket') {
+                            if (!isCricket) {
                                 // Calculate what the remaining was BEFORE this throw
                                 const remainingBefore = (t.home.remaining != null ? t.home.remaining : 0) + score;
                                 const range = getCheckoutRange(remainingBefore);
@@ -1702,7 +1851,7 @@
                             }
 
                             // Per-player miss tracking for home
-                            const pName = safeName(t.home.player);
+                            const pName = getThrowPlayerName(t.home);
                             if (pName && playerStats[pName]) {
                                 if (isCricket) {
                                     if (t.home.marks != null) {
@@ -1719,16 +1868,17 @@
                         }
                         if (t.away && t.away.score !== undefined) {
                             const score = t.away.score;
-                            const playerName = safeName(t.away.player) || awayPlayers[0];
+                            const playerName = getThrowPlayerName(t.away) || awayPlayers[0];
+                            const throwSide = resolveThrowSide(game, 'away', t.away);
                             if (!isCricket && score > leaders.highTurn.value) {
-                                leaders.highTurn = { value: score, player: playerName, side: 'away' };
+                                leaders.highTurn = { value: score, player: playerName, side: throwSide };
                             }
                             if (t.away.checkout && score > leaders.highDO.value) {
-                                leaders.highDO = { value: score, player: playerName, side: 'away' };
+                                leaders.highDO = { value: score, player: playerName, side: throwSide };
                             }
 
                             // Track checkout range attempts/successes (X01 only)
-                            if (!isCricket && leg.format !== 'cricket') {
+                            if (!isCricket) {
                                 const remainingBefore = (t.away.remaining != null ? t.away.remaining : 0) + score;
                                 const range = getCheckoutRange(remainingBefore);
                                 if (range) {
@@ -1748,7 +1898,7 @@
                             }
 
                             // Per-player miss tracking for away
-                            const pNameAway = safeName(t.away.player);
+                            const pNameAway = getThrowPlayerName(t.away);
                             if (pNameAway && playerStats[pNameAway]) {
                                 if (isCricket) {
                                     if (t.away.marks != null) {
@@ -1767,10 +1917,10 @@
                         // Cricket high marks and closeout tracking
                         if (isCricket) {
                             if (t.home && t.home.marks && t.home.marks > leaders.cricketHighTurn.value) {
-                                leaders.cricketHighTurn = { value: t.home.marks, player: safeName(t.home.player) || homePlayers[0], side: 'home' };
+                                leaders.cricketHighTurn = { value: t.home.marks, player: getThrowPlayerName(t.home) || homePlayers[0], side: resolveThrowSide(game, 'home', t.home) };
                             }
                             if (t.away && t.away.marks && t.away.marks > leaders.cricketHighTurn.value) {
-                                leaders.cricketHighTurn = { value: t.away.marks, player: safeName(t.away.player) || awayPlayers[0], side: 'away' };
+                                leaders.cricketHighTurn = { value: t.away.marks, player: getThrowPlayerName(t.away) || awayPlayers[0], side: resolveThrowSide(game, 'away', t.away) };
                             }
 
                             // Cricket closeout tracking - check if this is the final throw
@@ -1781,7 +1931,7 @@
                                 // Track closeout for the winner
                                 if (t.home && (t.home.closed_out || leg.winner === 'home')) {
                                     const marks = t.home.marks || 0;
-                                    const playerName = safeName(t.home.player) || homePlayers[0];
+                                    const playerName = getThrowPlayerName(t.home) || homePlayers[0];
                                     if (marks >= 5 && marks <= 9) {
                                         if (!playerCricketCloseouts[playerName]) {
                                             playerCricketCloseouts[playerName] = { '5m': 0, '6m': 0, '7m': 0, '8m': 0, '9m': 0 };
@@ -1791,7 +1941,7 @@
                                 }
                                 if (t.away && (t.away.closed_out || leg.winner === 'away')) {
                                     const marks = t.away.marks || 0;
-                                    const playerName = safeName(t.away.player) || awayPlayers[0];
+                                    const playerName = getThrowPlayerName(t.away) || awayPlayers[0];
                                     if (marks >= 5 && marks <= 9) {
                                         if (!playerCricketCloseouts[playerName]) {
                                             playerCricketCloseouts[playerName] = { '5m': 0, '6m': 0, '7m': 0, '8m': 0, '9m': 0 };
@@ -3019,7 +3169,7 @@
             var opponentStats = {}; // playerName -> { x01Points: 0, x01Darts: 0, cricketMarks: 0, cricketDarts: 0 }
 
             games.forEach(function(game) {
-                var isCricket = game.format === 'cricket';
+                var isCricket = isCricketGame(game);
                 var setNum = game.set || 1;
                 var hPlayers = (game.home_players || []).map(function(p) { return typeof p === 'string' ? p : (p && p.name ? p.name : 'TBD'); });
                 var aPlayers = (game.away_players || []).map(function(p) { return typeof p === 'string' ? p : (p && p.name ? p.name : 'TBD'); });
@@ -3038,14 +3188,15 @@
                 aPlayers.forEach(function(p) { setData[setNum].players.add(p); });
 
                 (game.legs || []).forEach(function(leg) {
-                    var legIsCricket = isCricket || leg.format === 'cricket';
+                    var legIsCricket = isCricketGame(game, leg);
+                    var legPlayerStats = getLegPlayerStats(leg, game);
 
                     // Track set leg wins
                     if (leg.winner === 'home') setData[setNum].homeLegWins++;
                     else if (leg.winner === 'away') setData[setNum].awayLegWins++;
 
-                    // Aggregate from player_stats
-                    Object.entries(leg.player_stats || {}).filter(function(e) { return e[0] && e[0] !== 'undefined'; }).forEach(function(entry) {
+                    // Aggregate from player_stats or throw-derived fallback
+                    Object.entries(legPlayerStats).filter(function(e) { return e[0] && e[0] !== 'undefined'; }).forEach(function(entry) {
                         var name = entry[0], st = entry[1];
                         var p = ensure(name);
                         var isWinner = (leg.winner === 'home' && homeNames.has(name)) ||
@@ -3073,7 +3224,7 @@
                     });
 
                     // Track opponent stats
-                    var legPlayerNames = Object.keys(leg.player_stats || {}).filter(function(n) { return n && n !== 'undefined'; });
+                    var legPlayerNames = Object.keys(legPlayerStats || {}).filter(function(n) { return n && n !== 'undefined'; });
                     legPlayerNames.forEach(function(pName) {
                         if (!opponentStats[pName]) opponentStats[pName] = { x01Points: 0, x01Darts: 0, cricketMarks: 0, cricketDarts: 0 };
                         // Find opponents (players on other side in this leg)
@@ -3082,7 +3233,7 @@
                             if (oName === pName) return;
                             var oSide = homeNames.has(oName) ? 'home' : 'away';
                             if (oSide === pSide) return; // same team, skip
-                            var oSt = (leg.player_stats || {})[oName] || {};
+                            var oSt = legPlayerStats[oName] || {};
                             if (legIsCricket) {
                                 opponentStats[pName].cricketDarts += oSt.darts || 0;
                                 opponentStats[pName].cricketMarks += oSt.marks || 0;
@@ -4316,21 +4467,21 @@
             matchPlayerStats = {};
 
             games.forEach(game => {
-                const isCricket = game.format === 'cricket';
-                const homePlayers = (game.home_players || []).map(p => typeof p === 'string' ? p : (p?.name || 'TBD'));
-                const awayPlayers = (game.away_players || []).map(p => typeof p === 'string' ? p : (p?.name || 'TBD'));
+                const homePlayers = getGamePlayers(game).home;
+                const awayPlayers = getGamePlayers(game).away;
                 homePlayers.forEach(p => homePlayerNames.add(p));
                 awayPlayers.forEach(p => awayPlayerNames.add(p));
 
                 (game.legs || []).forEach((leg, legIdx) => {
                     const legFormat = leg.format || game.format || '501';
-                    const legIsCricket = legFormat === 'cricket' || legFormat.toLowerCase().includes('cricket');
+                    const legIsCricket = isCricketGame(game, leg);
+                    const legPlayerStats = getLegPlayerStats(leg, game);
 
-                    Object.entries(leg.player_stats || {}).filter(([name]) => name && name !== 'undefined').forEach(([name, stats]) => {
+                    Object.entries(legPlayerStats).filter(([name]) => name && name !== 'undefined').forEach(([name, stats]) => {
                         if (!matchPlayerStats[name]) {
                             matchPlayerStats[name] = {
                                 name,
-                                side: homePlayerNames.has(name) ? 'home' : 'away',
+                                side: stats.side || (homePlayerNames.has(name) ? 'home' : 'away'),
                                 x01Darts: 0, x01Points: 0, x01Legs: 0, x01Wins: 0,
                                 first9Points: 0, first9Darts: 0,
                                 cricketDarts: 0, cricketMarks: 0, cricketLegs: 0, cricketWins: 0,
@@ -4356,13 +4507,16 @@
                             // First 9 calculation: sum of first 3 rounds (9 darts)
                             const throws = leg.throws || [];
                             let roundCount = 0;
-                            const side = homePlayerNames.has(name) ? 'home' : 'away';
                             throws.forEach(t => {
-                                if (t[side]?.player === name && roundCount < 3) {
-                                    matchPlayerStats[name].first9Points += t[side].score || 0;
-                                    matchPlayerStats[name].first9Darts += 3;
-                                    roundCount++;
-                                }
+                                ['home', 'away'].forEach(slot => {
+                                    if (roundCount >= 3) return;
+                                    const td = t[slot];
+                                    if (getThrowPlayerName(td) === name) {
+                                        matchPlayerStats[name].first9Points += td.score || 0;
+                                        matchPlayerStats[name].first9Darts += 3;
+                                        roundCount++;
+                                    }
+                                });
                             });
                         }
 
@@ -4615,11 +4769,10 @@
                 awayPl.forEach(p => awayPlayerSet.add(p));
 
                 (game.legs || []).forEach(leg => {
-                    const fmt = leg.format || game.format;
-                    const isCrk = fmt === 'cricket';
-                    Object.entries(leg.player_stats || {}).forEach(([name, stats]) => {
+                    const isCrk = isCricketGame(game, leg);
+                    Object.entries(getLegPlayerStats(leg, game)).forEach(([name, stats]) => {
                         if (!name || name === 'undefined') return;
-                        const isHome = homePl.includes(name);
+                        const isHome = (stats.side || (homePl.includes(name) ? 'home' : 'away')) === 'home';
                         if (isCrk) {
                             if (isHome) { homeCrkDarts += stats.darts || 0; homeCrkMarks += stats.marks || 0; }
                             else { awayCrkDarts += stats.darts || 0; awayCrkMarks += stats.marks || 0; }
@@ -4629,13 +4782,25 @@
                         }
                     });
                     (leg.throws || []).forEach(t => {
-                        if (t.home && t.home.player) {
-                            if (isCrk && t.home.marks != null) { homeTotalThrows++; if (t.home.marks === 0) homeMissThrows++; }
-                            else if (!isCrk && t.home.score != null) { homeTotalThrows++; if (t.home.score === 0) homeMissThrows++; }
+                        if (t.home && getThrowPlayerName(t.home)) {
+                            const side = resolveThrowSide(game, 'home', t.home);
+                            if (isCrk && t.home.marks != null) {
+                                if (side === 'home') { homeTotalThrows++; if (t.home.marks === 0) homeMissThrows++; }
+                                else { awayTotalThrows++; if (t.home.marks === 0) awayMissThrows++; }
+                            } else if (!isCrk && t.home.score != null) {
+                                if (side === 'home') { homeTotalThrows++; if (t.home.score === 0) homeMissThrows++; }
+                                else { awayTotalThrows++; if (t.home.score === 0) awayMissThrows++; }
+                            }
                         }
-                        if (t.away && t.away.player) {
-                            if (isCrk && t.away.marks != null) { awayTotalThrows++; if (t.away.marks === 0) awayMissThrows++; }
-                            else if (!isCrk && t.away.score != null) { awayTotalThrows++; if (t.away.score === 0) awayMissThrows++; }
+                        if (t.away && getThrowPlayerName(t.away)) {
+                            const side = resolveThrowSide(game, 'away', t.away);
+                            if (isCrk && t.away.marks != null) {
+                                if (side === 'home') { homeTotalThrows++; if (t.away.marks === 0) homeMissThrows++; }
+                                else { awayTotalThrows++; if (t.away.marks === 0) awayMissThrows++; }
+                            } else if (!isCrk && t.away.score != null) {
+                                if (side === 'home') { homeTotalThrows++; if (t.away.score === 0) homeMissThrows++; }
+                                else { awayTotalThrows++; if (t.away.score === 0) awayMissThrows++; }
+                            }
                         }
                     });
                 });
