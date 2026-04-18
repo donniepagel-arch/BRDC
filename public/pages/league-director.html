@@ -2174,6 +2174,16 @@ Bob Wilson"></textarea>
                                         Paste a DartConnect recap URL. Auto-match will select the scheduled BRDC match before import.
                                     </div>
                                     <div id="importSetSummary" style="margin-bottom: 16px;"></div>
+                                    <div id="importReviewPanel" style="display: none; margin-bottom: 16px; padding: 14px; border-left: 6px solid var(--pink); background: rgba(236,72,153,0.08);">
+                                        <div style="font-weight: 800; color: var(--text-light); margin-bottom: 8px;">Imported Match Hub Review</div>
+                                        <div id="importReviewSummary" style="color: var(--text-dim); font-size: 13px; margin-bottom: 12px;">
+                                            No imported match to review yet.
+                                        </div>
+                                        <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px;">
+                                            <a id="importReviewOpenLink" class="brdc-btn brdc-btn-secondary" href="#" target="_blank" rel="noopener noreferrer">Open Match Hub</a>
+                                        </div>
+                                        <iframe id="importReviewFrame" title="Imported Match Hub Review" style="width: 100%; height: 780px; border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; background: rgba(0,0,0,0.2);"></iframe>
+                                    </div>
                                     <label style="display: flex; gap: 8px; align-items: flex-start; margin-bottom: 16px; color: var(--text-dim); font-size: 13px; line-height: 1.4;">
                                         <input type="checkbox" id="importConfirmScores" onchange="updateImportWorkbenchApproval()" disabled>
                                         <span>I reviewed the matched week/match, final score, and every set score. They match the DartConnect recap.</span>
@@ -5310,6 +5320,7 @@ Bob Wilson"></textarea>
                 });
             renderImportMessages('importValidationWarnings', [], 'var(--yellow)', 'No validation run yet.');
             renderImportMessages('importValidationErrors', [], '#f87171', 'No validation run yet.');
+            resetImportedMatchReview();
         }
 
         function updateImportWorkbenchApproval() {
@@ -5398,7 +5409,12 @@ Bob Wilson"></textarea>
                 return;
             }
 
-            const scheduledGames = Array.isArray(match.games) ? match.games.length : 0;
+            const parsedScheduledCount = importWorkbenchParseSummary?.schedule_match_id === match.id
+                ? parseInt(importWorkbenchParseSummary?.scheduled_game_count, 10)
+                : null;
+            const scheduledGames = Number.isFinite(parsedScheduledCount)
+                ? parsedScheduledCount
+                : (Array.isArray(match.games) ? match.games.length : 0);
             const status = (match.status || 'scheduled').replace('_', ' ').toUpperCase();
             const date = match.match_date || match.date || 'date not set';
             summary.innerHTML = `
@@ -5504,6 +5520,33 @@ Bob Wilson"></textarea>
 
             renderImportMessages('importValidationWarnings', validation.warnings, 'var(--yellow)', 'No warnings.');
             renderImportMessages('importValidationErrors', validation.errors, '#f87171', 'No errors.');
+        }
+
+        function resetImportedMatchReview() {
+            const panel = document.getElementById('importReviewPanel');
+            const summary = document.getElementById('importReviewSummary');
+            const link = document.getElementById('importReviewOpenLink');
+            const frame = document.getElementById('importReviewFrame');
+            if (panel) panel.style.display = 'none';
+            if (summary) summary.textContent = 'No imported match to review yet.';
+            if (link) link.href = '#';
+            if (frame) frame.src = 'about:blank';
+        }
+
+        function renderImportedMatchReview(match) {
+            const panel = document.getElementById('importReviewPanel');
+            const summary = document.getElementById('importReviewSummary');
+            const link = document.getElementById('importReviewOpenLink');
+            const frame = document.getElementById('importReviewFrame');
+            if (!panel || !summary || !link || !frame || !match?.id) return;
+
+            const homeScore = match.home_score ?? '-';
+            const awayScore = match.away_score ?? '-';
+            const hubUrl = `/pages/match-hub.html?league_id=${encodeURIComponent(leagueId)}&match_id=${encodeURIComponent(match.id)}`;
+            summary.textContent = `Review the imported match hub for Week ${match.week} - ${match.home_team_name} vs ${match.away_team_name}. Current night score: ${homeScore}-${awayScore}.`;
+            link.href = hubUrl;
+            frame.src = hubUrl;
+            panel.style.display = '';
         }
 
         window.parseRecapToWorkbench = async function() {
@@ -5691,6 +5734,8 @@ Bob Wilson"></textarea>
                 populateImportWorkbenchSelectors(matchId);
                 renderMatches();
                 loadImportQA(true);
+                const refreshedMatch = matchesData.find(match => match.id === matchId) || selectedMatch;
+                renderImportedMatchReview(refreshedMatch);
                 hideLoading();
             } catch (e) {
                 hideLoading();

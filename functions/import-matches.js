@@ -28,6 +28,50 @@ const TRIPLES_MATCH_FORMAT = [
     { game: 9, homePositions: [3], awayPositions: [3], type: 'singles', format: '501' }
 ];
 
+function buildOrderedTriplesRoster(team) {
+    const positioned = Array.isArray(team?.players)
+        ? team.players
+            .map((player, idx) => ({
+                name: player?.name || player?.player_name || null,
+                position: parseInt(player?.position, 10) || (idx + 1)
+            }))
+            .filter(player => player.name)
+        : [];
+
+    if (positioned.length) {
+        return positioned
+            .sort((a, b) => a.position - b.position)
+            .map(player => player.name);
+    }
+
+    return Array.isArray(team?.player_names)
+        ? team.player_names.filter(Boolean)
+        : [];
+}
+
+function buildCanonicalTriplesScheduledGames(match, homeTeam, awayTeam) {
+    const homeRoster = buildOrderedTriplesRoster(homeTeam);
+    const awayRoster = buildOrderedTriplesRoster(awayTeam);
+    const existingGames = Array.isArray(match?.games) ? match.games : [];
+    const existingByNumber = new Map(existingGames.map((game, idx) => [parseInt(game?.game_number || game?.game || idx + 1, 10), game]));
+
+    return TRIPLES_MATCH_FORMAT.map((format) => {
+        const existing = existingByNumber.get(format.game) || null;
+        const existingHomePlayers = (existing?.home_players || []).map(player => typeof player === 'string' ? player : player?.name).filter(Boolean);
+        const existingAwayPlayers = (existing?.away_players || []).map(player => typeof player === 'string' ? player : player?.name).filter(Boolean);
+        const canonicalHomePlayers = format.homePositions.map(pos => homeRoster[pos - 1]).filter(Boolean);
+        const canonicalAwayPlayers = format.awayPositions.map(pos => awayRoster[pos - 1]).filter(Boolean);
+
+        return {
+            game_number: format.game,
+            type: existing?.type || format.type,
+            format: existing?.format || format.format,
+            home_players: existingHomePlayers.length ? existingHomePlayers : canonicalHomePlayers,
+            away_players: existingAwayPlayers.length ? existingAwayPlayers : canonicalAwayPlayers
+        };
+    });
+}
+
 /**
  * Create global player documents from league player roster
  * This ensures every player in a league has a global player document
@@ -783,25 +827,15 @@ function buildScheduledMatchContextFromData(matchId, match, league, teamsById, a
         ...awayRoster.map(player => player.id)
     ]);
 
-    const scheduledGames = Array.isArray(match.games) && match.games.length
-        ? match.games.map((game, idx) => ({
-            game_number: game.game_number || idx + 1,
-            type: game.type || null,
-            format: game.format || null,
-            home_players: (game.home_players || []).map(player => typeof player === 'string' ? player : player?.name).filter(Boolean),
-            away_players: (game.away_players || []).map(player => typeof player === 'string' ? player : player?.name).filter(Boolean)
-        }))
-        : ((league?.league_type === 'triples_draft' && homeTeam?.players && awayTeam?.players)
-            ? TRIPLES_MATCH_FORMAT.map((format) => ({
-                game_number: format.game,
-                type: format.type,
-                format: format.format,
-                home_players: format.homePositions
-                    .map(pos => homeTeam.players.find(player => player.position === pos)?.name)
-                    .filter(Boolean),
-                away_players: format.awayPositions
-                    .map(pos => awayTeam.players.find(player => player.position === pos)?.name)
-                    .filter(Boolean)
+    const scheduledGames = league?.league_type === 'triples_draft'
+        ? buildCanonicalTriplesScheduledGames(match, homeTeam, awayTeam)
+        : (Array.isArray(match.games) && match.games.length
+            ? match.games.map((game, idx) => ({
+                game_number: game.game_number || idx + 1,
+                type: game.type || null,
+                format: game.format || null,
+                home_players: (game.home_players || []).map(player => typeof player === 'string' ? player : player?.name).filter(Boolean),
+                away_players: (game.away_players || []).map(player => typeof player === 'string' ? player : player?.name).filter(Boolean)
             }))
             : []);
 
