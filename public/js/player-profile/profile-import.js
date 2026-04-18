@@ -281,7 +281,9 @@ window.importMemberRecap = async function() {
         hideLoading();
         if (!result.success) throw new Error(result.error || 'Import failed');
         window.toastSuccess?.('Match imported successfully', 5000);
-        resetMemberImport('Import completed. Paste another DartConnect recap URL if needed.');
+        resetMemberImport(result.statsRebuild?.success
+            ? 'Import completed and stats were rebuilt. Paste another DartConnect recap URL if needed.'
+            : `Import completed, but stats rebuild failed: ${result.statsRebuild?.error || 'unknown error'}`);
     } catch (error) {
         hideLoading();
         console.error('Profile import error:', error);

@@ -28,6 +28,30 @@ const TRIPLES_MATCH_FORMAT = [
     { game: 9, homePositions: [3], awayPositions: [3], type: 'singles', format: '501' }
 ];
 
+async function runLeagueStatsRebuild(leagueId) {
+    const response = await axios.post(
+        'https://us-central1-brdc-v2.cloudfunctions.net/recalculateLeagueStats',
+        { league_id: leagueId },
+        {
+            timeout: 600000,
+            headers: {
+                'Content-Type': 'application/json',
+                'User-Agent': 'BRDC-Import-Parser/1.0'
+            }
+        }
+    );
+
+    if (!response?.data?.success) {
+        throw new Error(response?.data?.error || 'League stats rebuild failed');
+    }
+
+    return {
+        success: true,
+        message: response.data.message || null,
+        results_count: Array.isArray(response.data.results) ? response.data.results.length : null
+    };
+}
+
 function buildOrderedTriplesRoster(team) {
     const positioned = Array.isArray(team?.players)
         ? team.players
@@ -1543,6 +1567,17 @@ exports.importMatchData = functions.https.onRequest(async (req, res) => {
 
         await matchRef.update(updateData);
 
+        let statsRebuild = null;
+        try {
+            statsRebuild = await runLeagueStatsRebuild(leagueId);
+        } catch (rebuildError) {
+            console.error('Post-import stats rebuild failed:', rebuildError);
+            statsRebuild = {
+                success: false,
+                error: rebuildError.message
+            };
+        }
+
         res.json({
             success: true,
             matchId,
@@ -1553,7 +1588,8 @@ exports.importMatchData = functions.https.onRequest(async (req, res) => {
             importReviewStatus,
             finalScore: { home: homeScore, away: awayScore },
             validation,
-            importParseSummary: updateData.import_parse_summary || null
+            importParseSummary: updateData.import_parse_summary || null,
+            statsRebuild
         });
 
     } catch (error) {

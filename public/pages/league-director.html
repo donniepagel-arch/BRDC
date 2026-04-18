@@ -5725,8 +5725,11 @@ Bob Wilson"></textarea>
                 const importedGroups = result.importParseSummary?.parsed_group_count ?? importWorkbenchParseSummary?.parsed_group_count ?? '-';
                 const scheduledGroups = result.importParseSummary?.scheduled_game_count ?? importWorkbenchParseSummary?.scheduled_game_count ?? '-';
                 const unresolvedPlayers = result.importParseSummary?.unresolved_turn_player_count ?? importWorkbenchParseSummary?.unresolved_turn_player_count ?? 0;
+                const statsRebuildText = result.statsRebuild?.success
+                    ? ` Stats rebuild: complete${result.statsRebuild.results_count ? ` (${result.statsRebuild.results_count} players)` : ''}.`
+                    : ` Stats rebuild failed: ${result.statsRebuild?.error || 'unknown error'}.`;
                 document.getElementById('importWorkbenchStatus').textContent =
-                    `Import completed for Week ${selectedMatch.week} - ${selectedMatch.home_team_name} vs ${selectedMatch.away_team_name}. Parsed groups: ${importedGroups}/${scheduledGroups}. Unresolved players: ${unresolvedPlayers}.`;
+                    `Import completed for Week ${selectedMatch.week} - ${selectedMatch.home_team_name} vs ${selectedMatch.away_team_name}. Parsed groups: ${importedGroups}/${scheduledGroups}. Unresolved players: ${unresolvedPlayers}.${statsRebuildText}`;
                 toastSuccess(`Imported Week ${selectedMatch.week} match successfully`, 5000);
 
                 showLoading('Import complete. Refreshing director data...');
