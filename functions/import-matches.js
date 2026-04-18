@@ -512,6 +512,24 @@ function scoreRecapGroupForScheduledGame(setGroup, scheduledGame) {
     return score;
 }
 
+function shouldSwapRecapGroupForScheduledGame(setGroup, scheduledGame) {
+    if (!scheduledGame) return false;
+
+    const recapHomeNames = collectRecapGroupSideNames(setGroup, 'home');
+    const recapAwayNames = collectRecapGroupSideNames(setGroup, 'away');
+    const scheduledHomeAliases = buildNameAliasSet(scheduledGame.home_players);
+    const scheduledAwayAliases = buildNameAliasSet(scheduledGame.away_players);
+
+    const directMatches =
+        countNameAliasMatches(recapHomeNames, scheduledHomeAliases) +
+        countNameAliasMatches(recapAwayNames, scheduledAwayAliases);
+    const swappedMatches =
+        countNameAliasMatches(recapHomeNames, scheduledAwayAliases) +
+        countNameAliasMatches(recapAwayNames, scheduledHomeAliases);
+
+    return swappedMatches > directMatches;
+}
+
 function selectScheduledRecapGroups(groupedSets, scheduledGames) {
     const expectedCount = Array.isArray(scheduledGames) ? scheduledGames.length : 0;
     if (!expectedCount || groupedSets.length <= expectedCount) {
@@ -1097,6 +1115,7 @@ function buildMatchDataFromRecapPayload(payload, recapUrl, gamesUrl, scheduledCo
         const firstRecapGame = setGroup[0] || {};
         const defaultType = scheduledGame?.type || mapRecapGameType(firstRecapGame?.game_name).type;
         const defaultFormat = scheduledGame?.format || mapRecapGameType(firstRecapGame?.game_name).format;
+        const recapNeedsSwap = shouldSwapRecapGroupForScheduledGame(setGroup, scheduledGame);
 
         const setHomePlayers = [];
         const setAwayPlayers = [];
@@ -1152,6 +1171,8 @@ function buildMatchDataFromRecapPayload(payload, recapUrl, gamesUrl, scheduledCo
             };
         });
 
+        const orientedLegs = recapNeedsSwap ? legs.map(swapLegData) : legs;
+
         const homePlayers = scheduledGame?.home_players?.length
             ? scheduledGame.home_players
             : chooseSideRosterNames(setHomePlayers, homeRoster, 'Home');
@@ -1159,8 +1180,8 @@ function buildMatchDataFromRecapPayload(payload, recapUrl, gamesUrl, scheduledCo
             ? scheduledGame.away_players
             : chooseSideRosterNames(setAwayPlayers, awayRoster, 'Away');
 
-        const homeLegsWon = legs.filter(leg => leg.winner === 'home').length;
-        const awayLegsWon = legs.filter(leg => leg.winner === 'away').length;
+        const homeLegsWon = orientedLegs.filter(leg => leg.winner === 'home').length;
+        const awayLegsWon = orientedLegs.filter(leg => leg.winner === 'away').length;
         const winner = homeLegsWon > awayLegsWon ? 'home' : awayLegsWon > homeLegsWon ? 'away' : null;
 
         if (winner === 'home') homeWins += 1;
@@ -1178,7 +1199,7 @@ function buildMatchDataFromRecapPayload(payload, recapUrl, gamesUrl, scheduledCo
                 away_legs: awayLegsWon
             },
             winner,
-            legs
+            legs: orientedLegs
         };
 
         return orientGameToSchedule(mappedGame, scheduledContext);
