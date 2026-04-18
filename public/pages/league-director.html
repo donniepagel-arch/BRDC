@@ -5515,6 +5515,7 @@ Bob Wilson"></textarea>
 
             try {
                 resetImportWorkbenchPayload('Parsing recap and matching schedule...');
+                document.getElementById('importWorkbenchStatus').textContent = 'Parsing DartConnect recap and matching it to the scheduled BRDC matchup...';
                 showLoading('Parsing recap and matching schedule...');
                 const parseRequest = {
                     recapUrl,
@@ -5665,7 +5666,9 @@ Bob Wilson"></textarea>
             }
 
             try {
-                showLoading(`Importing Week ${selectedMatch.week} match...`);
+                document.getElementById('importWorkbenchStatus').textContent =
+                    `Importing Week ${selectedMatch.week} - ${selectedMatch.home_team_name} vs ${selectedMatch.away_team_name}. Applying visits, recalculating stats, and refreshing the director view...`;
+                showLoading(`Importing Week ${selectedMatch.week} match and recalculating stats...`);
                 const result = await callFunction('importMatchData', {
                     leagueId: leagueId,
                     matchId,
@@ -5683,10 +5686,12 @@ Bob Wilson"></textarea>
                     `Import completed for Week ${selectedMatch.week} - ${selectedMatch.home_team_name} vs ${selectedMatch.away_team_name}. Parsed groups: ${importedGroups}/${scheduledGroups}. Unresolved players: ${unresolvedPlayers}.`;
                 toastSuccess(`Imported Week ${selectedMatch.week} match successfully`, 5000);
 
+                showLoading('Import complete. Refreshing director data...');
                 await loadMatches();
                 populateImportWorkbenchSelectors(matchId);
                 renderMatches();
                 loadImportQA(true);
+                hideLoading();
             } catch (e) {
                 hideLoading();
                 toastError(e.message);

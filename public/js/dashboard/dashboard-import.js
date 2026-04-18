@@ -1,4 +1,4 @@
-import { callFunction } from '/js/firebase-config.js';
+import { callFunction, showLoading, hideLoading } from '/js/firebase-config.js';
 import { currentPlayer, dashboardData } from '/js/dashboard/dashboard-state.js';
 
 let memberImportPayload = null;
@@ -167,10 +167,13 @@ window.parseMemberRecap = async function(event) {
     if (parseBtn) parseBtn.disabled = true;
 
     try {
+        setStatus('Parsing DartConnect recap and matching your team schedule...');
+        showLoading('Parsing DartConnect recap...');
         const result = await callFunction('parseDartConnectRecap', {
             recapUrl,
             leagueId
         });
+        hideLoading();
         memberImportPayload = result.matchData;
         memberImportValidation = result.validation;
         memberImportParseSummary = result.parse_summary || null;
@@ -220,10 +223,12 @@ window.parseMemberRecap = async function(event) {
         updateImportApprovalState();
         window.toastSuccess?.('Recap parsed and matched');
     } catch (error) {
+        hideLoading();
         console.error('Member recap parse error:', error);
         resetMemberImport(`Recap parse failed: ${error.message}`);
         window.toastError?.(error.message);
     } finally {
+        hideLoading();
         if (parseBtn) parseBtn.disabled = false;
     }
 };
@@ -245,9 +250,10 @@ window.importMemberRecap = async function() {
 
     const importBtn = document.getElementById('memberImportBtn');
     if (importBtn) importBtn.disabled = true;
-    setStatus('Importing match...');
+    setStatus('Importing match and recalculating stats...');
 
     try {
+        showLoading('Importing recap and recalculating stats...');
         const result = await callFunction('importMatchData', {
             leagueId,
             matchId,
@@ -256,14 +262,18 @@ window.importMemberRecap = async function() {
             player_id: playerId,
             team_id: teamId || null
         });
+        hideLoading();
         if (!result.success) throw new Error(result.error || 'Import failed');
         window.toastSuccess?.('Match imported successfully', 5000);
         resetMemberImport('Import completed. Paste another DartConnect recap URL if needed.');
     } catch (error) {
+        hideLoading();
         console.error('Member import error:', error);
         setStatus(`Import failed: ${error.message}`);
         window.toastError?.(error.message);
         if (importBtn) importBtn.disabled = false;
+    } finally {
+        hideLoading();
     }
 };
 

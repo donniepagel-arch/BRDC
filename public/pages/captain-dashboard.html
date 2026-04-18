@@ -347,7 +347,7 @@
     </main>
 
     <script type="module">
-        import { auth, signInWithEmailAndPassword, sendPasswordResetEmail, callFunction, signInWithPopup, GoogleAuthProvider } from '/js/firebase-config.js';
+        import { auth, signInWithEmailAndPassword, sendPasswordResetEmail, callFunction, showLoading, hideLoading, signInWithPopup, GoogleAuthProvider } from '/js/firebase-config.js';
 
         let dashboardData = null;
         let currentLeagueId = null;
@@ -1682,10 +1682,13 @@
             }
 
             try {
+                document.getElementById('captainImportStatus').textContent = 'Parsing DartConnect recap and matching your schedule...';
+                showLoading('Parsing DartConnect recap...');
                 const result = await callFunction('parseDartConnectRecap', {
                     recapUrl,
                     leagueId: currentLeagueId
                 });
+                hideLoading();
 
                 captainImportPayload = result.matchData;
                 captainImportValidation = result.validation;
@@ -1736,10 +1739,12 @@
                 document.getElementById('captainImportBtn').disabled = false;
                 toastSuccess('Recap parsed and matched to your schedule');
             } catch (error) {
+                hideLoading();
                 console.error('Captain recap parse error:', error);
                 resetCaptainImportState(`Recap parse failed: ${error.message}`);
                 toastError(error.message);
             } finally {
+                hideLoading();
                 if (parseBtn) {
                     parseBtn.disabled = false;
                     parseBtn.classList.remove('btn-loading');
@@ -1765,9 +1770,10 @@
             const importBtn = document.getElementById('captainImportBtn');
             importBtn.disabled = true;
             importBtn.classList.add('btn-loading');
-            document.getElementById('captainImportStatus').textContent = 'Importing match...';
+            document.getElementById('captainImportStatus').textContent = 'Importing match and recalculating stats...';
 
             try {
+                showLoading('Importing recap and refreshing dashboard...');
                 const result = await callFunction('importMatchData', {
                     leagueId: currentLeagueId,
                     matchId,
@@ -1776,6 +1782,7 @@
                     captain_id: currentPlayerId,
                     team_id: currentTeamId
                 });
+                hideLoading();
 
                 if (!result.success) {
                     throw new Error(result.error || 'Import failed');
@@ -1783,16 +1790,19 @@
 
                 document.getElementById('captainImportStatus').textContent =
                     `Import completed for ${formatCaptainImportMatch(match)}. Refreshing dashboard...`;
+                showLoading('Import complete. Refreshing dashboard...');
                 toastSuccess('Match imported successfully', 5000);
                 await loadDashboard();
                 resetCaptainImportState('Import completed. Paste another DartConnect recap URL if needed.');
                 showTab('import');
             } catch (error) {
+                hideLoading();
                 console.error('Captain import error:', error);
                 document.getElementById('captainImportStatus').textContent = `Import failed: ${error.message}`;
                 toastError(error.message);
                 importBtn.disabled = false;
             } finally {
+                hideLoading();
                 importBtn.classList.remove('btn-loading');
             }
         };
