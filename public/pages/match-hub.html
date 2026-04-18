@@ -386,11 +386,86 @@
         function normalizePlayerName(name) {
             return safeName(name).trim().toLowerCase();
         }
-        function getGamePlayers(game) {
+        function getScheduledGamePlayers(game) {
             return {
-                home: (game?.home_players || []).map(p => typeof p === 'string' ? p : (p?.name || 'TBD')),
-                away: (game?.away_players || []).map(p => typeof p === 'string' ? p : (p?.name || 'TBD'))
+                home: (game?.home_players || []).map(p => typeof p === 'string' ? p : (p?.name || 'TBD')).filter(Boolean),
+                away: (game?.away_players || []).map(p => typeof p === 'string' ? p : (p?.name || 'TBD')).filter(Boolean)
             };
+        }
+        function orderActualPlayers(actualNames, scheduledNames) {
+            const seen = new Set();
+            const ordered = [];
+            scheduledNames.forEach(name => {
+                const match = actualNames.find(actual => normalizePlayerName(actual) === normalizePlayerName(name));
+                if (match && !seen.has(normalizePlayerName(match))) {
+                    ordered.push(match);
+                    seen.add(normalizePlayerName(match));
+                }
+            });
+            actualNames.forEach(name => {
+                const key = normalizePlayerName(name);
+                if (!seen.has(key)) {
+                    ordered.push(name);
+                    seen.add(key);
+                }
+            });
+            return ordered;
+        }
+        function getGamePlayers(game) {
+            if (game?._resolvedPlayers) return game._resolvedPlayers;
+
+            const scheduledPlayers = getScheduledGamePlayers(game);
+            const actualHome = [];
+            const actualAway = [];
+            const seenHome = new Set();
+            const seenAway = new Set();
+            const sideLookup = {};
+
+            scheduledPlayers.home.forEach(name => {
+                const key = normalizePlayerName(name);
+                if (key) sideLookup[key] = 'home';
+            });
+            scheduledPlayers.away.forEach(name => {
+                const key = normalizePlayerName(name);
+                if (key) sideLookup[key] = 'away';
+            });
+
+            (game?.legs || []).forEach(leg => {
+                Object.entries(getLegPlayerStats(leg, game)).forEach(([name, stats]) => {
+                    if (!safeName(name)) return;
+                    const side = stats?.side || sideLookup[normalizePlayerName(name)] || null;
+                    const key = normalizePlayerName(name);
+                    if (side === 'home' && !seenHome.has(key)) {
+                        actualHome.push(name);
+                        seenHome.add(key);
+                    } else if (side === 'away' && !seenAway.has(key)) {
+                        actualAway.push(name);
+                        seenAway.add(key);
+                    }
+                });
+                (leg?.throws || []).forEach(turn => {
+                    ['home', 'away'].forEach(slot => {
+                        const throwData = turn?.[slot];
+                        const name = getThrowPlayerName(throwData);
+                        if (!name) return;
+                        const key = normalizePlayerName(name);
+                        const side = sideLookup[key] || getGameThrowSlotMap(game)[slot] || slot;
+                        if (side === 'home' && !seenHome.has(key)) {
+                            actualHome.push(name);
+                            seenHome.add(key);
+                        } else if (side === 'away' && !seenAway.has(key)) {
+                            actualAway.push(name);
+                            seenAway.add(key);
+                        }
+                    });
+                });
+            });
+
+            game._resolvedPlayers = {
+                home: actualHome.length ? orderActualPlayers(actualHome, scheduledPlayers.home) : scheduledPlayers.home,
+                away: actualAway.length ? orderActualPlayers(actualAway, scheduledPlayers.away) : scheduledPlayers.away
+            };
+            return game._resolvedPlayers;
         }
         function getThrowPlayerName(throwData) {
             return safeName(throwData?.player_name || throwData?.player || throwData?.name || throwData?.imported_player_label);
@@ -402,7 +477,7 @@
         }
         function getGamePlayerSideLookup(game) {
             if (game._playerSideLookup) return game._playerSideLookup;
-            const players = getGamePlayers(game);
+            const players = getScheduledGamePlayers(game);
             const lookup = {};
             players.home.forEach(name => {
                 const key = normalizePlayerName(name);
@@ -531,6 +606,108 @@
                 });
             });
             return participants;
+        }
+        function getKnownPlayerByName(name) {
+            if (!safeName(name)) return null;
+            if (allPlayersByName[name]) return allPlayersByName[name];
+            const normalized = normalizePlayerName(name);
+            return Object.values(allPlayersById).find(player => normalizePlayerName(player?.name) === normalized) || null;
+        }
+        function getMatchDerivedPlayerStats(match) {
+            const summary = {};
+            (match?.games || []).forEach(game => {
+                (game?.legs || []).forEach(leg => {
+                    const isCricket = isCricketGame(game, leg);
+                    Object.entries(getLegPlayerStats(leg, game)).forEach(([name, stats]) => {
+                        if (!safeName(name)) return;
+                        if (!summary[name]) {
+                            summary[name] = {
+                                side: stats?.side || (getGamePlayerSideLookup(game)[normalizePlayerName(name)] || null),
+                                x01Darts: 0,
+                                x01Points: 0,
+                                cricketDarts: 0,
+                                cricketMarks: 0
+                            };
+                        }
+                        if (!summary[name].side && stats?.side) summary[name].side = stats.side;
+                        if (isCricket) {
+                            summary[name].cricketDarts += Number(stats?.darts) || 0;
+                            summary[name].cricketMarks += Number(stats?.marks) || 0;
+                        } else {
+                            summary[name].x01Darts += Number(stats?.darts) || 0;
+                            summary[name].x01Points += Number(stats?.points) || 0;
+                        }
+                    });
+                });
+            });
+
+            Object.values(summary).forEach(stats => {
+                stats.x01_three_dart_avg = stats.x01Darts > 0 ? (stats.x01Points / stats.x01Darts) * 3 : null;
+                stats.cricket_mpr = stats.cricketDarts > 0 ? stats.cricketMarks / (stats.cricketDarts / 3) : null;
+            });
+
+            return summary;
+        }
+        function buildCompletedRosterDisplay(baseRoster, actualNames) {
+            const scheduled = [...(baseRoster || [])].sort((a, b) => (a.position || 99) - (b.position || 99));
+            const actualPlayers = Array.from(actualNames || []).map(name => {
+                const known = getKnownPlayerByName(name);
+                return {
+                    ...(known || {}),
+                    name,
+                    id: known?.id || '',
+                    position: known?.position || 99,
+                    level: known?.level || ''
+                };
+            });
+            const remainingActual = [...actualPlayers];
+            const activePlayers = [];
+            const outPlayers = [];
+
+            scheduled.forEach(slotPlayer => {
+                const exactIdx = remainingActual.findIndex(player => normalizePlayerName(player.name) === normalizePlayerName(slotPlayer.name));
+                if (exactIdx >= 0) {
+                    const actualPlayer = remainingActual.splice(exactIdx, 1)[0];
+                    activePlayers.push({
+                        ...slotPlayer,
+                        ...actualPlayer,
+                        name: actualPlayer.name || slotPlayer.name,
+                        id: actualPlayer.id || slotPlayer.id || '',
+                        position: slotPlayer.position || actualPlayer.position || 99
+                    });
+                    return;
+                }
+
+                const samePositionIdx = remainingActual.findIndex(player => Number(player.position || 99) === Number(slotPlayer.position || 99));
+                const sameLevelIdx = remainingActual.findIndex(player => safeName(player.level).toUpperCase() === safeName(slotPlayer.level).toUpperCase());
+                const replacementIdx = samePositionIdx >= 0 ? samePositionIdx : sameLevelIdx;
+
+                if (replacementIdx >= 0) {
+                    const replacement = remainingActual.splice(replacementIdx, 1)[0];
+                    activePlayers.push({
+                        ...slotPlayer,
+                        ...replacement,
+                        name: replacement.name,
+                        id: replacement.id || slotPlayer.id || '',
+                        position: slotPlayer.position || replacement.position || 99,
+                        level: replacement.level || slotPlayer.level || '',
+                        isFillIn: true
+                    });
+                    outPlayers.push({ ...slotPlayer, isOut: true });
+                } else {
+                    outPlayers.push({ ...slotPlayer, isOut: true });
+                }
+            });
+
+            remainingActual.forEach(player => {
+                activePlayers.push({
+                    ...player,
+                    isFillIn: true
+                });
+            });
+
+            activePlayers.sort((a, b) => (a.position || 99) - (b.position || 99));
+            return { activePlayers, outPlayers };
         }
 
         // Check if a player is a fill-in
@@ -667,6 +844,8 @@
                 }
 
                 if (matchData.status === 'completed' && matchData.games && matchData.games.length > 0) {
+                    const actualParticipants = getMatchActualParticipants(matchData);
+
                     // First try explicit lineup data
                     const homeLineup = matchData.home_lineup || [];
                     const awayLineup = matchData.away_lineup || [];
@@ -695,7 +874,6 @@
                         });
                     } else {
                         // Auto-detect from games data
-                        const actualParticipants = getMatchActualParticipants(matchData);
                         const homePlayedNames = actualParticipants.home;
                         const awayPlayedNames = actualParticipants.away;
                         const allPlayedNames = new Set([...homePlayedNames, ...awayPlayedNames]);
@@ -748,6 +926,13 @@
 
                     homeDisplayRoster.sort((a, b) => (a.position || 99) - (b.position || 99));
                     awayDisplayRoster.sort((a, b) => (a.position || 99) - (b.position || 99));
+
+                    const rebuiltHomeRoster = buildCompletedRosterDisplay(homeRoster, actualParticipants.home);
+                    const rebuiltAwayRoster = buildCompletedRosterDisplay(awayRoster, actualParticipants.away);
+                    homeDisplayRoster = rebuiltHomeRoster.activePlayers;
+                    awayDisplayRoster = rebuiltAwayRoster.activePlayers;
+                    homeOutPlayers = rebuiltHomeRoster.outPlayers;
+                    awayOutPlayers = rebuiltAwayRoster.outPlayers;
                 }
 
                 // Determine if match is completed or not
@@ -801,8 +986,9 @@
                 if (game.winner === 'home') homeSetsWon++;
                 else if (game.winner === 'away') awaySetsWon++;
 
-                const homePl = (game.home_players || []).map(p => typeof p === 'string' ? p : (p?.name || ''));
-                const awayPl = (game.away_players || []).map(p => typeof p === 'string' ? p : (p?.name || ''));
+                const resolvedPlayers = getGamePlayers(game);
+                const homePl = resolvedPlayers.home;
+                const awayPl = resolvedPlayers.away;
                 homePl.forEach(p => homePlayerSet.add(p));
                 awayPl.forEach(p => awayPlayerSet.add(p));
 
@@ -1101,8 +1287,9 @@
                 // Apply player filter - skip sets that don't include any selected player
                 if (selectedFilterPlayers.length > 0) {
                     const firstGame = setGames[0];
-                    const hp = (firstGame.home_players || []).map(p => typeof p === 'string' ? p : (p?.name || ''));
-                    const ap = (firstGame.away_players || []).map(p => typeof p === 'string' ? p : (p?.name || ''));
+                    const firstGamePlayers = getGamePlayers(firstGame);
+                    const hp = firstGamePlayers.home;
+                    const ap = firstGamePlayers.away;
                     const allP = [...hp, ...ap];
                     const hasMatch = selectedFilterPlayers.some(fp => allP.includes(fp));
                     if (!hasMatch) return;
@@ -1133,8 +1320,9 @@
                 // Get players from first game in set (they should be same throughout set)
                 const firstGame = setGames[0];
                 const configuredBestOf = leagueData?.match_format?.[firstGame.originalIdx]?.best_of || totalLegsInSet || 3;
-                const homePlayers = (firstGame.home_players || []).map(p => typeof p === 'string' ? p : (p?.name || 'TBD'));
-                const awayPlayers = (firstGame.away_players || []).map(p => typeof p === 'string' ? p : (p?.name || 'TBD'));
+                const firstGamePlayers = getGamePlayers(firstGame);
+                const homePlayers = firstGamePlayers.home;
+                const awayPlayers = firstGamePlayers.away;
 
                 // Game type with position letters (A/B/C from roster positions)
                 const playerCount = homePlayers.length;
@@ -1180,8 +1368,9 @@
                 let awayCombined = { x01Darts: 0, x01Points: 0, cricketDarts: 0, cricketMarks: 0 };
                 setGames.forEach(game => {
                     (game.legs || []).forEach(leg => {
-                        const hp = (game.home_players || []).map(p => typeof p === 'string' ? p : (p?.name || ''));
-                        const ap = (game.away_players || []).map(p => typeof p === 'string' ? p : (p?.name || ''));
+                        const gamePlayers = getGamePlayers(game);
+                        const hp = gamePlayers.home;
+                        const ap = gamePlayers.away;
                         Object.entries(getLegPlayerStats(leg, game)).forEach(([name, stats]) => {
                             const isHome = hp.includes(name);
                             const isAway = ap.includes(name);
@@ -1310,8 +1499,9 @@
                 });
             });
 
-            const homePlayers = (setGames[0]?.home_players || []).map(p => typeof p === 'string' ? p : (p?.name || 'TBD'));
-            const awayPlayers = (setGames[0]?.away_players || []).map(p => typeof p === 'string' ? p : (p?.name || 'TBD'));
+            const setGamePlayers = getGamePlayers(setGames[0] || {});
+            const homePlayers = setGamePlayers.home;
+            const awayPlayers = setGamePlayers.away;
 
             const getStatDisplay = (name) => {
                 const t = playerTotals[name];
@@ -1377,8 +1567,9 @@
 
                 // Get player stats for this specific leg
                 const playerStats = getLegPlayerStats(leg, game);
-                const homePlayers = (game.home_players || []).map(p => typeof p === 'string' ? p : (p?.name || 'TBD'));
-                const awayPlayers = (game.away_players || []).map(p => typeof p === 'string' ? p : (p?.name || 'TBD'));
+                const gamePlayers = getGamePlayers(game);
+                const homePlayers = gamePlayers.home;
+                const awayPlayers = gamePlayers.away;
 
                 // Determine who had cork (threw first) - check first throw
                 const firstThrow = (leg.throws || [])[0];
@@ -2419,8 +2610,9 @@
             games.forEach(game => {
                 // Apply player filter - skip games not involving selected players
                 if (selectedFilterPlayers.length > 0) {
-                    const homePl = (game.home_players || []).map(p => typeof p === 'string' ? p : (p?.name || 'TBD'));
-                    const awayPl = (game.away_players || []).map(p => typeof p === 'string' ? p : (p?.name || 'TBD'));
+                    const gamePlayers = getGamePlayers(game);
+                    const homePl = gamePlayers.home;
+                    const awayPl = gamePlayers.away;
                     const allP = [...homePl, ...awayPl];
                     if (!selectedFilterPlayers.some(fp => allP.includes(fp))) return;
                 }
@@ -2759,7 +2951,7 @@
             const filterVisibleNames = (names) => selectedFilterPlayers.length > 0
                 ? names.filter(name => selectedFilterPlayers.includes(name))
                 : names;
-            const showTeamTotals = selectedFilterPlayers.length === 0;
+            const showTeamTotals = false;
 
             // Build HTML - Start with sub-tab navigation
             let html = `
@@ -3197,8 +3389,9 @@
             games.forEach(function(game) {
                 var isCricket = isCricketGame(game);
                 var setNum = game.set || 1;
-                var hPlayers = (game.home_players || []).map(function(p) { return typeof p === 'string' ? p : (p && p.name ? p.name : 'TBD'); });
-                var aPlayers = (game.away_players || []).map(function(p) { return typeof p === 'string' ? p : (p && p.name ? p.name : 'TBD'); });
+                var resolvedPlayers = getGamePlayers(game);
+                var hPlayers = resolvedPlayers.home;
+                var aPlayers = resolvedPlayers.away;
 
                 // Player filter
                 if (selectedFilterPlayers.length > 0) {
@@ -3405,9 +3598,7 @@
         }
 
         function teamTotalRow(teamName, side, cells) {
-            if (selectedFilterPlayers.length > 0) return '';
-            var cls = side === 'home' ? 'home-total' : 'away-total';
-            return '<tr class="team-total-row ' + cls + '"><td class="rank-col"></td><td class="name-col">' + teamName + '</td>' + cells + '</tr>';
+            return '';
         }
 
         function leaderTable(title, headers, bodyHtml) {
@@ -4508,10 +4699,14 @@
                     const legPlayerStats = getLegPlayerStats(leg, game);
 
                     Object.entries(legPlayerStats).filter(([name]) => name && name !== 'undefined').forEach(([name, stats]) => {
+                        const side = stats.side || (getGamePlayerSideLookup(game)[normalizePlayerName(name)] || null);
+                        if (side === 'home') homePlayerNames.add(name);
+                        else if (side === 'away') awayPlayerNames.add(name);
+
                         if (!matchPlayerStats[name]) {
                             matchPlayerStats[name] = {
                                 name,
-                                side: stats.side || (homePlayerNames.has(name) ? 'home' : 'away'),
+                                side: side || 'away',
                                 x01Darts: 0, x01Points: 0, x01Legs: 0, x01Wins: 0,
                                 first9Points: 0, first9Darts: 0,
                                 cricketDarts: 0, cricketMarks: 0, cricketLegs: 0, cricketWins: 0,
@@ -4520,8 +4715,7 @@
                             };
                         }
 
-                        const isWinner = (leg.winner === 'home' && homePlayerNames.has(name)) ||
-                                         (leg.winner === 'away' && awayPlayerNames.has(name));
+                        const isWinner = leg.winner === side;
 
                         if (legIsCricket) {
                             matchPlayerStats[name].cricketDarts += stats.darts || 0;
@@ -4554,7 +4748,7 @@
                         if (isWinner) matchPlayerStats[name].totalWins++;
 
                         // Track leg result for H2H
-                        const opponents = homePlayerNames.has(name) ?
+                        const opponents = side === 'home' ?
                             awayPlayers : homePlayers;
                         matchPlayerStats[name].legResults.push({
                             gameNum: game.game_number || 1,
@@ -4793,8 +4987,9 @@
                 if (game.winner === 'home') homeSetsWon++;
                 else if (game.winner === 'away') awaySetsWon++;
 
-                const homePl = (game.home_players || []).map(p => typeof p === 'string' ? p : (p?.name || ''));
-                const awayPl = (game.away_players || []).map(p => typeof p === 'string' ? p : (p?.name || ''));
+                const resolvedPlayers = getGamePlayers(game);
+                const homePl = resolvedPlayers.home;
+                const awayPl = resolvedPlayers.away;
                 homePl.forEach(p => homePlayerSet.add(p));
                 awayPl.forEach(p => awayPlayerSet.add(p));
 
@@ -4926,6 +5121,7 @@
         function renderPreMatchRosters(containerId) {
             const rosterContainer = document.getElementById(containerId || 'preMatchRoster');
             const isPostMatch = containerId === 'postMatchRoster';
+            const matchDerivedStats = isPostMatch ? getMatchDerivedPlayerStats(matchData) : {};
 
             // Use displayRoster (includes subs) — it equals homeRoster when no lineup changes
             const homeList = homeDisplayRoster.length > 0 ? homeDisplayRoster : homeRoster;
@@ -4937,7 +5133,7 @@
             }
 
             function renderPlayerRow(player, isOut, compClass, side) {
-                const stats = allPlayersById[player.id] || player;
+                const stats = (isPostMatch && matchDerivedStats[player.name]) || allPlayersById[player.id] || player;
                 const avg = formatStat(stats.x01_three_dart_avg, 1);
                 const mpr = formatStat(stats.cricket_mpr, 2);
                 const rawLevel = String(player.level || '').toUpperCase();
@@ -4977,8 +5173,8 @@
                 const hPlayer = homeList[i];
                 const aPlayer = awayList[i];
                 if (hPlayer && aPlayer) {
-                    const hStats = allPlayersById[hPlayer.id] || hPlayer;
-                    const aStats = allPlayersById[aPlayer.id] || aPlayer;
+                    const hStats = (isPostMatch && matchDerivedStats[hPlayer.name]) || allPlayersById[hPlayer.id] || hPlayer;
+                    const aStats = (isPostMatch && matchDerivedStats[aPlayer.name]) || allPlayersById[aPlayer.id] || aPlayer;
                     const hAvg = finiteStat(hStats.x01_three_dart_avg);
                     const aAvg = finiteStat(aStats.x01_three_dart_avg);
                     if (hAvg > aAvg) { homeCompClasses[i] = 'stat-better'; awayCompClasses[i] = 'stat-worse'; }

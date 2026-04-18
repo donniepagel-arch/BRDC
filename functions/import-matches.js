@@ -1173,12 +1173,16 @@ function buildMatchDataFromRecapPayload(payload, recapUrl, gamesUrl, scheduledCo
 
         const orientedLegs = recapNeedsSwap ? legs.map(swapLegData) : legs;
 
-        const homePlayers = scheduledGame?.home_players?.length
-            ? scheduledGame.home_players
-            : chooseSideRosterNames(setHomePlayers, homeRoster, 'Home');
-        const awayPlayers = scheduledGame?.away_players?.length
-            ? scheduledGame.away_players
-            : chooseSideRosterNames(setAwayPlayers, awayRoster, 'Away');
+        const homePlayers = chooseSideRosterNames(
+            setHomePlayers,
+            scheduledGame?.home_players?.length ? scheduledGame.home_players : homeRoster,
+            'Home'
+        );
+        const awayPlayers = chooseSideRosterNames(
+            setAwayPlayers,
+            scheduledGame?.away_players?.length ? scheduledGame.away_players : awayRoster,
+            'Away'
+        );
 
         const homeLegsWon = orientedLegs.filter(leg => leg.winner === 'home').length;
         const awayLegsWon = orientedLegs.filter(leg => leg.winner === 'away').length;
