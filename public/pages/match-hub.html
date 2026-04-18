@@ -2401,8 +2401,6 @@
             const awayPlayerNames = new Set();
 
             games.forEach(game => {
-                const isCricket = game.format === 'cricket';
-
                 // Apply player filter - skip games not involving selected players
                 if (selectedFilterPlayers.length > 0) {
                     const homePl = (game.home_players || []).map(p => typeof p === 'string' ? p : (p?.name || 'TBD'));
@@ -2412,7 +2410,8 @@
                 }
 
                 (game.legs || []).forEach((leg, legIdx) => {
-                    const isX01 = !isCricket && leg.format !== 'cricket';
+                    const legIsCricket = isCricketGame(game, leg);
+                    const isX01 = !legIsCricket;
                     const legId = game.set + '-' + legIdx; // Unique leg identifier
                     const legPlayersSeen = new Set(); // Track which players we've counted for this leg
 
@@ -2422,8 +2421,12 @@
 
                         // ===== HOME THROW =====
                         if (t.home) {
-                            const pName = t.home.player;
-                            if (pName) homePlayerNames.add(pName);
+                            const pName = getThrowPlayerName(t.home);
+                            const pSide = pName ? resolveThrowSide(game, 'home', t.home) : null;
+                            if (pName) {
+                                if (pSide === 'home') homePlayerNames.add(pName);
+                                else awayPlayerNames.add(pName);
+                            }
 
                             if (isX01) {
                                 // Track X01 leg participation
@@ -2550,7 +2553,7 @@
                                     if (bullMarks >= 3) playerMarksman[pName].hatTricks++;
 
                                     // Closeout tracking
-                                    if (t.home.closed_out || (leg.winner === 'home' && isLastThrow)) {
+                                    if (t.home.closed_out || (leg.winner === pSide && isLastThrow)) {
                                         if (marks >= 5 && marks <= 9) {
                                             if (!playerCricketCloseouts[pName]) playerCricketCloseouts[pName] = { '5m': 0, '6m': 0, '7m': 0, '8m': 0, '9m': 0 };
                                             playerCricketCloseouts[pName][marks + 'm']++;
@@ -2562,8 +2565,12 @@
 
                         // ===== AWAY THROW =====
                         if (t.away) {
-                            const pName = t.away.player;
-                            if (pName) awayPlayerNames.add(pName);
+                            const pName = getThrowPlayerName(t.away);
+                            const pSide = pName ? resolveThrowSide(game, 'away', t.away) : null;
+                            if (pName) {
+                                if (pSide === 'home') homePlayerNames.add(pName);
+                                else awayPlayerNames.add(pName);
+                            }
 
                             if (isX01) {
                                 // Track X01 leg participation
@@ -2690,7 +2697,7 @@
                                     if (bullMarks >= 3) playerMarksman[pName].hatTricks++;
 
                                     // Closeout tracking
-                                    if (t.away.closed_out || (leg.winner === 'away' && isLastThrow)) {
+                                    if (t.away.closed_out || (leg.winner === pSide && isLastThrow)) {
                                         if (marks >= 5 && marks <= 9) {
                                             if (!playerCricketCloseouts[pName]) playerCricketCloseouts[pName] = { '5m': 0, '6m': 0, '7m': 0, '8m': 0, '9m': 0 };
                                             playerCricketCloseouts[pName][marks + 'm']++;
@@ -3173,8 +3180,6 @@
                 var setNum = game.set || 1;
                 var hPlayers = (game.home_players || []).map(function(p) { return typeof p === 'string' ? p : (p && p.name ? p.name : 'TBD'); });
                 var aPlayers = (game.away_players || []).map(function(p) { return typeof p === 'string' ? p : (p && p.name ? p.name : 'TBD'); });
-                hPlayers.forEach(function(p) { homeNames.add(p); });
-                aPlayers.forEach(function(p) { awayNames.add(p); });
 
                 // Player filter
                 if (selectedFilterPlayers.length > 0) {
@@ -3184,12 +3189,11 @@
 
                 // Track set data
                 if (!setData[setNum]) setData[setNum] = { homeLegWins: 0, awayLegWins: 0, players: new Set() };
-                hPlayers.forEach(function(p) { setData[setNum].players.add(p); });
-                aPlayers.forEach(function(p) { setData[setNum].players.add(p); });
 
                 (game.legs || []).forEach(function(leg) {
                     var legIsCricket = isCricketGame(game, leg);
                     var legPlayerStats = getLegPlayerStats(leg, game);
+                    var legParticipantNames = new Set();
 
                     // Track set leg wins
                     if (leg.winner === 'home') setData[setNum].homeLegWins++;
@@ -3198,9 +3202,12 @@
                     // Aggregate from player_stats or throw-derived fallback
                     Object.entries(legPlayerStats).filter(function(e) { return e[0] && e[0] !== 'undefined'; }).forEach(function(entry) {
                         var name = entry[0], st = entry[1];
+                        var playerSide = st.side || (hPlayers.indexOf(name) >= 0 ? 'home' : 'away');
+                        if (playerSide === 'home') homeNames.add(name);
+                        else awayNames.add(name);
+                        legParticipantNames.add(name);
                         var p = ensure(name);
-                        var isWinner = (leg.winner === 'home' && homeNames.has(name)) ||
-                                       (leg.winner === 'away' && awayNames.has(name));
+                        var isWinner = leg.winner === playerSide;
 
                         p.combined.legs++;
                         if (isWinner) p.combined.wins++;
@@ -3250,8 +3257,12 @@
                         ['home', 'away'].forEach(function(side) {
                             var td = t[side];
                             if (!td) return;
-                            var rawName = safeName(td.player) || (side === 'home' ? hPlayers[0] : aPlayers[0]);
+                            var rawName = getThrowPlayerName(td) || (side === 'home' ? hPlayers[0] : aPlayers[0]);
                             if (!rawName || typeof rawName !== 'string') return;
+                            var actualSide = resolveThrowSide(game, side, td);
+                            if (actualSide === 'home') homeNames.add(rawName);
+                            else awayNames.add(rawName);
+                            legParticipantNames.add(rawName);
                             var p = ensure(rawName);
 
                             if (legIsCricket) {
@@ -3344,6 +3355,8 @@
                             }
                         });
                     });
+
+                    legParticipantNames.forEach(function(name) { setData[setNum].players.add(name); });
                 });
             });
 
