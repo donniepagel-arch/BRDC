@@ -290,7 +290,7 @@
                             <span id="captainImportGames">-</span>
                         </div>
                         <div>
-                            <span class="setting-label">Throws</span>
+                            <span class="setting-label">Visits Parsed</span>
                             <span id="captainImportThrows">-</span>
                         </div>
                     </div>
@@ -1596,11 +1596,22 @@
                 : '';
         }
 
-        function countImportSetThrows(game) {
+        function countImportSetVisits(game) {
             return (game?.legs || []).reduce((total, leg) => total + (Array.isArray(leg.throws) ? leg.throws.length : 0), 0);
         }
 
-        function renderCaptainImportSetSummary(matchData) {
+        function formatCaptainRecapScope(parseSummary) {
+            if (!parseSummary) return 'Recap scope unavailable.';
+            const fullNightGroups = parseSummary.raw_group_count ?? '-';
+            const importedGroups = parseSummary.parsed_group_count ?? '-';
+            const scheduledGroups = parseSummary.scheduled_game_count ?? '-';
+            if (fullNightGroups === importedGroups) {
+                return `Recap scope: importing all ${importedGroups} matched set(s).`;
+            }
+            return `Recap scope: page contains ${fullNightGroups} set group(s); this matchup imports ${importedGroups} of ${scheduledGroups} scheduled set(s).`;
+        }
+
+        function renderCaptainImportSetSummary(matchData, parseSummary = null) {
             const target = document.getElementById('captainImportSetSummary');
             if (!target) return;
             const games = Array.isArray(matchData?.games) ? matchData.games : [];
@@ -1609,14 +1620,21 @@
                 return;
             }
 
+            const fullNightGroups = parseSummary?.raw_group_count ?? null;
+            const importedGroups = parseSummary?.parsed_group_count ?? games.length;
+            const scopeNote = fullNightGroups && fullNightGroups !== importedGroups
+                ? `<div style="margin-bottom: 8px; color: var(--text-dim); font-size: 12px;">Showing ${importedGroups} matched set(s) from a recap page containing ${fullNightGroups} set group(s) for the full night.</div>`
+                : '';
+
             target.innerHTML = `
+                ${scopeNote}
                 <div class="dc-import-set-table">
                     <div class="dc-import-set-header">
                         <span>Set</span>
                         <span>Game</span>
                         <span>Players</span>
                         <span>Legs</span>
-                        <span>Turns</span>
+                        <span>Visits</span>
                     </div>
                     ${games.map((game, idx) => {
                         const homePlayers = (game.home_players || []).join(' + ') || 'Home';
@@ -1631,7 +1649,7 @@
                                 <span class="dc-set-game">${escapeText(label)}</span>
                                 <span class="dc-import-set-players">${escapeText(homePlayers)} <span style="color: var(--text-dim);">vs</span> ${escapeText(awayPlayers)}</span>
                                 <strong class="dc-set-legs">${homeLegs}-${awayLegs} ${winner}</strong>
-                                <span class="dc-set-turns">${countImportSetThrows(game)} turns</span>
+                                <span class="dc-set-turns">${countImportSetVisits(game)} visits</span>
                             </div>
                         `;
                     }).join('')}
@@ -1694,7 +1712,7 @@
 
                 renderCaptainImportMessages('captainImportErrors', errors);
                 renderCaptainImportMessages('captainImportWarnings', warnings);
-                renderCaptainImportSetSummary(captainImportPayload);
+                renderCaptainImportSetSummary(captainImportPayload, captainImportParseSummary);
 
                 if (!isOwnMatch) {
                     document.getElementById('captainImportStatus').textContent =
@@ -1714,7 +1732,7 @@
                     ? ` Auto-match score ${autoMatch.score}${autoMatch.next_score ? `, next ${autoMatch.next_score}` : ''}.`
                     : '';
                 document.getElementById('captainImportStatus').textContent =
-                    `Ready to import ${formatCaptainImportMatch(match)}.${autoText} Games ${captainImportParseSummary?.parsed_group_count}/${captainImportParseSummary?.scheduled_game_count}, throws ${metrics.throws ?? '-'}.`;
+                    `Ready to import ${formatCaptainImportMatch(match)}.${autoText} ${formatCaptainRecapScope(captainImportParseSummary)} Visits parsed: ${metrics.throws ?? '-'}.`;
                 document.getElementById('captainImportBtn').disabled = false;
                 toastSuccess('Recap parsed and matched to your schedule');
             } catch (error) {

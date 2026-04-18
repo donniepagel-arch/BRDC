@@ -2188,7 +2188,7 @@ Bob Wilson"></textarea>
                                             <span id="importValidationLegs">-</span>
                                         </div>
                                         <div>
-                                            <span class="setting-label">Legs With Throws</span>
+                                            <span class="setting-label">Legs With Visits</span>
                                             <span id="importValidationLegsWithThrows">-</span>
                                         </div>
                                         <div>
@@ -5328,11 +5328,22 @@ Bob Wilson"></textarea>
 
         window.updateImportWorkbenchApproval = updateImportWorkbenchApproval;
 
-        function countImportSetThrows(game) {
+        function countImportSetVisits(game) {
             return (game?.legs || []).reduce((total, leg) => total + (Array.isArray(leg.throws) ? leg.throws.length : 0), 0);
         }
 
-        function renderImportSetSummary(matchData) {
+        function formatImportRecapScope(parseSummary) {
+            if (!parseSummary) return 'Recap scope unavailable.';
+            const fullNightGroups = parseSummary.raw_group_count ?? '-';
+            const importedGroups = parseSummary.parsed_group_count ?? '-';
+            const scheduledGroups = parseSummary.scheduled_game_count ?? '-';
+            if (fullNightGroups === importedGroups) {
+                return `Recap scope: importing all ${importedGroups} matched set(s).`;
+            }
+            return `Recap scope: page contains ${fullNightGroups} set group(s); this matchup imports ${importedGroups} of ${scheduledGroups} scheduled set(s).`;
+        }
+
+        function renderImportSetSummary(matchData, parseSummary = null) {
             const target = document.getElementById('importSetSummary');
             if (!target) return;
             const games = Array.isArray(matchData?.games) ? matchData.games : [];
@@ -5341,14 +5352,21 @@ Bob Wilson"></textarea>
                 return;
             }
 
+            const fullNightGroups = parseSummary?.raw_group_count ?? null;
+            const importedGroups = parseSummary?.parsed_group_count ?? games.length;
+            const scopeNote = fullNightGroups && fullNightGroups !== importedGroups
+                ? `<div style="margin-bottom: 8px; color: var(--text-dim); font-size: 12px;">Showing ${importedGroups} matched set(s) from a recap page containing ${fullNightGroups} set group(s) for the full night.</div>`
+                : '';
+
             target.innerHTML = `
+                ${scopeNote}
                 <div style="border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; overflow: hidden;">
                     <div style="display: grid; grid-template-columns: 44px 78px minmax(0, 1fr) 70px 70px; gap: 10px; align-items: center; padding: 9px 11px; color: var(--text-dim); background: rgba(0,0,0,0.28); font-size: 11px; text-transform: uppercase; letter-spacing: 0.7px;">
                         <span>Set</span>
                         <span>Game</span>
                         <span>Players</span>
                         <span>Legs</span>
-                        <span>Turns</span>
+                        <span>Visits</span>
                     </div>
                     ${games.map((game, idx) => {
                         const homePlayers = (game.home_players || []).join(' + ') || 'Home';
@@ -5362,7 +5380,7 @@ Bob Wilson"></textarea>
                                 <span>${escapeHtml(game.format || game.type || 'Game')}</span>
                                 <span style="overflow-wrap: anywhere;">${escapeHtml(homePlayers)} <span style="color: var(--text-dim);">vs</span> ${escapeHtml(awayPlayers)}</span>
                                 <strong>${homeLegs}-${awayLegs} ${winner}</strong>
-                                <span>${countImportSetThrows(game)} turns</span>
+                                <span>${countImportSetVisits(game)} visits</span>
                             </div>
                         `;
                     }).join('')}
@@ -5523,14 +5541,12 @@ Bob Wilson"></textarea>
 
                 document.getElementById('importPayloadJson').value = JSON.stringify(importWorkbenchPayload, null, 2);
                 renderImportValidation(importWorkbenchValidation);
-                renderImportSetSummary(importWorkbenchPayload);
+                renderImportSetSummary(importWorkbenchPayload, importWorkbenchParseSummary);
 
                 const parseSummary = importWorkbenchParseSummary || {};
                 const summaryOnlyLegs = parseSummary.summary_only_legs ?? '-';
                 const recapComponent = parseSummary.component || 'unknown';
                 const trimmedGroups = parseSummary.trimmed_placeholder_groups ?? 0;
-                const parsedGroups = parseSummary.parsed_group_count ?? '-';
-                const scheduledGroups = parseSummary.scheduled_game_count ?? '-';
                 const unresolvedPlayers = parseSummary.unresolved_turn_player_count ?? 0;
                 const anchorOk = parseSummary.schedule_match_id === matchId;
                 const autoMatch = parseSummary.auto_match;
@@ -5541,7 +5557,7 @@ Bob Wilson"></textarea>
                     ? `Week ${selectedMatch.week} - ${selectedMatch.home_team_name} vs ${selectedMatch.away_team_name}`
                     : 'selected scheduled match';
                 document.getElementById('importWorkbenchStatus').textContent =
-                    `Parsed DartConnect recap for ${matchLabel} (${recapComponent}). Schedule anchor: ${anchorOk ? 'OK' : 'MISMATCH'}.${autoMatchText} Trimmed old/placeholder groups: ${trimmedGroups}. Parsed groups: ${parsedGroups}/${scheduledGroups}. Summary-only legs: ${summaryOnlyLegs}. Unresolved players: ${unresolvedPlayers}. Review warnings before import.`;
+                    `Parsed DartConnect recap for ${matchLabel} (${recapComponent}). Schedule anchor: ${anchorOk ? 'OK' : 'MISMATCH'}.${autoMatchText} Trimmed old/placeholder groups: ${trimmedGroups}. ${formatImportRecapScope(parseSummary)} Summary-only legs: ${summaryOnlyLegs}. Unresolved players: ${unresolvedPlayers}. Review warnings before import.`;
 
                 const confirmScores = document.getElementById('importConfirmScores');
                 if (confirmScores) {

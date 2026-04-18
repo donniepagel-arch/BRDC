@@ -51,13 +51,24 @@ function setStatus(message) {
     if (status) status.textContent = message;
 }
 
-function countSetThrows(game) {
+function countSetVisits(game) {
     return (game?.legs || []).reduce((total, leg) => {
         return total + (Array.isArray(leg.throws) ? leg.throws.length : 0);
     }, 0);
 }
 
-function renderSetSummary(matchData, targetId) {
+function formatRecapScopeSummary(parseSummary) {
+    if (!parseSummary) return 'Recap scope unavailable.';
+    const fullNightGroups = parseSummary.raw_group_count ?? '-';
+    const importedGroups = parseSummary.parsed_group_count ?? '-';
+    const scheduledGroups = parseSummary.scheduled_game_count ?? '-';
+    if (fullNightGroups === importedGroups) {
+        return `Recap scope: importing all ${importedGroups} matched set(s).`;
+    }
+    return `Recap scope: page contains ${fullNightGroups} set group(s); this matchup imports ${importedGroups} of ${scheduledGroups} scheduled set(s).`;
+}
+
+function renderSetSummary(matchData, targetId, parseSummary = null) {
     const target = document.getElementById(targetId);
     if (!target) return;
     const games = Array.isArray(matchData?.games) ? matchData.games : [];
@@ -66,14 +77,21 @@ function renderSetSummary(matchData, targetId) {
         return;
     }
 
+    const fullNightGroups = parseSummary?.raw_group_count ?? null;
+    const importedGroups = parseSummary?.parsed_group_count ?? games.length;
+    const scopeNote = fullNightGroups && fullNightGroups !== importedGroups
+        ? `<div style="margin-bottom: 8px; color: var(--text-dim); font-size: 12px;">Showing ${importedGroups} matched set(s) from a recap page containing ${fullNightGroups} set group(s) for the full night.</div>`
+        : '';
+
     target.innerHTML = `
+        ${scopeNote}
         <div class="dc-import-set-table">
             <div class="dc-import-set-header">
                 <span>Set</span>
                 <span>Game</span>
                 <span>Players</span>
                 <span>Legs</span>
-                <span>Turns</span>
+                <span>Visits</span>
             </div>
             ${games.map((game, idx) => {
                 const homePlayers = (game.home_players || []).join(' + ') || 'Home';
@@ -88,7 +106,7 @@ function renderSetSummary(matchData, targetId) {
                         <span class="dc-set-game">${escapeText(label)}</span>
                         <span class="dc-import-set-players">${escapeText(homePlayers)} <span style="color: var(--text-dim);">vs</span> ${escapeText(awayPlayers)}</span>
                         <strong class="dc-set-legs">${homeLegs}-${awayLegs} ${winner}</strong>
-                        <span class="dc-set-turns">${countSetThrows(game)} turns</span>
+                        <span class="dc-set-turns">${countSetVisits(game)} visits</span>
                     </div>
                 `;
             }).join('')}
@@ -170,14 +188,14 @@ window.parseMemberRecap = async function(event) {
         if (summaryEl) {
             const lines = [
                 `Score: ${Number.isFinite(score.home) && Number.isFinite(score.away) ? `${score.home}-${score.away}` : '-'}`,
-                `Games: ${memberImportParseSummary?.parsed_group_count ?? '-'} / ${memberImportParseSummary?.scheduled_game_count ?? '-'}`,
-                `Throws: ${metrics.throws ?? '-'}`,
+                formatRecapScopeSummary(memberImportParseSummary),
+                `Visits parsed: ${metrics.throws ?? '-'}`,
                 autoMatch ? `Auto-match score: ${autoMatch.score}${autoMatch.next_score ? `, next ${autoMatch.next_score}` : ''}` : ''
             ].filter(Boolean).map(escapeText);
             const title = escapeText(autoMatch ? `${autoMatch.home_team} vs ${autoMatch.away_team}` : matchId || 'Matched schedule');
             summaryEl.innerHTML = `<strong>${title}</strong><br>${lines.join('<br>')}`;
         }
-        renderSetSummary(memberImportPayload, 'memberImportSetSummary');
+        renderSetSummary(memberImportPayload, 'memberImportSetSummary', memberImportParseSummary);
         if (errorsEl) {
             const allMessages = [...errors, ...warnings];
             errorsEl.innerHTML = allMessages.length
