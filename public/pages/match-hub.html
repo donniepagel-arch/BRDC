@@ -507,6 +507,31 @@
 
             return synthesized;
         }
+        function getMatchActualParticipants(match) {
+            const participants = { home: new Set(), away: new Set() };
+            (match?.games || []).forEach(game => {
+                (game?.legs || []).forEach(leg => {
+                    const legStats = getLegPlayerStats(leg, game);
+                    Object.entries(legStats).forEach(([name, stats]) => {
+                        if (!safeName(name)) return;
+                        const side = stats?.side || (getGamePlayerSideLookup(game)[normalizePlayerName(name)] || null);
+                        if (side === 'home') participants.home.add(name);
+                        else if (side === 'away') participants.away.add(name);
+                    });
+                    (leg?.throws || []).forEach(turn => {
+                        ['home', 'away'].forEach(slot => {
+                            const throwData = turn?.[slot];
+                            const name = getThrowPlayerName(throwData);
+                            if (!name) return;
+                            const side = resolveThrowSide(game, slot, throwData);
+                            if (side === 'home') participants.home.add(name);
+                            else if (side === 'away') participants.away.add(name);
+                        });
+                    });
+                });
+            });
+            return participants;
+        }
 
         // Check if a player is a fill-in
         function isFillInPlayer(playerName) {
@@ -670,24 +695,15 @@
                         });
                     } else {
                         // Auto-detect from games data
-                        // NOTE: RTF home/away positions don't consistently map to match
-                        // home/away teams (Rule 24). Collect ALL played names regardless of side.
-                        const allPlayedNames = new Set();
-                        matchData.games.forEach(game => {
-                            (game.home_players || []).forEach(p => {
-                                const name = typeof p === 'string' ? p : (p && p.name);
-                                if (name) allPlayedNames.add(name);
-                            });
-                            (game.away_players || []).forEach(p => {
-                                const name = typeof p === 'string' ? p : (p && p.name);
-                                if (name) allPlayedNames.add(name);
-                            });
-                        });
+                        const actualParticipants = getMatchActualParticipants(matchData);
+                        const homePlayedNames = actualParticipants.home;
+                        const awayPlayedNames = actualParticipants.away;
+                        const allPlayedNames = new Set([...homePlayedNames, ...awayPlayedNames]);
 
                         // Check team subs who actually played this match
                         homeSubs.forEach(sub => {
-                            if (allPlayedNames.has(sub.name)) {
-                                const outPlayer = homeDisplayRoster.find(p => !p.isFillIn && !allPlayedNames.has(p.name));
+                            if (homePlayedNames.has(sub.name)) {
+                                const outPlayer = homeDisplayRoster.find(p => !p.isFillIn && !homePlayedNames.has(p.name));
                                 if (outPlayer) {
                                     const idx = homeDisplayRoster.indexOf(outPlayer);
                                     homeOutPlayers.push({ ...outPlayer, isOut: true });
@@ -696,8 +712,8 @@
                             }
                         });
                         awaySubs.forEach(sub => {
-                            if (allPlayedNames.has(sub.name)) {
-                                const outPlayer = awayDisplayRoster.find(p => !p.isFillIn && !allPlayedNames.has(p.name));
+                            if (awayPlayedNames.has(sub.name)) {
+                                const outPlayer = awayDisplayRoster.find(p => !p.isFillIn && !awayPlayedNames.has(p.name));
                                 if (outPlayer) {
                                     const idx = awayDisplayRoster.indexOf(outPlayer);
                                     awayOutPlayers.push({ ...outPlayer, isOut: true });
@@ -714,13 +730,14 @@
                         allPlayedNames.forEach(name => {
                             const player = allPlayersByName[name];
                             if (player && !allTeamIds.has(player.id)) {
-                                const homeOut = homeDisplayRoster.find(p => !p.isFillIn && !allPlayedNames.has(p.name));
-                                const awayOut = awayDisplayRoster.find(p => !p.isFillIn && !allPlayedNames.has(p.name));
-                                if (homeOut) {
+                                const side = homePlayedNames.has(name) ? 'home' : (awayPlayedNames.has(name) ? 'away' : null);
+                                const homeOut = homeDisplayRoster.find(p => !p.isFillIn && !homePlayedNames.has(p.name));
+                                const awayOut = awayDisplayRoster.find(p => !p.isFillIn && !awayPlayedNames.has(p.name));
+                                if (side === 'home' && homeOut) {
                                     const idx = homeDisplayRoster.indexOf(homeOut);
                                     homeOutPlayers.push({ ...homeOut, isOut: true });
                                     homeDisplayRoster[idx] = { ...player, isFillIn: true, position: homeOut.position };
-                                } else if (awayOut) {
+                                } else if (side === 'away' && awayOut) {
                                     const idx = awayDisplayRoster.indexOf(awayOut);
                                     awayOutPlayers.push({ ...awayOut, isOut: true });
                                     awayDisplayRoster[idx] = { ...player, isFillIn: true, position: awayOut.position };
@@ -1719,8 +1736,6 @@
             games.forEach(game => {
                 const homePlayers = getGamePlayers(game).home;
                 const awayPlayers = getGamePlayers(game).away;
-                homePlayers.forEach(p => homePlayerNames.add(p));
-                awayPlayers.forEach(p => awayPlayerNames.add(p));
 
                 // Apply player filter - skip games not involving selected players
                 if (selectedFilterPlayers.length > 0) {
@@ -1736,6 +1751,8 @@
 
                     Object.entries(legPlayerStats).filter(([name]) => name && name !== 'undefined').forEach(([name, stats]) => {
                         const side = stats.side || (homePlayerNames.has(name) ? 'home' : 'away');
+                        if (side === 'home') homePlayerNames.add(name);
+                        else awayPlayerNames.add(name);
 
                         if (!playerStats[name]) {
                             playerStats[name] = {
@@ -1746,8 +1763,7 @@
                             };
                         }
 
-                        const isWinner = (leg.winner === 'home' && homePlayerNames.has(name)) ||
-                                         (leg.winner === 'away' && awayPlayerNames.has(name));
+                        const isWinner = leg.winner === side;
 
                         if (isCricket || leg.format === 'cricket') {
                             playerStats[name].cricket.darts += stats.darts || 0;
@@ -2414,6 +2430,7 @@
                     const isX01 = !legIsCricket;
                     const legId = game.set + '-' + legIdx; // Unique leg identifier
                     const legPlayersSeen = new Set(); // Track which players we've counted for this leg
+                    const first9RoundCounts = {};
 
                     const throwsArr = leg.throws || [];
                     throwsArr.forEach((t, throwIdx) => {
@@ -2482,7 +2499,8 @@
                                     }
 
                                     // First 9 dart tracking (rounds 1-3)
-                                    if (t.round && t.round <= 3) {
+                                    first9RoundCounts[pName] = (first9RoundCounts[pName] || 0) + 1;
+                                    if (first9RoundCounts[pName] <= 3) {
                                         playerCheckoutPerf[pName].first9Points += score;
                                         playerCheckoutPerf[pName].first9Darts += 3;
                                     }
@@ -2626,7 +2644,8 @@
                                     }
 
                                     // First 9 dart tracking (rounds 1-3)
-                                    if (t.round && t.round <= 3) {
+                                    first9RoundCounts[pName] = (first9RoundCounts[pName] || 0) + 1;
+                                    if (first9RoundCounts[pName] <= 3) {
                                         playerCheckoutPerf[pName].first9Points += score;
                                         playerCheckoutPerf[pName].first9Darts += 3;
                                     }
@@ -4482,8 +4501,6 @@
             games.forEach(game => {
                 const homePlayers = getGamePlayers(game).home;
                 const awayPlayers = getGamePlayers(game).away;
-                homePlayers.forEach(p => homePlayerNames.add(p));
-                awayPlayers.forEach(p => awayPlayerNames.add(p));
 
                 (game.legs || []).forEach((leg, legIdx) => {
                     const legFormat = leg.format || game.format || '501';
