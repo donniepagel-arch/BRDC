@@ -133,6 +133,7 @@
             <button class="lab-btn" id="btnCalibrate" disabled>Manual (4 taps)</button>
             <button class="lab-btn gold hidden" id="btnDetect">Start detecting</button>
             <button class="lab-btn hidden" id="btnNewTurn">New turn</button>
+            <label class="lab-btn" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="harvestToggle"> 🌾 harvest to dataset</label>
         </div>
         <div class="btn-row hidden" id="photoBtns">
             <label class="lab-btn primary" for="photoInput">Load photo</label>
@@ -182,6 +183,15 @@ import {
     calibrate, autoCalibrate, refineCalibration, applyHomography, scoreFromImagePoint, scoreFromBoardPoint,
     computeHomography, toGray, diffMask, denoiseMask, findBlobs, findDartTip, createDetector
 } from '/js/autoscore-engine.js?v=6';
+import { loadDetector } from '/js/onnx-detector.js?v=1';
+
+// Auto-score detection engine: the trained ONNX model when one exists, else the
+// classical frame-diff engine (tonight's path until v1 ships). The board's
+// calibration homography (cal.H) always does the scoring math — the detector
+// only supplies dart-tip locations (ONNX) or detects them (classical).
+const DART_MODEL_URL = '/models/dart/dart-yolov8n.onnx';
+let onnxDet = null, useOnnx = false, onnxBusy = false, prevDartCount = 0;
+let lastFullFrame = null;  // freshest frame WITH darts present, for self-harvest
 
 const $ = (id) => document.getElementById(id);
 const stage = $('stage'), ctx = stage.getContext('2d');
@@ -507,19 +517,28 @@ const procCanvas = document.createElement('canvas');
 const procCtx = procCanvas.getContext('2d', { willReadFrequently: true });
 let detectTimer = null;
 
-$('btnDetect').addEventListener('click', () => {
+$('btnDetect').addEventListener('click', async () => {
     if (!cal) { log('calibrate first', 'err'); return; }
     detecting = !detecting;
     $('btnDetect').textContent = detecting ? 'Stop detecting' : 'Start detecting';
     $('btnNewTurn').classList.toggle('hidden', !detecting);
     if (detecting) {
+        // Prefer the trained ONNX model if one has shipped; else classical.
+        if (!onnxDet) {
+            try {
+                const head = await fetch(DART_MODEL_URL, { method: 'HEAD' });
+                if (head.ok) { onnxDet = await loadDetector(DART_MODEL_URL, { imgsz: 640, conf: 0.3 }); }
+            } catch { /* no model yet — classical */ }
+        }
+        useOnnx = !!onnxDet;
+        prevDartCount = 0;
         const scale = PROC_W / stage.width;
         procCanvas.width = PROC_W;
         procCanvas.height = Math.round(stage.height * scale);
         detector = createDetector({ w: procCanvas.width, h: procCanvas.height });
         newTurn();
-        detectTimer = setInterval(detectFrame, 130);
-        log('detector armed — keep camera still', 'info');
+        detectTimer = setInterval(detectFrame, useOnnx ? 200 : 130);
+        log(useOnnx ? `detecting with ONNX model (${onnxDet.backend}) ✔` : 'detecting with classical engine (no model yet)', 'info');
     } else {
         clearInterval(detectTimer);
         setState('idle');
@@ -528,6 +547,18 @@ $('btnDetect').addEventListener('click', () => {
 
 function detectFrame() {
     if (!detecting || !camRunning) return;
+    if (useOnnx) { onnxFrame(); return; }
+    classicalFrame();
+}
+
+function captureFullFrame() {
+    const c = document.createElement('canvas');
+    c.width = stage.width; c.height = stage.height;
+    c.getContext('2d').drawImage(video, 0, 0, c.width, c.height);
+    return c;
+}
+
+function classicalFrame() {
     procCtx.drawImage(video, 0, 0, procCanvas.width, procCanvas.height);
     const frame = procCtx.getImageData(0, 0, procCanvas.width, procCanvas.height);
     const gray = toGray(frame.data, procCanvas.width, procCanvas.height);
@@ -539,8 +570,10 @@ function detectFrame() {
             const imagePt = { x: ev.tip.x * scaleUp, y: ev.tip.y * scaleUp };
             const res = scoreFromImagePoint(cal.H, imagePt);
             addDartToTurn(res, ev.tip.confidence, imagePt);
+            lastFullFrame = captureFullFrame();   // freshest frame WITH darts, for harvest
             log(`DART ${ev.dartNumber}: ${res.label} = ${res.score} (conf ${(ev.tip.confidence * 100) | 0}%)`, 'hit');
         } else if (ev.type === 'turn-reset') {
+            maybeHarvest();
             log('darts pulled — new turn', 'info');
             newTurn();
         } else if (ev.type === 'rebaseline') {
@@ -548,6 +581,52 @@ function detectFrame() {
             newTurn();
         }
     }
+}
+
+// ONNX path: each inference detects ALL darts present; new dart = count up,
+// empty board = darts pulled. Scoring still via the classical homography (cal.H).
+async function onnxFrame() {
+    if (onnxBusy) return;
+    onnxBusy = true;
+    try {
+        const r = await onnxDet.detectBoard(video);
+        setState('ready');
+        turn = { darts: [], total: 0 };
+        for (const d of r.darts) {
+            const res = scoreFromImagePoint(cal.H, d);
+            turn.darts.push({ res, confidence: d.conf, imagePt: d });
+        }
+        turn.total = turn.darts.reduce((s, d) => s + d.res.score, 0);
+        renderTurn();
+        if (r.darts.length > prevDartCount) {
+            lastFullFrame = captureFullFrame();
+            const nd = r.darts[r.darts.length - 1];
+            log(`DART: ${scoreFromImagePoint(cal.H, nd).label} (conf ${(nd.conf * 100) | 0}%)`, 'hit');
+        } else if (r.darts.length === 0 && prevDartCount > 0) {
+            maybeHarvest();
+            log('darts pulled — new turn', 'info');
+        }
+        prevDartCount = r.darts.length;
+    } catch { /* transient inference hiccup */ }
+    onnxBusy = false;
+}
+
+// Self-harvest: save the just-completed turn (frame with darts + detector-proposed
+// labels) into the training dataset. Tonight (classical) this seeds clean real
+// frames; once a model ships, cross-check ONNX vs classical before harvesting.
+function maybeHarvest() {
+    if (!$('harvestToggle')?.checked || !lastFullFrame || calPoints.length !== 4 || !turn.darts.length) { lastFullFrame = null; return; }
+    const W = stage.width, H = stage.height;
+    const box = Math.max(16, Math.round(W * 0.02)), bw = (box / W).toFixed(6), bh = (box / H).toFixed(6);
+    const lines = [];
+    calPoints.forEach((p, i) => lines.push(`${i} ${(p.x / W).toFixed(6)} ${(p.y / H).toFixed(6)} ${bw} ${bh}`));
+    turn.darts.forEach(d => lines.push(`4 ${(d.imagePt.x / W).toFixed(6)} ${(d.imagePt.y / H).toFixed(6)} ${bw} ${bh}`));
+    const split = Math.random() < 0.2 ? 'val' : 'train';
+    fetch('/capture', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: 'harvest_' + Date.now(), image: lastFullFrame.toDataURL('image/jpeg', 0.92), label: lines.join('\n') + '\n', split }) })
+        .then(r => r.json()).then(r => log(`🌾 harvested ${r.split} #${r.count} (${turn.darts.length} darts)`, 'hit'))
+        .catch(() => { /* prod has no /capture — harvest is localhost-only */ });
+    lastFullFrame = null;
 }
 
 function setState(s) {

@@ -30,9 +30,12 @@
  *        ellipse fit → wedge-crossing labeling → one-tap-on-20 homography) +
  *        SNAP-TO-EDGES registration refine (Sobel wireframe registration,
  *        HDR-align style, coarse-to-fine, drift-guarded). engine?v=6
+ * v85 - Auto-score Option B: onnx-detector.js (in-browser YOLOv8, WebGPU) wired
+ *        into the lab with classical fallback + self-harvest to dataset (the
+ *        vision flywheel's data intake). onnx-detector?v=1
  */
 
-const CACHE_VERSION = 'brdc-v84';
+const CACHE_VERSION = 'brdc-v85';
 const CACHE_NAME = `brdc-cache-${CACHE_VERSION}`;
 
 // Critical pages - scorer pages prioritized for offline use
