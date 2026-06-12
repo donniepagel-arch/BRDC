@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BRDC Auto-Score — Dataset Capture</title>
+<style>
+  :root { --pink:#FF469A; --cyan:#19E3FF; --gold:#FDD835; --ink:#0f1320; }
+  body { margin:0; background:var(--ink); color:#e8eefc; font:14px/1.45 system-ui,sans-serif; }
+  header { padding:10px 16px; background:#141a2c; border-bottom:1px solid #243; display:flex; gap:14px; align-items:center; flex-wrap:wrap; }
+  h1 { font-size:15px; margin:0; color:var(--cyan); }
+  .stat { background:#0a0d18; border:1px solid #243; border-radius:8px; padding:4px 10px; }
+  .stat b { color:var(--gold); }
+  main { display:flex; gap:14px; padding:14px; flex-wrap:wrap; }
+  .stagewrap { position:relative; }
+  canvas { background:#000; border-radius:10px; max-width:96vw; touch-action:none; cursor:crosshair; }
+  .panel { min-width:240px; max-width:340px; }
+  button { background:#1b2236; color:#e8eefc; border:1px solid #2c3550; border-radius:8px; padding:9px 12px; font-weight:600; cursor:pointer; margin:3px 0; width:100%; }
+  button.primary { background:var(--pink); border-color:var(--pink); color:#fff; }
+  button.gold { background:var(--gold); border-color:var(--gold); color:#222; }
+  button:disabled { opacity:.4; cursor:not-allowed; }
+  .hint { font-size:12px; color:#8fa0c8; margin:8px 0; }
+  .legend span { display:inline-block; margin-right:10px; font-size:12px; }
+  .dot { display:inline-block; width:10px; height:10px; border-radius:50%; vertical-align:middle; margin-right:4px; }
+  #log { font-family:ui-monospace,monospace; font-size:11px; color:#9fb0d0; background:#0a0d18; border:1px solid #243; border-radius:8px; padding:8px; margin-top:8px; max-height:160px; overflow:auto; white-space:pre-wrap; }
+  video { display:none; }
+  label.split { font-size:12px; color:#8fa0c8; display:flex; gap:6px; align-items:center; margin:6px 0; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🎯 Dataset Capture</h1>
+  <div class="stat">train: <b id="nTrain">0</b></div>
+  <div class="stat">val: <b id="nVal">0</b></div>
+  <div class="stat">darts this frame: <b id="nDarts">0</b></div>
+</header>
+<main>
+  <div class="stagewrap">
+    <canvas id="stage" width="1280" height="720"></canvas>
+    <video id="cam" playsinline muted></video>
+  </div>
+  <div class="panel">
+    <button class="primary" id="btnCam">Start camera</button>
+    <select id="camSel" style="display:none;width:100%;padding:8px;border-radius:8px;background:#1b2236;color:#e8eefc;border:1px solid #2c3550"></select>
+    <button class="gold" id="btnCal" disabled>Auto-calibrate (tap 20)</button>
+    <hr style="border-color:#243">
+    <button id="btnBaseline" disabled>1. Set empty-board baseline</button>
+    <button id="btnFreeze" disabled>2. Freeze frame &amp; auto-detect darts</button>
+    <div class="hint">Then on the frozen frame: <b>drag</b> any dot to fix, <b>click empty</b> to add a dart, <b>right-click</b> a dart to delete.</div>
+    <label class="split"><input type="checkbox" id="valSplit"> save next to <b>val</b> set (hold out ~20%)</label>
+    <button class="primary" id="btnSave" disabled>3. Save sample → dataset</button>
+    <button id="btnResume" disabled>Resume live (discard frame)</button>
+    <div class="legend" style="margin-top:10px">
+      <span><i class="dot" style="background:#19E3FF"></i>cal pts (4)</span>
+      <span><i class="dot" style="background:#FF469A"></i>darts</span>
+    </div>
+    <div id="log"></div>
+  </div>
+</main>
+
+<script type="module">
+import { autoCalibrate, refineCalibration, applyHomography, scoreFromImagePoint, createDetector }
+  from '/js/autoscore-engine.js?v=6';
+
+const $ = id => document.getElementById(id);
+const stage = $('stage'), ctx = stage.getContext('2d', { willReadFrequently:true });
+const video = $('cam');
+const CAL_CLASSES = ['cal_top','cal_right','cal_bottom','cal_left']; // class idx 0..3; dart = 4
+
+let camRunning=false, cal=null, calPoints=[], darts=[];
+let frozen=false, awaitingAnchor=false, baselineGray=null, detector=null;
+let drag=null; // {type:'cal'|'dart', idx}
+const PROC_W=320;
+const procCanvas=document.createElement('canvas'); const procCtx=procCanvas.getContext('2d',{willReadFrequently:true});
+
+const log=(m)=>{ const t=new Date().toLocaleTimeString(); $('log').textContent=`${t}  ${m}\n`+$('log').textContent; };
+
+async function refreshStats(){ try{ const s=await fetch('/capture/stats').then(r=>r.json()); $('nTrain').textContent=s.train; $('nVal').textContent=s.val; }catch{} }
+refreshStats();
+
+// ── Camera ──
+async function startCam(deviceId){
+  if(video.srcObject) video.srcObject.getTracks().forEach(t=>t.stop());
+  const v = deviceId ? {deviceId:{exact:deviceId}} : {facingMode:'environment'};
+  const stream=await navigator.mediaDevices.getUserMedia({video:{...v,width:{ideal:1280},height:{ideal:720}},audio:false});
+  video.srcObject=stream; await video.play();
+  stage.width=video.videoWidth||1280; stage.height=video.videoHeight||720;
+  camRunning=true; $('btnCal').disabled=false;
+  log(`camera ${stage.width}x${stage.height}`);
+  // camera picker
+  try{ const cams=(await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==='videoinput');
+    if(cams.length>1){ const sel=$('camSel'); sel.style.display='block'; sel.innerHTML=''; cams.forEach((c,i)=>{const o=document.createElement('option');o.value=c.deviceId;o.textContent=c.label||`Camera ${i+1}`;sel.appendChild(o);});
+      const cur=stream.getVideoTracks()[0]?.getSettings?.().deviceId; if(cur) sel.value=cur; }
+  }catch{}
+  requestAnimationFrame(loop);
+}
+$('btnCam').addEventListener('click',()=>startCam().catch(e=>log('camera failed: '+e.message)));
+$('camSel').addEventListener('change',e=>startCam(e.target.value).catch(e=>log('switch failed: '+e.message)));
+
+// ── Calibrate (one tap on 20) ──
+$('btnCal').addEventListener('click',()=>{ awaitingAnchor=true; log('tap once inside the 20 wedge'); });
+
+function frameData(){
+  const c=document.createElement('canvas'); c.width=stage.width; c.height=stage.height;
+  c.getContext('2d',{willReadFrequently:true}).drawImage(video,0,0,c.width,c.height);
+  return c.getContext('2d',{willReadFrequently:true}).getImageData(0,0,c.width,c.height);
+}
+function runAutoCal(anchor){
+  awaitingAnchor=false;
+  try{
+    const fr=frameData();
+    const a=autoCalibrate(fr.data,fr.width,fr.height,anchor);
+    let res=a;
+    try{ res=refineCalibration(fr.data,fr.width,fr.height,a.calPoints,{regWeight:0.04}); }catch{}
+    cal={H:res.H,inverse:res.inverse}; calPoints=res.calPoints.map(p=>({x:p.x,y:p.y}));
+    $('btnBaseline').disabled=false;
+    log(`calibrated ✔ (residual ${(a.residualMm).toFixed(1)}mm) — set baseline next`);
+  }catch(e){ log('auto-cal failed: '+e.message+' — re-tap the 20'); awaitingAnchor=true; }
+}
+
+// ── Baseline + detect ──
+function grayProc(){
+  const sc=PROC_W/stage.width; procCanvas.width=PROC_W; procCanvas.height=Math.round(stage.height*sc);
+  procCtx.drawImage(video,0,0,procCanvas.width,procCanvas.height);
+  const d=procCtx.getImageData(0,0,procCanvas.width,procCanvas.height).data;
+  const g=new Uint8Array(procCanvas.width*procCanvas.height);
+  for(let i=0,p=0;i<g.length;i++,p+=4) g[i]=(d[p]*77+d[p+1]*150+d[p+2]*29)>>8;
+  return g;
+}
+$('btnBaseline').addEventListener('click',()=>{
+  detector=createDetector({w:procCanvas.width||PROC_W,h:procCanvas.height||Math.round(stage.height*PROC_W/stage.width)});
+  // prime detector with a couple baseline frames
+  detector.push(grayProc()); detector.push(grayProc());
+  darts=[]; $('btnFreeze').disabled=false;
+  log('baseline set — throw your darts, then Freeze');
+});
+
+$('btnFreeze').addEventListener('click',()=>{
+  // run detector over a few fresh frames to catch darts present vs baseline
+  const sc=stage.width/procCanvas.width;
+  if(detector){
+    for(let k=0;k<3;k++){
+      const evs=detector.push(grayProc());
+      for(const e of evs){ if(e.type==='dart'&&e.tip){ darts.push({x:e.tip.x*sc,y:e.tip.y*sc}); } }
+    }
+  }
+  frozen=true;
+  // freeze current frame into the stage
+  ctx.drawImage(video,0,0,stage.width,stage.height);
+  freezeImg = (()=>{ const c=document.createElement('canvas');c.width=stage.width;c.height=stage.height;c.getContext('2d').drawImage(video,0,0);return c; })();
+  $('btnSave').disabled=false; $('btnResume').disabled=false;
+  draw();
+  log(`frozen — ${darts.length} dart(s) auto-proposed. Fix dots, then Save.`);
+});
+$('btnResume').addEventListener('click',()=>{ frozen=false; freezeImg=null; $('btnSave').disabled=true; $('btnResume').disabled=true; requestAnimationFrame(loop); });
+
+let freezeImg=null;
+
+// ── Save sample ──
+$('btnSave').addEventListener('click',async ()=>{
+  if(!freezeImg||calPoints.length!==4){ log('need calibration + a frozen frame'); return; }
+  const W=stage.width,H=stage.height;
+  const box=Math.max(16,Math.round(W*0.02));
+  const bw=(box/W).toFixed(6), bh=(box/H).toFixed(6);
+  const lines=[];
+  calPoints.forEach((p,i)=> lines.push(`${i} ${(p.x/W).toFixed(6)} ${(p.y/H).toFixed(6)} ${bw} ${bh}`));
+  darts.forEach(p=> lines.push(`4 ${(p.x/W).toFixed(6)} ${(p.y/H).toFixed(6)} ${bw} ${bh}`));
+  const id=`brdc_${Date.now()}_${Math.floor((performance.now()%1)*1e6)}`;
+  const image=freezeImg.toDataURL('image/jpeg',0.92);
+  const split=$('valSplit').checked?'val':'train';
+  try{
+    const r=await fetch('/capture',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({id,image,label:lines.join('\n')+'\n',split})}).then(r=>r.json());
+    log(`saved ${split} #${r.count}: 4 cal + ${darts.length} darts`);
+    refreshStats();
+    // ready for next turn: keep calibration, clear darts, resume live
+    darts=[]; frozen=false; freezeImg=null; $('btnSave').disabled=true; $('btnResume').disabled=true;
+    detector=null; $('btnFreeze').disabled=true; $('btnBaseline').disabled=false;
+    requestAnimationFrame(loop);
+  }catch(e){ log('save failed: '+e.message); }
+});
+
+// ── Interaction (edit dots on frozen frame) ──
+function evtPt(e){ const r=stage.getBoundingClientRect(); return { x:(e.clientX-r.left)*(stage.width/r.width), y:(e.clientY-r.top)*(stage.height/r.height) }; }
+function hit(pt){
+  for(let i=0;i<calPoints.length;i++) if(Math.hypot(calPoints[i].x-pt.x,calPoints[i].y-pt.y)<18) return {type:'cal',idx:i};
+  for(let i=0;i<darts.length;i++) if(Math.hypot(darts[i].x-pt.x,darts[i].y-pt.y)<18) return {type:'dart',idx:i};
+  return null;
+}
+stage.addEventListener('pointerdown',e=>{
+  if(awaitingAnchor){ runAutoCal(evtPt(e)); return; }
+  const pt=evtPt(e); const h=hit(pt);
+  if(h){ drag=h; }
+  else if(frozen){ darts.push(pt); drag={type:'dart',idx:darts.length-1}; $('nDarts').textContent=darts.length; }
+  draw();
+});
+stage.addEventListener('pointermove',e=>{ if(!drag)return; const pt=evtPt(e);
+  if(drag.type==='cal') calPoints[drag.idx]=pt; else darts[drag.idx]=pt; draw(); });
+window.addEventListener('pointerup',()=>{ drag=null; });
+stage.addEventListener('contextmenu',e=>{ e.preventDefault(); const h=hit(evtPt(e));
+  if(h&&h.type==='dart'){ darts.splice(h.idx,1); $('nDarts').textContent=darts.length; draw(); } });
+
+// ── Draw ──
+function loop(){ if(!camRunning||frozen) return; ctx.drawImage(video,0,0,stage.width,stage.height); draw(false); requestAnimationFrame(loop); }
+function draw(redrawBase=true){
+  if(frozen&&freezeImg&&redrawBase) ctx.drawImage(freezeImg,0,0);
+  $('nDarts').textContent=darts.length;
+  if(cal){
+    // ring wireframe (faint)
+    const rings=[170,162,107,99,15.9];
+    for(const r of rings){ ctx.beginPath();
+      for(let a=0;a<=360;a+=4){ const rad=a*Math.PI/180; const p=applyHomography(cal.inverse,{x:r*Math.sin(rad),y:-r*Math.cos(rad)}); a===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y); }
+      ctx.lineWidth=2.5; ctx.strokeStyle='rgba(0,0,0,.5)'; ctx.stroke(); ctx.lineWidth=1; ctx.strokeStyle='rgba(25,227,255,.5)'; ctx.stroke(); }
+  }
+  // cal handles
+  calPoints.forEach((p,i)=>{ ctx.beginPath(); ctx.arc(p.x,p.y,8,0,7); ctx.fillStyle='#19E3FF'; ctx.fill(); ctx.lineWidth=2; ctx.strokeStyle='#000'; ctx.stroke();
+    ctx.fillStyle='#fff'; ctx.font='bold 11px sans-serif'; ctx.fillText(CAL_CLASSES[i].slice(4),p.x+10,p.y+4); });
+  // darts
+  darts.forEach((p,i)=>{ ctx.beginPath(); ctx.arc(p.x,p.y,7,0,7); ctx.fillStyle='#FF469A'; ctx.fill(); ctx.lineWidth=2; ctx.strokeStyle='#000'; ctx.stroke();
+    if(cal){ const s=scoreFromImagePoint(cal.H,p); ctx.fillStyle='#FDD835'; ctx.font='bold 13px sans-serif'; ctx.fillText(s.label,p.x+9,p.y-8); } });
+}
+</script>
+</body>
+</html>
