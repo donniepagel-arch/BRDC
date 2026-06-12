@@ -18,6 +18,15 @@ When an item is completed, move it to the "Completed" section at the bottom with
 
 ## Pending Ideas
 
+### [2026-06-12] - Auto-score from board cam: classical engine + ONNX flywheel (Option B)
+Camera-scores-the-darts, built in two in-browser layers (no server/API, WebGPU).
+**L1 classical CV** (`public/js/autoscore-engine.js?v=6`, 133 tests): **auto-calibration** (red/green ring mask → ellipse fit → wedge-crossing labels → ONE tap on the 20 → homography) + **snap-to-edges refine** (Sobel wireframe, HDR-align style, drift-guarded) + frame-diff dart detection. Lab `autoscore-lab.html` (auto-cal + manual 4-tap + camera picker + per-cam saved cal). Real BRDC board verified: ~4-5mm cal, edge-snap +13-23%.
+**L2 ML model** (`public/js/onnx-detector.js?v=1`): YOLOv8 ONNX via onnxruntime-web (WebGPU→WASM), letterbox→infer→decode→NMS → cal points + dart tips. Validated on stock COCO yolov8n; WebGPU spike **7ms/140fps**. Wired into the lab with classical fallback + 🌾 self-harvest toggle (POST `/capture`).
+**Flywheel** (`E:\projects\darts-vision\`, own git repo): vision sibling of the MC3 coder flywheel. `train.py` (fine-tune + mAP gate + ONNX export/ship), `flywheel.py` (forever loop: poll dataset → retrain on +40 → gate/RESPEC → ship → floor-sweep → self-harvest). py3.12 + torch 2.9.1+cu126 on the local 3090.
+**STATE**: whole machine built + every piece proven. **Ignition left = a real capture session** (`autoscore-capture.html`, ~150 frames) → flywheel auto-fires at 120.
+**FINDING (1 throw, 2026-06-12)**: classical **registers** but **mis-locates at the board edge** — D20 against the top wire scored MISS (single-cam parallax projects the tip past the 170mm edge). THIS is what the ML model fixes (true board-plane entry); 2-cam fusion is v2. Raw lab auto-harvest saves wrong labels for these → seed via the capture tool's manual-correct until v1 can cross-check.
+Priority: High (next: capture session → first trained model)
+
 ### [2026-06-11] - REPO HYGIENE: last git commit is April 17 — months of shipped work uncommitted
 `git log` head is 2026-04-17; ~270 modified/untracked files carry EVERYTHING since
 (vNext port, nav, scorers, streaming stack, perf work, punch-list hardening, auto-score
@@ -25,6 +34,10 @@ lab). It's all deployed and working, but one bad `checkout`/disk hiccup loses mo
 ACTION (needs Donnie's go): big checkpoint commit of the working tree, then return to
 small per-change commits.
 Priority: High
+**RESOLVED 2026-06-12**: big checkpoint committed + pushed to origin/main this session
+(the `git add -A` on the first commit swept all ~270 files into git). Repo is now clean
+and current with origin; back to small per-change commits. The new auto-score/flywheel
+work is committed too (brdc-firebase + the new `E:\projects\darts-vision` repo).
 
 ### [2026-06-11] - Deploy-state drift bit us again: 06-09 sprint sat undeployed for 2 days
 The 06-09 punch-list sprint (submitGameResult participant auth, match-hub depth,
