@@ -33,9 +33,12 @@
  * v85 - Auto-score Option B: onnx-detector.js (in-browser YOLOv8, WebGPU) wired
  *        into the lab with classical fallback + self-harvest to dataset (the
  *        vision flywheel's data intake). onnx-detector?v=1
+ * v86 - Aim Darts: the loop's two-line 501 game ported to a multiplayer vNext
+ *        page (aim-darts-vnext.html), wired into scorer-setup as the "On-screen
+ *        (Aim Darts)" game type, saves casual via savePickupGame like the scorers.
  */
 
-const CACHE_VERSION = 'brdc-v85';
+const CACHE_VERSION = 'brdc-v86';
 const CACHE_NAME = `brdc-cache-${CACHE_VERSION}`;
 
 // Critical pages - scorer pages prioritized for offline use

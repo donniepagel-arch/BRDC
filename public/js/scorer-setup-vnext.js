@@ -326,9 +326,10 @@ function updateRuleVisibility() {
     const mixed = game === 'mixed' || game === 'custom';
     const cricket = game === 'cricket';
     const customX01 = game === 'x01';
-    const x01 = ['301', '501', '701', 'x01'].includes(game);
+    const aim = game === 'aim';
+    const x01 = ['301', '501', '701', 'x01', 'aim'].includes(game);
 
-    els.x01ScoreWrap.hidden = !customX01;
+    els.x01ScoreWrap.hidden = !customX01 && !aim;
     els.inRuleWrap.hidden = !x01;
     els.outRuleWrap.hidden = !x01;
     els.startRulesWrap.hidden = choice;
@@ -466,6 +467,20 @@ function buildLaunchUrl() {
         params.set('out_rule', 'double');
         params.set('checkout', 'double');
         return scorerUrlForGame('x01', params);
+    }
+
+    if (game === 'aim') {
+        // On-screen aim game — its own page + clean params; saves casual like the scorers.
+        const aimPlayers = [...playerPayload(homePlayers), ...playerPayload(awayPlayers)]
+            .map(p => ({ id: p.registeredPlayer ? p.id : null, name: p.name, is_bot: !!p.isBot }));
+        const ap = new URLSearchParams();
+        ap.set('players', encodeURIComponent(JSON.stringify(aimPlayers)));
+        ap.set('x01', els.x01Score.value || '501');
+        ap.set('out', els.outRule.value || 'double');
+        ap.set('in', els.inRule.value || 'straight');
+        ap.set('mode', 'casual');
+        ap.set('legs', String(Math.max(1, Math.ceil(parseInt(els.numLegs.value || '1', 10) / 2))));
+        return `/pages/aim-darts-vnext.html?${ap.toString()}`;
     }
 
     const startingScore = game === 'x01' ? (els.x01Score.value || '501') : game;
