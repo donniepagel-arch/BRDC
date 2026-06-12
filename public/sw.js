@@ -26,9 +26,13 @@
  * v83 - Auto-score engine v4 hardening (MOTION-deadlock rebaseline + 2-frame dart
  *        confirmation vs glints) + lab desktop-webcam support (camera picker,
  *        per-camera saved calibration)
+ * v84 - Auto-score AUTO-CALIBRATION: board self-detects (red/green ring mask →
+ *        ellipse fit → wedge-crossing labeling → one-tap-on-20 homography) +
+ *        SNAP-TO-EDGES registration refine (Sobel wireframe registration,
+ *        HDR-align style, coarse-to-fine, drift-guarded). engine?v=6
  */
 
-const CACHE_VERSION = 'brdc-v83';
+const CACHE_VERSION = 'brdc-v84';
 const CACHE_NAME = `brdc-cache-${CACHE_VERSION}`;
 
 // Critical pages - scorer pages prioritized for offline use

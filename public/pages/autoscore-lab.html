@@ -129,14 +129,16 @@
         <div class="btn-row" id="cameraBtns">
             <button class="lab-btn primary" id="btnStartCam">Start camera</button>
             <select class="lab-btn hidden" id="camSelect" title="Choose camera"></select>
-            <button class="lab-btn" id="btnCalibrate" disabled>Calibrate (4 taps)</button>
+            <button class="lab-btn gold" id="btnAutoCal" disabled>Auto-calibrate (tap 20)</button>
+            <button class="lab-btn" id="btnCalibrate" disabled>Manual (4 taps)</button>
             <button class="lab-btn gold hidden" id="btnDetect">Start detecting</button>
             <button class="lab-btn hidden" id="btnNewTurn">New turn</button>
         </div>
         <div class="btn-row hidden" id="photoBtns">
             <label class="lab-btn primary" for="photoInput">Load photo</label>
             <input type="file" id="photoInput" accept="image/*" style="display:none">
-            <button class="lab-btn" id="btnPhotoCal" disabled>Calibrate (4 taps)</button>
+            <button class="lab-btn gold" id="btnPhotoAutoCal" disabled>Auto-calibrate (tap 20)</button>
+            <button class="lab-btn" id="btnPhotoCal" disabled>Manual (4 taps)</button>
         </div>
         <p class="hint" id="stageHint">Camera mode: live detection. Photo mode: load a picture of your board with darts, calibrate, then tap each dart tip to see the computed score.</p>
     </div>
@@ -177,9 +179,9 @@
 <script type="module">
 import {
     CAL_TARGETS, BOARD_RADII, SEGMENT_ORDER,
-    calibrate, applyHomography, scoreFromImagePoint, scoreFromBoardPoint,
+    calibrate, autoCalibrate, refineCalibration, applyHomography, scoreFromImagePoint, scoreFromBoardPoint,
     computeHomography, toGray, diffMask, denoiseMask, findBlobs, findDartTip, createDetector
-} from '/js/autoscore-engine.js?v=4';
+} from '/js/autoscore-engine.js?v=6';
 
 const $ = (id) => document.getElementById(id);
 const stage = $('stage'), ctx = stage.getContext('2d');
@@ -243,6 +245,7 @@ async function startCamera(deviceId, { restoreCal = true } = {}) {
     try { localStorage.setItem(CAM_KEY, currentCamId || ''); } catch {}
     camRunning = true;
     $('btnCalibrate').disabled = false;
+    $('btnAutoCal').disabled = false;
     log(`camera ${stage.width}x${stage.height}`, 'info');
     const saved = restoreCal ? loadCal() : null;
     if (saved) {
@@ -318,6 +321,7 @@ $('photoInput').addEventListener('change', (e) => {
         cal = null; calPoints = [];
         drawPhoto();
         $('btnPhotoCal').disabled = false;
+        $('btnPhotoAutoCal').disabled = false;
         log(`photo loaded ${img.naturalWidth}x${img.naturalHeight}`, 'info');
     };
     img.src = URL.createObjectURL(f);
@@ -329,14 +333,64 @@ function drawPhoto() {
 }
 
 // ── Calibration (shared) ────────────────────────────────────────────────────
+let autoCalibrating = false;
+
 function startCalibration() {
+    autoCalibrating = false;
     calibrating = true; calPoints = []; cal = null;
     $('guideBox').classList.remove('hidden');
     updateGuide();
 }
 function stopCalibration() {
     calibrating = false;
+    autoCalibrating = false;
     $('guideBox').classList.add('hidden');
+}
+
+// Auto-calibration: board found by CV; ONE tap inside the 20 wedge anchors rotation.
+function startAutoCalibration() {
+    calibrating = false; autoCalibrating = true; cal = null;
+    $('guideBox').classList.remove('hidden');
+    $('guideBox').innerHTML = 'Tap once anywhere <b>INSIDE the 20 wedge</b> — the board does the rest';
+}
+$('btnAutoCal').addEventListener('click', startAutoCalibration);
+$('btnPhotoAutoCal').addEventListener('click', startAutoCalibration);
+
+/** Full-res RGBA of what's on deck: live camera frame or the loaded photo. */
+function currentFrameData() {
+    const c = document.createElement('canvas');
+    c.width = stage.width; c.height = stage.height;
+    const cx2 = c.getContext('2d', { willReadFrequently: true });
+    if (mode === 'photo' && photoImg) cx2.drawImage(photoImg, 0, 0, c.width, c.height);
+    else cx2.drawImage(video, 0, 0, c.width, c.height);
+    return cx2.getImageData(0, 0, c.width, c.height);
+}
+
+function runAutoCalibration(anchorPt) {
+    stopCalibration();
+    try {
+        const frame = currentFrameData();
+        const res = autoCalibrate(frame.data, frame.width, frame.height, anchorPt);
+        cal = { H: res.H, inverse: res.inverse };
+        calPoints = res.calPoints;
+        log(`AUTO-CALIBRATED ✔ ${res.nPoints} crossings, residual ${res.residualMm.toFixed(1)}mm`, 'hit');
+        // Snap-to-edges refine (HDR-align style): register the wireframe to the
+        // image's actual ring/wire edges. maxDrift guards against a wedge jump.
+        try {
+            const ref = refineCalibration(frame.data, frame.width, frame.height, res.calPoints, { regWeight: 0.04 });
+            cal = { H: ref.H, inverse: ref.inverse };
+            calPoints = ref.calPoints;
+            log(`SNAPPED ✔ edge-fit +${ref.gain}% — overlay should hug the rings tight`, 'hit');
+        } catch (rErr) {
+            log('refine skipped (' + rErr.message + ') — using crossing fit', 'info');
+        }
+        saveCal();
+        if (mode === 'camera') $('btnDetect').classList.remove('hidden');
+        if (mode === 'photo') drawPhoto();
+    } catch (err) {
+        log('auto-cal: ' + err.message, 'err');
+        log('fallback: use Manual (4 taps)', 'info');
+    }
 }
 function updateGuide() {
     const t = CAL_TARGETS[calPoints.length];
@@ -353,6 +407,10 @@ stage.addEventListener('click', (e) => {
         x: (e.clientX - r.left) * (stage.width / r.width),
         y: (e.clientY - r.top) * (stage.height / r.height)
     };
+    if (autoCalibrating) {
+        runAutoCalibration(pt);
+        return;
+    }
     if (calibrating) {
         calPoints.push(pt);
         log(`cal point ${calPoints.length}: ${pt.x | 0},${pt.y | 0}`);
@@ -412,17 +470,18 @@ function drawOverlay() {
         ctx.fillText(String(i + 1), p.x - 4, p.y + 5);
     }
     if (!cal) return;
-    // rings via inverse homography
-    ctx.lineWidth = 1.5;
+    // rings via inverse homography — drawn dark-halo + bright core so they read
+    // on both the white and black board segments through any webcam
     const rings = [BOARD_RADII.doubleOuter, BOARD_RADII.doubleInner, BOARD_RADII.tripleOuter, BOARD_RADII.tripleInner, BOARD_RADII.singleBull];
     for (const r of rings) {
         ctx.beginPath();
-        for (let a = 0; a <= 360; a += 6) {
+        for (let a = 0; a <= 360; a += 4) {
             const rad = a * Math.PI / 180;
             const p = applyHomography(cal.inverse, { x: r * Math.sin(rad), y: -r * Math.cos(rad) });
             a === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y);
         }
-        ctx.strokeStyle = 'rgba(145,215,235,0.75)'; ctx.stroke();
+        ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,0.85)'; ctx.stroke();
+        ctx.lineWidth = 2; ctx.strokeStyle = '#3DEFFF'; ctx.stroke();
     }
     // wedge lines
     for (let i = 0; i < 20; i++) {
