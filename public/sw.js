@@ -43,9 +43,12 @@
  *        can't reach the outer doubles at the cardinal extremes (D20 top, D3 bottom,
  *        D11/D6 sides) — making those checkouts impossible. Widened sweep to span the
  *        full board (CX±R_DOUBLE_OUT) in BOTH aim-darts and checkout-trainer.
+ * v89 - Cricket Strategy teacher now shows the REAL dartboard (like the checkout
+ *        trainer) — live cricket numbers (15-20) gold-lit, non-cricket + dead dimmed,
+ *        advised target glows on the board — above the marks grid.
  */
 
-const CACHE_VERSION = 'brdc-v88';
+const CACHE_VERSION = 'brdc-v89';
 const CACHE_NAME = `brdc-cache-${CACHE_VERSION}`;
 
 // Critical pages - scorer pages prioritized for offline use
