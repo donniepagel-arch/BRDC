@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=1920, initial-scale=1.0">
     <link rel="manifest" href="/manifest.json">
-    <title>Matchmaker TV Display</title>
+    <title>Mixed Doubles TV Display</title>
     <link rel="icon" type="image/png" href="/images/favicon.png">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700;800;900&display=swap');
@@ -438,8 +438,8 @@
             margin-top: 10px;
         }
 
-        /* ========== HEARTBREAKER ALERT MODE ========== */
-        #heartbreakerAlertView {
+        /* ========== MINGLE ALERT MODE ========== */
+        #mingleAlertView {
             background: radial-gradient(ellipse at center, rgba(239, 68, 68, 0.3) 0%, transparent 70%);
         }
 
@@ -597,7 +597,7 @@
     <div class="display-mode" id="bracketView">
         <div class="tv-header">
             <img src="/images/gold_logo.png" alt="BRDC" class="tv-logo">
-            <div class="tv-title" id="bracketTitle">HEARTBREAKER TOURNAMENT</div>
+            <div class="tv-title" id="bracketTitle">MIXED DOUBLES MATCHMAKER</div>
             <div class="tv-subtitle">LIVE BRACKET</div>
         </div>
         <div class="tv-content">
@@ -646,8 +646,8 @@
         </div>
     </div>
 
-    <!-- HEARTBREAKER ALERT MODE -->
-    <div class="display-mode" id="heartbreakerAlertView">
+    <!-- MINGLE ALERT MODE -->
+    <div class="display-mode" id="mingleAlertView">
         <div class="tv-header">
             <img src="/images/gold_logo.png" alt="BRDC" class="tv-logo">
             <div class="tv-title">⚠️ MINGLE PERIOD ⚠️</div>
@@ -656,7 +656,7 @@
             <div class="alert-container">
                 <div class="alert-icon">💔</div>
                 <div class="alert-title">MINGLE PERIOD ACTIVE</div>
-                <div class="alert-subtitle">Breakups Allowed - Reshuffle Your Hearts!</div>
+                <div class="alert-subtitle">Breakups allowed. Re-match during the mingle window.</div>
                 <div class="alert-countdown" id="alertCountdown">5:00</div>
                 <div class="alert-countdown-label">Minutes Remaining</div>
             </div>
@@ -669,7 +669,7 @@
         // Parse URL parameters
         const urlParams = new URLSearchParams(window.location.search);
         const tournamentId = urlParams.get('id') || urlParams.get('tournament_id');
-        const validModes = ['bracket', 'partner-reveal', 'match-call', 'heartbreaker-alert'];
+        const validModes = ['bracket', 'partner-reveal', 'match-call', 'mingle-alert'];
         const requestedMode = urlParams.get('mode');
         const defaultMode = validModes.includes(requestedMode) ? requestedMode : 'bracket';
         if (requestedMode && !validModes.includes(requestedMode)) {
@@ -711,7 +711,7 @@
             switchToMode(defaultMode);
 
             // Set up single real-time listener on tournament doc.
-            // This handles: bracket data, tv_display_mode changes, heartbreaker alerts, and headers.
+            // This handles: bracket data, tv_display_mode changes, mingle alerts, and headers.
             setupTournamentDocListener();
         }
 
@@ -720,7 +720,7 @@
         // Watches the tournament document for ALL changes:
         //   - bracket data updates (for bracket view)
         //   - tv_display_mode changes (from director)
-        //   - mingle_period data (for heartbreaker alert)
+        //   - mingle_period data (for mingle alert)
         //   - tournament name (for headers)
         // =============================================
         function setupTournamentDocListener() {
@@ -752,9 +752,9 @@
                         renderBracketFromDoc(data.bracket, data);
                     }
 
-                    // If heartbreaker-alert mode is active and this was a data update, refresh countdown
-                    if (!modeChanged && currentMode === 'heartbreaker-alert') {
-                        updateHeartbreakerAlert(data);
+                    // If mingle-alert mode is active and this was a data update, refresh countdown
+                    if (!modeChanged && currentMode === 'mingle-alert') {
+                        updateMingleAlert(data);
                     }
                 },
                 (error) => {
@@ -782,7 +782,7 @@
             }
 
             // Set up mode-specific content listeners for modes that need subcollections
-            // (bracket and heartbreaker-alert use the tournament doc listener, no extra listener needed)
+            // (bracket and mingle-alert use the tournament doc listener, no extra listener needed)
             switch (modeName) {
                 case 'bracket':
                     // Bracket data comes from tournament doc - already handled by setupTournamentDocListener
@@ -797,10 +797,10 @@
                 case 'match-call':
                     setupMatchCallListener();
                     break;
-                case 'heartbreaker-alert':
-                    // Heartbreaker data comes from tournament doc - already handled
+                case 'mingle-alert':
+                    // Mingle data comes from tournament doc - already handled
                     if (tournamentData) {
-                        updateHeartbreakerAlert(tournamentData);
+                        updateMingleAlert(tournamentData);
                     }
                     break;
             }
@@ -817,7 +817,7 @@
                 'bracket': 'bracketView',
                 'partner-reveal': 'partnerRevealView',
                 'match-call': 'matchCallView',
-                'heartbreaker-alert': 'heartbreakerAlertView'
+                'mingle-alert': 'mingleAlertView'
             };
 
             const viewId = modeMap[modeName] || 'bracketView';
@@ -828,7 +828,7 @@
         function updateHeaders() {
             if (!tournamentData) return;
 
-            const name = tournamentData.tournament_name || 'HEARTBREAKER TOURNAMENT';
+            const name = tournamentData.tournament_name || 'MIXED DOUBLES MATCHMAKER';
 
             const bracketTitle = document.getElementById('bracketTitle');
             const revealTitle = document.getElementById('revealTitle');
@@ -1092,8 +1092,8 @@
             }).join('');
         }
 
-        // ========== HEARTBREAKER ALERT ==========
-        function updateHeartbreakerAlert(data) {
+        // ========== MINGLE ALERT ==========
+        function updateMingleAlert(data) {
             const mingleActive = data.mingle_period_active || false;
             const mingleEndTime = data.mingle_end_time?.toDate ? data.mingle_end_time.toDate() : null;
 

@@ -1035,7 +1035,8 @@
 
         // Get tournament ID from URL
         const urlParams = new URLSearchParams(window.location.search);
-        let tournamentId = urlParams.get('pin');
+        let tournamentId = urlParams.get('tournament_id') || urlParams.get('id');
+        const legacyTournamentPin = urlParams.get('pin');
 
         // Check for saved brdc_session and restore if valid
         (async function checkSavedSession() {
@@ -1105,7 +1106,6 @@
                     involvements: player.involvements || {},
                     logged_in_at: Date.now()
                 }));
-                localStorage.removeItem('brdc_player_pin');
 
                 document.getElementById('loginOverlay').style.display = 'none';
                 document.getElementById('mainDashboard').style.display = 'block';
@@ -1159,7 +1159,6 @@
                     involvements: player.involvements || {},
                     logged_in_at: Date.now()
                 }));
-                localStorage.removeItem('brdc_player_pin');
 
                 document.getElementById('loginOverlay').style.display = 'none';
                 document.getElementById('mainDashboard').style.display = 'block';
@@ -1181,7 +1180,13 @@
 
         window.onload = function() {
             if (tournamentId) {
-                // PIN provided in URL - auto-login
+                // Tournament id provided in URL - auth-gated dashboard
+                document.getElementById('loginOverlay').style.display = 'none';
+                document.getElementById('mainDashboard').style.display = 'block';
+                loadDashboardData();
+            } else if (legacyTournamentPin) {
+                // Legacy PIN link - still supported for migration
+                tournamentId = legacyTournamentPin;
                 document.getElementById('loginOverlay').style.display = 'none';
                 document.getElementById('mainDashboard').style.display = 'block';
                 loadDashboardData();
@@ -1195,23 +1200,154 @@
             loadDashboardData();
         }
 
+        function isDoubleElimTournament() {
+            const tournament = dashboardData.tournament || {};
+            return tournament.format === 'double_elim' || tournament.bracket?.type === 'double_elimination';
+        }
+
+        function getDisplayEntryName(entry, fallback = 'TBD') {
+            if (!entry) return fallback;
+            return entry.team_name || entry.name || entry.player_name || entry.full_name || fallback;
+        }
+
+        function flattenDoubleElimMatches(bracket) {
+            const flattened = [];
+
+            (bracket?.winners || []).forEach(match => {
+                flattened.push({
+                    id: match.id,
+                    match_id: match.id,
+                    bracket_type: 'winners',
+                    player1_name: getDisplayEntryName(match.team1),
+                    player2_name: getDisplayEntryName(match.team2),
+                    round_label: `Winners Round ${match.round || '?'}`,
+                    round: match.round || 0,
+                    board_no: match.board || match.board_number || null,
+                    status: match.status || 'waiting',
+                    winner: getDisplayEntryName(
+                        match.winner_id === match.team1_id ? match.team1 :
+                        match.winner_id === match.team2_id ? match.team2 : null,
+                        ''
+                    ),
+                    score: match.scores || null,
+                    room_label: match.room_label || '',
+                    room_url: match.room_url || '',
+                    stream_url: match.stream_url || '',
+                    room_notes: match.room_notes || '',
+                    team1: match.team1 || null,
+                    team2: match.team2 || null,
+                    source_match: match
+                });
+            });
+
+            (bracket?.losers || []).forEach(match => {
+                flattened.push({
+                    id: match.id,
+                    match_id: match.id,
+                    bracket_type: 'losers',
+                    player1_name: getDisplayEntryName(match.team1),
+                    player2_name: getDisplayEntryName(match.team2),
+                    round_label: `Losers Round ${match.round || '?'}`,
+                    round: match.round || 0,
+                    board_no: match.board || match.board_number || null,
+                    status: match.status || 'waiting',
+                    winner: getDisplayEntryName(
+                        match.winner_id === match.team1_id ? match.team1 :
+                        match.winner_id === match.team2_id ? match.team2 : null,
+                        ''
+                    ),
+                    score: match.scores || null,
+                    room_label: match.room_label || '',
+                    room_url: match.room_url || '',
+                    stream_url: match.stream_url || '',
+                    room_notes: match.room_notes || '',
+                    team1: match.team1 || null,
+                    team2: match.team2 || null,
+                    source_match: match
+                });
+            });
+
+            if (bracket?.grand_finals?.match1) {
+                const match = bracket.grand_finals.match1;
+                flattened.push({
+                    id: match.id || 'gf-1',
+                    match_id: match.id || 'gf-1',
+                    bracket_type: 'grand_finals',
+                    player1_name: getDisplayEntryName(match.team1),
+                    player2_name: getDisplayEntryName(match.team2),
+                    round_label: 'Grand Finals',
+                    round: 999,
+                    board_no: match.board || match.board_number || null,
+                    status: match.status || 'waiting',
+                    winner: getDisplayEntryName(
+                        match.winner_id === match.team1_id ? match.team1 :
+                        match.winner_id === match.team2_id ? match.team2 : null,
+                        ''
+                    ),
+                    score: match.scores || null,
+                    room_label: match.room_label || '',
+                    room_url: match.room_url || '',
+                    stream_url: match.stream_url || '',
+                    room_notes: match.room_notes || '',
+                    team1: match.team1 || null,
+                    team2: match.team2 || null,
+                    source_match: match
+                });
+            }
+
+            if (bracket?.grand_finals?.match2) {
+                const match = bracket.grand_finals.match2;
+                flattened.push({
+                    id: match.id || 'gf-2',
+                    match_id: match.id || 'gf-2',
+                    bracket_type: 'grand_finals_reset',
+                    player1_name: getDisplayEntryName(match.team1),
+                    player2_name: getDisplayEntryName(match.team2),
+                    round_label: 'Grand Finals Reset',
+                    round: 1000,
+                    board_no: match.board || match.board_number || null,
+                    status: match.status || 'waiting',
+                    winner: getDisplayEntryName(
+                        match.winner_id === match.team1_id ? match.team1 :
+                        match.winner_id === match.team2_id ? match.team2 : null,
+                        ''
+                    ),
+                    score: match.scores || null,
+                    room_label: match.room_label || '',
+                    room_url: match.room_url || '',
+                    stream_url: match.stream_url || '',
+                    room_notes: match.room_notes || '',
+                    team1: match.team1 || null,
+                    team2: match.team2 || null,
+                    source_match: match
+                });
+            }
+
+            return flattened.sort((a, b) => {
+                const order = { winners: 0, losers: 1, grand_finals: 2, grand_finals_reset: 3 };
+                const bracketDiff = (order[a.bracket_type] ?? 99) - (order[b.bracket_type] ?? 99);
+                return bracketDiff !== 0 ? bracketDiff : (a.round || 0) - (b.round || 0);
+            });
+        }
+
         async function loadDashboardData() {
             try {
-                // Query tournament by PIN
-                const tournamentsQuery = query(
-                    collection(db, 'tournaments'),
-                    where('director_pin', '==', tournamentId)
-                );
-                const tournamentSnapshot = await getDocs(tournamentsQuery);
+                let tournamentDoc = null;
+                let actualTournamentId = tournamentId;
 
-                if (tournamentSnapshot.empty) {
-                    toastError('Tournament not found with PIN: ' + tournamentId);
+                if (legacyTournamentPin && !urlParams.get('tournament_id') && !urlParams.get('id')) {
+                    // Legacy ?pin= links are no longer supported — use ?tournament_id= instead
+                    toastError('This link format is no longer supported. Please use the tournament ID link from your admin dashboard.');
                     return;
+                } else {
+                    tournamentDoc = await getDoc(doc(db, 'tournaments', actualTournamentId));
+                    if (!tournamentDoc.exists()) {
+                        toastError('Tournament not found: ' + actualTournamentId);
+                        return;
+                    }
                 }
-                
-                const tournamentDoc = tournamentSnapshot.docs[0];
-                dashboardData.tournament = { id: tournamentDoc.id, ...tournamentDoc.data() };
-                const actualTournamentId = tournamentDoc.id;
+
+                dashboardData.tournament = { id: actualTournamentId, ...tournamentDoc.data() };
 
                 // Check if this is a matchmaker tournament - redirect to matchmaker dashboard
                 if (dashboardData.tournament.matchmaker_enabled) {
@@ -1237,22 +1373,31 @@
                     event_id: null // All players available for all events
                 }));
                 
-                // Load matches from tournament.bracket.matches array
+                // Load matches from bracket data
                 const bracket = dashboardData.tournament.bracket || {};
-                const matches = bracket.matches || [];
-                dashboardData.matches = matches.map((match, idx) => ({
-                    id: match.id || `match-${idx}`,
-                    match_id: match.id,
-                    player1_name: match.player1?.name || 'TBD',
-                    player2_name: match.player2?.name || 'TBD',
-                    round_label: `Round ${match.round || 1}`,
-                    round: match.round || 1,
-                    board_no: match.board || 'N/A',
-                    status: match.status || 'pending',
-                    winner: match.winner,
-                    score: match.score || {},
-                    event_id: null // All matches for tournament
-                }));
+                if (bracket.type === 'double_elimination') {
+                    dashboardData.matches = flattenDoubleElimMatches(bracket);
+                } else {
+                    const matches = bracket.matches || [];
+                    dashboardData.matches = matches.map((match, idx) => ({
+                        id: match.id || `match-${idx}`,
+                        match_id: match.id,
+                        player1_name: match.player1?.name || 'TBD',
+                        player2_name: match.player2?.name || 'TBD',
+                        round_label: `Round ${match.round || 1}`,
+                        round: match.round || 1,
+                        board_no: match.board || match.board_number || null,
+                        status: match.status || 'pending',
+                        winner: match.winner,
+                        score: match.score || {},
+                        room_label: match.room_label || '',
+                        room_url: match.room_url || '',
+                        stream_url: match.stream_url || '',
+                        room_notes: match.room_notes || '',
+                        startedAt: match.startedAt || match.started_at || null,
+                        event_id: null
+                    }));
+                }
                 
                 // Render dashboard
                 
@@ -1394,6 +1539,13 @@
                         <div><div style="color: var(--text-dim); font-size: 12px; font-weight: 800; margin-bottom: 6px; text-transform: uppercase;">📧 Email</div><div style="font-weight: 800; color: var(--text-light);">${tournament.director_email || 'N/A'}</div></div>
                     </div>
                 `;
+                document.getElementById('tournament-info').innerHTML += `
+                    <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-top: 20px;">
+                        <button class="btn btn-primary" onclick="createTournamentChats(false)">Chat Setup</button>
+                        <button class="btn btn-success" onclick="createTournamentChats(true)">Open Tournament Chat</button>
+                        <button class="btn btn-warning" onclick="openTournamentPublicPage()">Open Tournament Page</button>
+                    </div>
+                `;
             }
             
             document.getElementById('stat-events').textContent = dashboardData.events.length;
@@ -1422,7 +1574,47 @@
                 `<div style="padding: 14px; background: var(--bg-panel-light); margin-bottom: 8px; color: var(--text-light); font-weight: 700; border: 3px solid var(--black); box-shadow: 2px 2px 0 rgba(0,0,0,1);">${s}</div>`
             ).join('') || '<div style="font-weight: 700; color: var(--teal);">All set!</div>';
         }
-        
+
+        window.createTournamentChats = async function(openAfterCreate = false) {
+            const activeTournamentId = dashboardData?.tournament?.id;
+            if (!activeTournamentId) {
+                toastError('Tournament not loaded');
+                return;
+            }
+
+            try {
+                showLoading(openAfterCreate ? 'Preparing tournament chat...' : 'Preparing tournament chat rooms...');
+                const result = await callFunction('createAllTournamentChatRooms', {
+                    tournament_id: activeTournamentId
+                });
+                hideLoading();
+
+                const mainRoomId = result?.results?.tournament_chat || null;
+                const eventChatCount = Array.isArray(result?.results?.event_chats)
+                    ? result.results.event_chats.length
+                    : 0;
+
+                toastSuccess(`Tournament chat ready${eventChatCount ? `, plus ${eventChatCount} event chat${eventChatCount === 1 ? '' : 's'}` : ''}`);
+
+                if (openAfterCreate && mainRoomId) {
+                    window.location.href = `/pages/chat-room.html?id=${encodeURIComponent(mainRoomId)}`;
+                }
+            } catch (error) {
+                hideLoading();
+                toastError('Failed to prepare tournament chat: ' + error.message);
+            }
+        };
+
+        window.openTournamentPublicPage = function() {
+            const activeTournamentId = dashboardData?.tournament?.id;
+            if (!activeTournamentId) {
+                toastError('Tournament not loaded');
+                return;
+            }
+
+            window.open(`/pages/tournament-view.html?tournament_id=${encodeURIComponent(activeTournamentId)}`, '_blank', 'noopener,noreferrer');
+        };
+
         function renderEvents() {
             const html = dashboardData.events.map(event => {
                 const regs = dashboardData.registrations.filter(r => r.event_id === event.id);
@@ -1489,7 +1681,7 @@
             // TODO: Re-enable when player-registration.html is implemented
             toastWarning("⚠️ Registration page is not yet implemented");
             return;
-            // const link = `https://brdc-v2.web.app/pages/player-registration.html?tournament_id=${dashboardData.tournament.id}&event_id=${eventId}`;
+            // const link = `https://burningriverdarts.com/pages/player-registration.html?tournament_id=${dashboardData.tournament.id}&event_id=${eventId}`;
             // navigator.clipboard.writeText(link).then(() => {
             //     toastSuccess("✅ Registration link copied to clipboard!");
             // }).catch(err => {
@@ -1518,7 +1710,7 @@
         }
         
         function viewEventBracket(eventId) {
-            window.open(`https://brdc-v2.web.app/pages/tournament-bracket.html?tournament_id=${dashboardData.tournament.id}&event_id=${eventId}`, "_blank");
+            window.open(`https://burningriverdarts.com/pages/tournament-bracket.html?tournament_id=${dashboardData.tournament.id}&event_id=${eventId}`, "_blank");
         }
         function renderRegistrations() {
             if (dashboardData.registrations.length === 0) {
@@ -1586,7 +1778,6 @@
             try {
                 const result = await callFunction('addBotToTournament', {
                     tournament_id: dashboardData.tournament.id,
-                    director_pin: tournamentId,
                     bot_id: botId
                 });
 
@@ -1646,7 +1837,6 @@
             try {
                 const result = await callFunction('updateTournamentSettings', {
                     tournament_id: dashboardData.tournament.id,
-                    director_pin: tournamentId,
                     settings: updates
                 });
 
@@ -1673,8 +1863,7 @@
 
             try {
                 const result = await callFunction('deleteTournament', {
-                    tournament_id: dashboardData.tournament.id,
-                    director_pin: tournamentId
+                    tournament_id: dashboardData.tournament.id
                 });
 
                 if (result.success) {
@@ -1704,11 +1893,231 @@
                         <strong style="color: var(--text-light);">Board:</strong> ${match.board_no || 'N/A'} |
                         <strong style="color: var(--text-light);">Status:</strong> <span style="color: ${match.status === 'completed' ? 'var(--teal)' : 'var(--yellow)'};">${match.status || 'pending'}</span>
                     </div>
+                    <div style="font-size: 13px; color: var(--text-dim); margin-top: 8px;">
+                        <strong style="color: var(--text-light);">Room:</strong> ${match.room_label || 'Not set'}
+                        ${match.room_notes ? `| <span>${match.room_notes}</span>` : ''}
+                    </div>
+                    <div style="font-size: 13px; color: var(--text-dim); margin-top: 4px;">
+                        <strong style="color: var(--text-light);">Video:</strong> ${match.room_url ? 'Ready' : 'Not set'}
+                        ${match.stream_url ? ` | <strong style="color: var(--text-light);">Stream:</strong> Ready` : ''}
+                    </div>
+                    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:12px;">
+                        <button class="btn btn-warning" onclick="editTournamentMatchRoom('${match.match_id}')">Edit Room</button>
+                        <button class="btn btn-primary" onclick="copyTournamentCall('${match.match_id}')" ${match.player1_name === 'TBD' || match.player2_name === 'TBD' ? 'disabled' : ''}>Copy Call</button>
+                        <button class="btn btn-primary" onclick="callTournamentMatch('${match.match_id}', true)" ${match.player1_name === 'TBD' || match.player2_name === 'TBD' ? 'disabled' : ''}>Call + Open Room</button>
+                        <button class="btn btn-success" onclick="launchTournamentScorer('${match.match_id}')" ${match.player1_name === 'TBD' || match.player2_name === 'TBD' ? 'disabled' : ''}>Launch Scorer</button>
+                        ${match.room_url ? `<button class="btn btn-primary" onclick="openTournamentRoom('${match.match_id}', 'room')">Open Room</button>` : ''}
+                        ${match.stream_url ? `<button class="btn btn-primary" onclick="openTournamentRoom('${match.match_id}', 'stream')">Open Stream</button>` : ''}
+                    </div>
                 </div>
             `).join('');
 
             document.getElementById('matches-list').innerHTML = html;
         }
+
+        function getCurrentTournamentMatch(matchId) {
+            return dashboardData.matches.find(match => match.match_id === matchId || match.id === matchId);
+        }
+
+        function getTournamentMatchGameType(match) {
+            const isDoubleElim = isDoubleElimTournament();
+            return isDoubleElim
+                ? ((match.bracket_type === 'losers'
+                    ? (dashboardData.tournament?.losers_game_type || '501')
+                    : (dashboardData.tournament?.winners_game_type || 'cricket')).toLowerCase())
+                : (dashboardData.tournament?.game_type || '501').toLowerCase();
+        }
+
+        function getTournamentMatchBestOf(match) {
+            const isDoubleElim = isDoubleElimTournament();
+            return isDoubleElim
+                ? (match.bracket_type === 'losers'
+                    ? (parseInt(dashboardData.tournament?.losers_best_of || '1', 10) || 1)
+                    : (parseInt(dashboardData.tournament?.winners_best_of || '3', 10) || 3))
+                : (parseInt(dashboardData.tournament?.best_of || '3', 10) || 3);
+        }
+
+        function buildTournamentCallMessage(match) {
+            const gameType = getTournamentMatchGameType(match);
+            const bestOf = getTournamentMatchBestOf(match);
+            const gameLabel = gameType === 'cricket' ? `Cricket BO${bestOf}` : `501 BO${bestOf}`;
+            const boardLabel = match.board_no ? `Board ${match.board_no}` : 'Board TBD';
+            const roomLabel = match.room_label || 'Room TBD';
+            const roomUrl = match.room_url ? `\nRoom: ${match.room_url}` : '';
+            const streamUrl = match.stream_url ? `\nStream: ${match.stream_url}` : '';
+            const notes = match.room_notes ? `\nNotes: ${match.room_notes}` : '';
+            return `${match.player1_name || 'Player 1'} vs ${match.player2_name || 'Player 2'}\n${match.round_label || 'Match'} • ${gameLabel}\n${boardLabel} • ${roomLabel}${roomUrl}${streamUrl}${notes}`;
+        }
+
+        function buildTournamentScorerUrl(match) {
+            const isDoubleElim = isDoubleElimTournament();
+            const gameType = getTournamentMatchGameType(match);
+            const scorerPage = gameType === 'cricket' ? 'league-cricket.html' : 'x01-scorer.html';
+            const bestOf = getTournamentMatchBestOf(match);
+            const legsToWin = Math.max(1, Math.ceil(bestOf / 2));
+            const homePlayers = match.team1?.player1 || match.team1?.player2
+                ? [match.team1?.player1, match.team1?.player2].filter(Boolean).map(player => ({ id: player.player_id || '', name: player.name }))
+                : [{ id: '', name: match.player1_name || 'Player 1' }];
+            const awayPlayers = match.team2?.player1 || match.team2?.player2
+                ? [match.team2?.player1, match.team2?.player2].filter(Boolean).map(player => ({ id: player.player_id || '', name: player.name }))
+                : [{ id: '', name: match.player2_name || 'Player 2' }];
+            const params = new URLSearchParams({
+                tournament_id: dashboardData.tournament.id,
+                tournament_match_id: match.match_id,
+                tournament_type: isDoubleElim ? 'double' : 'single',
+                return_url: window.location.href,
+                home_team_name: match.player1_name || 'Player 1',
+                away_team_name: match.player2_name || 'Player 2',
+                home_players: JSON.stringify(homePlayers),
+                away_players: JSON.stringify(awayPlayers),
+                legs_to_win: String(legsToWin),
+                cork: 'true'
+            });
+
+            if (gameType !== 'cricket') {
+                params.set('starting_score', '501');
+                params.set('format', '501');
+                params.set('in_rule', 'straight');
+                params.set('checkout', 'double');
+            }
+
+            return `/pages/${scorerPage}?${params.toString()}`;
+        }
+
+        async function copyTextToClipboard(text) {
+            if (navigator.clipboard?.writeText) {
+                await navigator.clipboard.writeText(text);
+                return true;
+            }
+            const temp = document.createElement('textarea');
+            temp.value = text;
+            temp.style.position = 'fixed';
+            temp.style.left = '-9999px';
+            document.body.appendChild(temp);
+            temp.focus();
+            temp.select();
+            const success = document.execCommand('copy');
+            document.body.removeChild(temp);
+            return success;
+        }
+
+        window.copyTournamentCall = async function(matchId) {
+            const match = getCurrentTournamentMatch(matchId);
+            if (!match) {
+                toastError('Match not found');
+                return;
+            }
+
+            try {
+                await copyTextToClipboard(buildTournamentCallMessage(match));
+                toastSuccess('Match call copied');
+            } catch (error) {
+                toastError('Failed to copy match call');
+            }
+        };
+
+        window.callTournamentMatch = async function(matchId, openRoom = false) {
+            const match = getCurrentTournamentMatch(matchId);
+            if (!match) {
+                toastError('Match not found');
+                return;
+            }
+
+            if (match.status !== 'completed') {
+                try {
+                    const payload = {
+                        tournament_id: dashboardData.tournament.id,
+                        match_id: matchId,
+                        board_number: match.board_no || null,
+                        room_label: match.room_label || '',
+                        room_url: match.room_url || '',
+                        stream_url: match.stream_url || '',
+                        room_notes: match.room_notes || ''
+                    };
+                    await callFunction(isDoubleElimTournament() ? 'startDoubleElimMatch' : 'startTournamentMatch', payload);
+                } catch (error) {
+                    toastError('Failed to call match: ' + error.message);
+                    return;
+                }
+            }
+
+            try {
+                await copyTextToClipboard(buildTournamentCallMessage(match));
+                toastSuccess(openRoom ? 'Match called, copied, and room opening' : 'Match called and copied');
+            } catch (error) {
+                toastWarning('Match called, but copy failed');
+            }
+
+            if (openRoom && match.room_url) {
+                window.open(match.room_url, '_blank', 'noopener,noreferrer');
+            }
+
+            refreshData();
+        };
+
+        window.editTournamentMatchRoom = async function(matchId) {
+            const match = getCurrentTournamentMatch(matchId);
+            if (!match) {
+                toastError('Match not found');
+                return;
+            }
+
+            const room_label = prompt('Room label', match.room_label || '') ?? (match.room_label || '');
+            const room_url = prompt('Room URL (Zoom/Discord/Meet)', match.room_url || '') ?? (match.room_url || '');
+            const stream_url = prompt('Stream URL (optional)', match.stream_url || '') ?? (match.stream_url || '');
+            const room_notes = prompt('Room notes (optional)', match.room_notes || '') ?? (match.room_notes || '');
+            const board_number = prompt('Board number (optional)', match.board_no || '') ?? (match.board_no || '');
+
+            try {
+                await callFunction('updateTournamentMatchRoom', {
+                    tournament_id: dashboardData.tournament.id,
+                    match_id: matchId,
+                    room_label,
+                    room_url,
+                    stream_url,
+                    room_notes,
+                    board_number
+                });
+                toastSuccess('Match room updated');
+                refreshData();
+            } catch (error) {
+                toastError('Failed to update room: ' + error.message);
+            }
+        };
+
+        window.openTournamentRoom = function(matchId, type) {
+            const match = getCurrentTournamentMatch(matchId);
+            const url = type === 'stream' ? match?.stream_url : match?.room_url;
+            if (!url) {
+                toastWarning(type === 'stream' ? 'No stream link set' : 'No room link set');
+                return;
+            }
+            window.open(url, '_blank', 'noopener,noreferrer');
+        };
+
+        window.launchTournamentScorer = async function(matchId) {
+            const match = getCurrentTournamentMatch(matchId);
+            if (!match) {
+                toastError('Match not found');
+                return;
+            }
+
+            try {
+                const payload = {
+                    tournament_id: dashboardData.tournament.id,
+                    match_id: matchId,
+                    board_number: match.board_no || null,
+                    room_label: match.room_label || '',
+                    room_url: match.room_url || '',
+                    stream_url: match.stream_url || '',
+                    room_notes: match.room_notes || ''
+                };
+                await callFunction(isDoubleElimTournament() ? 'startDoubleElimMatch' : 'startTournamentMatch', payload);
+                window.location.href = buildTournamentScorerUrl(match);
+            } catch (error) {
+                toastError('Failed to launch scorer: ' + error.message);
+            }
+        };
         window.closeAddEventModal = function() {
             document.getElementById('addEventModal').style.display = 'none';
             document.getElementById('addEventForm').reset();
@@ -1814,6 +2223,53 @@
                 return;
             }
 
+            if (isDoubleElimTournament()) {
+                const sections = [
+                    { key: 'winners', title: 'WINNERS BRACKET' },
+                    { key: 'losers', title: 'LOSERS BRACKET' },
+                    { key: 'grand_finals', title: 'GRAND FINALS' },
+                    { key: 'grand_finals_reset', title: 'GRAND FINALS RESET' }
+                ];
+
+                const html = sections.map(section => {
+                    const sectionMatches = matches.filter(match => match.bracket_type === section.key);
+                    if (sectionMatches.length === 0) return '';
+
+                    const cards = sectionMatches.map(match => {
+                        const p1Win = match.winner && match.winner === match.player1_name;
+                        const p2Win = match.winner && match.winner === match.player2_name;
+                        const score1 = match.score?.team1 ?? match.score?.player1;
+                        const score2 = match.score?.team2 ?? match.score?.player2;
+
+                        return `
+                            <div class="card" style="margin: 0; min-width: 280px; border: 3px solid var(--black); box-shadow: 2px 2px 0 rgba(0,0,0,1);">
+                                <div style="font-size: 12px; color: var(--pink); font-weight: 700; margin-bottom: 8px;">${match.round_label || 'Match'}</div>
+                                <div style="display: flex; flex-direction: column; gap: 8px;">
+                                    <div style="padding: 8px; background: ${p1Win ? 'var(--teal)' : 'var(--bg-panel-light)'}; border: 2px solid var(--black); display: flex; justify-content: space-between; align-items: center;">
+                                        <span style="font-weight: ${p1Win ? '800' : '600'}; color: ${p1Win ? 'var(--black)' : 'var(--text-light)'};">${match.player1_name || 'TBD'}</span>
+                                        ${score1 !== undefined && score1 !== null ? `<span style="font-weight: 800; font-size: 18px; color: ${p1Win ? 'var(--black)' : 'var(--text-light)'};">${score1}</span>` : ''}
+                                    </div>
+                                    <div style="padding: 8px; background: ${p2Win ? 'var(--teal)' : 'var(--bg-panel-light)'}; border: 2px solid var(--black); display: flex; justify-content: space-between; align-items: center;">
+                                        <span style="font-weight: ${p2Win ? '800' : '600'}; color: ${p2Win ? 'var(--black)' : 'var(--text-light)'};">${match.player2_name || 'TBD'}</span>
+                                        ${score2 !== undefined && score2 !== null ? `<span style="font-weight: 800; font-size: 18px; color: ${p2Win ? 'var(--black)' : 'var(--text-light)'};">${score2}</span>` : ''}
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+
+                    return `
+                        <div style="margin-bottom: 28px;">
+                            <div style="text-align: center; font-family: Bebas Neue, cursive; font-size: 24px; color: var(--pink); margin-bottom: 12px;">${section.title}</div>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">${cards}</div>
+                        </div>
+                    `;
+                }).join('');
+
+                document.getElementById('bracket-container').innerHTML = html || '<div class="card"><p style="text-align: center; padding: 40px; color: var(--text-dim);">No bracket generated yet</p></div>';
+                return;
+            }
+
             const rounds = {};
             matches.forEach(match => {
                 const round = match.round || 1;
@@ -1894,10 +2350,14 @@
             const REGION = 'us-central1';
             const PROJECT_ID = 'brdc-v2';
             const url = `https://${REGION}-${PROJECT_ID}.cloudfunctions.net/${functionName}`;
+            const token = auth.currentUser ? await auth.currentUser.getIdToken() : null;
             
             const response = await fetch(url, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                },
                 body: JSON.stringify(data)
             });
             
@@ -1915,12 +2375,22 @@
             }
 
             try {
-                const result = await callFunction('submitMatchResult', {
-                    tournament_id: dashboardData.tournament.id,
-                    match_id: currentMatchId,
-                    player1_score: p1Score,
-                    player2_score: p2Score
-                });
+                const result = await callFunction(
+                    isDoubleElimTournament() ? 'submitDoubleElimMatchResult' : 'submitMatchResult',
+                    isDoubleElimTournament()
+                        ? {
+                            tournament_id: dashboardData.tournament.id,
+                            match_id: currentMatchId,
+                            team1_score: p1Score,
+                            team2_score: p2Score
+                        }
+                        : {
+                            tournament_id: dashboardData.tournament.id,
+                            match_id: currentMatchId,
+                            player1_score: p1Score,
+                            player2_score: p2Score
+                        }
+                );
 
                 if (result.success) {
                     toastSuccess('✅ Score submitted!');

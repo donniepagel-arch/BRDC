@@ -608,6 +608,7 @@
             this.overlay = null;
             this.chats = [];
             this.rooms = [];
+            this.hasLoadedRecentChats = false;
             this.touchStartX = 0;
             this.touchCurrentX = 0;
             this.edgeSwipeStartX = 0;
@@ -624,13 +625,21 @@
             this._longPressStartPos = null;
         }
 
+        messagesPageUrl(params = '') {
+            const base = location.pathname.includes('-vnext')
+                ? '/pages/messages-vnext.html'
+                : '/pages/messages.html';
+            if (!params) return base;
+            return `${base}${params.startsWith('?') ? params : `?${params}`}`;
+        }
+
         init() {
             injectStyles();
             this._readCurrentPlayer();
             this.createDOM();
             this.attachListeners();
-            this.loadRecentChats().catch(error => {
-                console.error('[ChatDrawer] Initial load failed:', error);
+            this.ensureSession().then(() => this.loadRecentChats({ cacheOnly: true })).catch(error => {
+                console.error('[ChatDrawer] Initial cache hydration failed:', error);
             });
         }
 
@@ -639,6 +648,57 @@
                 const session = JSON.parse(localStorage.getItem('brdc_session') || '{}');
                 this.currentPlayerId = session.player_id || null;
             } catch (e) {}
+        }
+
+        _getStoredSession() {
+            try {
+                return JSON.parse(localStorage.getItem('brdc_session') || '{}');
+            } catch (e) {
+                return {};
+            }
+        }
+
+        async ensureSession(forceRefresh = false) {
+            let session = this._getStoredSession();
+
+            try {
+                const { auth, waitForAuthReady, callFunction } = await import('/js/firebase-config.js');
+                const user = auth.currentUser || await waitForAuthReady(5000);
+                if (!user) {
+                    this.currentPlayerId = null;
+                    return {};
+                }
+
+                if (!forceRefresh && session.player_id) {
+                    this.currentPlayerId = session.player_id;
+                    return session;
+                }
+
+                const result = await callFunction('getPlayerSession', {});
+                if (result?.success && result.player) {
+                    session = {
+                        player_id: result.player.id,
+                        player: result.player,
+                        name: result.player.name,
+                        player_name: result.player.name,
+                        source_type: 'global',
+                        league_id: result.player.league_id || null,
+                        team_id: result.player.team_id || null,
+                        is_admin: result.player.is_admin || false,
+                        is_master_admin: result.player.is_master_admin || false,
+                        is_director: result.player.is_director || false,
+                        is_captain: result.player.is_captain || false,
+                        involvements: result.player.involvements || {},
+                        logged_in_at: Date.now()
+                    };
+                    localStorage.setItem('brdc_session', JSON.stringify(session));
+                    this.currentPlayerId = result.player.id;
+                }
+            } catch (error) {
+                console.warn('[ChatDrawer] Session hydration failed:', error?.message || error);
+            }
+
+            return session;
         }
 
         async callFunctionWithTimeout(functionName, data = {}, timeoutMs = 8000) {
@@ -689,7 +749,7 @@
                 <div class="fb-chat-sidebar-header">
                     <span class="fb-chat-sidebar-title">Messages</span>
                     <div style="display: flex; align-items: center;">
-                        <button class="fb-chat-sidebar-new-btn" onclick="window.location.href='/pages/messages.html?new=1'">+ New</button>
+                        <button class="fb-chat-sidebar-new-btn" data-chat-new-message>+ New</button>
                         <button class="fb-chat-sidebar-close" aria-label="Close messages">&times;</button>
                     </div>
                 </div>
@@ -735,10 +795,14 @@
                     </div>
                 </div>
                 <div class="fb-chat-sidebar-footer">
-                    <a href="/pages/messages.html" class="fb-chat-sidebar-see-all">See All Messages</a>
+                    <a href="${this.messagesPageUrl()}" class="fb-chat-sidebar-see-all">See All Messages</a>
                 </div>
             `;
             document.body.appendChild(this.sidebar);
+
+            this.sidebar.querySelector('[data-chat-new-message]')?.addEventListener('click', () => {
+                window.location.href = this.messagesPageUrl('new=1');
+            });
 
             // Collapsible section headers — wire BEFORE chat-item delegation
             this.sidebar.querySelector('#chatDrawerChatList').addEventListener('click', (e) => {
@@ -925,7 +989,7 @@
             if (!document.body.classList.contains('is-desktop')) {
                 document.body.classList.add('chat-drawer-no-scroll');
             }
-            this.loadRecentChats();
+            this.loadRecentChats({ preferCache: true });
         }
 
         close() {
@@ -1039,7 +1103,8 @@
             );
             if (!msgContainer) return;
 
-            const playerId = JSON.parse(localStorage.getItem('brdc_session') || '{}').player_id;
+            const session = await this.ensureSession();
+            const playerId = session.player_id;
             if (!playerId) {
                 msgContainer.innerHTML = '<div class="fb-chat-acc-loading">Log in to view messages</div>';
                 return;
@@ -1237,7 +1302,8 @@
             const text = input.value.trim();
             if (!text) return;
 
-            const playerId = JSON.parse(localStorage.getItem('brdc_session') || '{}').player_id;
+            const session = await this.ensureSession();
+            const playerId = session.player_id;
             if (!playerId) return;
 
             sendBtn.disabled = true;
@@ -1269,13 +1335,14 @@
 
         // ===== CHAT LIST LOADING =====
 
-        async loadRecentChats() {
+        async loadRecentChats(options = {}) {
+            const { cacheOnly = false, preferCache = false } = options;
             const listEl = document.getElementById('chatDrawerRecentList');
             const roomListEl = document.getElementById('chatDrawerRoomList');
             if (!listEl) return;
 
             try {
-                const session = JSON.parse(localStorage.getItem('brdc_session') || '{}');
+                const session = await this.ensureSession();
                 const playerId = session.player_id;
                 if (!playerId) {
                     listEl.innerHTML = '<div class="fb-chat-empty">Log in to see messages</div>';
@@ -1297,7 +1364,12 @@
                     this.renderRooms();
                 }
 
-                if (chatCache && chatCache.isFresh && roomCache && roomCache.isFresh) return;
+                if (cacheOnly) return;
+                if (preferCache && this.hasLoadedRecentChats && chatCache && roomCache) return;
+                if (chatCache && chatCache.isFresh && roomCache && roomCache.isFresh) {
+                    this.hasLoadedRecentChats = true;
+                    return;
+                }
 
                 if (!chatCache || chatCache.isStale || chatCache.isExpired) {
                     try {
@@ -1321,7 +1393,11 @@
                             this.renderChats();
                         }
                     } catch (error) {
-                        console.error('[ChatDrawer] Error loading conversations:', error);
+                        if (this.isUnauthorizedError(error)) {
+                            console.warn('[ChatDrawer] Conversations require login.');
+                        } else {
+                            console.error('[ChatDrawer] Error loading conversations:', error);
+                        }
                         if (!chatCache) {
                             this.chats = [];
                             this.renderChats();
@@ -1356,17 +1432,23 @@
                         }
                         this.renderRooms();
                     } catch (error) {
-                        console.error('[ChatDrawer] Error loading rooms:', error);
+                        if (this.isUnauthorizedError(error)) {
+                            console.warn('[ChatDrawer] Rooms require login.');
+                        } else {
+                            console.error('[ChatDrawer] Error loading rooms:', error);
+                        }
                         this.renderRooms();
                     }
                 }
+                this.hasLoadedRecentChats = true;
             } catch (error) {
                 console.error('[ChatDrawer] Error loading chats:', error);
                 const listEl2 = document.getElementById('chatDrawerRecentList');
                 if (listEl2) listEl2.innerHTML = '<div class="fb-chat-empty">Could not load messages</div>';
             }
-            // Load teammates and league players separately
-            this.loadTeammatesAndLeaguePlayers();
+            if (!cacheOnly) {
+                this.loadTeammatesAndLeaguePlayers();
+            }
         }
 
         /**
@@ -1396,7 +1478,7 @@
                 </div>
                 <div class="fb-chat-accordion" data-chat-id="${safeId}">
                     <div class="fb-chat-acc-messages">
-                        <div class="fb-chat-acc-loading">Loading messages...</div>
+                            <div class="fb-chat-acc-loading">Tap to preview messages</div>
                     </div>
                     <div class="fb-chat-acc-footer">
                         <a class="fb-chat-acc-open-link" href="${this.escapeAttr(fullPageUrl)}" title="Open full page">&#8599;</a>
@@ -1432,7 +1514,7 @@
                 html += this._buildChatItemHTML(
                     chat.id, 'conversation', chat.name, chat.recipientId,
                     initials, '', timeStr, preview, hasMore, chat.unread,
-                    `/pages/conversation.html?id=${chat.id}`
+                    this.messagesPageUrl(`conversation_id=${encodeURIComponent(chat.id)}`)
                 );
             });
             listEl.innerHTML = html;
@@ -1443,7 +1525,7 @@
 
         async loadTeammatesAndLeaguePlayers() {
             try {
-                const session = JSON.parse(localStorage.getItem('brdc_session') || '{}');
+                const session = await this.ensureSession();
                 // Use all available fallbacks for leagueId and teamId
                 const leagueId = session.involvements?.leagues?.[0]?.id || session.league_id;
                 const teamId = session.involvements?.leagues?.[0]?.team_id || session.team_id;
@@ -1515,8 +1597,8 @@
                 const unread = existing ? existing.unread : false;
                 const initials = this.getInitials(player.name || '?');
                 const pageUrl = existing
-                    ? `/pages/conversation.html?id=${existing.id}`
-                    : `/pages/messages.html?new=1`;
+                    ? this.messagesPageUrl(`conversation_id=${encodeURIComponent(existing.id)}`)
+                    : this.messagesPageUrl('new=1');
                 html += this._buildChatItemHTML(
                     chatId, type, player.name, player.id,
                     initials, '', '', '', false, unread, pageUrl
@@ -1553,8 +1635,8 @@
                 const unread = existing ? existing.unread : false;
                 const initials = this.getInitials(player.name || '?');
                 const pageUrl = existing
-                    ? `/pages/conversation.html?id=${existing.id}`
-                    : `/pages/messages.html?new=1`;
+                    ? this.messagesPageUrl(`conversation_id=${encodeURIComponent(existing.id)}`)
+                    : this.messagesPageUrl('new=1');
                 html += this._buildChatItemHTML(
                     chatId, type, player.name, player.id,
                     initials, '', '', '', false, unread, pageUrl
@@ -1683,7 +1765,8 @@
                 btn.disabled = true;
 
                 try {
-                    const playerId = JSON.parse(localStorage.getItem('brdc_session') || '{}').player_id;
+                    const session = await this.ensureSession();
+                    const playerId = session.player_id;
                     const { callFunction } = await import('/js/firebase-config.js');
                     const result = await callFunction('createGroupChatRoom', {
                         name,
@@ -1782,8 +1865,8 @@
             // Open full page
             if (type !== 'new_dm') {
                 const url = type === 'room'
-                    ? `/pages/chat-room.html?id=${chatId}`
-                    : `/pages/conversation.html?id=${chatId}`;
+                    ? this.messagesPageUrl(`room_id=${encodeURIComponent(chatId)}`)
+                    : this.messagesPageUrl(`conversation_id=${encodeURIComponent(chatId)}`);
                 options.push({
                     icon: '↗',
                     label: 'Open Full Page',
@@ -1945,7 +2028,7 @@
                 html += this._buildChatItemHTML(
                     room.id, 'room', room.name, '',
                     icon, 'style="font-size: 18px;"', timeStr, preview, hasMore, room.unread,
-                    `/pages/chat-room.html?id=${room.id}`
+                    this.messagesPageUrl(`room_id=${encodeURIComponent(room.id)}`)
                 );
             });
             listEl.innerHTML = html;
@@ -2089,12 +2172,5 @@
     setTimeout(wireChatButton, 1500);
 
     // On desktop the chat panel is permanently visible — pre-load chat data.
-    if (document.body.classList.contains('is-desktop')) {
-        setTimeout(() => {
-            if (window.chatDrawer && typeof window.chatDrawer.loadRecentChats === 'function') {
-                window.chatDrawer.loadRecentChats();
-            }
-        }, 600);
-    }
 
 })();

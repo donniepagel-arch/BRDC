@@ -1,7 +1,7 @@
 /**
  * Assign Player Levels Script
  *
- * Updates the `level` field for all players in the Winter Triple Draft league
+ * Updates the `level` field for all players in the 2026 Triples League
  * by looking at their team assignment and position.
  *
  * Position 1 = A, Position 2 = B, Position 3 = C
@@ -16,7 +16,7 @@ admin.initializeApp({
 
 const db = admin.firestore();
 
-// League ID for 2026 Winter Triple Draft
+// League ID for 2026 Triples League
 const LEAGUE_ID = 'aOq4Y0ETxPZ66tM1uUtP';
 
 async function assignPlayerLevels() {

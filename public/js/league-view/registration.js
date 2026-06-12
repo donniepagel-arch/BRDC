@@ -1,6 +1,159 @@
 // registration.js - Registration tab and forms functionality for league-view
-import { state } from './app.js';
+import { state } from './app.js?v=4'; // registration.js v6
 import { db, doc, getDoc, collection, getDocs, callFunction, uploadImage, showLoading, hideLoading } from '/js/firebase-config.js';
+
+// ===== Email / OAuth login helpers =====
+
+/**
+ * Shared: populate state.memberData from a getPlayerSession player object.
+ * Produces the same shape as the playerLogin path.
+ */
+function _setMemberDataFromSession(player) {
+    state.memberData = {
+        id: player.id,
+        name: player.name,
+        email: player.email || '',
+        phone: player.phone || '',
+        preferred_level: player.preferred_level || null,
+        avg_501: player.avg_501 || null,
+        avg_cricket: player.avg_cricket || null,
+        pin: null // no PIN for email/OAuth logins
+    };
+}
+
+/** Fill registration form fields from state.memberData */
+function _fillRegForm() {
+    const m = state.memberData;
+    if (!m) return;
+    const safe = (id, val) => { const el = document.getElementById(id); if (el && val) el.value = val; };
+    safe('regName', m.name);
+    safe('regEmail', m.email);
+    safe('regPhone', m.phone);
+    if (m.preferred_level) { const el = document.getElementById('regLevel'); if (el) el.value = m.preferred_level; }
+    if (typeof toastSuccess === 'function') toastSuccess('Welcome back, ' + m.name + '! Your info has been filled in.');
+}
+
+/** Fill fill-in form fields from state.memberData */
+function _fillFillinForm() {
+    const m = state.memberData;
+    if (!m) return;
+    const safe = (id, val) => { const el = document.getElementById(id); if (el && val) el.value = val; };
+    safe('fillinName', m.name);
+    safe('fillinEmail', m.email);
+    safe('fillinPhone', m.phone);
+    if (m.preferred_level) { const el = document.getElementById('fillinLevel'); if (el) el.value = m.preferred_level; }
+    if (typeof toastSuccess === 'function') toastSuccess('Welcome back, ' + m.name + '! Your info has been filled in.');
+}
+
+/** Fill sub signup form fields from state.memberData */
+function _fillSubForm() {
+    const m = state.memberData;
+    if (!m) return;
+    const safe = (id, val) => { const el = document.getElementById(id); if (el && val) el.value = val; };
+    safe('subName', m.name);
+    safe('subEmail', m.email);
+    safe('subPhone', m.phone);
+    if (m.preferred_level) { const el = document.getElementById('subLevel'); if (el) el.value = m.preferred_level; }
+    if (m.avg_501) { const el = document.getElementById('sub501'); if (el) el.value = m.avg_501; }
+    if (m.avg_cricket) { const el = document.getElementById('subMPR'); if (el) el.value = m.avg_cricket; }
+    if (typeof toastSuccess === 'function') toastSuccess('Welcome back, ' + m.name + '! Your info has been filled in.');
+}
+
+export async function loginEmailForReg(formType) {
+    const ids = {
+        reg: { email: 'regLoginEmail', pass: 'regLoginPassword', err: 'regLoginError' },
+        fillin: { email: 'fillinLoginEmail', pass: 'fillinLoginPassword', err: 'fillinLoginError' },
+        sub: { email: 'subLoginEmail', pass: 'subLoginPassword', err: 'subLoginError' }
+    };
+    const cfg = ids[formType] || ids.reg;
+    const email = (document.getElementById(cfg.email)?.value || '').trim();
+    const password = document.getElementById(cfg.pass)?.value || '';
+    const errEl = document.getElementById(cfg.err);
+    if (errEl) errEl.textContent = '';
+    if (!email || !password) { if (errEl) errEl.textContent = 'Enter email and password.'; return; }
+    try {
+        const { auth, signInWithEmailAndPassword } = await import('/js/firebase-config.js');
+        await signInWithEmailAndPassword(auth, email, password);
+        const result = await callFunction('getPlayerSession', {});
+        if (!result || !result.success) throw new Error(result?.error || 'Could not load player data');
+        _setMemberDataFromSession(result.player);
+        if (formType === 'fillin') _fillFillinForm();
+        else if (formType === 'sub') _fillSubForm();
+        else _fillRegForm();
+    } catch (err) {
+        let msg = 'Sign-in failed.';
+        if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') msg = 'Invalid email or password.';
+        else if (err.code === 'auth/invalid-email') msg = 'Invalid email address.';
+        else if (err.message) msg = err.message;
+        if (errEl) errEl.textContent = msg;
+    }
+}
+
+export async function loginGoogleForReg(formType) {
+    const errIds = { reg: 'regLoginError', fillin: 'fillinLoginError', sub: 'subLoginError' };
+    const errEl = document.getElementById(errIds[formType] || 'regLoginError');
+    if (errEl) errEl.textContent = '';
+    try {
+        const { auth, signInWithPopup, GoogleAuthProvider } = await import('/js/firebase-config.js');
+        await signInWithPopup(auth, new GoogleAuthProvider());
+        const result = await callFunction('getPlayerSession', {});
+        if (!result || !result.success) throw new Error(result?.error || 'Could not load player data');
+        _setMemberDataFromSession(result.player);
+        if (formType === 'fillin') _fillFillinForm();
+        else if (formType === 'sub') _fillSubForm();
+        else _fillRegForm();
+    } catch (err) {
+        if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') return;
+        let msg = 'Google sign-in failed.';
+        if (err.code === 'auth/popup-blocked') msg = 'Popup blocked — allow popups and try again.';
+        else if (err.message) msg = err.message;
+        if (errEl) errEl.textContent = msg;
+    }
+}
+
+export async function loginEmailForDirector() {
+    const email = (document.getElementById('directorEmailInput')?.value || '').trim();
+    const password = document.getElementById('directorPasswordInput')?.value || '';
+    const errEl = document.getElementById('directorAuthError');
+    if (errEl) errEl.textContent = '';
+    if (!email || !password) { if (errEl) errEl.textContent = 'Enter email and password.'; return; }
+    try {
+        const { auth, signInWithEmailAndPassword } = await import('/js/firebase-config.js');
+        await signInWithEmailAndPassword(auth, email, password);
+        const result = await callFunction('getPlayerSession', {});
+        if (!result || !result.success) throw new Error(result?.error || 'Could not load player data');
+        if (!result.player.is_director && !result.player.is_admin && !result.player.is_master_admin) {
+            throw new Error('Your account does not have director access for this league.');
+        }
+        window.location.href = `/pages/league-director.html?league_id=${state.leagueId}`;
+    } catch (err) {
+        let msg = 'Sign-in failed.';
+        if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') msg = 'Invalid email or password.';
+        else if (err.message) msg = err.message;
+        if (errEl) errEl.textContent = msg;
+    }
+}
+
+export async function loginGoogleForDirector() {
+    const errEl = document.getElementById('directorAuthError');
+    if (errEl) errEl.textContent = '';
+    try {
+        const { auth, signInWithPopup, GoogleAuthProvider } = await import('/js/firebase-config.js');
+        await signInWithPopup(auth, new GoogleAuthProvider());
+        const result = await callFunction('getPlayerSession', {});
+        if (!result || !result.success) throw new Error(result?.error || 'Could not load player data');
+        if (!result.player.is_director && !result.player.is_admin && !result.player.is_master_admin) {
+            throw new Error('Your account does not have director access for this league.');
+        }
+        window.location.href = `/pages/league-director.html?league_id=${state.leagueId}`;
+    } catch (err) {
+        if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') return;
+        let msg = 'Google sign-in failed.';
+        if (err.code === 'auth/popup-blocked') msg = 'Popup blocked — allow popups and try again.';
+        else if (err.message) msg = err.message;
+        if (errEl) errEl.textContent = msg;
+    }
+}
 
 export function renderRegistrationTab() {
     const fillinSettings = state.leagueData.fillin_settings || {};
@@ -109,51 +262,23 @@ export function renderSignupsList() {
 export function showDirectorLogin() {
     const html = `
         <div style="text-align: center;">
-            <p style="margin-bottom: 25px; color: var(--text-dim);">Enter your 8-digit PIN to access the league management dashboard.</p>
-            <div style="display: flex; justify-content: center; margin: 30px 0;">
-                <input type="text" id="directorPinInput" maxlength="8"
-                    style="-webkit-text-security: disc; width: 100%; max-width: 280px; height: 56px; border: 3px solid rgba(255,255,255,0.2); border-radius: 8px; font-size: 24px; text-align: center; font-family: 'JetBrains Mono', monospace; background: rgba(0,0,0,0.3); color: #FDD835; letter-spacing: 4px; transition: all 0.2s;"
-                    inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="••••••••"
-                    onfocus="this.style.borderColor='#FF469A'; this.style.background='rgba(255,70,154,0.1)'; this.style.boxShadow='0 0 15px rgba(255,70,154,0.3)';"
-                    onblur="this.style.borderColor='rgba(255,255,255,0.2)'; this.style.background='rgba(0,0,0,0.3)'; this.style.boxShadow='none';"
-                    onkeydown="if(event.key==='Enter') verifyDirectorPin();">
-            </div>
-            <button class="submit-btn" onclick="verifyDirectorPin()" style="width: 100%; max-width: 280px;">ENTER DASHBOARD</button>
-            <p style="margin-top: 20px; font-size: 12px; color: var(--text-dim);">Use your player PIN or the admin PIN from league creation</p>
+            <p style="margin-bottom: 20px; color: var(--text-dim);">Sign in with your director account to access the league management dashboard.</p>
+            <input type="email" id="directorEmailInput" placeholder="Email address" autocomplete="email"
+                style="width:100%;max-width:280px;padding:12px;border:2px solid rgba(255,255,255,0.2);border-radius:8px;background:rgba(0,0,0,0.3);color:#FDD835;font-family:'JetBrains Mono',monospace;font-size:14px;box-sizing:border-box;margin-bottom:8px;">
+            <input type="password" id="directorPasswordInput" placeholder="Password" autocomplete="current-password"
+                style="width:100%;max-width:280px;padding:12px;border:2px solid rgba(255,255,255,0.2);border-radius:8px;background:rgba(0,0,0,0.3);color:#FDD835;font-family:'JetBrains Mono',monospace;font-size:14px;box-sizing:border-box;margin-bottom:8px;">
+            <div id="directorAuthError" style="color:#ef4444;font-size:12px;min-height:16px;margin-bottom:8px;"></div>
+            <button class="submit-btn" onclick="loginEmailForDirector()" style="width:100%;max-width:280px;margin-bottom:8px;">SIGN IN WITH EMAIL</button>
+            <button class="submit-btn" onclick="loginGoogleForDirector()" style="width:100%;max-width:280px;background:rgba(255,255,255,0.1);border:2px solid rgba(255,255,255,0.3);">SIGN IN WITH GOOGLE</button>
         </div>
     `;
     document.getElementById('modalBody').innerHTML = html;
     document.querySelector('.modal-title').textContent = '🎯 DIRECTOR LOGIN';
     document.getElementById('registerModal').classList.add('active');
-    setTimeout(() => document.getElementById('directorPinInput').focus(), 100);
+    setTimeout(() => document.getElementById('directorEmailInput').focus(), 100);
 }
 
-export async function verifyDirectorPin() {
-    const pin = document.getElementById('directorPinInput').value.trim();
-    if (!pin || pin.length !== 8) {
-        toastWarning('Please enter your 8-digit PIN');
-        return;
-    }
-
-    try {
-        const result = await callFunction('verifyLeaguePin', {
-            league_id: state.leagueId,
-            pin: pin
-        });
-
-        if (result.success) {
-            localStorage.setItem('leagueAdminPin_' + state.leagueId, JSON.stringify({
-                pin: pin,
-                timestamp: Date.now()
-            }));
-            window.location.href = `/pages/league-director.html?league_id=${state.leagueId}`;
-        } else {
-            toastError('Invalid PIN. Please try again.');
-        }
-    } catch (e) {
-        toastError('Error verifying PIN: ' + e.message);
-    }
-}
+// verifyDirectorPin removed — PIN login retired. Use loginEmailForDirector/loginGoogleForDirector.
 
 export function openFillinModal() {
     renderFillinForm();
@@ -170,7 +295,7 @@ async function getLevelRanges() {
 
     try {
         // Import from app.js instead of calling on state object
-        const { ensurePlayersLoaded, ensureStatsLoaded } = await import('./app.js');
+const { ensurePlayersLoaded, ensureStatsLoaded } = await import('./app.js?v=4');
         await ensurePlayersLoaded();
         await ensureStatsLoaded();
 
@@ -245,12 +370,15 @@ export async function renderSubSignupForm() {
             </ul>
         </div>
 
-        <!-- PIN Lookup Section -->
+        <!-- Sign in with Email / Google -->
         <div class="pin-section">
-            <div class="pin-section-title">ALREADY A MEMBER? ENTER YOUR PIN</div>
+            <div class="pin-section-title">ALREADY A MEMBER? SIGN IN</div>
+            <input type="email" id="subLoginEmail" class="pin-input" placeholder="Email" autocomplete="email" style="width:100%;margin-bottom:6px;">
+            <input type="password" id="subLoginPassword" class="pin-input" placeholder="Password" autocomplete="current-password" style="width:100%;margin-bottom:6px;">
+            <div id="subLoginError" style="color:#ef4444;font-size:11px;min-height:14px;margin-bottom:6px;text-align:center;"></div>
             <div class="pin-row">
-                <input type="text" id="subPin" class="pin-input" maxlength="8" placeholder="••••••••" inputmode="numeric" pattern="[0-9]*" autocomplete="off">
-                <button class="pin-btn" onclick="lookupSubPin()">GO</button>
+                <button class="pin-btn" onclick="loginEmailForReg('sub')" style="flex:1;">EMAIL</button>
+                <button class="pin-btn" onclick="loginGoogleForReg('sub')" style="flex:1;">GOOGLE</button>
             </div>
         </div>
 
@@ -298,37 +426,7 @@ export async function renderSubSignupForm() {
     document.getElementById('modalBody').innerHTML = html;
 }
 
-export async function lookupSubPin() {
-    const pin = document.getElementById('subPin').value.trim();
-    if (pin.length !== 8) {
-        toastWarning('Please enter an 8-digit PIN');
-        return;
-    }
-
-    try {
-        const result = await callFunction('playerLogin', { pin: pin });
-        if (result.success && result.player) {
-            state.memberData = result.player;
-            document.getElementById('subName').value = state.memberData.name || '';
-            document.getElementById('subEmail').value = state.memberData.email || '';
-            document.getElementById('subPhone').value = state.memberData.phone || '';
-            if (state.memberData.preferred_level && document.getElementById('subLevel')) {
-                document.getElementById('subLevel').value = state.memberData.preferred_level;
-            }
-            if (state.memberData.avg_501 && document.getElementById('sub501')) {
-                document.getElementById('sub501').value = state.memberData.avg_501;
-            }
-            if (state.memberData.avg_cricket && document.getElementById('subMPR')) {
-                document.getElementById('subMPR').value = state.memberData.avg_cricket;
-            }
-            toastSuccess('Welcome back, ' + state.memberData.name + '! Your info has been filled in.');
-        } else {
-            toastInfo('PIN not found. Please fill in your information below.');
-        }
-    } catch (e) {
-        toastError('Error looking up PIN: ' + e.message);
-    }
-}
+// lookupSubPin removed — PIN login retired.
 
 export async function submitSubSignup(e) {
     e.preventDefault();
@@ -392,12 +490,15 @@ export function renderFillinForm() {
     const fillinSettings = state.leagueData.fillin_settings || {};
 
     const html = `
-        <!-- PIN Lookup Section -->
+        <!-- Sign in with Email / Google -->
         <div class="pin-section">
-            <div class="pin-section-title">ALREADY A MEMBER? ENTER YOUR PIN</div>
+            <div class="pin-section-title">ALREADY A MEMBER? SIGN IN</div>
+            <input type="email" id="fillinLoginEmail" class="pin-input" placeholder="Email" autocomplete="email" style="width:100%;margin-bottom:6px;">
+            <input type="password" id="fillinLoginPassword" class="pin-input" placeholder="Password" autocomplete="current-password" style="width:100%;margin-bottom:6px;">
+            <div id="fillinLoginError" style="color:#ef4444;font-size:11px;min-height:14px;margin-bottom:6px;text-align:center;"></div>
             <div class="pin-row">
-                <input type="text" id="fillinPin" class="pin-input" maxlength="8" placeholder="••••••••" inputmode="numeric" pattern="[0-9]*" autocomplete="off">
-                <button class="pin-btn" onclick="lookupFillinPin()">GO</button>
+                <button class="pin-btn" onclick="loginEmailForReg('fillin')" style="flex:1;">EMAIL</button>
+                <button class="pin-btn" onclick="loginGoogleForReg('fillin')" style="flex:1;">GOOGLE</button>
             </div>
         </div>
 
@@ -474,31 +575,7 @@ export function renderFillinForm() {
     document.querySelector('.modal-title').textContent = 'FILL-IN SIGNUP';
 }
 
-export async function lookupFillinPin() {
-    const pin = document.getElementById('fillinPin').value.trim();
-    if (pin.length !== 8) {
-        toastWarning('Please enter an 8-digit PIN');
-        return;
-    }
-
-    try {
-        const result = await callFunction('playerLogin', { pin: pin });
-        if (result.success && result.player) {
-            state.memberData = result.player;
-            document.getElementById('fillinName').value = state.memberData.name || '';
-            document.getElementById('fillinEmail').value = state.memberData.email || '';
-            document.getElementById('fillinPhone').value = state.memberData.phone || '';
-            if (state.memberData.preferred_level && document.getElementById('fillinLevel')) {
-                document.getElementById('fillinLevel').value = state.memberData.preferred_level;
-            }
-            toastSuccess('Welcome back, ' + state.memberData.name + '! Your info has been filled in.');
-        } else {
-            toastInfo('PIN not found. Please register as a new player.');
-        }
-    } catch (e) {
-        toastError('Error looking up PIN: ' + e.message);
-    }
-}
+// lookupFillinPin removed — PIN login retired.
 
 export function handleFillinPhotoChange(input) {
     const file = input.files[0];
@@ -588,12 +665,6 @@ export async function submitFillin(e) {
                 <div class="success-message">
                     You've been added to the fill-in list. Captains will contact you when they need a substitute.
                 </div>
-                ${result.player_pin ? `
-                    <div class="pin-display-box">
-                        <div class="pin-display-label">YOUR PIN (SAVE THIS!)</div>
-                        <div class="pin-display-value">${result.player_pin}</div>
-                    </div>
-                ` : ''}
                 <button class="submit-btn" onclick="closeModal(); location.reload();">DONE</button>
             </div>
         `;
@@ -612,12 +683,15 @@ export function renderRegistrationForm() {
     const entryFee = parseFloat(state.leagueData.entry_fee) || 0;
 
     const html = `
-        <!-- PIN Lookup Section -->
+        <!-- Sign in with Email / Google -->
         <div class="pin-section">
-            <div class="pin-section-title">ALREADY A MEMBER? ENTER YOUR PIN</div>
+            <div class="pin-section-title">ALREADY A MEMBER? SIGN IN</div>
+            <input type="email" id="regLoginEmail" class="pin-input" placeholder="Email" autocomplete="email" style="width:100%;margin-bottom:6px;">
+            <input type="password" id="regLoginPassword" class="pin-input" placeholder="Password" autocomplete="current-password" style="width:100%;margin-bottom:6px;">
+            <div id="regLoginError" style="color:#ef4444;font-size:11px;min-height:14px;margin-bottom:6px;text-align:center;"></div>
             <div class="pin-row">
-                <input type="text" id="memberPin" class="pin-input" maxlength="8" placeholder="••••••••" inputmode="numeric" pattern="[0-9]*" autocomplete="off">
-                <button class="pin-btn" onclick="lookupPin()">GO</button>
+                <button class="pin-btn" onclick="loginEmailForReg('reg')" style="flex:1;">EMAIL</button>
+                <button class="pin-btn" onclick="loginGoogleForReg('reg')" style="flex:1;">GOOGLE</button>
             </div>
         </div>
 
@@ -715,31 +789,7 @@ export function selectPayment(el, method) {
     el.querySelector('input').checked = true;
 }
 
-export async function lookupPin() {
-    const pin = document.getElementById('memberPin').value.trim();
-    if (pin.length !== 8) {
-        toastWarning('Please enter an 8-digit PIN');
-        return;
-    }
-
-    try {
-        const result = await callFunction('playerLogin', { pin: pin });
-        if (result.success && result.player) {
-            state.memberData = result.player;
-            document.getElementById('regName').value = state.memberData.name || '';
-            document.getElementById('regEmail').value = state.memberData.email || '';
-            document.getElementById('regPhone').value = state.memberData.phone || '';
-            if (state.memberData.preferred_level) {
-                document.getElementById('regLevel').value = state.memberData.preferred_level;
-            }
-            toastSuccess('Welcome back, ' + state.memberData.name + '! Your info has been filled in.');
-        } else {
-            toastInfo('PIN not found. Please register as a new player.');
-        }
-    } catch (e) {
-        toastError('Error looking up PIN: ' + e.message);
-    }
-}
+// lookupPin removed — PIN login retired.
 
 export async function submitRegistration(e) {
     e.preventDefault();
@@ -809,12 +859,6 @@ export function showSuccess(result) {
             result.payment_status === 'pending' ? 'Your spot is reserved! Please complete payment before the deadline.' :
                 'Welcome to the league! Check your email for confirmation details.'}
             </div>
-            ${result.player_pin ? `
-                <div class="pin-display-box">
-                    <div class="pin-display-label">YOUR PIN (SAVE THIS!)</div>
-                    <div class="pin-display-value">${result.player_pin}</div>
-                </div>
-            ` : ''}
             <button class="submit-btn" onclick="closeModal(); location.reload();">DONE</button>
         </div>
     `;

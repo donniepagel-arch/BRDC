@@ -11,7 +11,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@400;700&family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/css/brdc-styles.css?v=3">
     <link rel="stylesheet" href="/css/print.css">
-    <link rel="stylesheet" href="/css/captain-dashboard.css?v=3">
+    <link rel="stylesheet" href="/css/captain-dashboard.css?v=4">
 
     <!-- BRDC Navigation CSS -->
     <link rel="stylesheet" href="/css/brdc-navigation.css">
@@ -47,7 +47,70 @@
             min-width: 0;
             overflow-wrap: anywhere;
         }
+        .team-profile-manager {
+            display: grid;
+            grid-template-columns: minmax(220px, 320px) minmax(0, 1fr);
+            gap: 18px;
+            align-items: start;
+        }
+        .team-photo-preview {
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            border-radius: 20px;
+            border: 3px solid #000;
+            background: linear-gradient(135deg, rgba(253,216,53,0.24), rgba(255,70,154,0.2));
+            display: grid;
+            place-items: center;
+            overflow: hidden;
+            box-shadow: 6px 6px 0 rgba(0,0,0,0.28);
+        }
+        .team-photo-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .team-photo-placeholder {
+            font-family: 'Bebas Neue', cursive;
+            color: var(--yellow);
+            font-size: 56px;
+            letter-spacing: 2px;
+        }
+        .team-gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+            gap: 10px;
+            margin-top: 12px;
+        }
+        .team-gallery-tile {
+            position: relative;
+            aspect-ratio: 1 / 1;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 2px solid rgba(255,255,255,0.14);
+            background: rgba(255,255,255,0.06);
+        }
+        .team-gallery-tile img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .team-gallery-remove {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            border: 0;
+            border-radius: 999px;
+            background: rgba(0,0,0,0.72);
+            color: white;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            font-weight: 900;
+        }
         @media (max-width: 640px) {
+            .team-profile-manager {
+                grid-template-columns: 1fr;
+            }
             .dc-import-set-header {
                 display: none;
             }
@@ -230,6 +293,7 @@
         <nav class="tab-nav" role="tablist" aria-label="Captain dashboard sections">
             <button class="tab-btn active" role="tab" aria-selected="true" aria-controls="tab-schedule" onclick="showTab('schedule', event)">SCHEDULE</button>
             <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-import" onclick="showTab('import', event)">IMPORT</button>
+            <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-profile" onclick="showTab('profile', event)">PROFILE</button>
             <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-subs" onclick="showTab('subs', event)">SUBSTITUTES</button>
             <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-freeagents" id="freeAgentsTab" onclick="showTab('freeagents', event)" style="display: none;">FREE AGENTS</button>
             <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-notifications" onclick="showTab('notifications', event)">ALERTS <span id="alertCount" aria-label="alert count"></span></button>
@@ -301,6 +365,44 @@
             </div>
         </section>
 
+        <!-- Team Profile Tab -->
+        <section class="tab-content" id="tab-profile" role="tabpanel" aria-label="Team profile and photos">
+            <div class="match-card">
+                <div class="match-card-body" style="padding: 18px;">
+                    <div style="display:flex; justify-content:space-between; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom:16px;">
+                        <div>
+                            <h2 style="font-family:'Oswald',sans-serif; color:var(--teal); text-transform:uppercase; margin:0 0 4px;">Team Profile</h2>
+                            <p style="color:var(--text-dim); margin:0; font-size:13px;">This controls the public team profile photo, motto, and gallery.</p>
+                        </div>
+                        <a id="teamProfilePublicLink" class="brdc-btn brdc-btn-secondary" href="#" style="text-decoration:none;">VIEW PUBLIC PROFILE</a>
+                    </div>
+                    <div class="team-profile-manager">
+                        <div>
+                            <div id="teamPhotoPreview" class="team-photo-preview"></div>
+                            <input type="file" id="teamPhotoInput" accept="image/*" style="display:none;" onchange="uploadTeamMainPhoto(event)">
+                            <button class="brdc-btn" type="button" onclick="document.getElementById('teamPhotoInput').click()" style="width:100%; margin-top:12px;">UPLOAD TEAM PHOTO</button>
+                        </div>
+                        <div>
+                            <div class="form-group" style="margin-bottom:14px;">
+                                <label class="form-label" for="teamMottoInput">Team Motto / Note</label>
+                                <textarea id="teamMottoInput" class="form-input" rows="3" placeholder="Optional team note shown on public profile"></textarea>
+                            </div>
+                            <button class="brdc-btn brdc-btn-secondary" type="button" onclick="saveTeamMotto()">SAVE MOTTO</button>
+                            <div style="margin-top:22px;">
+                                <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:8px;">
+                                    <h3 style="font-family:'Oswald',sans-serif; color:var(--yellow); text-transform:uppercase; margin:0;">Team Gallery</h3>
+                                    <button class="brdc-btn brdc-btn-secondary" type="button" onclick="document.getElementById('teamGalleryInput').click()">ADD PHOTO</button>
+                                </div>
+                                <input type="file" id="teamGalleryInput" accept="image/*" multiple style="display:none;" onchange="uploadTeamGalleryPhotos(event)">
+                                <div id="teamGalleryGrid" class="team-gallery-grid"></div>
+                                <p style="color:var(--text-dim); font-size:12px; margin-top:10px;">Up to 24 photos. Newest uploads show first.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
         <!-- Subs Tab -->
         <section class="tab-content" id="tab-subs" role="tabpanel" aria-label="Substitutes">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
@@ -347,7 +449,7 @@
     </main>
 
     <script type="module">
-        import { auth, signInWithEmailAndPassword, sendPasswordResetEmail, callFunction, showLoading, hideLoading, signInWithPopup, GoogleAuthProvider } from '/js/firebase-config.js';
+        import { auth, signInWithEmailAndPassword, sendPasswordResetEmail, callFunction, showLoading, hideLoading, uploadImage, signInWithPopup, GoogleAuthProvider } from '/js/firebase-config.js';
 
         let dashboardData = null;
         let currentLeagueId = null;
@@ -494,7 +596,6 @@
                     involvements: player.involvements || {},
                     logged_in_at: Date.now()
                 }));
-                localStorage.removeItem('brdc_player_pin');
 
                 // Extract captain team/league from login response (no second call needed)
                 const { teamId, leagueId } = findCaptainIds({
@@ -568,7 +669,6 @@
                     involvements: player.involvements || {},
                     logged_in_at: Date.now()
                 }));
-                localStorage.removeItem('brdc_player_pin');
 
                 const { teamId, leagueId } = findCaptainIds({
                     team_id: player.team_id,
@@ -649,6 +749,7 @@
 
             renderRoster(team, player_stats);
             renderSchedule(matches, team);
+            renderTeamProfileSettings(team);
             renderSubs(available_subs);
             renderFreeAgents(free_agents || [], team);
             renderNotifications(notifications);
@@ -704,6 +805,123 @@
                 console.error('Update team name error:', error);
                 toastError('Failed to update team name');
             }
+        };
+
+        function getTeamInitials(team) {
+            const name = team?.team_name || team?.name || 'Team';
+            return name.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase() || 'T';
+        }
+
+        function renderTeamProfileSettings(team) {
+            const publicLink = document.getElementById('teamProfilePublicLink');
+            if (publicLink) {
+                publicLink.href = `/pages/team-profile.html?league_id=${encodeURIComponent(currentLeagueId)}&team_id=${encodeURIComponent(currentTeamId)}`;
+            }
+
+            const preview = document.getElementById('teamPhotoPreview');
+            if (preview) {
+                preview.innerHTML = team?.photo_url
+                    ? `<img src="${escapeText(team.photo_url)}" alt="${escapeText(team.team_name || 'Team')} photo">`
+                    : `<div class="team-photo-placeholder">${escapeText(getTeamInitials(team))}</div>`;
+            }
+
+            const mottoInput = document.getElementById('teamMottoInput');
+            if (mottoInput) mottoInput.value = team?.motto || '';
+
+            const gallery = Array.isArray(team?.gallery_photos) ? team.gallery_photos : [];
+            const grid = document.getElementById('teamGalleryGrid');
+            if (grid) {
+                grid.innerHTML = gallery.length
+                    ? gallery.map((url, idx) => `
+                        <div class="team-gallery-tile">
+                            <img src="${escapeText(url)}" alt="Team gallery photo ${idx + 1}">
+                            <button type="button" class="team-gallery-remove" onclick="removeTeamGalleryPhoto(${idx})" aria-label="Remove photo">&times;</button>
+                        </div>
+                    `).join('')
+                    : '<div style="grid-column:1/-1; color:var(--text-dim); padding:18px; text-align:center; border:1px dashed rgba(255,255,255,0.18); border-radius:12px;">No team gallery photos yet.</div>';
+            }
+        }
+
+        async function saveTeamSettings(settings, loadingMessage = 'Saving team profile...') {
+            showLoading(loadingMessage);
+            try {
+                const result = await callFunction('updateTeamSettings', {
+                    league_id: currentLeagueId,
+                    team_id: currentTeamId,
+                    captain_id: currentPlayerId || dashboardData?.team?.captain_id,
+                    settings
+                });
+                if (!result.success) throw new Error(result.error || 'Failed to save team profile');
+                dashboardData.team = { ...dashboardData.team, ...settings };
+                renderTeamProfileSettings(dashboardData.team);
+                toastSuccess('Team profile updated');
+            } catch (error) {
+                console.error('Team profile save failed:', error);
+                toastError(error.message || 'Failed to save team profile');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        window.uploadTeamMainPhoto = async function(event) {
+            const file = event.target.files?.[0];
+            event.target.value = '';
+            if (!file) return;
+            if (!file.type?.startsWith('image/')) {
+                toastWarning('Please choose an image file');
+                return;
+            }
+            showLoading('Uploading team photo...');
+            try {
+                const url = await uploadImage(file, `teams/${currentLeagueId}/${currentTeamId}/profile`);
+                hideLoading();
+                await saveTeamSettings({ photo_url: url }, 'Saving team photo...');
+            } catch (error) {
+                hideLoading();
+                console.error('Team photo upload failed:', error);
+                toastError(error.message || 'Failed to upload team photo');
+            }
+        };
+
+        window.uploadTeamGalleryPhotos = async function(event) {
+            const files = Array.from(event.target.files || []).filter(file => file.type?.startsWith('image/'));
+            event.target.value = '';
+            if (!files.length) {
+                toastWarning('Please choose image files');
+                return;
+            }
+            const existing = Array.isArray(dashboardData?.team?.gallery_photos) ? dashboardData.team.gallery_photos : [];
+            const slots = Math.max(0, 24 - existing.length);
+            if (!slots) {
+                toastWarning('Team gallery is full');
+                return;
+            }
+            const toUpload = files.slice(0, slots);
+            showLoading(`Uploading ${toUpload.length} team photo${toUpload.length === 1 ? '' : 's'}...`);
+            try {
+                const uploaded = [];
+                for (const file of toUpload) {
+                    uploaded.push(await uploadImage(file, `teams/${currentLeagueId}/${currentTeamId}/gallery`));
+                }
+                hideLoading();
+                await saveTeamSettings({ gallery_photos: [...uploaded, ...existing].slice(0, 24) }, 'Saving team gallery...');
+            } catch (error) {
+                hideLoading();
+                console.error('Team gallery upload failed:', error);
+                toastError(error.message || 'Failed to upload gallery photos');
+            }
+        };
+
+        window.removeTeamGalleryPhoto = async function(index) {
+            const gallery = Array.isArray(dashboardData?.team?.gallery_photos) ? [...dashboardData.team.gallery_photos] : [];
+            if (index < 0 || index >= gallery.length) return;
+            gallery.splice(index, 1);
+            await saveTeamSettings({ gallery_photos: gallery }, 'Removing photo...');
+        };
+
+        window.saveTeamMotto = async function() {
+            const motto = document.getElementById('teamMottoInput')?.value?.trim() || '';
+            await saveTeamSettings({ motto }, 'Saving motto...');
         };
 
         // Free agents rendering
@@ -769,6 +987,14 @@
             const container = document.getElementById('rosterRows');
             const nextMatch = dashboardData?.matches?.find(m => m.status === 'scheduled');
             const nextOpponent = dashboardData?.next_opponent;
+            const levelOrder = { A: 0, B: 1, C: 2, F: 3 };
+            const getRosterLevel = player => String(player?.skill_level || player?.level || player?.preferred_level || '').toUpperCase();
+            const sortRosterByLevel = (a, b) => {
+                const aLevel = levelOrder[getRosterLevel(a)] ?? 9;
+                const bLevel = levelOrder[getRosterLevel(b)] ?? 9;
+                if (aLevel !== bLevel) return aLevel - bLevel;
+                return String(a?.name || '').localeCompare(String(b?.name || ''));
+            };
 
             // Update header
             if (nextOpponent) {
@@ -794,9 +1020,9 @@
             `;
 
             // Player rows
-            (team.players || []).forEach(player => {
+            [...(team.players || [])].sort(sortRosterByLevel).forEach(player => {
                 const stats = (playerStats || []).find(s => s.player_id === player.id) || {};
-                const level = player.level || player.skill_level || player.preferred_level || '?';
+                const level = player.skill_level || player.level || player.preferred_level || '?';
                 const levelClass = ['A', 'B', 'C'].includes(level) ? `level-${level}` : 'level-unknown';
                 const availability = nextMatch?.availability?.[player.id] || 'unknown';
                 const isIn = availability === 'available';
@@ -1108,6 +1334,11 @@
 
         let currentSubFilter = 'ALL';
 
+        function formatSubStat(value, decimals) {
+            const number = Number(value);
+            return Number.isFinite(number) && number > 0 ? number.toFixed(decimals) : '-';
+        }
+
         function renderSubs(subs, filter = 'ALL') {
             const list = document.getElementById('subsList');
             if (!subs || subs.length === 0) {
@@ -1130,11 +1361,21 @@
                 const level = sub.skill_level || sub.level || sub.preferred_level || '?';
                 const levelClass = ['A', 'B', 'C'].includes(level.toUpperCase()) ? `level-${level.toUpperCase()}` : 'level-unknown';
                 const contact = sub.phone || sub.email || 'No contact';
+                const threeDa = formatSubStat(sub.x01_three_dart_avg ?? sub.avg_3da, 1);
+                const mpr = formatSubStat(sub.cricket_mpr ?? sub.mpr, 2);
+                const x01Record = `${Number(sub.x01_legs_won || 0)}-${Math.max(Number(sub.x01_legs_played || 0) - Number(sub.x01_legs_won || 0), 0)}`;
+                const cricketRecord = `${Number(sub.cricket_legs_won || 0)}-${Math.max(Number(sub.cricket_legs_played || 0) - Number(sub.cricket_legs_won || 0), 0)}`;
                 return `
                     <div class="sub-card" data-level="${level.toUpperCase()}" role="listitem">
                         <div class="sub-name">
                             ${sub.name}
                             <span class="level-badge ${levelClass}" aria-label="Level ${level}">${level}</span>
+                        </div>
+                        <div class="sub-stat-line" aria-label="Stats: ${threeDa} 3DA, ${mpr} MPR">
+                            <span><strong>${threeDa}</strong> 3DA</span>
+                            <span><strong>${mpr}</strong> MPR</span>
+                            <span><strong>${x01Record}</strong> 01</span>
+                            <span><strong>${cricketRecord}</strong> CKT</span>
                         </div>
                         <div style="font-size: 12px; color: #aaa; margin-top: 5px;" aria-label="Contact: ${contact}">${contact}</div>
                     </div>
@@ -1216,10 +1457,15 @@
 
             list.innerHTML = filteredSubs.map(sub => {
                 const level = sub.skill_level || sub.level || sub.preferred_level || '?';
+                const threeDa = formatSubStat(sub.x01_three_dart_avg ?? sub.avg_3da, 1);
+                const mpr = formatSubStat(sub.cricket_mpr ?? sub.mpr, 2);
                 return `
                     <label class="sub-select-item">
                         <input type="checkbox" value="${sub.id}" data-name="${sub.name}">
-                        <span class="sub-select-name">${sub.name}</span>
+                        <span class="sub-select-name">
+                            ${sub.name}
+                            <small>${threeDa} 3DA / ${mpr} MPR</small>
+                        </span>
                         <span class="sub-select-level">${level}</span>
                     </label>
                 `;

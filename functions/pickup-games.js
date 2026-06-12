@@ -500,6 +500,7 @@ exports.savePickupGame = functions.https.onRequest(async (req, res) => {
 
     try {
         const {
+            draft_id,
             game_type,      // '501', 'cricket', etc.
             players,        // [{ id, pin, name, is_bot }, { id, pin, name, is_bot }]
             winner_index,   // 0 or 1
@@ -520,17 +521,36 @@ exports.savePickupGame = functions.https.onRequest(async (req, res) => {
 
         const winner = players[winner_index] || players[0];
 
+        const gameRef = draft_id
+            ? db.collection('pickup_games').doc(String(draft_id))
+            : db.collection('pickup_games').doc();
+        const existingDoc = await gameRef.get();
+        const existingData = existingDoc.exists ? existingDoc.data() : null;
+
+        if (existingData?.status === 'completed') {
+            return res.json({
+                success: true,
+                game_id: gameRef.id,
+                status: 'already_completed',
+                message: 'Game already completed'
+            });
+        }
+
         // Save the game record
-        const gameRef = await db.collection('pickup_games').add({
+        await gameRef.set({
             game_type,
             players,
+            status: 'completed',
+            is_draft: false,
             winner_id: winner.id || null,
             winner_name: winner.name,
             played_at: admin.firestore.FieldValue.serverTimestamp(),
+            updated_at: admin.firestore.FieldValue.serverTimestamp(),
             legs: legs || [],
             match_config: match_config || {},
-            player_stats: {}
-        });
+            player_stats: {},
+            progress: admin.firestore.FieldValue.delete()
+        }, { merge: true });
 
         // Process leg stats for each player (humans and bots)
         if (legs && Array.isArray(legs)) {
@@ -615,6 +635,101 @@ exports.savePickupGame = functions.https.onRequest(async (req, res) => {
     } catch (error) {
         console.error('Error saving pickup game:', error);
         res.status(500).json({ error: error.message });
+    }
+});
+
+exports.savePickupGameProgress = functions.https.onRequest(async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+    if (req.method === 'OPTIONS') {
+        return res.status(204).send('');
+    }
+
+    try {
+        const {
+            draft_id,
+            game_type,
+            players,
+            legs,
+            match_config,
+            progress
+        } = req.body || {};
+
+        if (!game_type || !Array.isArray(players) || players.length < 2) {
+            return res.status(400).json({ success: false, error: 'Missing required fields' });
+        }
+
+        const gameRef = draft_id
+            ? db.collection('pickup_games').doc(String(draft_id))
+            : db.collection('pickup_games').doc();
+        const existingDoc = await gameRef.get();
+        const existingData = existingDoc.exists ? existingDoc.data() : null;
+
+        if (existingData?.status === 'completed') {
+            return res.json({
+                success: true,
+                draft_id: gameRef.id,
+                status: 'already_completed'
+            });
+        }
+
+        await gameRef.set({
+            game_type,
+            players,
+            status: 'in_progress',
+            is_draft: true,
+            started_at: existingData?.started_at || admin.firestore.FieldValue.serverTimestamp(),
+            updated_at: admin.firestore.FieldValue.serverTimestamp(),
+            legs: Array.isArray(legs) ? legs : [],
+            match_config: match_config || {},
+            progress: progress || {}
+        }, { merge: true });
+
+        res.json({
+            success: true,
+            draft_id: gameRef.id,
+            status: 'in_progress'
+        });
+    } catch (error) {
+        console.error('Error saving pickup game progress:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+exports.getPickupGameProgress = functions.https.onRequest(async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+    if (req.method === 'OPTIONS') {
+        return res.status(204).send('');
+    }
+
+    try {
+        const draftId = req.query.draft_id || req.body?.draft_id;
+        if (!draftId) {
+            return res.status(400).json({ success: false, error: 'Missing draft_id' });
+        }
+
+        const doc = await db.collection('pickup_games').doc(String(draftId)).get();
+        if (!doc.exists) {
+            return res.status(404).json({ success: false, error: 'Draft not found' });
+        }
+
+        const data = doc.data() || {};
+        res.json({
+            success: true,
+            status: data.status || null,
+            progress: data.progress || null,
+            legs: Array.isArray(data.legs) ? data.legs : [],
+            game_type: data.game_type || null,
+            match_config: data.match_config || {}
+        });
+    } catch (error) {
+        console.error('Error getting pickup game progress:', error);
+        res.status(500).json({ success: false, error: error.message });
     }
 });
 
@@ -704,6 +819,9 @@ exports.getPickupGames = functions.https.onRequest(async (req, res) => {
         const games = [];
         gamesSnap.forEach(doc => {
             const data = doc.data();
+            if (data.status && data.status !== 'completed') {
+                return;
+            }
             // Check if player is in this game
             const isParticipant = data.players?.some(p => p.id === playerId);
             if (isParticipant && games.length < limitCount) {

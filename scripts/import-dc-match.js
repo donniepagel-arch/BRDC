@@ -37,6 +37,19 @@ const DC_WEB_DIR = path.join(__dirname, '..', 'temp', 'dc-web');
 // ---------------------------------------------------------------------------
 
 const MATCHES = [
+    // ---- 2026 Playoffs ----
+    {
+        week: 19,
+        name: 'J. Ragnoni vs Cle Pagel Co. (2026 Quarterfinal)',
+        matchId: 'playoff_2026_qf_3v6',
+        dataFile: 'playoffs/6a177ce987a175f2e87d0e42.txt',
+        homeTeam: 'J. Ragnoni',
+        // Player identity mapping still knows this roster under the old D. Pagel label.
+        awayTeam: 'D. Pagel',
+        fillIns: {},
+        targetScore: 5,
+    },
+
     // ---- Week 5 (Feb 18, 2026) ----
     {
         week: 5,
@@ -256,6 +269,26 @@ function countCricketDarts(hitStr) {
 // HEADER PARSING
 // ---------------------------------------------------------------------------
 
+function buildNewYorkISO(dateStr, hour24, minute) {
+    if (!dateStr) return null;
+    const [yr, mo, day] = dateStr.split('-').map(Number);
+    const utcGuess = new Date(Date.UTC(yr, mo - 1, day, hour24, minute, 0));
+    const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'America/New_York',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+    }).formatToParts(utcGuess);
+    const get = type => Number(parts.find(part => part.type === type)?.value);
+    const zonedAsUtc = Date.UTC(get('year'), get('month') - 1, get('day'), get('hour'), get('minute'), get('second'));
+    const offsetMs = zonedAsUtc - utcGuess.getTime();
+    return new Date(utcGuess.getTime() - offsetMs).toISOString();
+}
+
 /**
  * Extract match metadata from the first ~6 lines of a normalised DC text file.
  * Date line format: "Date: Wednesday, 18-Mar-2026"
@@ -286,14 +319,7 @@ function parseHeader(lines) {
             let hh = parseInt(h), mm = parseInt(m);
             if (ampm.toUpperCase() === 'PM' && hh !== 12) hh += 12;
             if (ampm.toUpperCase() === 'AM' && hh === 12) hh = 0;
-            const utcH = hh + 5; // EST → UTC
-            if (!dateStr) return null;
-            const [yr, mo2, d2] = dateStr.split('-').map(Number);
-            if (utcH >= 24) {
-                const next = new Date(Date.UTC(yr, mo2 - 1, d2 + 1));
-                return `${next.getUTCFullYear()}-${String(next.getUTCMonth()+1).padStart(2,'0')}-${String(next.getUTCDate()).padStart(2,'0')}T${String(utcH-24).padStart(2,'0')}:${String(mm).padStart(2,'0')}:00Z`;
-            }
-            return `${dateStr}T${String(utcH).padStart(2,'0')}:${String(mm).padStart(2,'0')}:00Z`;
+            return buildNewYorkISO(dateStr, hh, mm);
         };
 
         const sm = line.match(/Start:\s+(\d+):(\d+)\s+(AM|PM)/i);
@@ -852,12 +878,33 @@ function parseDCWebText(text, config) {
     console.log(`  Sets found: ${splitIntoSets(lines).length} (processing ${sets.length})`);
 
     const allLegs = [];
+    let runningHomeScore = 0;
+    let runningAwayScore = 0;
     for (const setBlock of sets) {
+        const setLegs = [];
         for (const game of splitSetIntoGames(setBlock.lines)) {
             const parsed = parseGame(game, config.homeTeam, config.awayTeam);
             const co = parsed.checkoutVal !== null ? ` checkout=${parsed.checkoutVal}` : '';
             console.log(`    Set ${game.setNum} Leg ${game.legNum} (${game.formatStr}): winner=${parsed.winner}${co}`);
-            allLegs.push(parsed);
+            setLegs.push(parsed);
+        }
+
+        let homeLegs = 0;
+        let awayLegs = 0;
+        for (const leg of setLegs) {
+            if (leg.winner === 'home') homeLegs++;
+            else if (leg.winner === 'away') awayLegs++;
+        }
+
+        allLegs.push(...setLegs);
+
+        if (homeLegs > awayLegs) runningHomeScore++;
+        else if (awayLegs > homeLegs) runningAwayScore++;
+
+        const targetScore = Number(config.targetScore || 0);
+        if (targetScore > 0 && (runningHomeScore >= targetScore || runningAwayScore >= targetScore)) {
+            console.log(`  Target score ${targetScore} reached after Set ${setBlock.setNum}; ignoring later sets.`);
+            break;
         }
     }
 

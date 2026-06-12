@@ -1,11 +1,11 @@
-# Triples Draft Player Stats Repair
+# 2026 Triples League Player Stats Repair
 
 Date: 2026-04-09
-League: `aOq4Y0ETxPZ66tM1uUtP` (`Triples Draft`)
+League: `aOq4Y0ETxPZ66tM1uUtP` (`2026 Triples League`)
 
 ## Scope
 
-This repair rebuilt the Triples Draft `leagues/{leagueId}/stats` cache from completed match history.
+This repair rebuilt the 2026 Triples League `leagues/{leagueId}/stats` cache from completed match history.
 
 It did **not**:
 - modify raw match docs
@@ -95,6 +95,6 @@ Verified sample rows now carry:
 
 ## Status
 
-Triples Draft player stats cache is now rebuilt to a canonical per-player set for this league.
+2026 Triples League player stats cache is now rebuilt to a canonical per-player set for this league.
 
 The next cleanup question is whether this league-specific repair logic should be generalized into the main backend import/recalc path so future imported leagues do not drift the same way.

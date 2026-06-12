@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rookies Tournament Bracket</title>
+    <link rel="icon" type="image/png" href="/images/favicon.png">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#fff8ed">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap">
+    <link rel="stylesheet" href="/css/brdc-styles.css">
+    <link rel="stylesheet" href="/css/brdc-navigation.css?v=14">
+    <link rel="stylesheet" href="/css/market-events-scorer-vnext.css?v=21">
+    <link rel="stylesheet" href="/rookies/tenant/rookies-vnext.css?v=23">
+</head>
+<body class="vnext-light-page tournament-vnext-page tournament-bracket-vnext-page has-mobile-nav">
+    <main class="ves-shell">
+        <section class="ves-hero">
+            <div>
+                <p class="ves-kicker" id="bracketStatus">Bracket</p>
+                <h1 id="bracketTitle">Tournament Bracket</h1>
+                <p id="bracketMeta">Loading bracket...</p>
+            </div>
+            <div class="ves-hero-actions">
+                <a class="ves-action" id="tournamentLink" href="/rookies/pages/tournament-view-vnext.html">Event page</a>
+                <a class="ves-action primary" id="runtimeLink" href="/rookies/pages/tournament-runtime-vnext.html">Runtime</a>
+                <a class="ves-action" id="mingleLink" href="#" hidden>Mingle</a>
+                <a class="ves-action" id="tvLink" href="#" hidden>TV Display</a>
+            </div>
+        </section>
+        <section class="ves-panel">
+            <div class="ves-section-heading">
+                <h2><span>Results</span> Bracket</h2>
+            </div>
+            <div id="bracketGrid" class="ves-runtime-match-list"></div>
+        </section>
+    </main>
+    <script src="/js/brdc-toast.js"></script>
+    <script src="/components/brdc-navigation-init.js?v=18"></script>
+    <script type="module">
+        import { db, doc, getDoc } from '/js/firebase-config.js';
+
+        const params = new URLSearchParams(window.location.search);
+        const tournamentId = params.get('tournament_id') || params.get('id') || 'rookies-wing-it-wednesdays-2026-05-27';
+        const els = {
+            status: document.getElementById('bracketStatus'),
+            title: document.getElementById('bracketTitle'),
+            meta: document.getElementById('bracketMeta'),
+            grid: document.getElementById('bracketGrid'),
+            tournament: document.getElementById('tournamentLink'),
+            runtime: document.getElementById('runtimeLink'),
+            mingle: document.getElementById('mingleLink'),
+            tv: document.getElementById('tvLink')
+        };
+
+        function escapeHtml(value) {
+            return String(value ?? '')
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#039;');
+        }
+
+        function participantName(value, fallback = 'TBD') {
+            if (!value) return fallback;
+            if (typeof value === 'string') return value;
+            return value.team_name || value.name || value.full_name || value.player_name || fallback;
+        }
+
+        function sideName(match, side) {
+            const fields = side === 1
+                ? [match.player1, match.team1, match.home, match.home_team, match.player1_name, match.team1_name, match.home_name]
+                : [match.player2, match.team2, match.away, match.away_team, match.player2_name, match.team2_name, match.away_name];
+            const value = fields.find(candidate => candidate);
+            return participantName(value);
+        }
+
+        function winnerLabel(match) {
+            if (match.winner_name) return match.winner_name;
+            if (match.winner === 'player1' || match.winner === 'team1') return participantName(match.player1 || match.team1);
+            if (match.winner === 'player2' || match.winner === 'team2') return participantName(match.player2 || match.team2);
+            return match.status === 'completed' ? 'Recorded' : 'Pending';
+        }
+
+        function score(match, side) {
+            const keys = side === 1
+                ? ['player1_score', 'team1_score', 'home_score']
+                : ['player2_score', 'team2_score', 'away_score'];
+            for (const key of keys) {
+                if (match[key] !== undefined && match[key] !== null) return match[key];
+            }
+            return '-';
+        }
+
+        function bracketMatches(tournament) {
+            const bracket = tournament.bracket || {};
+            if (Array.isArray(bracket.matches)) return bracket.matches;
+            const matches = [];
+            const add = (items, label) => {
+                (items || []).forEach(match => matches.push({ ...match, round_label: match.round_label || label }));
+            };
+            add(bracket.winners, 'Winners bracket');
+            add(bracket.losers, 'Losers bracket');
+            if (bracket.grand_finals?.match1) matches.push({ ...bracket.grand_finals.match1, round_label: 'Grand final' });
+            if (bracket.grand_finals?.match2) matches.push({ ...bracket.grand_finals.match2, round_label: 'Grand final reset' });
+            return matches;
+        }
+
+        function formatType(tournament) {
+            return String(tournament.format || tournament.bracket?.type || tournament.bracket_type || 'single elimination')
+                .replaceAll('_', ' ');
+        }
+
+        function demoWingTournament(id) {
+            if (id !== 'rookies-wing-it-wednesdays-2026-05-27') return null;
+            return {
+                id,
+                name: 'Wing It Wednesdays #1: Blind Draw',
+                tournament_name: 'Wing It Wednesdays #1: Blind Draw',
+                status: 'completed',
+                format: 'single_elimination',
+                bracket: {
+                    type: 'single_elimination',
+                    matches: [
+                        {
+                            id: 'semifinal-1',
+                            round_label: 'Semifinals',
+                            round: 1,
+                            player1: { id: 'patrick-and-brian', name: 'Patrick & Brian' },
+                            player2: { id: 'eric-and-tony', name: 'Eric & Tony' },
+                            player1_score: 2,
+                            player2_score: 1,
+                            winner: 'player1',
+                            status: 'completed'
+                        },
+                        {
+                            id: 'semifinal-2',
+                            round_label: 'Semifinals',
+                            round: 1,
+                            player1: { id: 'dom-and-melissa', name: 'Dom & Melissa' },
+                            player2: { id: 'matt-and-chris', name: 'Matt & Chris' },
+                            player1_score: 0,
+                            player2_score: 2,
+                            winner: 'player2',
+                            status: 'completed'
+                        },
+                        {
+                            id: 'final',
+                            round_label: 'Finals',
+                            round: 2,
+                            player1: { id: 'patrick-and-brian', name: 'Patrick & Brian' },
+                            player2: { id: 'matt-and-chris', name: 'Matt & Chris' },
+                            player1_score: 1,
+                            player2_score: 2,
+                            winner: 'player2',
+                            status: 'completed'
+                        }
+                    ]
+                }
+            };
+        }
+
+        function timeoutAfter(ms) {
+            return new Promise((_, reject) => setTimeout(() => reject(new Error('Timed out loading bracket data')), ms));
+        }
+
+        function render(tournament) {
+            const matches = bracketMatches(tournament);
+            els.status.textContent = tournament.status || 'Bracket';
+            els.title.textContent = tournament.name || tournament.tournament_name || 'Tournament Bracket';
+            els.meta.textContent = `${matches.length} match${matches.length === 1 ? '' : 'es'} - ${formatType(tournament)}`;
+            els.tournament.href = `/rookies/pages/tournament-view-vnext.html?tournament_id=${encodeURIComponent(tournamentId)}`;
+            els.runtime.href = `/rookies/pages/tournament-runtime-vnext.html?tournament_id=${encodeURIComponent(tournamentId)}`;
+            if (tournament.matchmaker_enabled === true) {
+                els.mingle.hidden = false;
+                els.tv.hidden = false;
+                els.mingle.href = `/rookies/pages/matchmaker-mingle-vnext.html?tournament_id=${encodeURIComponent(tournamentId)}`;
+                els.tv.href = `/rookies/pages/matchmaker-tv-vnext.html?tournament_id=${encodeURIComponent(tournamentId)}`;
+            }
+
+            if (!matches.length) {
+                els.grid.innerHTML = '<div class="ves-empty">No bracket matches have been generated yet.</div>';
+                return;
+            }
+
+            els.grid.innerHTML = matches.map(match => `
+                <article class="ves-runtime-match ${escapeHtml(match.status || 'pending')}">
+                    <div>
+                        <p class="ves-kicker">${escapeHtml(match.round_label || `Round ${match.round || '?'}`)}</p>
+                        <h2>${escapeHtml(sideName(match, 1))} vs ${escapeHtml(sideName(match, 2))}</h2>
+                        <p>${escapeHtml(match.status || 'pending')} - Winner: ${escapeHtml(winnerLabel(match))}</p>
+                    </div>
+                    <div class="ves-runtime-match-tools">
+                        <strong>${escapeHtml(score(match, 1))}</strong>
+                        <span>to</span>
+                        <strong>${escapeHtml(score(match, 2))}</strong>
+                    </div>
+                </article>
+            `).join('');
+        }
+
+        const fallback = demoWingTournament(tournamentId);
+        Promise.race([
+            getDoc(doc(db, 'tournaments', tournamentId)),
+            timeoutAfter(fallback ? 9000 : 16000)
+        ]).then(snap => {
+            if (!snap.exists()) {
+                if (!fallback) throw new Error('Tournament not found');
+                render(fallback);
+                return;
+            }
+            const tournament = { id: snap.id, ...snap.data() };
+            render(fallback && !bracketMatches(tournament).length ? fallback : tournament);
+        }).catch(error => {
+            if (fallback) {
+                console.warn('[tournament-bracket] using demo bracket fallback:', error?.message || error);
+                render(fallback);
+                return;
+            }
+            els.status.textContent = 'Bracket unavailable';
+            els.grid.innerHTML = `<div class="ves-empty">${escapeHtml(error.message || 'Could not load bracket')}</div>`;
+        });
+    </script>
+    <script>
+        initBRDCNavigation({ page: 'Events', pageTitle: 'Tournament Bracket', showBreadcrumbs: false, showBackButton: true });
+    </script>
+    <script src="/rookies/tenant/rookies-vnext.js?v=11"></script>
+</body>
+</html>

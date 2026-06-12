@@ -38,16 +38,16 @@ async function resolvePlayerTeamFromRoster(leagueId, playerId, player) {
     return null;
 }
 
-async function sendWelcomeSMS(phone, name, pin) {
+async function sendWelcomeSMS(phone, name) {
     const { twilioClient, config } = await getMessagingServices();
 
     if (!twilioClient) {
-        console.log('Welcome SMS (simulated):', { phone, name, pin, source: config.source });
+        console.log('Welcome SMS (simulated):', { phone, name, source: config.source });
         return { success: true, simulated: true };
     }
 
     try {
-        const message = `BRDC: Welcome ${name}! Your player PIN is ${pin}. Use this to log in and track your stats. Save this number!`;
+        const message = `BRDC: Welcome ${name}! Sign in with your email at burningriverdarts.com to track your stats. Save this number!`;
         const result = await twilioClient.messages.create({
             body: message,
             to: phone.startsWith('+') ? phone : '+1' + phone.replace(/\D/g, ''),
@@ -60,11 +60,11 @@ async function sendWelcomeSMS(phone, name, pin) {
     }
 }
 
-async function sendWelcomeEmail(email, name, pin) {
+async function sendWelcomeEmail(email, name) {
     const { sgMail, config } = await getMessagingServices();
 
     if (!sgMail) {
-        console.log('Welcome email (simulated):', { email, name, pin, source: config.source });
+        console.log('Welcome email (simulated):', { email, name, source: config.source });
         return { success: true, simulated: true };
     }
 
@@ -78,17 +78,15 @@ async function sendWelcomeEmail(email, name, pin) {
             <p>Hi ${name},</p>
             <p>Your player account has been created successfully. You can now play games and track your stats!</p>
             <div style="background:linear-gradient(135deg,#FF469A22,#91D7EB22);padding:20px;border-radius:8px;border-left:4px solid #FF469A;margin:20px 0;">
-                <h3 style="color:#FDD835;margin-top:0;">Your Player PIN</h3>
-                <p style="font-size:32px;font-weight:bold;text-align:center;color:#91D7EB;letter-spacing:8px;margin:10px 0;">${pin}</p>
-                <p style="font-size:12px;text-align:center;color:#a0a0b0;">Use this PIN to log in at the game setup page</p>
+                <h3 style="color:#FDD835;margin-top:0;">Sign In</h3>
+                <p style="text-align:center;color:#91D7EB;margin:10px 0;">Visit <strong>burningriverdarts.com</strong> and sign in with your email address.</p>
             </div>
-            <p>Keep this PIN safe - you'll need it to access your player profile and track your stats.</p>
             <hr style="border:1px solid rgba(255,255,255,0.1);margin:30px 0;">
             <p style="color:#a0a0b0;font-size:12px;text-align:center;">Burning River Dart Club | Cleveland, OH</p>
         </div>
     `;
 
-    const textVersion = `Welcome to BRDC!\n\nHi ${name},\n\nYour player account has been created.\n\nYour Player PIN: ${pin}\n\nUse this PIN to log in and track your stats.\n\nBurning River Dart Club`;
+    const textVersion = `Welcome to BRDC!\n\nHi ${name},\n\nYour player account has been created. Sign in with your email at burningriverdarts.com.\n\nBurning River Dart Club`;
 
     try {
         await sgMail.send({
@@ -142,7 +140,6 @@ async function generateUniqueChosenPin(phoneLast4) {
 
 /**
  * Register a new player in the global system
- * Returns a PIN for future login
  */
 exports.registerGlobalPlayer = functions.https.onRequest(async (req, res) => {
     setCorsHeaders(res);
@@ -166,7 +163,6 @@ exports.registerGlobalPlayer = functions.https.onRequest(async (req, res) => {
 
         const emailLower = email ? email.toLowerCase().trim() : null;
         const phoneClean = phone ? phone.replace(/\D/g, '') : null;
-        const phoneLast4 = phoneClean ? phoneClean.slice(-4) : (isBot ? '0000' : null);
 
         // Check if player already exists (by email for humans)
         if (emailLower) {
@@ -178,24 +174,18 @@ exports.registerGlobalPlayer = functions.https.onRequest(async (req, res) => {
             if (!existingPlayer.empty) {
                 return res.status(400).json({
                     success: false,
-                    error: 'An account with this email already exists. Use your PIN to login.',
-                    hint: 'Use "Forgot PIN" to recover your PIN via email'
+                    error: 'An account with this email already exists.',
+                    hint: 'Sign in with your email at burningriverdarts.com'
                 });
             }
         }
 
-        // Generate unique 4-digit chosen PIN and combine with phone_last4 for full 8-digit PIN
-        const { chosenPin, fullPin } = await generateUniqueChosenPin(phoneLast4);
-
-        // Create player document
+        // Create player document (no PIN)
         const playerData = {
             name: name.trim(),
             email: emailLower,
             phone: phoneClean,
-            phone_last4: phoneLast4,
             zip: zip || null,
-            pin: fullPin,           // Full 8-digit PIN (phone_last4 + chosen_pin)
-            chosen_pin: chosenPin,  // 4-digit chosen portion (for display/recovery)
             isBot: isBot || false,
             botDifficulty: botDifficulty || null,
             created_at: admin.firestore.FieldValue.serverTimestamp(),
@@ -230,11 +220,10 @@ exports.registerGlobalPlayer = functions.https.onRequest(async (req, res) => {
 
         const playerRef = await db.collection('players').add(playerData);
 
-        // Return success to user (PIN delivered via message only, not as separate field)
         res.json({
             success: true,
             player_id: playerRef.id,
-            message: `Welcome ${name}! Your 8-digit PIN is ${fullPin}. Save this - you'll use it to login. (Format: ${phoneLast4} + ${chosenPin})`
+            message: `Welcome ${name}! Sign in with your email at burningriverdarts.com.`
         });
 
     } catch (error) {
@@ -244,7 +233,7 @@ exports.registerGlobalPlayer = functions.https.onRequest(async (req, res) => {
 });
 
 /**
- * Register a new player with user-chosen PIN
+ * Register a new player (self-service)
  * Used by register.html for self-service registration
  */
 exports.registerPlayer = functions.https.onRequest(async (req, res) => {
@@ -252,7 +241,7 @@ exports.registerPlayer = functions.https.onRequest(async (req, res) => {
     if (req.method === 'OPTIONS') return res.status(204).send('');
 
     try {
-        const { first_name, last_name, email, phone, chosen_pin, photo_url } = req.body;
+        const { first_name, last_name, email, phone, photo_url } = req.body;
 
         // Validate required fields
         if (!first_name || !last_name) {
@@ -267,13 +256,8 @@ exports.registerPlayer = functions.https.onRequest(async (req, res) => {
             return res.status(400).json({ success: false, error: 'Valid phone number is required' });
         }
 
-        if (!chosen_pin || chosen_pin.length !== 4 || !/^\d{4}$/.test(chosen_pin)) {
-            return res.status(400).json({ success: false, error: 'Please enter a 4-digit PIN' });
-        }
-
         const emailLower = email.toLowerCase().trim();
         const phoneClean = phone.replace(/\D/g, '');
-        const phoneLast4 = phoneClean.slice(-4);
         const fullName = `${first_name.trim()} ${last_name.trim()}`;
 
         // Check if player already exists (by email)
@@ -285,36 +269,17 @@ exports.registerPlayer = functions.https.onRequest(async (req, res) => {
         if (!existingPlayer.empty) {
             return res.status(400).json({
                 success: false,
-                error: 'An account with this email already exists. Use your PIN to login.'
+                error: 'An account with this email already exists. Sign in with your email at burningriverdarts.com.'
             });
         }
 
-        // Create full 8-digit PIN (phone_last4 + chosen_pin)
-        const fullPin = phoneLast4 + chosen_pin;
-
-        // Check if PIN is already taken
-        const existingPin = await db.collection('players')
-            .where('pin', '==', fullPin)
-            .limit(1)
-            .get();
-
-        if (!existingPin.empty) {
-            return res.status(400).json({
-                success: false,
-                error: 'This PIN combination is already taken. Please choose a different 4-digit PIN.'
-            });
-        }
-
-        // Create player document
+        // Create player document (no PIN)
         const playerData = {
             name: fullName,
             first_name: first_name.trim(),
             last_name: last_name.trim(),
             email: emailLower,
             phone: phoneClean,
-            phone_last4: phoneLast4,
-            pin: fullPin,
-            chosen_pin: chosen_pin,
             photo_url: photo_url || null,
             isBot: false,
             created_at: admin.firestore.FieldValue.serverTimestamp(),
@@ -333,7 +298,7 @@ exports.registerPlayer = functions.https.onRequest(async (req, res) => {
         res.json({
             success: true,
             player_id: playerRef.id,
-            message: `Welcome ${fullName}! Your 8-digit PIN is ${fullPin}. Save this - you'll use it to login.`
+            message: `Welcome ${fullName}! Sign in with your email at burningriverdarts.com.`
         });
 
     } catch (error) {
@@ -343,180 +308,10 @@ exports.registerPlayer = functions.https.onRequest(async (req, res) => {
 });
 
 // ============================================================================
-// LOGIN WITH 8-DIGIT PIN
+// LOGIN WITH 8-DIGIT PIN — REMOVED
 // ============================================================================
-
-/**
- * Login with 8-digit PIN (phone_last4 + chosen_pin combined)
- * Includes rate limiting to prevent brute force
- */
-exports.globalLogin = functions.https.onRequest(async (req, res) => {
-    setCorsHeaders(res);
-    if (req.method === 'OPTIONS') return res.status(204).send('');
-
-    try {
-        const { pin } = req.body;
-
-        if (!pin || pin.length !== 8) {
-            return res.status(400).json({ success: false, error: '8-digit PIN required' });
-        }
-
-        // Check rate limiting for this PIN
-        const rateLimitRef = db.collection('login_attempts').doc(pin);
-        const rateLimitDoc = await rateLimitRef.get();
-
-        if (rateLimitDoc.exists) {
-            const attempts = rateLimitDoc.data();
-            const lockoutUntil = attempts.lockout_until?.toDate();
-
-            if (lockoutUntil && lockoutUntil > new Date()) {
-                const minutesLeft = Math.ceil((lockoutUntil - new Date()) / 60000);
-                return res.status(429).json({
-                    success: false,
-                    error: `Too many failed attempts. Try again in ${minutesLeft} minutes.`,
-                    lockout_minutes: minutesLeft
-                });
-            }
-        }
-
-        // Find player by full 8-digit PIN - check global first, then league players
-        let playerSnapshot = await db.collection('players')
-            .where('pin', '==', pin)
-            .limit(1)
-            .get();
-
-        let playerDoc = null;
-        let player = null;
-        let sourceType = 'global'; // Track where we found the player
-        let leagueId = null;
-
-        if (!playerSnapshot.empty) {
-            playerDoc = playerSnapshot.docs[0];
-            player = playerDoc.data();
-        } else {
-            // Not found globally - search league players
-            const leaguesSnapshot = await db.collection('leagues').get();
-
-            for (const leagueDoc of leaguesSnapshot.docs) {
-                const leaguePlayerSnapshot = await db.collection('leagues')
-                    .doc(leagueDoc.id)
-                    .collection('players')
-                    .where('pin', '==', pin)
-                    .limit(1)
-                    .get();
-
-                if (!leaguePlayerSnapshot.empty) {
-                    playerDoc = leaguePlayerSnapshot.docs[0];
-                    player = playerDoc.data();
-                    sourceType = 'league';
-                    leagueId = leagueDoc.id;
-                    break;
-                }
-            }
-        }
-
-        if (!player) {
-            await recordFailedAttempt(rateLimitRef, rateLimitDoc);
-            return res.status(401).json({ success: false, error: 'Invalid 8-digit PIN' });
-        }
-
-        // Success! Clear any rate limiting
-        await rateLimitRef.delete();
-
-        // Update last login
-        await playerDoc.ref.update({
-            last_login: admin.firestore.FieldValue.serverTimestamp()
-        });
-
-        // Populate league_id and team_id from involvements if not set (must happen before captain/director checks)
-        let playerTeamId = player.team_id || null;
-        if (player.involvements && player.involvements.leagues) {
-            const firstLeague = player.involvements.leagues[0];
-            if (firstLeague) {
-                if (!leagueId) leagueId = firstLeague.id;
-                if (!playerTeamId) playerTeamId = firstLeague.team_id || null;
-            }
-        }
-
-        // Check captain status - A level players are considered captains
-        let isCaptain = player.is_captain === true;
-        if (!isCaptain && playerTeamId && leagueId) {
-            // Check if player is the team's captain_id or is level A
-            try {
-                const teamDoc = await db.collection('leagues').doc(leagueId)
-                    .collection('teams').doc(playerTeamId).get();
-                if (teamDoc.exists) {
-                    const team = teamDoc.data();
-                    isCaptain = team.captain_id === playerDoc.id ||
-                               player.skill_level === 'A' ||
-                               player.preferred_level === 'A' ||
-                               player.position === 1;
-                }
-            } catch (e) {
-                console.error('Error checking captain status:', e);
-            }
-        }
-
-        // Fallback: check involvements for captain role
-        if (!isCaptain && player.involvements) {
-            const leagues = player.involvements.leagues || [];
-            if (leagues.some(l => l.role === 'captain')) {
-                isCaptain = true;
-            }
-        }
-
-        // Check director status
-        let isDirector = player.is_director === true || player.is_admin === true;
-        if (!isDirector && leagueId) {
-            try {
-                const leagueDoc = await db.collection('leagues').doc(leagueId).get();
-                if (leagueDoc.exists) {
-                    const league = leagueDoc.data();
-                    isDirector = league.director_id === playerDoc.id ||
-                                (league.directors && league.directors.includes(playerDoc.id));
-                }
-            } catch (e) {
-                console.error('Error checking director status:', e);
-            }
-        }
-
-        // Build response (don't send PIN back)
-        const responsePlayer = {
-            id: playerDoc.id,
-            name: player.name,
-            email: player.email,
-            phone_last4: player.phone_last4 || (player.phone ? player.phone.slice(-4) : null),
-            zip: player.zip,
-            photo_url: player.photo_url || null,
-            isBot: player.isBot || false,
-            botDifficulty: player.botDifficulty || null,
-            stats: player.stats || player.unified_stats || {},
-            involvements: player.involvements || {},
-            created_at: player.created_at || player.registered_at,
-            last_login: new Date(),
-            // Track source for dashboard
-            source_type: sourceType,
-            league_id: leagueId,
-            team_id: playerTeamId,
-            position: player.position || null,
-            // Role flags for sidebar menu
-            is_captain: isCaptain,
-            is_director: isDirector,
-            is_admin: player.is_admin || player.is_master_admin || false,
-            is_master_admin: player.is_master_admin || false
-        };
-
-        res.json({
-            success: true,
-            player: responsePlayer,
-            message: `Welcome back, ${player.name}!`
-        });
-
-    } catch (error) {
-        console.error('Global login error:', error);
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
+// NOTE: exports.globalLogin (PIN-based) has been removed. Use Firebase Auth
+// (getPlayerSession) for all new login flows.
 
 /**
  * Record a failed login attempt for rate limiting
@@ -1598,45 +1393,22 @@ exports.addTournamentInvolvement = functions.https.onRequest(async (req, res) =>
 });
 
 // ============================================================================
-// CREATE BOT WITH SPECIFIC PIN (admin function)
+// CREATE BOT (admin function)
 // ============================================================================
 
 /**
- * Create a bot player with a specific PIN
- * Used for setting up test bots with memorable PINs
- * Bots use "0000" as phone_last4 + 4-digit chosen PIN = 8 digits total
+ * Create a bot player
+ * Used for setting up test bots
  */
 exports.createBotPlayer = functions.https.onRequest(async (req, res) => {
     setCorsHeaders(res);
     if (req.method === 'OPTIONS') return res.status(204).send('');
 
     try {
-        const { name, pin, botDifficulty } = req.body;
+        const { name, botDifficulty } = req.body;
 
-        if (!name || !pin || !botDifficulty) {
-            return res.status(400).json({ success: false, error: 'name, pin, and botDifficulty required' });
-        }
-
-        if (pin.length !== 8) {
-            return res.status(400).json({ success: false, error: 'PIN must be 8 digits (0000 + 4-digit chosen PIN)' });
-        }
-
-        // Validate that bot PINs start with 0000
-        if (!pin.startsWith('0000')) {
-            return res.status(400).json({ success: false, error: 'Bot PIN must start with 0000' });
-        }
-
-        // Extract the chosen PIN portion (last 4 digits)
-        const chosenPin = pin.slice(-4);
-
-        // Check if PIN already exists
-        const existingPin = await db.collection('players')
-            .where('pin', '==', pin)
-            .limit(1)
-            .get();
-
-        if (!existingPin.empty) {
-            return res.status(400).json({ success: false, error: 'PIN already in use' });
+        if (!name || !botDifficulty) {
+            return res.status(400).json({ success: false, error: 'name and botDifficulty required' });
         }
 
         // Check if bot name already exists
@@ -1665,10 +1437,7 @@ exports.createBotPlayer = functions.https.onRequest(async (req, res) => {
             name: name,
             email: null,
             phone: null,
-            phone_last4: '0000',
             zip: null,
-            pin: pin,               // Full 8-digit PIN
-            chosen_pin: chosenPin,  // 4-digit chosen portion
             isBot: true,
             botDifficulty: botDifficulty,
             botConfig: config,
@@ -1707,7 +1476,7 @@ exports.createBotPlayer = functions.https.onRequest(async (req, res) => {
             player_id: botRef.id,
             name: name,
             difficulty: botDifficulty,
-            message: `Bot "${name}" created with 8-digit PIN ${pin} (0000 + ${chosenPin})`
+            message: `Bot "${name}" created successfully`
         });
 
     } catch (error) {
@@ -1901,6 +1670,103 @@ exports.registerNewPlayer = functions.https.onRequest(sharedAuthHandlers.registe
  */
 exports.registerPlayerSimple = functions.https.onRequest(sharedAuthHandlers.registerPlayerSimple);
 
+/**
+ * Email/password registration profile creation.
+ * The client creates the Firebase Auth user first, then calls this endpoint to
+ * create or link the BRDC player profile to that Firebase UID.
+ */
+exports.registerNewPlayerV2 = functions.https.onRequest(async (req, res) => {
+    setCorsHeaders(res);
+    if (req.method === 'OPTIONS') return res.status(204).send('');
+
+    try {
+        const { first_name, last_name, email, phone, firebase_uid, photo_url } = req.body || {};
+
+        if (!first_name || !last_name || !email || !firebase_uid) {
+            return res.status(400).json({
+                success: false,
+                error: 'First name, last name, email, and Firebase UID are required'
+            });
+        }
+
+        const emailLower = String(email).toLowerCase().trim();
+        const firstName = String(first_name).trim();
+        const lastName = String(last_name).trim();
+        const fullName = `${firstName} ${lastName}`.trim();
+        const phoneClean = phone ? String(phone).replace(/\D/g, '') : null;
+
+        const authUser = await admin.auth().getUser(firebase_uid);
+        if (authUser.email && authUser.email.toLowerCase() !== emailLower) {
+            return res.status(400).json({
+                success: false,
+                error: 'Firebase account email does not match registration email'
+            });
+        }
+
+        const existingByUid = await db.collection('players')
+            .where('firebase_uid', '==', firebase_uid)
+            .limit(1)
+            .get();
+
+        if (!existingByUid.empty) {
+            const doc = existingByUid.docs[0];
+            const player = { id: doc.id, ...doc.data() };
+            return res.json({ success: true, player_id: doc.id, name: player.name || fullName, player });
+        }
+
+        const existingByEmail = await db.collection('players')
+            .where('email', '==', emailLower)
+            .limit(1)
+            .get();
+
+        if (!existingByEmail.empty) {
+            const doc = existingByEmail.docs[0];
+            const existing = doc.data();
+            await doc.ref.update({
+                firebase_uid,
+                first_name: existing.first_name || firstName,
+                last_name: existing.last_name || lastName,
+                name: existing.name || fullName,
+                phone: phoneClean || existing.phone || null,
+                photo_url: photo_url || existing.photo_url || null,
+                updated_at: admin.firestore.FieldValue.serverTimestamp()
+            });
+            const updated = await doc.ref.get();
+            const player = { id: doc.id, ...updated.data() };
+            return res.json({ success: true, player_id: doc.id, name: player.name || fullName, player });
+        }
+
+        const playerData = {
+            name: fullName,
+            first_name: firstName,
+            last_name: lastName,
+            email: emailLower,
+            phone: phoneClean,
+            firebase_uid,
+            photo_url: photo_url || null,
+            isBot: false,
+            role: 'player',
+            created_at: admin.firestore.FieldValue.serverTimestamp(),
+            updated_at: admin.firestore.FieldValue.serverTimestamp(),
+            stats: {
+                matches_played: 0,
+                matches_won: 0,
+                x01: { legs_played: 0, legs_won: 0, total_points: 0, total_darts: 0, ton_eighties: 0, high_checkout: 0 },
+                cricket: { legs_played: 0, legs_won: 0, total_marks: 0, total_rounds: 0 }
+            },
+            involvements: { leagues: [], tournaments: [], directing: [], captaining: [] }
+        };
+
+        const playerRef = await db.collection('players').add(playerData);
+        const player = { id: playerRef.id, ...playerData };
+
+        return res.json({ success: true, player_id: playerRef.id, name: fullName, player });
+    } catch (error) {
+        console.error('registerNewPlayerV2 error:', error);
+        return res.status(500).json({ success: false, error: error.message || 'Registration failed' });
+    }
+});
+
 // ============================================================================
 // GET PLAYER SESSION (Firebase Auth token → session data)
 // ============================================================================
@@ -2034,3 +1900,275 @@ exports.getPlayerSession = functions.https.onRequest(async (req, res) => {
         res.status(500).json({ success: false, error: error.message });
     }
 });
+
+// Batched Home-page bundle: player session + filtered stats + challenges in ONE call.
+// Reuses the shared core helpers so aggregation logic never drifts.
+// minInstances:1 keeps ONE warm instance so even the first-ever open of Home skips
+// the cold start (Home's whole authed data load funnels through this one function).
+exports.getHomeBundle = functions.runWith({ minInstances: 1 }).https.onRequest(async (req, res) => {
+    setCorsHeaders(res);
+    if (req.method === 'OPTIONS') return res.status(204).send('');
+    try {
+        const { player } = await resolveFirebaseSessionPlayer(req);
+        if (!player) {
+            return res.status(200).json({ success: false, error: 'not_signed_in' });
+        }
+
+        // Lazy-require the shared helpers to avoid any module load-order coupling.
+        const { computeFilteredStats } = require('./league-admin-utilities');
+        const { computePlayerChallenges } = require('./chat-challenges');
+
+        const [statsResult, ch] = await Promise.all([
+            computeFilteredStats(player.id, 'combined').catch(err => {
+                console.error('getHomeBundle stats error:', err);
+                return null;
+            }),
+            computePlayerChallenges(player.id, 'all').catch(err => {
+                console.error('getHomeBundle challenges error:', err);
+                return null;
+            })
+        ]);
+
+        return res.json({
+            success: true,
+            player,
+            stats: statsResult?.stats || {},
+            challenges: {
+                received: ch?.received || [],
+                sent: ch?.sent || []
+            }
+        });
+    } catch (error) {
+        console.error('getHomeBundle error:', error);
+        return res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+async function resolveFirebaseSessionPlayer(req) {
+    const authHeader = req.headers.authorization || '';
+    const idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    if (!idToken) return { player: null, decoded: null };
+
+    let decoded;
+    try {
+        decoded = await admin.auth().verifyIdToken(idToken);
+    } catch {
+        return { player: null, decoded: null };
+    }
+
+    let snap = await db.collection('players').where('firebase_uid', '==', decoded.uid).limit(1).get();
+    if (snap.empty && decoded.email) {
+        const emailSnap = await db.collection('players')
+            .where('email', '==', decoded.email.toLowerCase())
+            .limit(1)
+            .get();
+        if (!emailSnap.empty) {
+            await emailSnap.docs[0].ref.update({ firebase_uid: decoded.uid });
+            snap = emailSnap;
+        }
+    }
+
+    if (snap.empty) return { player: null, decoded };
+
+    const playerDoc = snap.docs[0];
+    const player = { id: playerDoc.id, ...playerDoc.data() };
+    let leagueId = player.league_id || null;
+    let teamId = player.team_id || null;
+
+    const firstLeague = player.involvements?.leagues?.[0];
+    if (firstLeague) {
+        if (!leagueId) leagueId = firstLeague.id;
+        if (!teamId) teamId = firstLeague.team_id || null;
+    }
+
+    return {
+        decoded,
+        player: {
+            id: playerDoc.id,
+            name: player.name,
+            email: player.email,
+            phone_last4: player.phone_last4 || (player.phone ? String(player.phone).slice(-4) : null),
+            zip: player.zip || null,
+            photo_url: player.photo_url || null,
+            stats: player.stats || player.unified_stats || {},
+            involvements: player.involvements || {},
+            league_id: leagueId,
+            team_id: teamId,
+            position: player.position || null,
+            is_captain: player.is_captain === true,
+            is_director: player.is_director === true || player.is_admin === true,
+            is_admin: player.is_admin || player.is_master_admin || false,
+            is_master_admin: player.is_master_admin || false
+        }
+    };
+}
+
+exports.resolveFirebaseSessionPlayer = resolveFirebaseSessionPlayer;
+
+function plainDoc(doc) {
+    return { id: doc.id, ...doc.data() };
+}
+
+function pickPlayerForHome(doc) {
+    const player = plainDoc(doc);
+    return {
+        id: player.id,
+        name: player.name || player.player_name || null,
+        email: player.email || null,
+        team_id: player.team_id || null,
+        level: player.level || player.skill_level || player.preferred_level || null,
+        skill_level: player.skill_level || player.level || null,
+        preferred_level: player.preferred_level || null,
+        position: player.position || null,
+        is_sub: player.is_sub === true,
+        is_fill_in: player.is_fill_in === true,
+        x01_three_dart_avg: player.x01_three_dart_avg || player.avg_3da || null,
+        avg_3da: player.avg_3da || player.x01_three_dart_avg || null,
+        cricket_mpr: player.cricket_mpr || player.mpr || null,
+        mpr: player.mpr || player.cricket_mpr || null
+    };
+}
+
+function pickTeamForHome(doc) {
+    const team = plainDoc(doc);
+    return {
+        id: team.id,
+        name: team.name || team.team_name || null,
+        team_name: team.team_name || team.name || null,
+        wins: team.wins || 0,
+        losses: team.losses || 0,
+        ties: team.ties || 0,
+        points: team.points ?? team.games_won ?? team.set_wins ?? 0,
+        games_won: team.games_won ?? team.set_wins ?? 0,
+        games_lost: team.games_lost ?? team.set_losses ?? 0,
+        set_wins: team.set_wins ?? team.games_won ?? 0,
+        set_losses: team.set_losses ?? team.games_lost ?? 0,
+        players: Array.isArray(team.players) ? team.players.map(player => ({
+            id: player.id || player.player_id || null,
+            name: player.name || player.player_name || null,
+            level: player.level || player.skill_level || player.preferred_level || null,
+            skill_level: player.skill_level || player.level || null,
+            preferred_level: player.preferred_level || null,
+            position: player.position || null
+        })) : []
+    };
+}
+
+function pickMatchForHome(doc) {
+    const match = plainDoc(doc);
+    return {
+        id: match.id,
+        week: match.week || match.match_week || null,
+        status: match.status || null,
+        match_date: match.match_date || match.scheduled_date || match.date || null,
+        scheduled_date: match.scheduled_date || match.match_date || match.date || null,
+        home_team_id: match.home_team_id || null,
+        away_team_id: match.away_team_id || null,
+        home_team_name: match.home_team_name || null,
+        away_team_name: match.away_team_name || null,
+        home_score: match.home_score || 0,
+        away_score: match.away_score || 0,
+        player_availability: match.player_availability || {}
+    };
+}
+
+function pickStatsForHome(doc) {
+    const stats = plainDoc(doc);
+    return {
+        id: stats.id,
+        player_name: stats.player_name || stats.name || null,
+        x01_three_dart_avg: stats.x01_three_dart_avg || stats.avg_3da || 0,
+        avg_3da: stats.avg_3da || stats.x01_three_dart_avg || 0,
+        cricket_mpr: stats.cricket_mpr || stats.mpr || 0,
+        mpr: stats.mpr || stats.cricket_mpr || 0
+    };
+}
+
+function pickEventForHome(doc) {
+    const event = plainDoc(doc);
+    return {
+        id: event.id,
+        name: event.name || event.title || null,
+        title: event.title || event.name || null,
+        status: event.status || null,
+        date: event.date || event.start_date || event.event_date || null,
+        start_date: event.start_date || event.date || null,
+        event_date: event.event_date || event.date || null,
+        is_online: event.is_online === true,
+        venue_name: event.venue_name || null,
+        location_mode: event.location_mode || null
+    };
+}
+
+function isVisibleTournament(tournament) {
+    const status = String(tournament?.status || '').toLowerCase();
+    return status !== 'deleted' && status !== 'archived';
+}
+
+exports.getVNextHomeSummary = functions
+    .runWith({ memory: '512MB', timeoutSeconds: 60 })
+    .https.onRequest(async (req, res) => {
+        setCorsHeaders(res);
+        if (req.method === 'OPTIONS') return res.status(204).send('');
+        if (req.method !== 'POST') {
+            return res.status(405).json({ success: false, error: 'Method not allowed' });
+        }
+
+        try {
+            const leagueId = req.body?.leagueId || 'aOq4Y0ETxPZ66tM1uUtP';
+            const leagueRef = db.collection('leagues').doc(leagueId);
+            const { player } = await resolveFirebaseSessionPlayer(req);
+
+            const reads = [
+                leagueRef.collection('teams').get(),
+                leagueRef.collection('matches').get(),
+                leagueRef.collection('players').get(),
+                leagueRef.collection('stats').get().catch(() => ({ docs: [] })),
+                leagueRef.collection('feed').orderBy('created_at', 'desc').limit(5).get().catch(() => ({ docs: [] })),
+                db.collection('tournaments').limit(50).get().catch(() => ({ docs: [] }))
+            ];
+
+            if (player?.id) {
+                reads.push(leagueRef.collection('players').doc(player.id).get().catch(() => null));
+                reads.push(leagueRef.collection('stats').doc(player.id).get().catch(() => null));
+            }
+
+            const [
+                teamsSnap,
+                matchesSnap,
+                playersSnap,
+                statsSnap,
+                feedSnap,
+                tournamentsSnap,
+                leaguePlayerSnap,
+                playerStatsSnap
+            ] = await Promise.all(reads);
+
+            const leaguePlayer = leaguePlayerSnap?.exists ? { id: leaguePlayerSnap.id, ...leaguePlayerSnap.data() } : null;
+            const playerStats = playerStatsSnap?.exists ? { id: playerStatsSnap.id, ...playerStatsSnap.data() } : null;
+
+            return res.json({
+                success: true,
+                player,
+                identityStats: {
+                    ...(player?.stats || {}),
+                    ...(leaguePlayer || {}),
+                    ...(playerStats || {})
+                },
+                triples: {
+                    teams: teamsSnap.docs.map(pickTeamForHome),
+                    matches: matchesSnap.docs.map(pickMatchForHome),
+                    leaguePlayers: playersSnap.docs.map(pickPlayerForHome),
+                    statsById: Object.fromEntries(statsSnap.docs.map(doc => [doc.id, pickStatsForHome(doc)])),
+                    feed: feedSnap.docs.map(plainDoc)
+                },
+                events: tournamentsSnap.docs
+                    .map(pickEventForHome)
+                    .filter(isVisibleTournament)
+                    .slice(0, 20)
+            });
+        } catch (error) {
+            console.error('getVNextHomeSummary error:', error);
+            return res.status(500).json({ success: false, error: error.message });
+        }
+    });

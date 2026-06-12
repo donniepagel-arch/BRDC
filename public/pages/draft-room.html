@@ -935,7 +935,7 @@
             apiKey: "AIzaSyCYiPlKdt2CyV6DkJD4rJhZTFMzxKwrAOA",
             authDomain: "brdc-v2.firebaseapp.com",
             projectId: "brdc-v2",
-            storageBucket: "brdc-v2.appspot.com",
+            storageBucket: "brdc-v2.firebasestorage.app",
             messagingSenderId: "1001952022577",
             appId: "1:1001952022577:web:ddb3f8b89a4e64b6d42cc4"
         };
@@ -999,7 +999,6 @@
                     isDirector = data.player?.is_captain || data.player?.is_director || data.player?.is_admin || false;
 
                     localStorage.setItem('brdc_session', JSON.stringify(data.player));
-                    localStorage.removeItem('brdc_player_pin');
 
                     sessionStorage.setItem('draft_user', JSON.stringify(currentUser));
                     sessionStorage.setItem('draft_team_id', myTeamId || '');
@@ -1061,7 +1060,6 @@
                     isDirector = data.player?.is_captain || data.player?.is_director || data.player?.is_admin || false;
 
                     localStorage.setItem('brdc_session', JSON.stringify(data.player));
-                    localStorage.removeItem('brdc_player_pin');
 
                     sessionStorage.setItem('draft_user', JSON.stringify(currentUser));
                     sessionStorage.setItem('draft_team_id', myTeamId || '');
@@ -1370,7 +1368,13 @@
             let html = '';
             teams.forEach(team => {
                 const isPicking = team.id === currentTeamId && draftState?.status === 'in_progress';
-                const roster = teamPicks[team.id] || [];
+                const levelOrder = { A: 0, B: 1, C: 2 };
+                const roster = [...(teamPicks[team.id] || [])].sort((a, b) => {
+                    const aOrder = levelOrder[String(a.player_level || '').toUpperCase()] ?? 9;
+                    const bOrder = levelOrder[String(b.player_level || '').toUpperCase()] ?? 9;
+                    if (aOrder !== bOrder) return aOrder - bOrder;
+                    return String(a.player_name || '').localeCompare(String(b.player_name || ''));
+                });
 
                 html += `
                     <div class="roster-card ${isPicking ? 'picking' : ''}">

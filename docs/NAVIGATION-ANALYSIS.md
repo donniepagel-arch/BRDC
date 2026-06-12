@@ -227,7 +227,7 @@ BRDC Logo | Leagues | Tournaments | Social | Profile | [User Menu ▼]
 
 ### Breadcrumbs (Context Awareness)
 ```
-Home > Leagues > Winter Triple Draft > Team: N. Mezlak > Match Scorer
+Home > Leagues > 2026 Triples League > Team: N. Mezlak > Match Scorer
 ```
 
 ---

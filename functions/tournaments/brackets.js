@@ -1,6 +1,6 @@
 /**
  * Generate Tournament Bracket Cloud Functions
- * Supports single-elimination and double-elimination (Heartbreaker format)
+ * Supports single-elimination and double-elimination (mixed doubles matchmaker format)
  *
  * REFACTORED to work with new unified structure
  */
@@ -8,14 +8,15 @@
 const functions = require('firebase-functions/v1');
 const admin = require('firebase-admin');
 const cors = require('cors')({origin: true});
+const { requireTournamentAccess } = require('../src/tournament-auth-helper');
 
 // =============================================================================
-// DOUBLE ELIMINATION BRACKET GENERATOR (Heartbreaker Format)
+// DOUBLE ELIMINATION BRACKET GENERATOR (Mixed Doubles Matchmaker Format)
 // =============================================================================
 
 /**
  * Generate a double-elimination bracket for teams (mixed doubles)
- * Used by Matchmaker/Heartbreaker tournaments
+ * Used by mixed doubles matchmaker tournaments
  *
  * Winners Bracket: Cricket best-of-3
  * Losers Bracket: 501 best-of-1
@@ -29,25 +30,13 @@ exports.generateDoubleEliminationBracket = functions.https.onRequest(async (req,
     if (req.method === 'OPTIONS') return res.status(204).send('');
 
     try {
-        const { tournament_id, director_pin } = req.body;
+        const { tournament_id } = req.body;
 
         if (!tournament_id) {
             return res.status(400).json({ success: false, error: 'Missing tournament_id' });
         }
 
-        const tournamentRef = admin.firestore().collection('tournaments').doc(tournament_id);
-        const tournamentDoc = await tournamentRef.get();
-
-        if (!tournamentDoc.exists) {
-            return res.status(404).json({ success: false, error: 'Tournament not found' });
-        }
-
-        const tournament = tournamentDoc.data();
-
-        // Verify director PIN if provided
-        if (director_pin && tournament.director_pin !== director_pin) {
-            return res.status(403).json({ success: false, error: 'Invalid director PIN' });
-        }
+        const { tournamentRef, tournament } = await requireTournamentAccess(req, tournament_id);
 
         // Get teams from registrations (pre-formed + matched teams)
         const registrationsSnap = await tournamentRef.collection('registrations').get();
@@ -117,7 +106,7 @@ exports.generateDoubleEliminationBracket = functions.https.onRequest(async (req,
 
         const bracket = {
             type: 'double_elimination',
-            format: 'heartbreaker',
+            format: 'mixed_doubles_matchmaker',
             team_count: teams.length,
             bracket_size: bracketSize,
             bye_count: byeCount,
@@ -136,7 +125,7 @@ exports.generateDoubleEliminationBracket = functions.https.onRequest(async (req,
             lc_champion_id: null,
             tournament_champion_id: null,
 
-            // Mingle period tracking (Heartbreaker)
+            // Mingle period tracking
             mingle_active: false,
             mingle_round: 0,
             mingle_started_at: null,
@@ -178,7 +167,7 @@ exports.generateDoubleEliminationBracket = functions.https.onRequest(async (req,
 
     } catch (error) {
         console.error('Generate double elim bracket error:', error);
-        res.status(500).json({ success: false, error: error.message });
+        res.status(error.status || 500).json({ success: false, error: error.message });
     }
 });
 
@@ -442,15 +431,7 @@ exports.generateBracket = functions.https.onRequest(async (req, res) => {
             return res.status(400).json({ error: 'Missing tournament_id' });
         }
 
-        // Get tournament
-        const tournamentRef = admin.firestore().collection('tournaments').doc(tournament_id);
-        const tournament = await tournamentRef.get();
-
-        if (!tournament.exists) {
-            return res.status(404).json({ error: 'Tournament not found' });
-        }
-
-        const tournamentData = tournament.data();
+        const { tournamentRef, tournament: tournamentData } = await requireTournamentAccess(req, tournament_id);
 
         // Normalize format (accept both hyphen and underscore)
         const format = (tournamentData.format || 'single_elimination').toLowerCase().replace(/-/g, '_');
@@ -463,15 +444,37 @@ exports.generateBracket = functions.https.onRequest(async (req, res) => {
             });
         }
 
-        // Get checked-in players from tournament.players map
         const playersMap = tournamentData.players || {};
-        const players = Object.entries(playersMap)
-            .filter(([id, player]) => player.checkedIn === true)
+        let players = Object.entries(playersMap)
+            .filter(([, player]) => player.checkedIn === true || player.checked_in === true)
             .map(([id, player]) => ({
-                id: id,
+                id,
                 name: player.name,
                 ...player
             }));
+
+        const venueLabel = `${tournamentData.venue_name || tournamentData.venue || ''}`;
+        const isOnlineTournament = tournamentData.is_online === true
+            || /online|virtual|remote/i.test(venueLabel);
+
+        // Online tournaments can be bracketed directly from active registrations.
+        if (players.length < 2 && isOnlineTournament) {
+            const registrationsSnap = await tournamentRef.collection('registrations')
+                .where('status', '==', 'active')
+                .get();
+
+            players = registrationsSnap.docs
+                .map(doc => ({ id: doc.id, ...doc.data() }))
+                .filter(player => player.player_id || player.email || player.full_name || player.name)
+                .map(player => ({
+                    id: player.player_id || player.id,
+                    registration_id: player.id,
+                    name: player.full_name || player.name || 'Player',
+                    email: player.email || null,
+                    checkedIn: player.checked_in === true || isOnlineTournament,
+                    ...player
+                }));
+        }
 
         if (players.length < 2) {
             return res.status(400).json({ error: 'Need at least 2 checked-in players' });
@@ -498,7 +501,7 @@ exports.generateBracket = functions.https.onRequest(async (req, res) => {
 
     } catch (error) {
         console.error('Error:', error);
-        res.status(500).json({ error: error.message });
+        res.status(error.status || 500).json({ error: error.message });
     }
 });
 
@@ -582,6 +585,346 @@ function generateSingleElimination(players, tournament_id) {
     };
 }
 
+function shuffleEntries(entries) {
+    const shuffled = [...entries];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+}
+
+function registrationName(registration) {
+    return registration.full_name || registration.name || registration.player_name || registration.email || 'Player';
+}
+
+function pairBlindDrawPlayers(players, eventId) {
+    const shuffled = shuffleEntries(players);
+    const teams = [];
+
+    for (let i = 0; i < shuffled.length; i += 2) {
+        const first = shuffled[i];
+        const second = shuffled[i + 1];
+        teams.push({
+            id: `draw_team_${String(i / 2 + 1).padStart(2, '0')}`,
+            name: `${registrationName(first)} / ${registrationName(second)}`,
+            team_name: `${registrationName(first)} / ${registrationName(second)}`,
+            players: [first, second].map(player => ({
+                registration_id: player.id,
+                player_id: player.player_id || null,
+                name: registrationName(player),
+                email: player.email || null,
+                phone: player.phone || null
+            })),
+            checkedIn: true,
+            checked_in: true,
+            status: 'active',
+            entry_type: 'blind_draw_team',
+            draw_event_id: eventId || null,
+            seed_number: teams.length + 1
+        });
+    }
+
+    return teams;
+}
+
+function generateBlindDrawSingleElimination(teams) {
+    const shuffled = shuffleEntries(teams);
+    const bracketSize = Math.pow(2, Math.ceil(Math.log2(shuffled.length)));
+    const byeCount = bracketSize - shuffled.length;
+    const totalRounds = Math.log2(bracketSize);
+    const matches = [];
+    let matchNumber = 1;
+    const firstRoundSlots = Array(bracketSize).fill(null);
+    const firstRoundMatches = bracketSize / 2;
+    const byePositions = [];
+    let left = 0;
+    let right = firstRoundMatches - 1;
+    const reservedByeOpponentSlots = new Set();
+
+    while (byePositions.length < byeCount) {
+        byePositions.push(left++);
+        if (byePositions.length < byeCount) byePositions.push(right--);
+    }
+
+    let teamIndex = 0;
+    for (const position of byePositions) {
+        firstRoundSlots[position * 2] = shuffled[teamIndex++] || null;
+        reservedByeOpponentSlots.add(position * 2 + 1);
+    }
+
+    for (let i = 0; i < firstRoundSlots.length && teamIndex < shuffled.length; i++) {
+        if (reservedByeOpponentSlots.has(i) || firstRoundSlots[i]) continue;
+        firstRoundSlots[i] = shuffled[teamIndex++];
+    }
+
+    for (let i = 0; i < firstRoundMatches; i++) {
+        const player1 = firstRoundSlots[i * 2] || null;
+        const player2 = firstRoundSlots[i * 2 + 1] || null;
+        const hasBye = (player1 && !player2) || (!player1 && player2);
+        const byeWinner = hasBye ? (player1 || player2) : null;
+
+        matches.push({
+            id: `match-${matchNumber}`,
+            matchNumber: matchNumber++,
+            round: 1,
+            position: i,
+            player1,
+            player2,
+            score: { player1: null, player2: null },
+            winner: byeWinner,
+            winner_id: byeWinner?.id || null,
+            status: hasBye ? 'bye' : (player1 && player2 ? 'pending' : 'waiting'),
+            board: null
+        });
+    }
+
+    let previousRoundMatches = firstRoundMatches;
+    for (let round = 2; round <= totalRounds; round++) {
+        const roundMatches = previousRoundMatches / 2;
+        for (let i = 0; i < roundMatches; i++) {
+            matches.push({
+                id: `match-${matchNumber}`,
+                matchNumber: matchNumber++,
+                round,
+                position: i,
+                player1: null,
+                player2: null,
+                score: { player1: null, player2: null },
+                winner: null,
+                status: 'waiting',
+                board: null
+            });
+        }
+        previousRoundMatches = roundMatches;
+    }
+
+    matches
+        .filter(match => match.round === 1 && match.status === 'bye' && match.winner)
+        .forEach(match => {
+            match.status = 'completed';
+            match.completedAt = admin.firestore.Timestamp.now();
+
+            const nextMatch = matches.find(item => item.round === 2 && item.position === Math.floor(match.position / 2));
+            if (!nextMatch) return;
+
+            if (match.position % 2 === 0) nextMatch.player1 = match.winner;
+            else nextMatch.player2 = match.winner;
+
+            if (nextMatch.player1 && nextMatch.player2) nextMatch.status = 'pending';
+        });
+
+    return {
+        type: 'single-elimination',
+        entry_type: 'blind_draw',
+        team_size: 2,
+        totalRounds,
+        totalPlayers: teams.length * 2,
+        totalTeams: teams.length,
+        bracketSize,
+        matches,
+        createdAt: admin.firestore.Timestamp.now()
+    };
+}
+
+function generateBlindDrawDoubleElimination(teams, tournament = {}) {
+    const shuffled = shuffleEntries(teams);
+    const bracketSize = Math.pow(2, Math.ceil(Math.log2(shuffled.length)));
+    const wcRounds = Math.log2(bracketSize);
+    const lcRounds = (wcRounds - 1) * 2;
+    const winnersMatches = generateWinnersBracketMatches(shuffled, bracketSize, wcRounds);
+    const losersMatches = generateLosersBracketStructure(bracketSize, lcRounds);
+
+    const bracket = {
+        type: 'double_elimination',
+        format: 'blind_draw_doubles',
+        entry_type: 'blind_draw',
+        team_size: 2,
+        team_count: teams.length,
+        totalPlayers: teams.length * 2,
+        bracket_size: bracketSize,
+        bye_count: bracketSize - teams.length,
+        winners: winnersMatches,
+        winners_rounds: wcRounds,
+        losers: losersMatches,
+        losers_rounds: lcRounds,
+        grand_finals: {
+            match1: {
+                id: 'gf-1',
+                round: 'grand_finals',
+                team1_id: null,
+                team2_id: null,
+                team1: null,
+                team2: null,
+                winner_id: null,
+                scores: null,
+                status: 'waiting',
+                board: null,
+                game_type: tournament.winners_game_type || tournament.game_type || '501',
+                best_of: tournament.grand_finals_best_of || tournament.winners_best_of || tournament.best_of || 3
+            },
+            match2: null,
+            bracket_reset_needed: false
+        },
+        wc_champion_id: null,
+        lc_champion_id: null,
+        tournament_champion_id: null,
+        mingle_active: false,
+        mingle_round: 0,
+        current_wc_round: 1,
+        current_lc_round: 0,
+        wc_complete: false,
+        lc_complete: false,
+        created_at: admin.firestore.FieldValue.serverTimestamp()
+    };
+
+    autoAdvanceByes(bracket.winners);
+    return bracket;
+}
+
+exports.generateBlindDrawBracket = functions.https.onRequest(async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+    if (req.method === 'OPTIONS') return res.status(204).send('');
+
+    try {
+        const { tournament_id, event_id, checked_in_only, house_name, force } = req.body || {};
+        if (!tournament_id) {
+            return res.status(400).json({ success: false, error: 'Missing tournament_id' });
+        }
+
+        const { tournamentRef, tournament } = await requireTournamentAccess(req, tournament_id);
+        if ((tournament.bracketGenerated || tournament.bracket) && force !== true) {
+            return res.status(400).json({
+                success: false,
+                error: 'Tournament already has a bracket. Re-run with force enabled to overwrite it.'
+            });
+        }
+
+        const registrationsSnap = await tournamentRef.collection('registrations').get();
+        let registrations = registrationsSnap.docs
+            .map(doc => ({ id: doc.id, ...doc.data() }))
+            .filter(registration => registration.status !== 'cancelled')
+            .filter(registration => !event_id || (registration.event_ids || []).includes(event_id));
+
+        if (checked_in_only === true) {
+            registrations = registrations.filter(registration => registration.checked_in === true || registration.checkedIn === true);
+        }
+
+        const houseName = String(house_name || '').trim();
+        if (houseName) {
+            registrations.push({
+                id: `house_${houseName.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '') || 'player'}`,
+                full_name: houseName,
+                name: houseName,
+                email: null,
+                phone: null,
+                status: 'active',
+                checked_in: true,
+                event_ids: event_id ? [event_id] : [],
+                is_house: true
+            });
+        }
+
+        if (registrations.length < 4) {
+            return res.status(400).json({
+                success: false,
+                error: `Need at least 4 players for blind-draw doubles. Found ${registrations.length}.`
+            });
+        }
+
+        if (registrations.length % 2 !== 0) {
+            return res.status(400).json({
+                success: false,
+                error: `Odd player count (${registrations.length}). Add a player or enter a house player.`
+            });
+        }
+
+        if (force === true) {
+            const oldTeams = await tournamentRef.collection('draw_teams').get();
+            const oldPlayers = await tournamentRef.collection('players').where('entry_type', '==', 'blind_draw_team').get();
+            const cleanup = admin.firestore().batch();
+            oldTeams.docs.forEach(doc => cleanup.delete(doc.ref));
+            oldPlayers.docs.forEach(doc => cleanup.delete(doc.ref));
+            if (event_id) {
+                const oldEventTeams = await tournamentRef.collection('events').doc(event_id).collection('draw_teams').get();
+                oldEventTeams.docs.forEach(doc => cleanup.delete(doc.ref));
+            }
+            await cleanup.commit();
+        }
+
+        const teams = pairBlindDrawPlayers(registrations, event_id || null);
+        const normalizedFormat = String(tournament.format || '').toLowerCase().replace(/-/g, '_');
+        const bracket = normalizedFormat === 'double_elimination'
+            ? generateBlindDrawDoubleElimination(teams, tournament)
+            : generateBlindDrawSingleElimination(teams);
+        const batch = admin.firestore().batch();
+        const playersMap = {};
+
+        for (const team of teams) {
+            playersMap[team.id] = team;
+            batch.set(tournamentRef.collection('draw_teams').doc(team.id), {
+                ...team,
+                created_at: admin.firestore.FieldValue.serverTimestamp(),
+                updated_at: admin.firestore.FieldValue.serverTimestamp()
+            });
+            batch.set(tournamentRef.collection('players').doc(team.id), {
+                ...team,
+                created_at: admin.firestore.FieldValue.serverTimestamp(),
+                updated_at: admin.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+            if (event_id) {
+                batch.set(tournamentRef.collection('events').doc(event_id).collection('draw_teams').doc(team.id), {
+                    ...team,
+                    created_at: admin.firestore.FieldValue.serverTimestamp(),
+                    updated_at: admin.firestore.FieldValue.serverTimestamp()
+                });
+            }
+        }
+
+        if (event_id) {
+            batch.set(tournamentRef.collection('events').doc(event_id), {
+                draw_generated: true,
+                draw_generated_at: admin.firestore.FieldValue.serverTimestamp(),
+                team_count: teams.length,
+                player_count: registrations.length,
+                status: 'active',
+                updated_at: admin.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+        }
+
+        batch.set(tournamentRef, {
+            players: playersMap,
+            draw_generated: true,
+            draw_generated_at: admin.firestore.FieldValue.serverTimestamp(),
+            team_count: teams.length,
+            playerCount: registrations.length,
+            bracket,
+            bracketGenerated: true,
+            bracketGeneratedAt: admin.firestore.FieldValue.serverTimestamp(),
+            started: true,
+            status: 'bracket_generated',
+            updated_at: admin.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+
+        await batch.commit();
+
+        return res.json({
+            success: true,
+            players: registrations.length,
+            teams: teams.length,
+            matches_created: bracket.matches?.length
+                || ((bracket.winners?.length || 0) + (bracket.losers?.length || 0) + (bracket.grand_finals?.match1 ? 1 : 0) + (bracket.grand_finals?.match2 ? 1 : 0)),
+            bracket
+        });
+    } catch (error) {
+        console.error('Generate blind draw bracket error:', error);
+        return res.status(error.status || 500).json({ success: false, error: error.message });
+    }
+});
+
 // =============================================================================
 // BRACKET EDITING FUNCTIONS
 // =============================================================================
@@ -597,25 +940,13 @@ exports.swapBracketPositions = functions.https.onRequest(async (req, res) => {
     if (req.method === 'OPTIONS') return res.status(204).send('');
 
     try {
-        const { tournament_id, position1, position2, director_pin } = req.body;
+        const { tournament_id, position1, position2 } = req.body;
 
         if (!tournament_id || position1 === undefined || position2 === undefined) {
             return res.status(400).json({ success: false, error: 'Missing required fields' });
         }
 
-        const tournamentRef = admin.firestore().collection('tournaments').doc(tournament_id);
-        const tournamentDoc = await tournamentRef.get();
-
-        if (!tournamentDoc.exists) {
-            return res.status(404).json({ success: false, error: 'Tournament not found' });
-        }
-
-        const tournament = tournamentDoc.data();
-
-        // Verify director PIN if required
-        if (director_pin && tournament.director_pin && tournament.director_pin !== director_pin) {
-            return res.status(403).json({ success: false, error: 'Invalid director PIN' });
-        }
+        const { tournamentRef, tournament } = await requireTournamentAccess(req, tournament_id);
 
         // Check if bracket is locked (round 1 has started)
         if (tournament.bracket_locked) {
@@ -714,7 +1045,7 @@ exports.swapBracketPositions = functions.https.onRequest(async (req, res) => {
 
     } catch (error) {
         console.error('Swap positions error:', error);
-        res.status(500).json({ success: false, error: error.message });
+        res.status(error.status || 500).json({ success: false, error: error.message });
     }
 });
 
@@ -729,25 +1060,13 @@ exports.regenerateBracket = functions.https.onRequest(async (req, res) => {
     if (req.method === 'OPTIONS') return res.status(204).send('');
 
     try {
-        const { tournament_id, director_pin, seed_order } = req.body;
+        const { tournament_id, seed_order } = req.body;
 
         if (!tournament_id) {
             return res.status(400).json({ success: false, error: 'Missing tournament_id' });
         }
 
-        const tournamentRef = admin.firestore().collection('tournaments').doc(tournament_id);
-        const tournamentDoc = await tournamentRef.get();
-
-        if (!tournamentDoc.exists) {
-            return res.status(404).json({ success: false, error: 'Tournament not found' });
-        }
-
-        const tournament = tournamentDoc.data();
-
-        // Verify director PIN
-        if (director_pin && tournament.director_pin && tournament.director_pin !== director_pin) {
-            return res.status(403).json({ success: false, error: 'Invalid director PIN' });
-        }
+        const { tournamentRef, tournament } = await requireTournamentAccess(req, tournament_id);
 
         // Check if bracket is locked
         if (tournament.bracket_locked) {
@@ -927,7 +1246,7 @@ exports.regenerateBracket = functions.https.onRequest(async (req, res) => {
 
     } catch (error) {
         console.error('Regenerate bracket error:', error);
-        res.status(500).json({ success: false, error: error.message });
+        res.status(error.status || 500).json({ success: false, error: error.message });
     }
 });
 
@@ -948,7 +1267,7 @@ exports.lockBracket = functions.https.onRequest(async (req, res) => {
             return res.status(400).json({ success: false, error: 'Missing tournament_id' });
         }
 
-        const tournamentRef = admin.firestore().collection('tournaments').doc(tournament_id);
+        const { tournamentRef } = await requireTournamentAccess(req, tournament_id);
 
         await tournamentRef.update({
             bracket_locked: true,
@@ -959,6 +1278,6 @@ exports.lockBracket = functions.https.onRequest(async (req, res) => {
 
     } catch (error) {
         console.error('Lock bracket error:', error);
-        res.status(500).json({ success: false, error: error.message });
+        res.status(error.status || 500).json({ success: false, error: error.message });
     }
 });

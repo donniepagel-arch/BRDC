@@ -334,7 +334,7 @@ If limited resources, fix in this exact order:
 ## 10. Testing Reference Data
 
 ### League for Testing
-- **League:** Winter Triple Draft
+- **League:** 2026 Triples League
 - **ID:** `aOq4Y0ETxPZ66tM1uUtP`
 - **URL:** `/pages/league-view.html?league_id=aOq4Y0ETxPZ66tM1uUtP`
 

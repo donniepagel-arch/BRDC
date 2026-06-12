@@ -6,11 +6,21 @@
 const admin = require('firebase-admin');
 const { sendManagedSms, sendManagedEmail } = require('./src/messaging-config');
 
+function formatPhoneE164(phone) {
+    if (!phone) return null;
+    const raw = String(phone).trim();
+    const digits = raw.replace(/\D/g, '');
+    if (raw.startsWith('+') && digits.length >= 10) return `+${digits}`;
+    if (digits.length === 10) return `+1${digits}`;
+    if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`;
+    return raw;
+}
+
 /**
  * Send SMS via Twilio
  */
 async function sendSMS(to, body) {
-    return sendManagedSms(to, body);
+    return sendManagedSms(formatPhoneE164(to), body);
 }
 
 /**

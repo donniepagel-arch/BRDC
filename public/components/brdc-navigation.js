@@ -1,794 +1,941 @@
 /**
- * BRDC Navigation Component v3.0
- * Unified mobile-first navigation system
- * Mobile/Tablet: unified top header + bottom nav | Desktop: header bar
+ * BRDC Navigation Component v4.3
+ * Single responsive nav system for vNext pages.
+ *
+ * Mobile (≤860px): fixed bottom tab bar (5 tabs, raised center Play) + compact top header.
+ * Desktop (>860px): sticky top bar — logo left, 5 tabs center, utility right. NO sidebar.
+ *
+ * Entry point: initBRDCNavigation({ pageTitle, page, backUrl, ... })
+ * called from brdc-navigation-init.js which each vNext page already includes.
+ *
+ * TODO (Phase 6): wire onPlayAction() for the Play action sheet
+ * Phase 2 (SHIPPED): role-gated Manage section in avatar dropdown menu.
  */
 
+/* ─────────────────────────────────────────────
+   PAGE → TAB MAP
+   Maps URL path segments to the 5 primary tab keys.
+   ───────────────────────────────────────────── */
+const VNEXT_TAB_MAP = {
+    // Home
+    'home-vnext':        'home',
+    'dashboard':         'home',
+    // League
+    'triples-vnext':     'league',
+    'leagues-vnext':     'league',
+    'leagues':           'league',
+    'league-team':       'league',
+    'league-director':   'league',
+    'league-import':     'league',
+    'members-vnext':     'clubhouse',  // members = people directory → Clubhouse
+    // Play (scorer flows + arena)
+    'arena-vnext':       'play',
+    'scorer-setup':      'play',
+    'x01-scorer':        'play',
+    'league-cricket':    'play',
+    'match-hub':         'play',
+    'matchmaker-mingle': 'play',
+    'matchmaker-tv':     'play',
+    // Events
+    'events-vnext':      'events',
+    'tournament-view':   'events',
+    'tournament-register':'events',
+    'tournament-runtime':'events',
+    'wing-it-wednesdays':'events',
+    'create-tournament': 'events',
+    // Clubhouse
+    'messages-vnext':    'clubhouse',
+    'dart-trader':       'clubhouse',
+    'dart-trader-create':'clubhouse',
+    'dart-trader-listing':'clubhouse',
+};
+
+/**
+ * Legacy page-key → tab-key normalizer.
+ * Pages pass `page:` values from before the 5-tab redesign.
+ * Map them to the correct tab so setActivePage() works without requiring
+ * every page to update its initBRDCNavigation() call.
+ */
+const LEGACY_PAGE_TO_TAB = {
+    // old home keys
+    'dashboard':          'home',
+    // old events keys (capital E used in several pages)
+    'Events':             'events',
+    'event':              'events',
+    // old chat/messages keys
+    'chat':               'clubhouse',
+    'messages':           'clubhouse',
+    // old trader keys
+    'trader':             'clubhouse',
+    // old scorer keys
+    'scorer':             'play',
+    'play':               'play',
+    // old league keys
+    'league':             'league',
+    'leagues':            'league',
+    'league-director':    'league',
+    'league-import':      'league',
+    // old profile — no primary tab, falls back to URL detection
+    'player-profile':     null,
+    'profile':            null,
+    // old manage/captain/admin — no primary tab
+    'captain':            null,
+    'director-home':      null,
+    'director-contact':   null,
+    'admin':              null,
+    'create-league':      null,
+    // members
+    'members':            'clubhouse',
+};
+
+/* ─────────────────────────────────────────────
+   ROUTES
+   ───────────────────────────────────────────── */
+const VNEXT_ROUTES = {
+    home:      '/pages/home-vnext.html',
+    league:    '/pages/leagues-vnext.html',    // Phase 4: My Leagues player-centric landing
+    play:      '/pages/arena-vnext.html',
+    events:    '/pages/events-vnext.html',
+    clubhouse: '/pages/messages-vnext.html',  // interim — Phase 5 renames to Clubhouse
+    profile:   '/pages/player-profile-vnext.html',
+};
+
+/* ─────────────────────────────────────────────
+   SVG ICON LIBRARY  (inline, stroke-based)
+   ───────────────────────────────────────────── */
+const _SA = 'xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"';
+const NAV_ICONS = {
+    home:      `<svg ${_SA}><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`,
+    league:    `<svg ${_SA}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
+    play:      `<svg ${_SA}><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="5.5"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/></svg>`,
+    events:    `<svg ${_SA}><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`,
+    clubhouse: `<svg ${_SA}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>`,
+    search:    `<svg ${_SA}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`,
+    bell:      `<svg ${_SA}><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>`,
+    avatar:    `<svg ${_SA}><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`,
+    back:      `<svg ${_SA}><path d="M19 12H5M12 19l-7-7 7-7"/></svg>`,
+    chevron:   `<svg ${_SA} width="16" height="16"><polyline points="6 9 12 15 18 9"/></svg>`,
+    profile:   `<svg ${_SA}><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`,
+    settings:  `<svg ${_SA}><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`,
+    logout:    `<svg ${_SA}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>`,
+    manage:    `<svg ${_SA}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>`,
+};
+
+/* ─────────────────────────────────────────────
+   DESKTOP BREAKPOINT
+   ───────────────────────────────────────────── */
+const DESKTOP_BP = 860;
+
+/* ─────────────────────────────────────────────
+   BRDCNavigation CLASS
+   ───────────────────────────────────────────── */
 class BRDCNavigation {
     constructor(options = {}) {
-        this.currentPage = options.page || this.detectCurrentPage();
-        this.showMobileNav = options.showMobileNav !== false;
-        this.showBackButton = options.showBackButton !== false;
-        this.pageTitle = options.pageTitle || '';
-        this.backUrl = options.backUrl || '';
-        this.breadcrumbPath = options.breadcrumbPath || [];
-        this.player = null;
-        this.isMobile = window.innerWidth < 768;
-        this.isTablet = window.innerWidth >= 768 && window.innerWidth < 1024;
-        this.isDesktop = window.innerWidth >= 1024;
-        this._hiddenHeader = null; // track original header hidden by mobile header
+        this.pageTitle  = options.pageTitle  || document.title || 'BRDC';
+        this.backUrl    = options.backUrl    || '';
+        this.showSearch = options.showSearch !== false;
+        this.player     = null;
+        this._resizeTimer = null;
+        this._avatarOpen  = false;
+        this._notifPanel  = null;
+
+        // Detect active tab from URL
+        this.activeTab = this._detectTab();
     }
 
-    /**
-     * Detect current page from URL
-     */
-    detectCurrentPage() {
+    /* ── Detect which tab the current page belongs to ── */
+    _detectTab() {
         const path = window.location.pathname;
-        if (path.includes('dashboard')) return 'home';
-        if (path.includes('message') || path.includes('conversation') || path.includes('chat-room')) return 'chat';
-        if (path.includes('league')) return 'leagues';
-        if (path.includes('match') || path.includes('scorer') || path.includes('x01') || path.includes('cricket')) return 'play';
-        if (path.includes('profile') || path.includes('friends')) return 'profile';
-        if (path.includes('event') || path.includes('tournament')) return 'events';
+        // Check each key in the tab map against the URL path
+        for (const [segment, tab] of Object.entries(VNEXT_TAB_MAP)) {
+            if (path.includes(segment)) return tab;
+        }
         return 'home';
     }
 
-    /**
-     * Initialize navigation for current page
-     */
-    async init() {
-        await this.loadPlayerData();
-
-        // Add responsive body classes
-        document.body.classList.add('has-brdc-nav');
-        if (this.isMobile) document.body.classList.add('is-mobile');
-        if (this.isTablet) document.body.classList.add('is-tablet');
-        if (this.isDesktop) document.body.classList.add('is-desktop');
-
-        // Render appropriate navigation
-        if (this.isDesktop) {
-            this.renderDesktopNav();
-        } else {
-            this.renderMobileHeader();
-            this.renderMobileNav();
-        }
-
-        this.renderRoleBadges();
-
-        // Initialize Notifications
-        this.notifications = new NotificationsPanel();
-        this.notifications.init();
-
-        // Load badges
-        this.loadBadgeCounts();
-
-        // Handle resize
-        window.addEventListener('resize', this.handleResize.bind(this));
+    /* ── Normalize a legacy page-key (from initBRDCNavigation's `page:`) ── */
+    _normalizePage(pageKey) {
+        if (!pageKey) return null;
+        // Already a valid primary tab key?
+        if (['home','league','play','events','clubhouse'].includes(pageKey)) return pageKey;
+        // Map from legacy key
+        const mapped = LEGACY_PAGE_TO_TAB[pageKey];
+        if (mapped !== undefined) return mapped; // may be null (no primary tab)
+        // Last resort: try URL detection
+        return null;
     }
 
-    /**
-     * Toggle notifications panel
-     */
-    toggleNotifications() {
-        if (this.notifications) {
-            this.notifications.toggle();
-        }
-    }
-
-    /**
-     * Load badge counts (notifications, chats, etc)
-     */
-    async loadBadgeCounts() {
+    /* ── Load player from sessionStorage / localStorage ── */
+    _loadPlayer() {
         try {
-            // Only attempt if user has an active session
-            const session = localStorage.getItem('brdc_session');
-            if (!session) return;
-
-            // Dynamically import firebase config only when needed
-            let callFunction, auth, onAuthStateChanged;
-            try {
-                const module = await import('/js/firebase-config.js');
-                callFunction = module.callFunction;
-                auth = module.auth;
-                onAuthStateChanged = module.onAuthStateChanged;
-            } catch (e) {
-                console.warn('Firebase config not found, badge counts skipped');
-                return;
-            }
-
-            // Wait for Firebase Auth to resolve (up to 5 seconds)
-            if (!auth.currentUser) {
-                await new Promise(resolve => {
-                    const unsubscribe = onAuthStateChanged(auth, user => {
-                        unsubscribe();
-                        resolve(user);
-                    });
-                    setTimeout(() => { unsubscribe(); resolve(null); }, 5000);
-                });
-            }
-
-            if (!auth.currentUser) return; // Not authenticated
-
-            // Load notification count
-            try {
-                const notifResult = await callFunction('getUnreadNotificationCount', {});
-                if (notifResult.success && notifResult.count > 0) {
-                    this.updateBadge('notifications', notifResult.count);
-                }
-            } catch (e) {
-                // Notification count unavailable
-            }
-
-            // Load chat unread count (future use)
-            // ...
-        } catch (error) {
-            console.error('Error loading badge counts:', error);
-        }
+            const raw = sessionStorage.getItem('currentPlayer')
+                     || localStorage.getItem('brdc_session');
+            if (raw) this.player = JSON.parse(raw);
+        } catch (_) {}
     }
 
-    updateBadge(action, count) {
-        const badge = document.querySelector(`.mobile-nav-item[data-action="${action}"] .fb-footer-tab-badge`);
-        if (badge) {
-            badge.setAttribute('data-count', count);
-        }
-        // Update aria-label on the notification button
-        const btn = document.querySelector(`[data-action="${action}"]`);
-        if (btn) {
-            btn.setAttribute('aria-label', `Notifications, ${count} unread`);
-        }
+    /* ── Player initials for avatar ── */
+    _initials() {
+        const name = this.player?.name || this.player?.display_name || '';
+        const parts = name.trim().split(/\s+/);
+        if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+        if (parts[0]) return parts[0].slice(0, 2).toUpperCase();
+        return 'B';
     }
 
-    /**
-     * Check if current page is home/dashboard
-     */
-    isHomePage() {
-        const path = window.location.pathname;
-        return path === '/' || path.includes('dashboard') || path.includes('index');
+    /* ── Check if desktop ── */
+    _isDesktop() { return window.innerWidth > DESKTOP_BP; }
+
+    /* ══════════════════════════════════════════
+       INIT
+    ══════════════════════════════════════════ */
+    async init() {
+        // Phase 3: Scorer full-screen guard.
+        // Scorer pages are their own full-screen surfaces with their own exit
+        // controls. If this init is ever called on one (e.g. future copy-paste),
+        // bail immediately so no nav bars or body padding are injected.
+        if (document.body.classList.contains('scorer-fullscreen')) return;
+
+        this._loadPlayer();
+
+        // Body baseline
+        document.body.classList.add('has-brdc-nav');
+
+        this._build();
+        this._bindResize();
+
+        // Async badge load (non-blocking)
+        this._loadBadgeCounts().catch(() => {});
+
+        // Phase 2: async role resolution → inject Manage section when ready.
+        // Fails closed: Manage section only appears after roles confirmed.
+        this._resolveRoles().catch(() => {});
     }
 
-    /**
-     * Handle window resize
-     */
-    handleResize() {
-        const wasDesktop = this.isDesktop;
+    /* ══════════════════════════════════════════
+       BUILD / REBUILD
+    ══════════════════════════════════════════ */
+    _build() {
+        // Remove any old instances
+        document.getElementById('brdcTopBar')    ?.remove();
+        document.getElementById('brdcMobileHeader')?.remove();
+        document.getElementById('brdcMobileNav') ?.remove();
+        document.getElementById('brdcDesktopNav')?.remove();  // legacy id
+        document.getElementById('brdcAvatarMenu')?.remove();
+        document.body.classList.remove('has-desktop-nav', 'has-mobile-nav',
+            'is-desktop', 'is-mobile', 'is-tablet');
 
-        this.isMobile = window.innerWidth < 768;
-        this.isTablet = window.innerWidth >= 768 && window.innerWidth < 1024;
-        this.isDesktop = window.innerWidth >= 1024;
-
-        // Only act if crossing the desktop threshold
-        if (wasDesktop !== this.isDesktop) {
-            document.body.classList.toggle('is-mobile', this.isMobile);
-            document.body.classList.toggle('is-tablet', this.isTablet);
-            document.body.classList.toggle('is-desktop', this.isDesktop);
-
-            if (this.isDesktop) {
-                // Switched TO desktop: remove mobile header, restore static header, show desktop nav
-                const mobileHeader = document.getElementById('brdcMobileHeader');
-                if (mobileHeader) mobileHeader.remove();
-                const mobileNav = document.getElementById('brdcMobileNav');
-                if (mobileNav) mobileNav.remove();
-                if (this._hiddenHeader) {
-                    this._hiddenHeader.removeAttribute('data-hidden-by-nav');
-                    this._hiddenHeader.style.display = '';
-                }
-                this.renderDesktopNav();
-            } else {
-                // Switched FROM desktop: remove desktop nav, create mobile header + bottom nav
-                const desktopNav = document.getElementById('brdcDesktopNav');
-                if (desktopNav) desktopNav.remove();
-                document.body.classList.remove('has-desktop-nav');
-                this.renderMobileHeader();
-                this.renderMobileNav();
-            }
+        if (this._isDesktop()) {
+            document.body.classList.add('is-desktop', 'has-desktop-nav');
+            this._buildDesktopTopBar();
         } else {
-            // Update sub-breakpoint classes even within mobile/tablet
-            document.body.classList.toggle('is-mobile', this.isMobile);
-            document.body.classList.toggle('is-tablet', this.isTablet);
+            document.body.classList.add('is-mobile', 'has-mobile-nav');
+            this._buildMobileHeader();
+            this._buildMobileTabBar();
         }
+
+        this._buildAvatarMenu();
+        this._buildNotifPanel();
     }
 
-    /**
-     * Load current player data
-     */
-    async loadPlayerData() {
-        const playerData = sessionStorage.getItem('currentPlayer');
-        if (playerData) {
-            try {
-                this.player = JSON.parse(playerData);
-            } catch (e) {
-                console.warn('Could not parse player data');
-            }
-        }
+    /* ══════════════════════════════════════════
+       DESKTOP TOP BAR
+    ══════════════════════════════════════════ */
+    _buildDesktopTopBar() {
+        const bar = document.createElement('nav');
+        bar.id = 'brdcTopBar';
+        bar.className = 'brdc-top-bar';
+        bar.setAttribute('aria-label', 'Main navigation');
+        bar.innerHTML = `
+            <a href="${VNEXT_ROUTES.home}" class="brdc-tb-logo" aria-label="BRDC Home">
+                <img src="/images/gold_logo.png" alt="BRDC" height="40">
+            </a>
+            <div class="brdc-tb-tabs" role="tablist">
+                ${this._desktopTab('home',      'Home')}
+                ${this._desktopTab('league',    'League')}
+                ${this._desktopPlayBtn()}
+                ${this._desktopTab('events',    'Events')}
+                ${this._desktopTab('clubhouse', 'Clubhouse')}
+            </div>
+            <div class="brdc-tb-utility">
+                <button class="brdc-tb-util-btn" id="brdcSearchBtn" aria-label="Search">
+                    ${NAV_ICONS.search}
+                </button>
+                <button class="brdc-tb-util-btn brdc-notif-btn" id="brdcNotifBtnDesktop" aria-label="Notifications">
+                    ${NAV_ICONS.bell}
+                    <span class="brdc-badge" id="brdcNotifBadgeDesktop" hidden></span>
+                </button>
+                <button class="brdc-tb-avatar-btn" id="brdcAvatarBtnDesktop" aria-label="Account menu" aria-haspopup="true" aria-expanded="false">
+                    <span class="brdc-avatar-circle">${this._initials()}</span>
+                </button>
+            </div>
+        `;
+
+        // Insert at very top of body
+        document.body.insertBefore(bar, document.body.firstChild);
+
+        // Wire up buttons
+        bar.querySelector('#brdcSearchBtn')?.addEventListener('click', () => this._handleSearch());
+        bar.querySelector('#brdcNotifBtnDesktop')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this._toggleNotifications();
+        });
+        bar.querySelector('#brdcAvatarBtnDesktop')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this._toggleAvatarMenu(bar.querySelector('#brdcAvatarBtnDesktop'));
+        });
     }
 
-    /**
-     * Render mobile bottom navigation (always visible on mobile/tablet)
-     */
-    renderMobileNav() {
-        if (!this.showMobileNav) return;
-        if (document.getElementById('brdcMobileNav')) return;
+    _desktopTab(key, label) {
+        const active = this.activeTab === key;
+        return `<a href="${VNEXT_ROUTES[key]}"
+                   class="brdc-tb-tab${active ? ' active' : ''}"
+                   data-tab="${key}"
+                   ${active ? 'aria-current="page"' : ''}
+                   role="tab">
+                    <span class="brdc-tb-tab-icon">${NAV_ICONS[key]}</span>
+                    <span class="brdc-tb-tab-label">${label}</span>
+                </a>`;
+    }
 
+    _desktopPlayBtn() {
+        const active = this.activeTab === 'play';
+        return `<button class="brdc-tb-tab brdc-tb-play${active ? ' active' : ''}"
+                        data-tab="play"
+                        id="brdcDesktopPlayBtn"
+                        aria-label="Play"
+                        ${active ? 'aria-current="page"' : ''}>
+                    <span class="brdc-tb-tab-icon brdc-play-icon">${NAV_ICONS.play}</span>
+                    <span class="brdc-tb-tab-label">Play</span>
+                </button>`;
+    }
+
+    /* ══════════════════════════════════════════
+       MOBILE TOP HEADER
+    ══════════════════════════════════════════ */
+    _buildMobileHeader() {
+        const header = document.createElement('header');
+        header.id = 'brdcMobileHeader';
+        header.className = 'brdc-mob-header';
+        header.setAttribute('role', 'banner');
+
+        // Back button logic: show if backUrl provided or page is not home
+        const showBack = !!(this.backUrl || this.activeTab !== 'home');
+
+        header.innerHTML = `
+            <div class="brdc-mh-left">
+                ${showBack
+                    ? `<button class="brdc-mh-btn brdc-mh-back" id="brdcMobBackBtn" aria-label="Go back">${NAV_ICONS.back}</button>`
+                    : `<a href="${VNEXT_ROUTES.home}" class="brdc-mh-logo-wrap" aria-label="BRDC"><img src="/images/gold_logo.png" alt="BRDC" class="brdc-mh-logo"></a>`
+                }
+            </div>
+            <div class="brdc-mh-center">
+                <span class="brdc-mh-title" id="brdcMobTitle">${this.pageTitle}</span>
+            </div>
+            <div class="brdc-mh-right">
+                <button class="brdc-mh-btn" id="brdcSearchBtnMob" aria-label="Search">
+                    ${NAV_ICONS.search}
+                </button>
+                <button class="brdc-mh-btn brdc-notif-btn" id="brdcNotifBtnMob" aria-label="Notifications">
+                    ${NAV_ICONS.bell}
+                    <span class="brdc-badge" id="brdcNotifBadgeMob" hidden></span>
+                </button>
+                <button class="brdc-mh-avatar-btn" id="brdcAvatarBtnMob" aria-label="Account menu" aria-haspopup="true" aria-expanded="false">
+                    <span class="brdc-avatar-circle brdc-avatar-sm">${this._initials()}</span>
+                </button>
+            </div>
+        `;
+
+        document.body.insertBefore(header, document.body.firstChild);
+
+        // Wire back
+        header.querySelector('#brdcMobBackBtn')?.addEventListener('click', () => this._handleBack());
+
+        // Wire search
+        header.querySelector('#brdcSearchBtnMob')?.addEventListener('click', () => this._handleSearch());
+
+        // Wire notifications
+        header.querySelector('#brdcNotifBtnMob')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this._toggleNotifications();
+        });
+
+        // Wire avatar
+        header.querySelector('#brdcAvatarBtnMob')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this._toggleAvatarMenu(header.querySelector('#brdcAvatarBtnMob'));
+        });
+    }
+
+    /* ══════════════════════════════════════════
+       MOBILE BOTTOM TAB BAR
+    ══════════════════════════════════════════ */
+    _buildMobileTabBar() {
         const nav = document.createElement('nav');
         nav.id = 'brdcMobileNav';
-        nav.className = 'brdc-mobile-nav';
+        nav.className = 'brdc-mob-nav';
         nav.setAttribute('aria-label', 'Main navigation');
         nav.innerHTML = `
-            <a href="/pages/dashboard.html" class="mobile-nav-item ${this.currentPage === 'home' ? 'active' : ''}" data-page="home" ${this.currentPage === 'home' ? 'aria-current="page"' : ''}>
-                <span class="mobile-nav-icon" aria-hidden="true">🏠</span>
-                <span class="mobile-nav-label">Home</span>
-            </a>
-            <a href="/pages/events-hub.html" class="mobile-nav-item ${this.currentPage === 'events' ? 'active' : ''}" data-page="events" ${this.currentPage === 'events' ? 'aria-current="page"' : ''}>
-                <span class="mobile-nav-icon" aria-hidden="true">📅</span>
-                <span class="mobile-nav-label">Events</span>
-            </a>
-            <a href="/pages/messages.html" class="mobile-nav-item ${this.currentPage === 'chat' ? 'active' : ''}" data-page="chat" ${this.currentPage === 'chat' ? 'aria-current="page"' : ''}>
-                <span class="mobile-nav-icon" aria-hidden="true">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                </span>
-                <span class="mobile-nav-label">Chat</span>
-            </a>
-            <button class="mobile-nav-item" data-action="notifications" aria-label="Notifications, 0 unread">
-                <span class="mobile-nav-icon fb-footer-tab-badge" data-count="0" aria-hidden="true">🔔</span>
-                <span class="mobile-nav-label">Alerts</span>
-            </button>
-            <a href="/pages/player-profile.html" class="mobile-nav-item ${this.currentPage === 'profile' ? 'active' : ''}" data-page="profile" ${this.currentPage === 'profile' ? 'aria-current="page"' : ''}>
-                <span class="mobile-nav-icon" aria-hidden="true">👤</span>
-                <span class="mobile-nav-label">Profile</span>
-            </a>
+            ${this._mobileTab('home',      'Home')}
+            ${this._mobileTab('league',    'League')}
+            ${this._mobilePlayBtn()}
+            ${this._mobileTab('events',    'Events')}
+            ${this._mobileTab('clubhouse', 'Clubhouse')}
         `;
 
         document.body.appendChild(nav);
-        document.body.classList.add('has-mobile-nav');
 
-        // Inject skip-to-content link
-        if (!document.getElementById('brdcSkipNav')) {
-            const skip = document.createElement('a');
-            skip.id = 'brdcSkipNav';
-            skip.href = '#mainContent';
-            skip.className = 'sr-only';
-            skip.textContent = 'Skip to main content';
-            skip.style.cssText = 'position:absolute;top:-40px;left:0;background:var(--pink);color:white;padding:8px 16px;z-index:100001;font-weight:700;border-radius:0 0 8px 0;';
-            skip.addEventListener('focus', function() { this.style.top = '0'; });
-            skip.addEventListener('blur', function() { this.style.top = '-40px'; });
-            document.body.insertBefore(skip, document.body.firstChild);
-        }
-
-        // Bind notification click
-        const alertBtn = nav.querySelector('[data-action="notifications"]');
-        if (alertBtn) {
-            alertBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                this.toggleNotifications();
-            });
-        }
+        // Wire Play button
+        nav.querySelector('#brdcMobPlayBtn')?.addEventListener('click', () => this._handlePlay());
     }
 
-    /**
-     * Render unified mobile/tablet top header
-     * Creates fb-header layout: back/hamburger | centered logo | chat button
-     * Hides any existing static header to avoid duplicates
-     */
-    renderMobileHeader() {
-        if (this.isDesktop) return;
-        if (document.getElementById('brdcMobileHeader')) return;
-
-        // Find and hide any existing static header
-        const existingHeader = document.querySelector('.header-bar')
-            || document.querySelector('.header')
-            || document.querySelector('.page-header')
-            || document.querySelector('.fb-header');
-
-        if (existingHeader) {
-            existingHeader.style.display = 'none';
-            existingHeader.setAttribute('data-hidden-by-nav', 'true');
-            this._hiddenHeader = existingHeader;
-        }
-
-        // Create header element matching fb-header layout
-        const header = document.createElement('header');
-        header.id = 'brdcMobileHeader';
-        header.className = 'fb-header';
-        header.setAttribute('role', 'banner');
-
-        // Determine if this is the dashboard (home page)
-        const isDashboard = this.isHomePage();
-
-        // Left side: back button OR hamburger menu
-        let leftContent;
-        if (isDashboard) {
-            // Dashboard gets hamburger menu
-            leftContent = `<button class="fb-header-btn" id="brdcSidebarToggle" aria-label="Open menu">
-                <div class="fb-hamburger">
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                </div>
-            </button>`;
-        } else {
-            // Other pages get back button
-            leftContent = `<button class="fb-header-btn brdc-back-btn" id="brdcBackBtn" aria-label="Go back">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M19 12H5M12 19l-7-7 7-7"/>
-                </svg>
-            </button>`;
-        }
-
-        header.innerHTML = `
-            <div class="fb-header-left">
-                ${leftContent}
-            </div>
-            <div class="fb-header-center">
-                <a href="/pages/dashboard.html">
-                    <img src="/images/gold_logo.png" alt="BRDC" class="fb-header-logo">
-                </a>
-            </div>
-            <div class="fb-header-right">
-                <button class="fb-header-btn fb-header-btn-badge" id="brdcChatBtn" data-count="0" aria-label="Messages">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
-                    </svg>
-                </button>
-            </div>
-        `;
-
-        // Insert at top of body
-        document.body.insertBefore(header, document.body.firstChild);
-
-        // Wire up hamburger to open sidebar (if dashboard)
-        if (isDashboard) {
-            header.querySelector('#brdcSidebarToggle').addEventListener('click', () => {
-                if (window.FBNav && window.FBNav.sidebar) {
-                    window.FBNav.sidebar.open();
-                } else if (window.FBNav && window.FBNav.SidebarMenu) {
-                    // Sidebar not initialized yet - create sidebar only (no duplicate footer)
-                    try {
-                        const session = JSON.parse(localStorage.getItem('brdc_session') || '{}');
-                        const player = session.player_id ? session : null;
-                        const sidebar = new window.FBNav.SidebarMenu();
-                        sidebar.init();
-                        sidebar.setPlayer(player);
-                        sidebar.generateContent();
-                        window.FBNav.sidebar = sidebar;
-                        sidebar.open();
-                    } catch (e) {
-                        console.warn('Could not initialize sidebar:', e);
-                    }
-                }
-            });
-        } else {
-            // Wire up back button (if not dashboard)
-            header.querySelector('#brdcBackBtn').addEventListener('click', () => {
-                this.handleBackNavigation();
-            });
-        }
-
-        // Chat button is wired by chat-drawer.js (loaded via brdc-navigation-init.js)
-        // to avoid double-toggle from duplicate handlers.
+    _mobileTab(key, label) {
+        const active = this.activeTab === key;
+        return `<a href="${VNEXT_ROUTES[key]}"
+                   class="brdc-mob-tab${active ? ' active' : ''}"
+                   data-tab="${key}"
+                   ${active ? 'aria-current="page"' : ''}>
+                    <span class="brdc-mob-tab-icon">${NAV_ICONS[key]}</span>
+                    <span class="brdc-mob-tab-label">${label}</span>
+                </a>`;
     }
 
-    /**
-     * Handle back button navigation
-     * Uses backUrl if provided, falls back to breadcrumbs first item URL,
-     * or history.back() as last resort
-     */
-    handleBackNavigation() {
-        // Priority 1: backUrl from config
-        if (this.backUrl) {
-            window.location.href = this.backUrl;
-            return;
-        }
-
-        // Priority 2: First breadcrumb URL (for backward compatibility)
-        if (this.breadcrumbPath && this.breadcrumbPath.length > 0) {
-            const firstCrumb = this.breadcrumbPath[0];
-            if (firstCrumb.url && firstCrumb.url !== '#') {
-                window.location.href = firstCrumb.url;
-                return;
-            }
-        }
-
-        // Priority 3: Browser back
-        if (window.history.length > 1) {
-            window.history.back();
-        } else {
-            // Last resort: go to dashboard
-            window.location.href = '/pages/dashboard.html';
-        }
+    _mobilePlayBtn() {
+        const active = this.activeTab === 'play';
+        return `<button class="brdc-mob-tab brdc-mob-play${active ? ' active' : ''}"
+                        data-tab="play"
+                        id="brdcMobPlayBtn"
+                        aria-label="Play">
+                    <span class="brdc-mob-play-ring">
+                        <span class="brdc-mob-tab-icon">${NAV_ICONS.play}</span>
+                    </span>
+                    <span class="brdc-mob-tab-label">Play</span>
+                </button>`;
     }
 
-    /**
-     * Render desktop navigation — sidebar layout.
-     *
-     * On desktop the left nav sidebar (fb-sidebar from fb-nav.js) and the right
-     * chat sidebar (fb-chat-sidebar from chat-drawer.js) are permanently pinned
-     * via CSS (brdc-navigation.css desktop rules). No top bar is rendered here.
-     *
-     * This method just marks the body and triggers an initial chat data load so
-     * the right panel shows content without requiring the user to open it first.
-     */
-    renderDesktopNav() {
-        // Mark body so CSS desktop sidebar rules activate
-        document.body.classList.add('has-desktop-nav');
+    /* ══════════════════════════════════════════
+       AVATAR DROPDOWN MENU  (Phase 2)
+    ══════════════════════════════════════════ */
+    _buildAvatarMenu() {
+        if (document.getElementById('brdcAvatarMenu')) return;
 
-        if (document.getElementById('brdcDesktopNav')) return;
+        // Build profile href — include player id if available
+        const playerId = this.player?.player_id || this.player?.id || this.player?.uid || '';
+        const profileHref = playerId
+            ? `${VNEXT_ROUTES.profile}?id=${playerId}`
+            : VNEXT_ROUTES.profile;
 
-        const nav = document.createElement('nav');
-        nav.id = 'brdcDesktopNav';
-        nav.className = 'brdc-desktop-nav';
-        nav.setAttribute('aria-label', 'Main navigation');
-
-        // SVG icons matching sidebar Lucide/Feather style (20x20, stroke-based, 2px)
-        const svgAttr = 'xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"';
-        const icons = {
-            home: `<svg ${svgAttr}><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`,
-            events: `<svg ${svgAttr}><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`,
-            chat: `<svg ${svgAttr}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>`,
-            trader: `<svg ${svgAttr}><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>`,
-            alerts: `<svg ${svgAttr}><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>`,
-            profile: `<svg ${svgAttr}><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`
-        };
-
-        nav.innerHTML = `
-            <div class="desktop-nav-links desktop-nav-links-left">
-                <a href="/pages/dashboard.html" class="desktop-nav-link ${this.currentPage === 'home' ? 'active' : ''}" data-page="home">
-                    <span class="desktop-nav-link-icon">${icons.home}</span>
-                    <span>Home</span>
-                </a>
-                <a href="/pages/events-hub.html" class="desktop-nav-link ${this.currentPage === 'events' ? 'active' : ''}" data-page="events">
-                    <span class="desktop-nav-link-icon">${icons.events}</span>
-                    <span>Events</span>
-                </a>
-                <a href="/pages/messages.html" class="desktop-nav-link ${this.currentPage === 'chat' ? 'active' : ''}" data-page="chat">
-                    <span class="desktop-nav-link-icon">${icons.chat}</span>
-                    <span>Chat</span>
-                </a>
-            </div>
-            <a href="/pages/dashboard.html" class="desktop-nav-logo">
-                <img src="/images/gold_logo.png" alt="BRDC" height="32">
+        const menu = document.createElement('div');
+        menu.id = 'brdcAvatarMenu';
+        menu.className = 'brdc-avatar-menu';
+        menu.setAttribute('role', 'menu');
+        menu.setAttribute('aria-hidden', 'true');
+        menu.innerHTML = `
+            <a href="${profileHref}" class="brdc-avatar-menu-item" role="menuitem">
+                ${NAV_ICONS.profile}
+                <span>Profile</span>
             </a>
-            <div class="desktop-nav-links desktop-nav-links-right">
-                <a href="/pages/dart-trader.html" class="desktop-nav-link ${this.currentPage === 'trader' ? 'active' : ''}" data-page="trader">
-                    <span class="desktop-nav-link-icon">${icons.trader}</span>
-                    <span>Trader</span>
-                </a>
-                <button class="desktop-nav-link" data-action="notifications">
-                    <span class="desktop-nav-link-icon fb-footer-tab-badge" data-count="0">${icons.alerts}</span>
-                    <span>Alerts</span>
-                </button>
-                <a href="/pages/player-profile.html" class="desktop-nav-link ${this.currentPage === 'profile' ? 'active' : ''}" data-page="profile">
-                    <span class="desktop-nav-link-icon">${icons.profile}</span>
-                    <span>Profile</span>
-                </a>
-            </div>
+            <a href="#" class="brdc-avatar-menu-item" role="menuitem" id="brdcSettingsMenuItem">
+                ${NAV_ICONS.settings}
+                <span>Settings</span>
+            </a>
+            <div class="brdc-avatar-menu-divider" id="brdcAvatarDivider1"></div>
+            <!-- Phase 2: Manage section injected here by _injectManageSection() after role resolution -->
+            <button class="brdc-avatar-menu-item brdc-avatar-menu-logout" role="menuitem" id="brdcLogoutMenuItem">
+                ${NAV_ICONS.logout}
+                <span>Log out</span>
+            </button>
         `;
 
-        document.body.insertBefore(nav, document.body.firstChild);
+        document.body.appendChild(menu);
 
-        // Bind notification click
-        const alertBtn = nav.querySelector('[data-action="notifications"]');
-        if (alertBtn) {
-            alertBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                this.toggleNotifications();
-            });
-        }
+        // Wire logout
+        menu.querySelector('#brdcLogoutMenuItem')?.addEventListener('click', () => {
+            this._closeAvatarMenu();
+            this._handleLogout();
+        });
 
-        // Pre-load chat data for the permanently-visible right panel.
-        setTimeout(() => {
-            if (window.chatDrawer && typeof window.chatDrawer.loadRecentChats === 'function') {
-                window.chatDrawer.loadRecentChats();
-            }
-        }, 800);
-    }
-
-    /**
-     * Update mobile header title (callable from pages that set title dynamically)
-     */
-    setPageTitle(title) {
-        this.pageTitle = title;
-        const titleEl = document.querySelector('.brdc-mh-title');
-        if (titleEl) titleEl.textContent = title;
-    }
-
-    /**
-     * Render role badges for current player
-     */
-    renderRoleBadges() {
-        if (!this.player || !this.player.roles) return;
-
-        const container = document.getElementById('brdcRoleBadges') || this.createRoleBadgeContainer();
-        const badges = [];
-
-        const roles = this.player.roles;
-
-        if (roles.directing && roles.directing.length > 0) {
-            badges.push('<span class="role-badge director">📋 Director</span>');
-        }
-        if (roles.captaining && roles.captaining.length > 0) {
-            badges.push('<span class="role-badge captain">👔 Captain</span>');
-        }
-        if (this.player.is_admin) {
-            badges.push('<span class="role-badge admin">⚙️ Admin</span>');
-        }
-
-        if (badges.length > 0) {
-            container.innerHTML = badges.join('');
-            container.style.display = 'flex';
-        }
-    }
-
-    /**
-     * Create role badge container if doesn't exist
-     */
-    createRoleBadgeContainer() {
-        const container = document.createElement('div');
-        container.id = 'brdcRoleBadges';
-        container.className = 'brdc-role-badges';
-
-        const header = document.getElementById('brdcMobileHeader') || document.getElementById('brdcDesktopNav') || document.querySelector('header') || document.querySelector('.fb-header');
-        if (header) {
-            header.after(container);
-        } else {
-            document.body.insertBefore(container, document.body.firstChild);
-        }
-
-        return container;
-    }
-
-    /**
-     * Helper: Set active page
-     */
-    setActivePage(page) {
-        this.currentPage = page;
-
-        // Update mobile nav
-        const mobileNav = document.getElementById('brdcMobileNav');
-        if (mobileNav) {
-            mobileNav.querySelectorAll('.mobile-nav-item[data-page]').forEach(item => {
-                const isActive = item.dataset.page === page;
-                item.classList.toggle('active', isActive);
-                if (isActive) {
-                    item.setAttribute('aria-current', 'page');
-                } else {
-                    item.removeAttribute('aria-current');
-                }
-            });
-        }
-
-        // Update desktop nav
-        const desktopNav = document.getElementById('brdcDesktopNav');
-        if (desktopNav) {
-            desktopNav.querySelectorAll('.desktop-nav-link[data-page]').forEach(link => {
-                const isActive = link.dataset.page === page;
-                link.classList.toggle('active', isActive);
-                if (isActive) {
-                    link.setAttribute('aria-current', 'page');
-                } else {
-                    link.removeAttribute('aria-current');
-                }
-            });
-        }
-
-    }
-}
-
-
-/**
- * NotificationsPanel - Inline notifications panel component
- */
-class NotificationsPanel {
-    constructor() {
-        this.isOpen = false;
-        this.panel = null;
-        this.notifications = [];
-    }
-
-    init() {
-        this.createDOM();
-    }
-
-    createDOM() {
-        if (document.querySelector('.fb-notifications-panel')) return;
-
-        this.panel = document.createElement('div');
-        this.panel.className = 'fb-notifications-panel';
-        this.panel.innerHTML = `
-            <div class="fb-notifications-header">
-                <span class="fb-notifications-title">Notifications</span>
-                <span class="fb-notifications-action" id="fbMarkAllRead">Mark all read</span>
-            </div>
-            <div class="fb-notifications-list" id="fbNotificationsList">
-                <div class="fb-notifications-empty">Loading...</div>
-            </div>
-        `;
-        document.body.appendChild(this.panel);
-
-        // Mark all read
-        document.getElementById('fbMarkAllRead').addEventListener('click', () => {
-            this.markAllAsRead();
+        // Wire settings — stub (no settings page exists yet)
+        menu.querySelector('#brdcSettingsMenuItem')?.addEventListener('click', (e) => {
+            e.preventDefault();
+            this._closeAvatarMenu();
+            // TODO (future phase): wire to /pages/settings-vnext.html when built
+            console.log('[Nav] Settings — page not yet built');
         });
 
         // Close on outside click
         document.addEventListener('click', (e) => {
-            if (this.isOpen && !this.panel.contains(e.target)) {
-                // Check if click was on the toggle button
-                const toggleBtn = e.target.closest('[data-action="notifications"]');
-                if (!toggleBtn) {
-                    this.close();
-                }
+            if (this._avatarOpen && !menu.contains(e.target)) {
+                this._closeAvatarMenu();
+            }
+        });
+
+        // Close on Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && this._avatarOpen) {
+                this._closeAvatarMenu();
             }
         });
     }
 
-    open() {
-        this.isOpen = true;
-        this.panel.classList.add('open');
-        this.loadNotifications();
-    }
+    /**
+     * Phase 2: Async role resolution.
+     * Calls getPlayerSession (same call the rest of the app uses) after auth settles,
+     * then injects the Manage section if the user has an operator role.
+     * Fails closed — Manage section does NOT appear until roles are confirmed.
+     */
+    async _resolveRoles() {
+        try {
+            const session = this._getSession();
+            if (!session) return; // not logged in — nothing to show
 
-    close() {
-        this.isOpen = false;
-        this.panel.classList.remove('open');
-    }
+            // The session stored at login already carries role flags. Read them directly —
+            // synchronous, no dependency on Firebase auth being restored at init time
+            // (that race is what previously stopped Manage from ever appearing).
+            let roles = {
+                is_director:     !!session.is_director,
+                is_admin:        !!session.is_admin,
+                is_master_admin: !!session.is_master_admin,
+            };
 
-    toggle() {
-        if (this.isOpen) {
-            this.close();
-        } else {
-            this.open();
+            // Fallback ONLY if the local session somehow lacks role flags: do the server lookup.
+            if (!(roles.is_director || roles.is_admin || roles.is_master_admin)) {
+                const { callFunction, auth, onAuthStateChanged } = await import('/js/firebase-config.js');
+                if (!auth.currentUser) {
+                    await new Promise(resolve => {
+                        const unsub = onAuthStateChanged(auth, u => { unsub(); resolve(u); });
+                        setTimeout(() => { unsub(); resolve(null); }, 6000);
+                    });
+                }
+                if (auth.currentUser) {
+                    const result = await callFunction('getPlayerSession', {});
+                    if (result?.success && result.player) {
+                        roles = {
+                            is_director:     !!result.player.is_director,
+                            is_admin:        !!result.player.is_admin,
+                            is_master_admin: !!result.player.is_master_admin,
+                        };
+                    }
+                }
+            }
+
+            // Only inject if user has at least one operator role
+            if (roles.is_director || roles.is_admin || roles.is_master_admin) {
+                this._injectManageSection(roles);
+            }
+        } catch (_) {
+            // Fail closed — no Manage section on error
         }
     }
 
-    async loadNotifications() {
-        const listEl = document.getElementById('fbNotificationsList');
+    /**
+     * Phase 2: Inject the Manage section into the avatar menu.
+     * Called internally by _resolveRoles() after roles are confirmed.
+     * Also exposed as showManageMenuItem(roles) for external callers.
+     *
+     * Role gates:
+     *   Manage group visible:  is_director || is_admin || is_master_admin
+     *   "Site admin" link:     is_admin || is_master_admin only
+     *
+     * @param {{ is_director:boolean, is_admin:boolean, is_master_admin:boolean }} roles
+     */
+    _injectManageSection(roles) {
+        const menu = document.getElementById('brdcAvatarMenu');
+        if (!menu) return;
+        if (document.getElementById('brdcManageSection')) return; // idempotent
+
+        const showSiteAdmin = roles.is_admin || roles.is_master_admin;
+
+        // Build Manage section element
+        const section = document.createElement('div');
+        section.id = 'brdcManageSection';
+
+        section.innerHTML = `
+            <div class="brdc-avatar-menu-divider"></div>
+            <div class="brdc-avatar-menu-group-label">MANAGE</div>
+            <a href="/pages/director-home-vnext.html" class="brdc-avatar-menu-item brdc-avatar-menu-manage" role="menuitem">
+                ${NAV_ICONS.manage}
+                <span>Director home</span>
+            </a>
+            <a href="/pages/create-league-vnext.html" class="brdc-avatar-menu-item brdc-avatar-menu-manage" role="menuitem">
+                ${NAV_ICONS.league}
+                <span>Create league</span>
+            </a>
+            <a href="/pages/create-tournament-vnext.html" class="brdc-avatar-menu-item brdc-avatar-menu-manage" role="menuitem">
+                ${NAV_ICONS.events}
+                <span>Create event</span>
+            </a>
+            <a href="/pages/contact-center-vnext.html" class="brdc-avatar-menu-item brdc-avatar-menu-manage" role="menuitem">
+                ${NAV_ICONS.clubhouse}
+                <span>Contact center</span>
+            </a>
+            <a href="/pages/league-import-vnext.html" class="brdc-avatar-menu-item brdc-avatar-menu-manage" role="menuitem">
+                ${NAV_ICONS.settings}
+                <span>Import results</span>
+            </a>
+            <a href="/pages/stream-director.html" class="brdc-avatar-menu-item brdc-avatar-menu-manage" role="menuitem">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+                <span>Go live (stream)</span>
+            </a>
+            ${showSiteAdmin ? `
+            <a href="/pages/admin-vnext.html" class="brdc-avatar-menu-item brdc-avatar-menu-manage brdc-avatar-menu-site-admin" role="menuitem">
+                ${NAV_ICONS.manage}
+                <span>Site admin</span>
+            </a>` : ''}
+        `;
+
+        // Insert before the logout button (after the first divider)
+        const logoutBtn = menu.querySelector('#brdcLogoutMenuItem');
+        if (logoutBtn) {
+            menu.insertBefore(section, logoutBtn);
+        } else {
+            menu.appendChild(section);
+        }
+    }
+
+    /**
+     * Public API: showManageMenuItem(roles)
+     * Legacy hook — delegates to _injectManageSection.
+     * External callers (page scripts) can still call this after auth.
+     * @param {Object} roles
+     */
+    showManageMenuItem(roles) {
+        if (!roles) return;
+        const normalized = {
+            is_director:    !!(roles.is_director || (roles.directing?.length > 0)),
+            is_admin:       !!roles.is_admin,
+            is_master_admin: !!roles.is_master_admin,
+        };
+        if (normalized.is_director || normalized.is_admin || normalized.is_master_admin) {
+            this._injectManageSection(normalized);
+        }
+    }
+
+    _toggleAvatarMenu(anchorEl) {
+        if (this._avatarOpen) {
+            this._closeAvatarMenu();
+        } else {
+            this._openAvatarMenu(anchorEl);
+        }
+    }
+
+    _openAvatarMenu(anchorEl) {
+        const menu = document.getElementById('brdcAvatarMenu');
+        if (!menu) return;
+
+        // Position the menu below the anchor
+        const rect = anchorEl.getBoundingClientRect();
+        menu.style.top  = `${rect.bottom + 8}px`;
+        menu.style.right = `${window.innerWidth - rect.right}px`;
+        menu.style.left  = 'auto';
+
+        menu.classList.add('open');
+        menu.setAttribute('aria-hidden', 'false');
+        anchorEl.setAttribute('aria-expanded', 'true');
+        this._avatarOpen = true;
+        this._activeAnchor = anchorEl;
+    }
+
+    _closeAvatarMenu() {
+        const menu = document.getElementById('brdcAvatarMenu');
+        if (!menu) return;
+        menu.classList.remove('open');
+        menu.setAttribute('aria-hidden', 'true');
+        this._activeAnchor?.setAttribute('aria-expanded', 'false');
+        this._avatarOpen = false;
+        this._activeAnchor = null;
+    }
+
+    /* ══════════════════════════════════════════
+       NOTIFICATIONS PANEL
+    ══════════════════════════════════════════ */
+    _buildNotifPanel() {
+        if (document.getElementById('brdcNotifPanel')) return;
+
+        const panel = document.createElement('div');
+        panel.id = 'brdcNotifPanel';
+        panel.className = 'brdc-notif-panel';
+        panel.setAttribute('role', 'dialog');
+        panel.setAttribute('aria-label', 'Notifications');
+        panel.setAttribute('aria-hidden', 'true');
+        panel.innerHTML = `
+            <div class="brdc-notif-header">
+                <span class="brdc-notif-title">Notifications</span>
+                <button class="brdc-notif-mark-read" id="brdcMarkAllRead">Mark all read</button>
+            </div>
+            <div class="brdc-notif-list" id="brdcNotifList">
+                <div class="brdc-notif-empty">Loading...</div>
+            </div>
+        `;
+
+        document.body.appendChild(panel);
+        this._notifPanel = panel;
+
+        panel.querySelector('#brdcMarkAllRead')?.addEventListener('click', () => this._markAllRead());
+
+        document.addEventListener('click', (e) => {
+            if (panel.classList.contains('open') && !panel.contains(e.target)) {
+                const notifBtn = e.target.closest('.brdc-notif-btn');
+                if (!notifBtn) this._closeNotifications();
+            }
+        });
+    }
+
+    _toggleNotifications() {
+        if (this._notifPanel?.classList.contains('open')) {
+            this._closeNotifications();
+        } else {
+            this._openNotifications();
+        }
+    }
+
+    _openNotifications() {
+        if (!this._notifPanel) return;
+        this._notifPanel.classList.add('open');
+        this._notifPanel.setAttribute('aria-hidden', 'false');
+        this._loadNotifications();
+    }
+
+    _closeNotifications() {
+        if (!this._notifPanel) return;
+        this._notifPanel.classList.remove('open');
+        this._notifPanel.setAttribute('aria-hidden', 'true');
+    }
+
+    async _loadNotifications() {
+        const listEl = document.getElementById('brdcNotifList');
         if (!listEl) return;
 
         try {
-            const playerPin = localStorage.getItem('brdc_player_pin');
-            if (!playerPin) {
-                listEl.innerHTML = '<div class="fb-notifications-empty">Log in to see notifications</div>';
+            const session = this._getSession();
+            if (!session) {
+                listEl.innerHTML = '<div class="brdc-notif-empty">Log in to see notifications</div>';
                 return;
             }
 
             const { callFunction } = await import('/js/firebase-config.js');
-            const result = await callFunction('getNotifications', {
-                player_pin: playerPin,
-                limit: 10
-            });
+            const result = await callFunction('getNotifications', { limit: 10 });
 
-            if (result.success && result.notifications && result.notifications.length > 0) {
-                this.notifications = result.notifications;
-                this.renderNotifications();
+            if (result.success && result.notifications?.length > 0) {
+                this._renderNotifications(result.notifications);
             } else {
-                listEl.innerHTML = '<div class="fb-notifications-empty">No notifications</div>';
+                listEl.innerHTML = '<div class="brdc-notif-empty">No notifications yet</div>';
             }
-        } catch (error) {
-            console.error('Error loading notifications:', error);
-            listEl.innerHTML = '<div class="fb-notifications-empty">No notifications</div>';
+        } catch (_) {
+            listEl.innerHTML = '<div class="brdc-notif-empty">No notifications yet</div>';
         }
     }
 
-    renderNotifications() {
-        const listEl = document.getElementById('fbNotificationsList');
-        if (!listEl || !this.notifications.length) return;
-
-        let html = '';
-        this.notifications.forEach(notif => {
-            const icon = this.getNotificationIcon(notif.type);
-            const timeAgo = this.formatTimeAgo(notif.created_at);
-
-            html += `
-                <div class="fb-notification-item ${notif.read ? '' : 'unread'}" data-id="${notif.id}">
-                    <div class="fb-notification-icon">${icon}</div>
-                    <div class="fb-notification-content">
-                        <div class="fb-notification-text">${notif.message}</div>
-                        <div class="fb-notification-time">${timeAgo}</div>
-                    </div>
-                    ${notif.read ? '' : '<div class="fb-notification-dot"></div>'}
-                </div>`;
-        });
-        listEl.innerHTML = html;
-
-        // Attach click handlers
-        listEl.querySelectorAll('.fb-notification-item').forEach(el => {
-            el.addEventListener('click', () => {
-                const id = el.dataset.id;
-                this.markAsRead(id);
-                el.classList.remove('unread');
-                el.querySelector('.fb-notification-dot')?.remove();
-            });
-        });
+    _renderNotifications(notifs) {
+        const listEl = document.getElementById('brdcNotifList');
+        if (!listEl) return;
+        const typeIcon = { match:'🎯', message:'💬', team:'👥', event:'📅', achievement:'🏆', system:'🔔' };
+        listEl.innerHTML = notifs.map(n => {
+            const icon = typeIcon[n.type] || '🔔';
+            const time = this._formatTimeAgo(n.created_at);
+            return `<div class="brdc-notif-item${n.read ? '' : ' unread'}" data-id="${n.id}">
+                <div class="brdc-notif-item-icon">${icon}</div>
+                <div class="brdc-notif-item-body">
+                    <div class="brdc-notif-item-text">${n.message}</div>
+                    <div class="brdc-notif-item-time">${time}</div>
+                </div>
+                ${n.read ? '' : '<div class="brdc-notif-dot"></div>'}
+            </div>`;
+        }).join('');
     }
 
-    getNotificationIcon(type) {
-        const icons = {
-            match: '🎯',
-            message: '💬',
-            team: '👥',
-            event: '📅',
-            achievement: '🏆',
-            system: '🔔'
-        };
-        return icons[type] || '🔔';
-    }
-
-    formatTimeAgo(timestamp) {
-        if (!timestamp) return '';
-
-        let date = null;
-        if (timestamp?.toDate) {
-            date = timestamp.toDate();
-        } else if (typeof timestamp === 'object' && timestamp !== null) {
-            const seconds = timestamp.seconds ?? timestamp._seconds;
-            if (Number.isFinite(seconds)) {
-                date = new Date(seconds * 1000);
+    async _markAllRead() {
+        try {
+            const session = this._getSession();
+            if (!session) return;
+            const { callFunction } = await import('/js/firebase-config.js');
+            await callFunction('markAllNotificationsRead', {});
+            const listEl = document.getElementById('brdcNotifList');
+            if (listEl) {
+                listEl.querySelectorAll('.brdc-notif-item').forEach(el => {
+                    el.classList.remove('unread');
+                    el.querySelector('.brdc-notif-dot')?.remove();
+                });
             }
+            this._setBadge(0);
+        } catch (_) {}
+    }
+
+    /* ══════════════════════════════════════════
+       PLAY HANDLER
+    ══════════════════════════════════════════ */
+    /**
+     * Phase 6: Play → Arena.
+     * VNEXT_ROUTES.play now points to /pages/arena-vnext.html.
+     * An onPlayAction override hook is preserved for pages that need custom behaviour.
+     */
+    _handlePlay() {
+        // Phase 6 hook — if a custom handler is registered, use it; else navigate to Arena
+        if (typeof this.onPlayAction === 'function') {
+            this.onPlayAction();
+            return;
         }
-        if (!date) date = new Date(timestamp);
-        if (Number.isNaN(date.getTime())) return '';
-        const now = new Date();
-        const diff = Math.floor((now - date) / 1000);
+        window.location.href = VNEXT_ROUTES.play;
+    }
 
-        if (diff < 60) return 'Just now';
-        if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-        if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-        if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`;
+    /* ══════════════════════════════════════════
+       DESKTOP PLAY BTN WIRE  (inserted after DOM build)
+    ══════════════════════════════════════════ */
+    _wireDesktopPlayBtn() {
+        document.getElementById('brdcDesktopPlayBtn')?.addEventListener('click', () => this._handlePlay());
+    }
 
+    /* ══════════════════════════════════════════
+       BACK NAVIGATION
+    ══════════════════════════════════════════ */
+    _handleBack() {
+        if (this.backUrl) { window.location.href = this.backUrl; return; }
+        if (window.history.length > 1) { window.history.back(); return; }
+        window.location.href = VNEXT_ROUTES.home;
+    }
+
+    /* ══════════════════════════════════════════
+       SEARCH
+    ══════════════════════════════════════════ */
+    _handleSearch() {
+        if (window.brdcSearch?.openSearch) {
+            window.brdcSearch.openSearch();
+        }
+    }
+
+    /* ══════════════════════════════════════════
+       LOGOUT
+    ══════════════════════════════════════════ */
+    async _handleLogout() {
+        try {
+            const { auth, signOut } = await import('/js/firebase-config.js');
+            if (auth && signOut) await signOut(auth);
+        } catch (_) {}
+        localStorage.removeItem('brdc_session');
+        sessionStorage.removeItem('currentPlayer');
+        window.location.href = '/pages/dashboard.html';
+    }
+
+    /* ══════════════════════════════════════════
+       BADGE COUNTS
+    ══════════════════════════════════════════ */
+    async _loadBadgeCounts() {
+        const session = this._getSession();
+        if (!session) return;
+
+        try {
+            const { callFunction, auth, onAuthStateChanged } = await import('/js/firebase-config.js');
+
+            if (!auth.currentUser) {
+                await new Promise(resolve => {
+                    const unsub = onAuthStateChanged(auth, u => { unsub(); resolve(u); });
+                    setTimeout(() => { unsub(); resolve(null); }, 5000);
+                });
+            }
+            if (!auth.currentUser) return;
+
+            const result = await callFunction('getUnreadNotificationCount', {});
+            if (result.success && result.count > 0) {
+                this._setBadge(result.count);
+            }
+        } catch (_) {}
+    }
+
+    _setBadge(count) {
+        ['brdcNotifBadgeDesktop', 'brdcNotifBadgeMob'].forEach(id => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            if (count > 0) {
+                el.textContent = count > 99 ? '99+' : count;
+                el.removeAttribute('hidden');
+            } else {
+                el.setAttribute('hidden', '');
+            }
+        });
+    }
+
+    /* ══════════════════════════════════════════
+       PUBLIC: update page title (callable from page JS)
+    ══════════════════════════════════════════ */
+    setPageTitle(title) {
+        this.pageTitle = title;
+        const el = document.getElementById('brdcMobTitle');
+        if (el) el.textContent = title;
+    }
+
+    /* ══════════════════════════════════════════
+       PUBLIC: set active tab (callable from page JS)
+       Accepts both new tab keys and legacy page keys.
+    ══════════════════════════════════════════ */
+    setActivePage(tab) {
+        const resolved = this._normalizePage(tab);
+        if (!resolved) return; // contextual page, no primary tab to highlight
+        this.activeTab = resolved;
+        // Update desktop
+        document.querySelectorAll('#brdcTopBar .brdc-tb-tab').forEach(el => {
+            const isActive = el.dataset.tab === tab;
+            el.classList.toggle('active', isActive);
+            isActive ? el.setAttribute('aria-current','page') : el.removeAttribute('aria-current');
+        });
+        // Update mobile
+        document.querySelectorAll('#brdcMobileNav .brdc-mob-tab').forEach(el => {
+            const isActive = el.dataset.tab === tab;
+            el.classList.toggle('active', isActive);
+            isActive ? el.setAttribute('aria-current','page') : el.removeAttribute('aria-current');
+        });
+    }
+
+    /* ══════════════════════════════════════════
+       RESIZE HANDLER
+    ══════════════════════════════════════════ */
+    _bindResize() {
+        window.addEventListener('resize', () => {
+            clearTimeout(this._resizeTimer);
+            this._resizeTimer = setTimeout(() => {
+                const wasDesktop = document.body.classList.contains('is-desktop');
+                const isNowDesktop = this._isDesktop();
+                if (wasDesktop !== isNowDesktop) this._build();
+            }, 120);
+        });
+    }
+
+    /* ══════════════════════════════════════════
+       HELPERS
+    ══════════════════════════════════════════ */
+    _getSession() {
+        try {
+            const raw = localStorage.getItem('brdc_session');
+            if (!raw) return null;
+            const s = JSON.parse(raw);
+            return (s.player_id || s.id || s.uid) ? s : null;
+        } catch (_) { return null; }
+    }
+
+    _formatTimeAgo(ts) {
+        if (!ts) return '';
+        let date;
+        if (ts?.toDate) date = ts.toDate();
+        else if (ts?.seconds) date = new Date(ts.seconds * 1000);
+        else date = new Date(ts);
+        if (isNaN(date.getTime())) return '';
+        const diff = Math.floor((Date.now() - date) / 1000);
+        if (diff < 60)    return 'Just now';
+        if (diff < 3600)  return `${Math.floor(diff/60)}m ago`;
+        if (diff < 86400) return `${Math.floor(diff/3600)}h ago`;
         return date.toLocaleDateString();
     }
-
-    async markAsRead(id) {
-        try {
-            const { callFunction } = await import('/js/firebase-config.js');
-            await callFunction('markNotificationRead', { notification_id: id });
-
-            // Decrease badge count if we can access the main nav instance
-            // Ideally we'd emit an event or callback
-        } catch (error) {
-            console.error('Error marking notification read:', error);
-        }
-    }
-
-    async markAllAsRead() {
-        try {
-            const playerPin = localStorage.getItem('brdc_player_pin');
-            if (!playerPin) return;
-
-            const { callFunction } = await import('/js/firebase-config.js');
-            await callFunction('markAllNotificationsRead', { player_pin: playerPin });
-
-            // Update UI
-            this.notifications.forEach(n => n.read = true);
-            this.renderNotifications();
-
-            // Reset badge
-            const badge = document.querySelector('.mobile-nav-item[data-action="notifications"] .fb-footer-tab-badge');
-            if (badge) badge.setAttribute('data-count', '0');
-
-        } catch (error) {
-            console.error('Error marking all notifications read:', error);
-        }
-    }
 }
 
-// Auto-initialize on pages that include this script
+/* ─────────────────────────────────────────────
+   EXPORTS + GLOBAL
+   ───────────────────────────────────────────── */
 window.BRDCNavigation = BRDCNavigation;
+window.VNEXT_TAB_MAP  = VNEXT_TAB_MAP;
+window.VNEXT_ROUTES   = VNEXT_ROUTES;
 
-
-// Auto-init if document is ready
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-        if (!window.brdcNavInitialized) {
-            window.brdcNav = new BRDCNavigation();
-            window.brdcNav.init();
-            window.brdcNavInitialized = true;
-        }
-    });
-} else {
-    if (!window.brdcNavInitialized) {
-        window.brdcNav = new BRDCNavigation();
-        window.brdcNav.init();
-        window.brdcNavInitialized = true;
-    }
+// Export tab-map and routes for external use
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { BRDCNavigation, VNEXT_TAB_MAP, VNEXT_ROUTES };
 }
+
+console.log('✅ BRDC Navigation v4.4 loaded (Phase 6: Play → arena-vnext)');

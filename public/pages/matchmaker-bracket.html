@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="manifest" href="/manifest.json">
-    <title>Bracket - Matchmaker Tournament</title>
+    <title>Bracket - Mixed Doubles Matchmaker</title>
     <link rel="icon" type="image/png" href="/images/favicon.png">
     <script src="/js/brdc-toast.js"></script>
     <style>
@@ -1710,6 +1710,19 @@
             return '';
         }
 
+        function getMatchResourceButtons(match) {
+            if (!match) return '';
+
+            const buttons = [];
+            if (match.room_url) {
+                buttons.push(`<button class="score-btn" style="background:linear-gradient(135deg, var(--teal), #5ab8d4); color:#000;" onclick="event.stopPropagation(); openMatchResource('${match.id}', 'room')">OPEN ROOM</button>`);
+            }
+            if (match.stream_url) {
+                buttons.push(`<button class="score-btn" style="background:linear-gradient(135deg, var(--yellow), #f9a825); color:#000;" onclick="event.stopPropagation(); openMatchResource('${match.id}', 'stream')">OPEN STREAM</button>`);
+            }
+            return buttons.join('');
+        }
+
         // Draw all connector lines between rounds using absolutely-positioned divs
         function addVerticalConnectors(gridEl) {
             // Remove any previously added connectors
@@ -1881,6 +1894,7 @@
                             <span class="team-score">${isBye ? '' : score2}</span>
                         </div>
                     </div>
+                    ${getMatchResourceButtons(match)}
                     ${canScore ?
                         `<button class="score-btn" onclick="event.stopPropagation(); launchMatchmakerScorer('${match.id}', '${bracketType}')">SCORE MATCH</button>` : ''}
                 </div>
@@ -2263,77 +2277,38 @@
 
             pendingScorerMatch = match;
             pendingScorerBracket = bracket;
+            window._pendingScorerMatch = match; // expose for OAuth module
+            window._pendingScorerBracket = bracket;
 
             const team1Name = match.team1?.team_name || match.team1?.name || 'Team 1';
             const team2Name = match.team2?.team_name || match.team2?.name || 'Team 2';
             document.getElementById('scorerPinInfo').textContent = `${team1Name} vs ${team2Name}`;
-            document.getElementById('scorerPinInput').value = '';
             document.getElementById('scorerPinError').textContent = '';
+            document.getElementById('scorerAuthError').textContent = '';
             document.getElementById('scorerPinModal').classList.add('active');
-            setTimeout(() => document.getElementById('scorerPinInput').focus(), 100);
+            setTimeout(() => document.getElementById('scorerEmailInput').focus(), 100);
+        };
+
+        window.openMatchResource = function(matchId, type) {
+            const match = findBracketMatch(matchId) || matches.find(m => m.id === matchId);
+            const source = match?.match || match;
+            const url = type === 'stream' ? source?.stream_url : source?.room_url;
+            if (!url) {
+                if (typeof toastError === 'function') toastError(type === 'stream' ? 'No stream link set' : 'No room link set');
+                return;
+            }
+            window.open(url, '_blank', 'noopener,noreferrer');
         };
 
         window.closeScorerPin = function() {
             document.getElementById('scorerPinModal').classList.remove('active');
             pendingScorerMatch = null;
             pendingScorerBracket = null;
+            window._pendingScorerMatch = null;
+            window._pendingScorerBracket = null;
         };
 
-        window.verifyScorerPin = async function() {
-            const pin = document.getElementById('scorerPinInput').value.trim();
-            if (pin.length !== 8) {
-                document.getElementById('scorerPinError').textContent = 'Enter your 8-digit PIN';
-                return;
-            }
-
-            const launchBtn = document.querySelector('.pin-btn-launch');
-            launchBtn.textContent = 'VERIFYING...';
-            launchBtn.disabled = true;
-
-            try {
-                const result = await callFunction('globalLogin', { pin });
-                if (!result.success) throw new Error(result.error || 'Invalid PIN');
-
-                const playerId = result.player?.id || result.playerId;
-                const match = pendingScorerMatch;
-                const team1 = match.team1 || {};
-                const team2 = match.team2 || {};
-
-                // Get all player IDs from both teams
-                const validIds = [
-                    team1.player1?.player_id,
-                    team1.player2?.player_id,
-                    team2.player1?.player_id,
-                    team2.player2?.player_id
-                ].filter(Boolean);
-
-                // Also check by name if IDs are not available
-                const validNames = [
-                    team1.player1?.name,
-                    team1.player2?.name,
-                    team2.player1?.name,
-                    team2.player2?.name
-                ].filter(Boolean).map(n => n.toLowerCase());
-
-                const playerName = (result.player?.name || '').toLowerCase();
-
-                if (!validIds.includes(playerId) && !validNames.includes(playerName)) {
-                    document.getElementById('scorerPinError').textContent =
-                        'Your PIN does not match any player in this match';
-                    launchBtn.textContent = 'LAUNCH SCORER';
-                    launchBtn.disabled = false;
-                    return;
-                }
-
-                // Build scorer URL and navigate
-                const scorerUrl = buildMatchmakerScorerUrl(match, pendingScorerBracket);
-                window.location.href = scorerUrl;
-            } catch (e) {
-                document.getElementById('scorerPinError').textContent = e.message || 'Login failed';
-                launchBtn.textContent = 'LAUNCH SCORER';
-                launchBtn.disabled = false;
-            }
-        };
+        // verifyScorerPin removed — PIN login retired. Use verifyScorerEmail/verifyScorerGoogle below.
 
         function buildMatchmakerScorerUrl(match, bracket) {
             let gameType, bestOf;
@@ -2368,6 +2343,7 @@
                 tournament_id: tournamentId,
                 tournament_match_id: match.id,
                 tournament_type: 'double',
+                matchmaker: '1',
                 bracket_type: bracket,
                 return_url: window.location.href,
                 home_team_name: team1.team_name || team1.name || 'Team 1',
@@ -2387,6 +2363,8 @@
 
             return `/pages/${scorerPage}?${urlParams.toString()}`;
         }
+        // Expose for OAuth module
+        window._buildMatchmakerScorerUrl = buildMatchmakerScorerUrl;
 
         // --- MATCHES HUB ---
         let matchFilter = 'all';
@@ -2529,6 +2507,7 @@
             }
 
             const boardInfo = match.board_number || match.board;
+            const roomInfo = match.room_label || '';
 
             return `
                 <div class="match-hub-card ${isLive ? 'live' : ''}">
@@ -2550,6 +2529,7 @@
                     <div class="match-hub-meta">
                         <span>${gameType ? gameType.toUpperCase() : ''}</span>
                         ${boardInfo ? '<span>Board ' + boardInfo + '</span>' : ''}
+                        ${roomInfo ? '<span>' + roomInfo + '</span>' : ''}
                     </div>
                 </div>
             `;
@@ -2919,22 +2899,93 @@
         }
     </script>
 
-    <!-- PIN Modal for Score Match -->
+    <!-- Scorer Auth Modal -->
     <div class="pin-modal-overlay" id="scorerPinModal">
         <div class="pin-modal">
-            <div class="pin-modal-title">ENTER YOUR PIN</div>
-            <div class="pin-modal-subtitle" id="scorerPinInfo">Enter the PIN of any player in this match</div>
-            <input type="text" class="pin-modal-input" id="scorerPinInput"
-                   placeholder="••••••••" maxlength="8" inputmode="numeric" pattern="[0-9]*" autocomplete="off"
-                   style="-webkit-text-security: disc;"
-                   onkeydown="if(event.key==='Enter')verifyScorerPin()">
+            <div class="pin-modal-title">SIGN IN TO SCORE</div>
+            <div class="pin-modal-subtitle" id="scorerPinInfo">Sign in to launch the scorer</div>
             <div class="pin-modal-error" id="scorerPinError"></div>
-            <div class="pin-modal-buttons">
+            <input type="email" class="pin-modal-input" id="scorerEmailInput" placeholder="Email address" autocomplete="email" style="margin-bottom:8px;">
+            <input type="password" class="pin-modal-input" id="scorerPasswordInput" placeholder="Password" autocomplete="current-password" style="margin-bottom:8px;">
+            <div id="scorerAuthError" style="color:#ef4444;font-size:12px;min-height:16px;margin-bottom:6px;text-align:center;"></div>
+            <button class="pin-btn-launch" onclick="verifyScorerEmail()" style="width:100%;margin-bottom:8px;">SIGN IN WITH EMAIL</button>
+            <button style="width:100%;padding:12px;border-radius:8px;background:rgba(255,255,255,0.1);color:white;border:2px solid rgba(255,255,255,0.3);font-family:'Bebas Neue',cursive;font-size:16px;cursor:pointer;letter-spacing:1px;" onclick="verifyScorerGoogle()">SIGN IN WITH GOOGLE</button>
+            <div class="pin-modal-buttons" style="margin-top:14px;">
                 <button class="pin-btn-cancel" onclick="closeScorerPin()">CANCEL</button>
-                <button class="pin-btn-launch" onclick="verifyScorerPin()">LAUNCH SCORER</button>
             </div>
         </div>
     </div>
+<script type="module">
+// ===== Email / Google login for scorer modal (matchmaker-bracket) =====
+(function() {
+    async function _verifyScorerSession(result) {
+        if (!result || !result.success) throw new Error(result?.error || 'Could not load player data');
+        const playerId = result.player?.id || result.playerId;
+        const playerName = (result.player?.name || '').toLowerCase();
+        const match = window._pendingScorerMatch;
+        const bracket = window._pendingScorerBracket;
+        if (!match) throw new Error('No match selected');
+
+        const team1 = match.team1 || {};
+        const team2 = match.team2 || {};
+        const validIds = [
+            team1.player1?.player_id,
+            team1.player2?.player_id,
+            team2.player1?.player_id,
+            team2.player2?.player_id
+        ].filter(Boolean);
+        const validNames = [
+            team1.player1?.name,
+            team1.player2?.name,
+            team2.player1?.name,
+            team2.player2?.name
+        ].filter(Boolean).map(n => n.toLowerCase());
+
+        if (!validIds.includes(playerId) && !validNames.includes(playerName)) {
+            throw new Error('Your account does not match any player in this match');
+        }
+        const buildUrl = window._buildMatchmakerScorerUrl;
+        if (!buildUrl) throw new Error('Scorer URL builder unavailable');
+        window.location.href = buildUrl(match, bracket);
+    }
+
+    window.verifyScorerEmail = async function() {
+        const email = (document.getElementById('scorerEmailInput')?.value || '').trim();
+        const password = document.getElementById('scorerPasswordInput')?.value || '';
+        const errEl = document.getElementById('scorerAuthError');
+        if (errEl) errEl.textContent = '';
+        if (!email || !password) { if (errEl) errEl.textContent = 'Enter email and password.'; return; }
+        try {
+            const { auth, signInWithEmailAndPassword, callFunction } = await import('/js/firebase-config.js');
+            await signInWithEmailAndPassword(auth, email, password);
+            const result = await callFunction('getPlayerSession', {});
+            await _verifyScorerSession(result);
+        } catch (err) {
+            let msg = 'Sign-in failed.';
+            if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') msg = 'Invalid email or password.';
+            else if (err.message) msg = err.message;
+            if (errEl) errEl.textContent = msg;
+        }
+    };
+
+    window.verifyScorerGoogle = async function() {
+        const errEl = document.getElementById('scorerAuthError');
+        if (errEl) errEl.textContent = '';
+        try {
+            const { auth, signInWithPopup, GoogleAuthProvider, callFunction } = await import('/js/firebase-config.js');
+            await signInWithPopup(auth, new GoogleAuthProvider());
+            const result = await callFunction('getPlayerSession', {});
+            await _verifyScorerSession(result);
+        } catch (err) {
+            if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') return;
+            let msg = 'Google sign-in failed.';
+            if (err.code === 'auth/popup-blocked') msg = 'Popup blocked — allow popups and try again.';
+            else if (err.message) msg = err.message;
+            if (errEl) errEl.textContent = msg;
+        }
+    };
+})();
+</script>
 <script src="/components/brdc-navigation-init.js?v=14"></script>
 <script>initBRDCNavigation({ page: 'matchmaker-bracket' });</script>
 </body>

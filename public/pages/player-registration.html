@@ -121,22 +121,8 @@
 
                                 <div style="margin-bottom: 20px;">
                                     <label class="brdc-label">Phone Number *</label>
-                                    <input type="tel" name="phone" required class="brdc-input" placeholder="555-123-4567" oninput="updatePinPreview()">
-                                    <small style="color: #666; font-size: 12px;">Last 4 digits will be part of your login PIN</small>
-                                </div>
-
-                                <div style="margin-bottom: 20px;">
-                                    <label class="brdc-label">Choose Your 4-Digit PIN *</label>
-                                    <input type="text" name="chosen_pin" required class="brdc-input" placeholder="1234" maxlength="4" pattern="[0-9]{4}" oninput="updatePinPreview()" style="letter-spacing: 8px; font-size: 24px; text-align: center;">
-                                    <small style="color: #666; font-size: 12px;">Choose any 4 digits you'll remember</small>
-                                </div>
-
-                                <div id="pinPreview" style="background: var(--teal); border: 3px solid var(--black); padding: 15px; margin-bottom: 20px; text-align: center; display: none;">
-                                    <div style="font-weight: 700; margin-bottom: 5px;">Your 8-Digit Login PIN will be:</div>
-                                    <div style="font-family: 'Bebas Neue', cursive; font-size: 36px; letter-spacing: 4px;">
-                                        <span id="pinPreviewValue">--------</span>
-                                    </div>
-                                    <small style="color: #333;">(Phone last 4) + (Your chosen PIN)</small>
+                                    <input type="tel" name="phone" required class="brdc-input" placeholder="555-123-4567">
+                                    <small style="color: #666; font-size: 12px;">Used for match notifications</small>
                                 </div>
 
                                 <div style="margin-bottom: 20px;">
@@ -169,29 +155,7 @@
             return 'Individual ' + size;
         }
 
-        window.updatePinPreview = function() {
-            const phoneInput = document.querySelector('input[name="phone"]');
-            const pinInput = document.querySelector('input[name="chosen_pin"]');
-            const previewDiv = document.getElementById('pinPreview');
-            const previewValue = document.getElementById('pinPreviewValue');
-
-            if (!phoneInput || !pinInput || !previewDiv || !previewValue) return;
-
-            // Extract only digits from phone
-            const phoneDigits = phoneInput.value.replace(/\D/g, '');
-            const phoneLast4 = phoneDigits.slice(-4);
-            const chosenPin = pinInput.value.replace(/\D/g, '');
-
-            // Show preview if we have at least some digits
-            if (phoneLast4.length > 0 || chosenPin.length > 0) {
-                previewDiv.style.display = 'block';
-                const displayPhone = phoneLast4.padEnd(4, '-');
-                const displayPin = chosenPin.padEnd(4, '-');
-                previewValue.textContent = displayPhone + displayPin;
-            } else {
-                previewDiv.style.display = 'none';
-            }
-        };
+        // updatePinPreview removed — PIN preview UI no longer shown
         
         window.submitRegistration = async function(e) {
             e.preventDefault();
@@ -355,9 +319,6 @@
         }
         
         function showSuccess(result) {
-            // result could be registration result or payment result
-            const pin = result && result.pin ? result.pin : null;
-
             const html = `
                 <div class="brdc-card" style="max-width: 600px; margin: 40px auto;">
                     <div class="brdc-card-header">
@@ -371,16 +332,6 @@
                         <p style="font-size: 18px; font-weight: 600; margin-bottom: 20px;">
                             ${result && result.transaction_id ? 'Registration and payment complete.' : 'Registered for ' + eventData.event.name}
                         </p>
-
-                        ${pin ? `
-                            <div style="background: var(--teal); border: 3px solid var(--black); padding: 20px; margin: 20px 0;">
-                                <div style="font-weight: 700; margin-bottom: 10px;">Your 8-Digit Login PIN:</div>
-                                <div style="font-family: 'Bebas Neue', cursive; font-size: 48px; letter-spacing: 6px; color: var(--black);">
-                                    ${pin}
-                                </div>
-                                <small style="color: #333;">Save this PIN - you'll need it to log in and check your matches</small>
-                            </div>
-                        ` : ''}
 
                         ${result && result.transaction_id ? `
                             <p style="font-size: 11px; font-family: monospace; opacity: 0.7;">

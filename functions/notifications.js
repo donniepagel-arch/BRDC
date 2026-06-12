@@ -642,10 +642,6 @@ exports.notifyLeaguePlayers = functions.https.onRequest((req, res) => {
                 let message = `BRDC ${league.league_name}: You're in! `;
                 message += `Team: ${teamName}. `;
 
-                if (player.pin) {
-                    message += `Your PIN: ${player.pin}. `;
-                }
-
                 if (firstMatch) {
                     const opponent = firstMatch.home_team_id === player.team_id
                         ? firstMatch.away_team_name
@@ -821,7 +817,7 @@ exports.sendDirectorMessage = functions.https.onRequest((req, res) => {
 
             const leagueData = leagueDoc.data();
             const isDirector = leagueData.director_id === director_id ||
-                              leagueData.admin_pin === director_id ||
+                              leagueData.director_player_id === director_id ||
                               (leagueData.directors && leagueData.directors.includes(director_id));
 
             // Check master admin

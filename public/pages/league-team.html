@@ -73,6 +73,32 @@
             gap: 30px;
         }
 
+        .team-actions {
+            margin-top: 16px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .team-action-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 16px;
+            border-radius: 999px;
+            border: 2px solid var(--teal);
+            color: var(--teal);
+            text-decoration: none;
+            font-weight: 800;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            background: rgba(145,215,235,0.08);
+        }
+
+        .team-action-btn:hover {
+            background: rgba(145,215,235,0.16);
+        }
+
         .record-item {
             text-align: center;
         }
@@ -421,6 +447,9 @@
                         <div class="record-label">Position</div>
                     </div>
                 </div>
+                <div class="team-actions">
+                    <a class="team-action-btn" id="matchReportsLink" href="#">Match Report Links</a>
+                </div>
             </div>
 
             <!-- Tabs -->
@@ -482,6 +511,28 @@ const params = new URLSearchParams(window.location.search);
 const leagueId = params.get('league_id');
 const teamId = params.get('team_id');
 
+function isFillInPlayer(player) {
+    return player?.is_fill_in === true ||
+        player?.is_fillin === true ||
+        player?.fill_in === true ||
+        ['fill_in', 'fill-in', 'fillin'].includes(String(player?.team_id || '').toLowerCase()) ||
+        String(player?.team_name || '').toLowerCase() === 'fill-in';
+}
+
+function getPlayerLevel(player) {
+    if (isFillInPlayer(player)) return 'F';
+    const raw = String(player?.skill_level || player?.level || player?.preferred_level || '').toUpperCase();
+    return ['A', 'B', 'C'].includes(raw) ? raw : '';
+}
+
+function sortPlayersByLevel(a, b) {
+    const order = { A: 0, B: 1, C: 2, F: 3, '': 9 };
+    const aOrder = order[getPlayerLevel(a)] ?? 9;
+    const bOrder = order[getPlayerLevel(b)] ?? 9;
+    if (aOrder !== bOrder) return aOrder - bOrder;
+    return String(a?.name || '').localeCompare(String(b?.name || ''));
+}
+
 if (!leagueId || !teamId) {
     document.getElementById('loadingState').innerHTML = `
         <div class="empty-state">
@@ -532,6 +583,10 @@ async function loadTeamData() {
         // Calculate position (would need standings data)
         // For now just show record-based position
         document.getElementById('teamPosition').textContent = '-';
+        const reportLink = document.getElementById('matchReportsLink');
+        if (reportLink) {
+            reportLink.href = `/pages/team-match-reports.html?league_id=${leagueId}&team_id=${teamId}`;
+        }
 
         // Load schedule
         await loadSchedule(team);
@@ -677,14 +732,7 @@ async function loadRoster(team) {
             });
         }
 
-        // Sort: captain first, then by position, then by level
-        playersWithStats.sort((a, b) => {
-            if (a.isCaptain) return -1;
-            if (b.isCaptain) return 1;
-            if (a.position && b.position) return a.position - b.position;
-            const levelOrder = { 'A': 1, 'B': 2, 'C': 3, '': 4 };
-            return (levelOrder[a.level] || 4) - (levelOrder[b.level] || 4);
-        });
+        playersWithStats.sort(sortPlayersByLevel);
 
         container.innerHTML = playersWithStats.map(player => `
             <div class="roster-card" onclick="viewPlayer('${player.id}')">
@@ -693,7 +741,7 @@ async function loadRoster(team) {
                     <div class="roster-name">
                         ${player.name || 'Unknown'}
                     </div>
-                    ${player.level ? `<span class="roster-level ${player.level}">${player.level}</span>` : ''}
+                    ${getPlayerLevel(player) ? `<span class="roster-level ${getPlayerLevel(player)}">${getPlayerLevel(player)}</span>` : ''}
                 </div>
                 <div class="roster-stats">
                     <div class="roster-stat">501: <span class="value">${player.stats.x01_three_dart_avg}</span></div>

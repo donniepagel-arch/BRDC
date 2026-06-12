@@ -1,5 +1,5 @@
 // stats.js - Stats tab functionality for league-view
-import { state, ensurePlayersLoaded, ensureStatsLoaded } from './app.js';
+import { state, ensurePlayersLoaded, ensureStatsLoaded } from './app.js?v=4';
 
 // Stats view state
 let statsData = {
@@ -15,6 +15,20 @@ let statsData = {
     playerStats: {},
     leaguePlayers: {}
 };
+
+function toFiniteNumber(value) {
+    if (value == null || value === '') return null;
+    const num = Number(value);
+    return Number.isFinite(num) ? num : null;
+}
+
+function pickFirstFinite(...values) {
+    for (const value of values) {
+        const num = toFiniteNumber(value);
+        if (num != null) return num;
+    }
+    return null;
+}
 
 // 3 main tabs → subtabs → paginated pages → columns
 const STATS_CATEGORIES = {
@@ -391,6 +405,11 @@ function getPlayerStatValues(playerId) {
     const cricketLegs = s.cricket_legs_played || 0;
     const cricketRounds = s.cricket_total_rounds || 0;
     const cricketMarks = s.cricket_total_marks || 0;
+    const checkoutHits = pickFirstFinite(s.x01_checkouts_hit, s.x01_checkouts) || 0;
+    const checkoutAttempts = pickFirstFinite(s.x01_checkout_attempts, s.x01_checkout_opps) || 0;
+    const checkoutTotals = pickFirstFinite(s.x01_total_checkout_points, s.x01_checkout_totals) || 0;
+    const avgCheckout = pickFirstFinite(s.x01_avg_checkout, s.x01_avg_finish, s.avg_finish) ??
+        (checkoutHits > 0 ? checkoutTotals / checkoutHits : 0);
 
     // Use pre-calculated values first, then fall back to calculation
     const calc3DA = x01Darts > 0 ? (x01Points / x01Darts) * 3 : 0;
@@ -402,6 +421,10 @@ function getPlayerStatValues(playerId) {
         name: p.name || 'Unknown',
         level: p.level || '',
         teamId: p.team_id,
+        teamName: p.team_name || '',
+        isFillIn: Boolean(p.isFillIn || p.is_fill_in || p.fill_in || p.team_id === 'fill_in' || p.team_name === 'Fill-In'),
+        is_fill_in: Boolean(p.is_fill_in || p.fill_in || p.team_id === 'fill_in' || p.team_name === 'Fill-In'),
+        fill_in: Boolean(p.fill_in || p.is_fill_in || p.team_id === 'fill_in' || p.team_name === 'Fill-In'),
 
         // X01 stats
         '3da': get3DA(s) || calc3DA,
@@ -428,11 +451,11 @@ function getPlayerStatValues(playerId) {
         'bestLeg': s.x01_best_leg && s.x01_best_leg < 900 ? s.x01_best_leg : 0,
 
         // Checkout stats
-        'coPct': s.x01_checkout_attempts > 0 ? ((s.x01_checkouts_hit || 0) / s.x01_checkout_attempts) * 100 : 0,
+        'coPct': checkoutAttempts > 0 ? (checkoutHits / checkoutAttempts) * 100 : 0,
         'highCo': s.x01_high_checkout || 0,
-        'avgCo': s.x01_checkouts_hit > 0 ? (s.x01_total_checkout_points || 0) / s.x01_checkouts_hit : 0,
-        'coHits': s.x01_checkouts_hit || 0,
-        'coAttempts': s.x01_checkout_attempts || 0,
+        'avgCo': avgCheckout,
+        'coHits': checkoutHits,
+        'coAttempts': checkoutAttempts,
         // Checkout % by range
         'co80Pct': s.x01_co_80_attempts > 0 ? ((s.x01_co_80_hits || 0) / s.x01_co_80_attempts) * 100 : 0,
         'co80Att': s.x01_co_80_attempts || 0,
@@ -460,7 +483,7 @@ function getPlayerStatValues(playerId) {
         'cLegs': cricketLegs,
         'cLegWins': s.cricket_legs_won || 0,
         'cLegPct': cricketLegs > 0 ? ((s.cricket_legs_won || 0) / cricketLegs) * 100 : 0,
-        'highMark': s.cricket_high_mark_round || 0,
+        'highMark': (s.cricket_high_marks ?? s.cricket_high_mark_round) || 0,
         'mark9': s.cricket_nine_mark_rounds || 0,
         'mark8': s.cricket_eight_mark_rounds || 0,
         'mark7': s.cricket_seven_mark_rounds || 0,
@@ -568,14 +591,17 @@ function renderStatsPlayerView() {
         }
 
         levelPlayers.forEach((p, idx) => {
-            const levelBadge = p.level ? `<span class="player-level-badge level-${p.level.toLowerCase()}">${p.level}</span>` : '';
-            const teamBadge = teamNames[p.teamId] ? `<span class="stats-team-badge">${teamNames[p.teamId]}</span>` : '';
+            const isFillIn = Boolean(p.isFillIn || p.is_fill_in || p.fill_in || p.team_id === 'fill_in' || p.team_name === 'Fill-In');
+            const displayLevel = isFillIn ? 'F' : (p.level || '');
+            const levelBadge = displayLevel ? `<span class="player-level-badge level-${displayLevel.toLowerCase()}">${displayLevel}</span>` : '';
+            const teamLabel = isFillIn ? 'Fill-In' : (teamNames[p.teamId] || p.teamName || '');
+            const teamBadge = teamLabel ? `<span class="stats-team-badge">${teamLabel}</span>` : '';
             const rankClass = idx === 0 ? 'gold' : idx === 1 ? 'silver' : idx === 2 ? 'bronze' : '';
 
             html += '<tr>';
             html += `<td class="rank-col ${rankClass}">${idx + 1}</td>`;
             html += `<td class="name-col"><div class="stats-player-name">
-                ${levelBadge}<a href="/pages/player-profile.html?id=${p.id}" class="stats-player-link">${p.name}</a>
+                ${levelBadge}<a href="/pages/player-profile.html?id=${p.id}&league_id=${state.leagueId}" class="stats-player-link">${p.name}</a>
                 ${teamBadge}
             </div></td>`;
 
@@ -667,12 +693,14 @@ function renderStatsTeamView() {
 
         // Player rows (hidden unless expanded)
         team.players.forEach(p => {
-            const levelBadge = p.level ? `<span class="player-level-badge level-${p.level.toLowerCase()}">${p.level}</span>` : '';
+            const isFillIn = Boolean(p.isFillIn || p.is_fill_in || p.fill_in || p.team_id === 'fill_in' || p.team_name === 'Fill-In');
+            const displayLevel = isFillIn ? 'F' : (p.level || '');
+            const levelBadge = displayLevel ? `<span class="player-level-badge level-${displayLevel.toLowerCase()}">${displayLevel}</span>` : '';
 
             html += `<tr class="player-row ${isExpanded ? '' : 'hidden'}">`;
             html += '<td></td>';
             html += `<td class="name-col"><div class="stats-player-name">
-                ${levelBadge}<a href="/pages/player-profile.html?id=${p.id}" class="stats-player-link">${p.name}</a>
+                ${levelBadge}<a href="/pages/player-profile.html?id=${p.id}&league_id=${state.leagueId}" class="stats-player-link">${p.name}</a>
             </div></td>`;
 
             columns.forEach(col => {

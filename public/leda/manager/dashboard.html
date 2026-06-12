@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LEDA Manager Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
+        import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
+        import { getFirestore, doc, getDoc, collection, query, orderBy, limit, getDocs } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDN1aYhoVt3OX5EafsNTVB09i8VFx7QM1U",
+            authDomain: "brdc-v2.firebaseapp.com",
+            projectId: "brdc-v2",
+            storageBucket: "brdc-v2.firebasestorage.app",
+            messagingSenderId: "726670872282",
+            appId: "1:726670872282:web:913d19c8cb3b24bf919fe3"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const orgId = 'leda';
+
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) {
+                window.location.href = '../login.html';
+                return;
+            }
+
+            const userRole = sessionStorage.getItem('userRole');
+            const storedOrgId = sessionStorage.getItem('orgId');
+
+            if (userRole !== 'manager' || storedOrgId !== orgId) {
+                alert('Unauthorized access.');
+                await signOut(auth);
+                window.location.href = '../login.html';
+                return;
+            }
+
+            // Fetch and display dashboard data
+            await fetchDashboardData();
+        });
+
+        async function fetchDashboardData() {
+            // Total Players
+            const playersRef = collection(db, `organizations/${orgId}/players`);
+            const playersSnapshot = await getDocs(playersRef);
+            document.getElementById('total-players').textContent = playersSnapshot.size;
+
+            // Upcoming Events (next 5)
+            const eventsRef = collection(db, `organizations/${orgId}/events`);
+            const qEvents = query(eventsRef, orderBy('date'), limit(5));
+            const eventsSnapshot = await getDocs(qEvents);
+            const upcomingEventsList = document.getElementById('upcoming-events-list');
+            upcomingEventsList.innerHTML = '';
+            eventsSnapshot.forEach(doc => {
+                const event = doc.data();
+                const eventDate = event.date.toDate().toLocaleDateString();
+                const eventTime = event.date.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                const li = document.createElement('li');
+                li.textContent = `${event.name} on ${eventDate} at ${event.venue} (Reg Count: ${event.registrationCount || 0})`;
+                upcomingEventsList.appendChild(li);
+            });
+            if (eventsSnapshot.empty) {
+                upcomingEventsList.innerHTML = '<li>No upcoming events.</li>';
+            }
+
+            // Registrations This Month (placeholder for now, actual implementation would require more complex queries)
+            // For simplicity, let's assume a count of 0 for now or fetch all registrations and filter client-side
+            // const registrationsThisMonth = await getRegistrationsThisMonth(); 
+            document.getElementById('registrations-this-month').textContent = '0'; 
+
+            // Recent self-signup players (last 5)
+            const qRecentPlayers = query(playersRef, orderBy('joined', 'desc'), limit(5));
+            const recentPlayersSnapshot = await getDocs(qRecentPlayers);
+            const recentPlayersList = document.getElementById('recent-players-list');
+            recentPlayersList.innerHTML = '';
+            recentPlayersSnapshot.forEach(doc => {
+                const player = doc.data();
+                if (player.source === 'self_signup') {
+                    const li = document.createElement('li');
+                    li.textContent = `${player.name} (${player.email}) - Joined: ${player.joined.toDate().toLocaleDateString()}`;
+                    recentPlayersList.appendChild(li);
+                }
+            });
+            if (recentPlayersSnapshot.empty) {
+                recentPlayersList.innerHTML = '<li>No recent self-signup players.</li>';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('logout-button').addEventListener('click', async () => {
+                await signOut(auth);
+                sessionStorage.clear();
+                window.location.href = '../login.html';
+            });
+        });
+    </script>
+    <style>
+        :root {
+            --primary: #1a3a5c;
+            --secondary: #2e7db5;
+            --accent: #7ec8c8;
+            --bg-dark: #0d1f33;
+            --bg-panel: #0f2744;
+            --bg-card: #142d50;
+            --text-light: #f0f0f0;
+            --text-dim: #8a9ab5;
+            --border-color: rgba(255,255,255,0.12);
+            --success: #22c55e;
+            --danger: #ef4444;
+            --yellow: #f0c040;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-dark);
+            color: var(--text-light);
+            display: flex;
+            min-height: 100vh;
+        }
+        h1, h2, h3, h4, h5, h6 {
+            font-family: 'Bebas Neue', sans-serif;
+            color: var(--accent);
+            letter-spacing: 1.5px;
+            text-shadow: 2px 2px 0px var(--primary);
+        }
+        .sidebar {
+            width: 250px;
+            background-color: var(--bg-panel);
+            padding: 1.5rem;
+            border-right: 1px solid var(--border-color);
+            box-shadow: 4px 0px 0px var(--primary);
+            display: flex;
+            flex-direction: column;
+        }
+        .sidebar h2 {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        .sidebar nav ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .sidebar nav ul li {
+            margin-bottom: 1rem;
+        }
+        .sidebar nav ul li a {
+            display: block;
+            padding: 0.75rem 1rem;
+            color: var(--text-light);
+            text-decoration: none;
+            border-radius: 5px;
+            transition: background-color 0.3s ease, color 0.3s ease;
+            font-size: 1.1rem;
+        }
+        .sidebar nav ul li a.active, .sidebar nav ul li a:hover {
+            background-color: var(--primary);
+            color: var(--accent);
+        }
+        .main-content {
+            flex-grow: 1;
+            padding: 2rem;
+        }
+        .stats-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .card {
+            background-color: var(--bg-card);
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 4px 4px 0px var(--primary);
+            border: 1px solid var(--border-color);
+        }
+        .card h3 {
+            margin-top: 0;
+            color: var(--text-dim);
+            font-size: 1.2rem;
+        }
+        .card p {
+            font-size: 2.5rem;
+            font-family: 'Bebas Neue', sans-serif;
+            margin: 0;
+            color: var(--accent);
+        }
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+        .quick-actions .button {
+            display: inline-block;
+            padding: 0.75rem 1.5rem;
+            background-color: var(--secondary);
+            color: var(--text-light);
+            text-decoration: none;
+            border-radius: 5px;
+            transition: background-color 0.3s ease;
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 1rem;
+            text-shadow: 1px 1px 0px var(--primary);
+            border: 1px solid var(--border-color);
+            margin-left: 0.5rem;
+        }
+        .quick-actions .button:hover {
+            background-color: var(--accent);
+            box-shadow: 2px 2px 0px var(--primary);
+        }
+        ul {
+            list-style: none;
+            padding: 0;
+        }
+        ul li {
+            background-color: var(--bg-panel);
+            margin-bottom: 0.5rem;
+            padding: 0.75rem 1rem;
+            border-radius: 5px;
+            border: 1px solid var(--border-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h2>LEDA Manager</h2>
+        <nav>
+            <ul>
+                <li><a href="./dashboard.html" class="active">Dashboard</a></li>
+                <li><a href="./events.html">Events</a></li>
+                <li><a href="./players.html">Players</a></li>
+                <li><a href="./standings.html">Standings</a></li>
+                <li><a href="./messaging.html">Messaging</a></li>
+                <li><a href="#" id="logout-button">Logout</a></li>
+            </ul>
+        </nav>
+    </div>
+    <div class="main-content">
+        <h1>Dashboard</h1>
+
+        <div class="stats-cards">
+            <div class="card">
+                <h3>Total Players</h3>
+                <p id="total-players">0</p>
+            </div>
+            <div class="card">
+                <h3>Upcoming Events</h3>
+                <p id="upcoming-events">0</p>
+            </div>
+            <div class="card">
+                <h3>Registrations This Month</h3>
+                <p id="registrations-this-month">0</p>
+            </div>
+        </div>
+
+        <div class="section-header">
+            <h2>Upcoming Events</h2>
+            <div class="quick-actions">
+                <a href="./events.html" class="button">Add Event</a>
+            </div>
+        </div>
+        <ul id="upcoming-events-list">
+            <li>Loading upcoming events...</li>
+        </ul>
+
+        <div class="section-header">
+            <h2>Recent Self-Signup Players</h2>
+            <div class="quick-actions">
+                <a href="./players.html" class="button">View All Players</a>
+            </div>
+        </div>
+        <ul id="recent-players-list">
+            <li>Loading recent players...</li>
+        </ul>
+    </div>
+    <footer style="text-align:center;padding:20px;color:rgba(255,255,255,0.25);font-size:11px;letter-spacing:1px;text-transform:uppercase;">Powered by <a href="https://looptlabs.com" style="color:rgba(255,255,255,0.35);text-decoration:none;">Loopt Labs</a></footer>
+</body>
+</html>

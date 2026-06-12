@@ -232,60 +232,17 @@
             box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2) !important;
         }
 
-        /* PIN Sign In Box */
-        .pin-signin-box {
-            background: rgba(253, 216, 53, 0.1);
-            border: 3px solid var(--yellow);
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 24px;
-        }
-
-        .pin-signin-box .title {
-            font-family: 'Bebas Neue', cursive;
-            font-size: 16px;
-            color: var(--yellow);
-            margin-bottom: 12px;
-        }
-
-        .pin-signin-row {
-            display: flex;
-            gap: 12px;
-        }
-
-        .pin-signin-row input {
-            flex: 1;
-            text-align: center;
-            font-size: 20px;
-            letter-spacing: 4px;
-            font-weight: 600;
-        }
-
-        .pin-signin-row button {
-            padding: 14px 24px;
-            background: var(--yellow);
-            border: 3px solid var(--border-strong);
+        /* Auth status indicator */
+        .auth-status-box {
+            background: rgba(16, 185, 129, 0.1);
+            border: 2px solid #10b981;
             border-radius: 10px;
-            color: #000;
-            font-family: 'Bebas Neue', cursive;
-            font-size: 18px;
-            cursor: pointer;
-            box-shadow: 3px 3px 0 rgba(0,0,0,0.3);
-        }
-
-        .pin-signin-status {
-            margin-top: 12px;
-            padding: 10px 14px;
-            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 24px;
             font-size: 14px;
+            color: #10b981;
             font-weight: 600;
-            display: none;
         }
-
-        .pin-signin-status.show { display: block; }
-        .pin-signin-status.success { background: rgba(16, 185, 129, 0.2); color: #10b981; }
-        .pin-signin-status.error { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
-        .pin-signin-status.loading { background: rgba(145, 215, 235, 0.2); color: var(--teal); }
 
         /* Number Input with Arrows */
         .number-input-wrapper {
@@ -958,13 +915,8 @@
                     <p>Sign in to manage your league</p>
                 </div>
 
-                <div class="pin-signin-box">
-                    <div class="title">Sign in with your 8-digit PIN</div>
-                    <div class="pin-signin-row">
-                        <input type="text" id="signInPin" placeholder="••••••••" maxlength="8" inputmode="numeric" pattern="[0-9]*" autocomplete="off" style="-webkit-text-security: disc;">
-                        <button type="button" onclick="lookupDirector()">GO</button>
-                    </div>
-                    <div id="signInStatus" class="pin-signin-status"></div>
+                <div class="auth-status-box" id="authStatusBox">
+                    Sign in with your email above to create a league.
                 </div>
 
                 <div class="form-row">
@@ -1364,7 +1316,6 @@
         const totalSteps = 6;
         let rounds = [];
         let blackoutDates = [];
-        window.directorPin = null;
 
         const stepTitles = {
             1: 'DIRECTOR INFO',
@@ -1420,7 +1371,7 @@
             btnBack.classList.toggle('hidden', currentStep === 1);
             btnNext.classList.toggle('hidden', currentStep === totalSteps);
             btnCreate.classList.toggle('hidden', currentStep !== totalSteps);
-            btnDraft.classList.toggle('hidden', !window.directorPin);
+            btnDraft.classList.toggle('hidden', currentStep !== 1);
         }
 
         window.nextStep = function() {
@@ -1461,12 +1412,6 @@
             const lastName = document.getElementById('directorLastName');
             const email = document.getElementById('directorEmail');
             const phone = document.getElementById('directorPhone');
-
-            if (!window.directorPin) {
-                document.getElementById('signInStatus').textContent = 'Please sign in with your PIN first';
-                document.getElementById('signInStatus').className = 'pin-signin-status show error';
-                return false;
-            }
 
             if (!firstName.value.trim()) {
                 document.getElementById('firstNameGroup').classList.add('has-error');
@@ -1575,128 +1520,7 @@
             document.getElementById('reviewPoints').textContent = totalPoints;
         }
 
-        async function checkLeaguePermission(pin) {
-            try {
-                const result = await callFunction('getMemberPermissions', { player_pin: pin });
-                if (result.success) {
-                    return result.isAdmin || result.permissions?.can_create_leagues;
-                }
-                return false;
-            } catch (e) {
-                console.error('Permission check failed:', e);
-                return false;
-            }
-        }
-
-        window.lookupDirector = async function() {
-            const pin = document.getElementById('signInPin').value;
-            const statusEl = document.getElementById('signInStatus');
-
-            if (!pin || pin.length !== 8) {
-                statusEl.textContent = 'Please enter an 8-digit PIN';
-                statusEl.className = 'pin-signin-status show error';
-                return;
-            }
-
-            try {
-                statusEl.textContent = 'Looking up...';
-                statusEl.className = 'pin-signin-status show loading';
-
-                const result = await callFunction('playerLogin', { pin: pin });
-
-                if (result.success && result.player) {
-                    const player = result.player;
-
-                    statusEl.textContent = 'Checking permissions...';
-                    const hasPermission = await checkLeaguePermission(pin);
-                    if (!hasPermission) {
-                        document.getElementById('accessDeniedOverlay').style.display = 'flex';
-                        return;
-                    }
-
-                    if (player.first_name && player.last_name) {
-                        document.getElementById('directorFirstName').value = player.first_name;
-                        document.getElementById('directorLastName').value = player.last_name;
-                    } else if (player.name) {
-                        const nameParts = player.name.trim().split(/\s+/);
-                        document.getElementById('directorFirstName').value = nameParts[0] || '';
-                        document.getElementById('directorLastName').value = nameParts.slice(1).join(' ') || '';
-                    }
-
-                    document.getElementById('directorEmail').value = player.email || '';
-                    document.getElementById('directorPhone').value = player.phone || '';
-                    document.getElementById('directorPlayerId').value = player.player_id || '';
-
-                    statusEl.textContent = `Welcome back, ${player.first_name || player.name}!`;
-                    statusEl.className = 'pin-signin-status show success';
-
-                    window.directorPin = pin;
-
-                    localStorage.setItem('directorSession', JSON.stringify({
-                        pin: pin,
-                        player: player,
-                        timestamp: Date.now()
-                    }));
-
-                    updateNavButtons();
-                } else {
-                    statusEl.textContent = 'PIN not found. Please check and try again.';
-                    statusEl.className = 'pin-signin-status show error';
-                }
-            } catch (error) {
-                statusEl.textContent = 'Lookup failed. Please try again.';
-                statusEl.className = 'pin-signin-status show error';
-            }
-        };
-
-        document.getElementById('signInPin').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                lookupDirector();
-            }
-        });
-
-        (async function restoreSession() {
-            const saved = localStorage.getItem('directorSession');
-            if (saved) {
-                try {
-                    const session = JSON.parse(saved);
-                    if (session.pin && session.player && (Date.now() - session.timestamp) < 7 * 24 * 60 * 60 * 1000) {
-                        const hasPermission = await checkLeaguePermission(session.pin);
-                        if (!hasPermission) {
-                            document.getElementById('accessDeniedOverlay').style.display = 'flex';
-                            return;
-                        }
-
-                        window.directorPin = session.pin;
-                        const player = session.player;
-
-                        if (player.first_name) {
-                            document.getElementById('directorFirstName').value = player.first_name;
-                        }
-                        if (player.last_name) {
-                            document.getElementById('directorLastName').value = player.last_name;
-                        } else if (player.name) {
-                            const nameParts = player.name.trim().split(/\s+/);
-                            document.getElementById('directorFirstName').value = nameParts[0] || '';
-                            document.getElementById('directorLastName').value = nameParts.slice(1).join(' ') || '';
-                        }
-                        document.getElementById('directorEmail').value = player.email || '';
-                        document.getElementById('directorPhone').value = player.phone || '';
-                        document.getElementById('directorPlayerId').value = player.player_id || '';
-
-                        document.getElementById('signInStatus').textContent = `Signed in as ${player.first_name || player.name}`;
-                        document.getElementById('signInStatus').className = 'pin-signin-status show success';
-
-                        updateNavButtons();
-                    } else {
-                        localStorage.removeItem('directorSession');
-                    }
-                } catch (e) {
-                    localStorage.removeItem('directorSession');
-                }
-            }
-        })();
+        // Session restore via email/OAuth — PIN session restore removed
 
         window.setLeagueType = function(type) {
             const toggleGroup = document.getElementById('leagueTypeToggle');
@@ -2081,11 +1905,6 @@
         }
 
         window.saveAsDraft = async function() {
-            if (!window.directorPin) {
-                toastInfo('Please sign in first to save drafts');
-                return;
-            }
-
             const draftName = prompt('Enter a name for this draft (optional):', 'Untitled Draft');
             if (draftName === null) return;
 
@@ -2094,7 +1913,6 @@
                 const draftData = collectFormData();
 
                 const result = await callFunction('saveLeagueDraft', {
-                    director_pin: window.directorPin,
                     draft_name: draftName.trim() || 'Untitled Draft',
                     draft_data: draftData
                 });
@@ -2156,7 +1974,6 @@
                     director_first_name: formData.get('director_first_name') || '',
                     director_last_name: formData.get('director_last_name') || '',
                     director_player_id: formData.get('director_player_id') || '',
-                    director_pin: window.directorPin,
                     point_system: formData.get('point_system'),
                     tiebreakers: tiebreakers,
                     cork_rule: formData.get('cork_rule'),
@@ -2199,7 +2016,7 @@
                             <div style="margin-bottom: 16px;">
                                 <div style="font-size: 12px; color: var(--teal); text-transform: uppercase; margin-bottom: 6px;">Registration Link</div>
                                 <div style="background: var(--bg-card); padding: 10px; border-radius: 8px; font-family: 'JetBrains Mono', monospace; font-size: 11px; word-break: break-all; color: var(--teal);">
-                                    https://brdc-v2.web.app/pages/league-view.html?league_id=${result.league_id}
+                                    https://burningriverdarts.com/pages/league-view.html?league_id=${result.league_id}
                                 </div>
                                 <button onclick="copyLink('${result.league_id}')" style="margin-top: 10px; padding: 10px 20px; background: var(--teal); border: 3px solid #000; border-radius: 8px; color: #000; font-family: 'Bebas Neue', cursive; cursor: pointer;">COPY LINK</button>
                             </div>
@@ -2210,14 +2027,14 @@
                                     <div style="font-family: 'JetBrains Mono', monospace; font-size: 12px;">${result.league_id}</div>
                                 </div>
                                 <div>
-                                    <div style="font-size: 11px; color: var(--text-muted);">Director PIN</div>
-                                    <div style="font-family: 'JetBrains Mono', monospace; letter-spacing: 2px; color: var(--yellow);">${result.admin_pin}</div>
+                                    <div style="font-size: 11px; color: var(--text-muted);">Status</div>
+                                    <div style="font-family: 'JetBrains Mono', monospace; color: var(--teal);">ACTIVE</div>
                                 </div>
                             </div>
                         </div>
 
                         <div style="display: flex; flex-direction: column; gap: 10px;">
-                            <a href="/pages/league-director.html?league_id=${result.league_id}&pin=${result.admin_pin}" style="display: block; padding: 16px; background: linear-gradient(135deg, var(--pink), #d63384); border: 4px solid #000; border-radius: 12px; color: white; text-decoration: none; font-family: 'Bebas Neue', cursive; font-size: 18px; letter-spacing: 2px;">
+                            <a href="/pages/league-director.html?league_id=${result.league_id}" style="display: block; padding: 16px; background: linear-gradient(135deg, var(--pink), #d63384); border: 4px solid #000; border-radius: 12px; color: white; text-decoration: none; font-family: 'Bebas Neue', cursive; font-size: 18px; letter-spacing: 2px;">
                                 LEAGUE DIRECTOR DASHBOARD
                             </a>
                             <a href="/pages/league-view.html?league_id=${result.league_id}" style="display: block; padding: 12px; background: var(--bg-card); border: 3px solid #000; border-radius: 10px; color: var(--text-primary); text-decoration: none; font-family: 'Bebas Neue', cursive;">
@@ -2233,7 +2050,7 @@
         }
 
         window.copyLink = function(leagueId) {
-            const url = `https://brdc-v2.web.app/pages/league-view.html?league_id=${leagueId}`;
+            const url = `https://burningriverdarts.com/pages/league-view.html?league_id=${leagueId}`;
             navigator.clipboard.writeText(url).then(() => {
                 toastSuccess('Registration link copied to clipboard!');
             });

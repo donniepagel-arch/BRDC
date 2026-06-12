@@ -940,55 +940,22 @@
 
         window.launchScorer = function(matchId, p1Id, p1Name, p2Id, p2Name) {
             pendingScorerMatch = { matchId, p1Id, p1Name, p2Id, p2Name };
+            window._pendingScorerMatch = pendingScorerMatch; // expose for OAuth module
             document.getElementById('scorerPinInfo').textContent =
                 `${p1Name} vs ${p2Name}`;
-            document.getElementById('scorerPinInput').value = '';
             document.getElementById('scorerPinError').textContent = '';
+            document.getElementById('scorerAuthError').textContent = '';
             document.getElementById('scorerPinModal').classList.add('active');
-            setTimeout(() => document.getElementById('scorerPinInput').focus(), 100);
+            setTimeout(() => document.getElementById('scorerEmailInput').focus(), 100);
         };
 
         window.closeScorerPin = function() {
             document.getElementById('scorerPinModal').classList.remove('active');
             pendingScorerMatch = null;
+            window._pendingScorerMatch = null;
         };
 
-        window.verifyScorerPin = async function() {
-            const pin = document.getElementById('scorerPinInput').value.trim();
-            if (pin.length !== 8) {
-                document.getElementById('scorerPinError').textContent = 'Enter your 8-digit PIN';
-                return;
-            }
-
-            const launchBtn = document.querySelector('.pin-btn-launch');
-            launchBtn.textContent = 'VERIFYING...';
-            launchBtn.disabled = true;
-
-            try {
-                const result = await callFunction('globalLogin', { pin });
-                if (!result.success) throw new Error(result.error || 'Invalid PIN');
-
-                const playerId = result.player?.id || result.playerId;
-                const match = pendingScorerMatch;
-
-                // Verify this player is in the match
-                if (playerId !== match.p1Id && playerId !== match.p2Id) {
-                    document.getElementById('scorerPinError').textContent =
-                        'Your PIN does not match either player in this match';
-                    launchBtn.textContent = 'LAUNCH SCORER';
-                    launchBtn.disabled = false;
-                    return;
-                }
-
-                // Build scorer URL and navigate
-                const scorerUrl = buildTournamentScorerUrl(match);
-                window.location.href = scorerUrl;
-            } catch (e) {
-                document.getElementById('scorerPinError').textContent = e.message || 'Login failed';
-                launchBtn.textContent = 'LAUNCH SCORER';
-                launchBtn.disabled = false;
-            }
-        };
+        // verifyScorerPin removed — PIN login retired. Use verifyScorerEmail/verifyScorerGoogle below.
 
         function buildTournamentScorerUrl(match) {
             // Determine game type from event data
@@ -1029,23 +996,78 @@
 
             return `/pages/${scorerPage}?${urlParams.toString()}`;
         }
+        // Expose for OAuth module
+        window._buildTournamentScorerUrl = buildTournamentScorerUrl;
     </script>
-<!-- PIN Modal for Score Match -->
+<!-- Scorer Auth Modal -->
 <div class="pin-modal-overlay" id="scorerPinModal">
     <div class="pin-modal">
-        <div class="pin-modal-title">ENTER YOUR PIN</div>
-        <div class="pin-modal-subtitle" id="scorerPinInfo">Enter the PIN of either player</div>
-        <input type="text" class="pin-modal-input" id="scorerPinInput"
-               placeholder="••••••••" maxlength="8" inputmode="numeric" pattern="[0-9]*" autocomplete="off"
-               style="-webkit-text-security: disc;"
-               onkeydown="if(event.key==='Enter')verifyScorerPin()">
+        <div class="pin-modal-title">SIGN IN TO SCORE</div>
+        <div class="pin-modal-subtitle" id="scorerPinInfo">Sign in to launch the scorer</div>
         <div class="pin-modal-error" id="scorerPinError"></div>
-        <div class="pin-modal-buttons">
+        <input type="email" class="pin-modal-input" id="scorerEmailInput" placeholder="Email address" autocomplete="email" style="margin-bottom:8px;">
+        <input type="password" class="pin-modal-input" id="scorerPasswordInput" placeholder="Password" autocomplete="current-password" style="margin-bottom:8px;">
+        <div id="scorerAuthError" style="color:#ef4444;font-size:12px;min-height:16px;margin-bottom:6px;text-align:center;"></div>
+        <button class="pin-btn-launch" onclick="verifyScorerEmail()" style="width:100%;margin-bottom:8px;">SIGN IN WITH EMAIL</button>
+        <button style="width:100%;padding:12px;border-radius:8px;background:rgba(255,255,255,0.1);color:white;border:2px solid rgba(255,255,255,0.3);font-family:'Bebas Neue',cursive;font-size:16px;cursor:pointer;letter-spacing:1px;" onclick="verifyScorerGoogle()">SIGN IN WITH GOOGLE</button>
+        <div class="pin-modal-buttons" style="margin-top:14px;">
             <button class="pin-btn-cancel" onclick="closeScorerPin()">CANCEL</button>
-            <button class="pin-btn-launch" onclick="verifyScorerPin()">LAUNCH SCORER</button>
         </div>
     </div>
 </div>
+<script type="module">
+// ===== Email / Google login for scorer modal (event-view) =====
+(function() {
+    async function _verifyScorerSession(result) {
+        if (!result || !result.success) throw new Error(result?.error || 'Could not load player data');
+        const playerId = result.player?.id || result.playerId;
+        const match = window._pendingScorerMatch;
+        if (!match) throw new Error('No match selected');
+        if (playerId !== match.p1Id && playerId !== match.p2Id) {
+            throw new Error('Your account does not match either player in this match');
+        }
+        const buildTournamentScorerUrl = window._buildTournamentScorerUrl || null;
+        if (!buildTournamentScorerUrl) throw new Error('Scorer URL builder unavailable');
+        window.location.href = buildTournamentScorerUrl(match);
+    }
+
+    window.verifyScorerEmail = async function() {
+        const email = (document.getElementById('scorerEmailInput')?.value || '').trim();
+        const password = document.getElementById('scorerPasswordInput')?.value || '';
+        const errEl = document.getElementById('scorerAuthError');
+        if (errEl) errEl.textContent = '';
+        if (!email || !password) { if (errEl) errEl.textContent = 'Enter email and password.'; return; }
+        try {
+            const { auth, signInWithEmailAndPassword, callFunction } = await import('/js/firebase-config.js');
+            await signInWithEmailAndPassword(auth, email, password);
+            const result = await callFunction('getPlayerSession', {});
+            await _verifyScorerSession(result);
+        } catch (err) {
+            let msg = 'Sign-in failed.';
+            if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') msg = 'Invalid email or password.';
+            else if (err.message) msg = err.message;
+            if (errEl) errEl.textContent = msg;
+        }
+    };
+
+    window.verifyScorerGoogle = async function() {
+        const errEl = document.getElementById('scorerAuthError');
+        if (errEl) errEl.textContent = '';
+        try {
+            const { auth, signInWithPopup, GoogleAuthProvider, callFunction } = await import('/js/firebase-config.js');
+            await signInWithPopup(auth, new GoogleAuthProvider());
+            const result = await callFunction('getPlayerSession', {});
+            await _verifyScorerSession(result);
+        } catch (err) {
+            if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') return;
+            let msg = 'Google sign-in failed.';
+            if (err.code === 'auth/popup-blocked') msg = 'Popup blocked — allow popups and try again.';
+            else if (err.message) msg = err.message;
+            if (errEl) errEl.textContent = msg;
+        }
+    };
+})();
+</script>
 
 <script src="/js/nav-menu.js"></script>
 <script src="/components/brdc-navigation-init.js?v=14"></script>

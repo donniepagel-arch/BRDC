@@ -234,6 +234,11 @@
             vertical-align: middle;
         }
 
+        .level-badge.level-f {
+            background: #666;
+            color: #fff;
+        }
+
         .stat-cell {
             font-family: 'Bebas Neue', cursive;
             font-size: 16px;
@@ -625,8 +630,10 @@
             }
 
             const rows = filtered.map(member => {
-                const subBadge = member.is_sub ? '<span class="sub-badge">FILL-IN</span>' : '';
-                const levelBadge = member.level ? `<span class="level-badge">${member.level.toUpperCase()}</span>` : '';
+                const isFillIn = member.is_sub || member.is_fill_in || member.fill_in || member.team_id === 'fill_in' || member.team_name === 'Fill-In';
+                const subBadge = isFillIn ? '<span class="sub-badge">FILL-IN</span>' : '';
+                const levelText = isFillIn ? 'F' : (member.level ? member.level.toUpperCase() : '');
+                const levelBadge = levelText ? `<span class="level-badge ${isFillIn ? 'level-f' : ''}">${levelText}</span>` : '';
 
                 // Format name as "Last, First"
                 const nameParts = member.name.trim().split(' ');

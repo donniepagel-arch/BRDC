@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clubhouse</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://firestore.googleapis.com">
+    <link rel="preconnect" href="https://us-central1-brdc-v2.cloudfunctions.net">
+    <link rel="icon" type="image/png" href="/images/favicon.png">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#fff8ed">
+
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap">
+    <link rel="stylesheet" href="/css/brdc-styles.css">
+    <link rel="stylesheet" href="/css/fb-mobile.css">
+    <link rel="stylesheet" href="/css/brdc-navigation.css?v=15">
+    <link rel="stylesheet" href="/css/messages-vnext.css?v=14">
+</head>
+<body class="messages-vnext-page has-mobile-nav">
+    <main class="mv-shell">
+
+        <!-- Page hero -->
+        <section class="mv-hero">
+            <div>
+                <p class="mv-kicker">BRDC Social</p>
+                <h1>Clubhouse</h1>
+                <p id="authStatus">Loading...</p>
+            </div>
+            <div class="mv-hero-stats">
+                <div><strong id="directCount">-</strong><span>direct</span></div>
+                <div><strong id="leagueCount">-</strong><span>league</span></div>
+                <div><strong id="tradeCount">-</strong><span>listings</span></div>
+                <div><strong id="memberCount">-</strong><span>members</span></div>
+            </div>
+        </section>
+
+        <!-- Clubhouse sub-nav: Lobby / Chat / Trade / Members -->
+        <nav class="ch-subnav" aria-label="Clubhouse areas">
+            <button class="active" type="button" data-ch-tab="lobby">
+                <span>Lobby</span>
+            </button>
+            <button type="button" data-ch-tab="chat">
+                <span>Chat</span>
+            </button>
+            <button type="button" data-ch-tab="trade">
+                <span>Trade</span>
+            </button>
+            <button type="button" data-ch-tab="members">
+                <span>Members</span>
+            </button>
+        </nav>
+
+        <!-- ===== LOBBY AREA ===== -->
+        <section class="ch-area" data-ch-area="lobby" aria-label="Lobby">
+
+            <div class="ch-lobby-grid">
+
+                <!-- Who's here -->
+                <article class="ch-lobby-card" id="lobbyPresence">
+                    <header>
+                        <span class="mv-kicker">Who's here</span>
+                        <button type="button" id="refreshPresenceBtn" class="ch-refresh-btn">Refresh</button>
+                    </header>
+                    <div class="ch-presence-list" id="presenceList">
+                        <div class="mv-skeleton"></div>
+                        <div class="mv-skeleton"></div>
+                    </div>
+                </article>
+
+                <!-- Recent banter / highlights (latest league chat messages) -->
+                <article class="ch-lobby-card" id="lobbyBanter">
+                    <header>
+                        <span class="mv-kicker">Club banter</span>
+                        <button type="button" class="ch-tab-jump" data-ch-tab-jump="chat">Open chat</button>
+                    </header>
+                    <div class="ch-banter-list" id="banterList">
+                        <div class="mv-skeleton"></div>
+                        <div class="mv-skeleton"></div>
+                    </div>
+                </article>
+
+                <!-- Fresh trade listings -->
+                <article class="ch-lobby-card" id="lobbyTrade">
+                    <header>
+                        <span class="mv-kicker">Fresh listings</span>
+                        <button type="button" class="ch-tab-jump" data-ch-tab-jump="trade">All listings</button>
+                    </header>
+                    <div class="ch-listings-preview" id="listingsPreview">
+                        <div class="mv-skeleton"></div>
+                        <div class="mv-skeleton"></div>
+                    </div>
+                </article>
+
+                <!-- Recent activity (members / online) -->
+                <article class="ch-lobby-card" id="lobbyActivity">
+                    <header>
+                        <span class="mv-kicker">Recent activity</span>
+                        <button type="button" class="ch-tab-jump" data-ch-tab-jump="members">All members</button>
+                    </header>
+                    <div class="ch-activity-list" id="activityList">
+                        <div class="mv-skeleton"></div>
+                        <div class="mv-skeleton"></div>
+                    </div>
+                </article>
+
+            </div>
+        </section>
+
+        <!-- ===== CHAT AREA ===== -->
+        <section class="ch-area hidden" data-ch-area="chat" aria-label="Chat">
+            <div class="mv-layout">
+                <aside class="mv-rail" aria-label="Conversations">
+                    <div class="mv-rail-tabs">
+                        <button class="active" type="button" data-source-tab="league">League</button>
+                        <button type="button" data-source-tab="team">Team</button>
+                        <button type="button" data-source-tab="events">Events</button>
+                        <button type="button" data-source-tab="direct">Direct</button>
+                    </div>
+
+                    <div class="mv-source-pane active" data-source-pane="league">
+                        <div class="mv-list-head">
+                            <span>League chat</span>
+                            <a href="/pages/triples-vnext.html">Trips</a>
+                        </div>
+                        <div class="mv-thread-list" id="leagueList">
+                            <div class="mv-skeleton"></div>
+                            <div class="mv-skeleton"></div>
+                        </div>
+                    </div>
+
+                    <div class="mv-source-pane" data-source-pane="team">
+                        <div class="mv-list-head">
+                            <span>Team chat</span>
+                            <a href="/pages/home-vnext.html">Home</a>
+                        </div>
+                        <div class="mv-thread-list" id="teamList">
+                            <div class="mv-skeleton"></div>
+                            <div class="mv-skeleton"></div>
+                        </div>
+                    </div>
+
+                    <div class="mv-source-pane" data-source-pane="direct">
+                        <div class="mv-list-head">
+                            <span>Direct messages</span>
+                            <button type="button" id="refreshDirectBtn">Refresh</button>
+                        </div>
+                        <div class="mv-thread-list" id="directList">
+                            <div class="mv-skeleton"></div>
+                            <div class="mv-skeleton"></div>
+                        </div>
+                    </div>
+
+                    <div class="mv-source-pane" data-source-pane="events">
+                        <div class="mv-list-head">
+                            <span>Event chat</span>
+                            <a href="/pages/events-vnext.html">Events</a>
+                        </div>
+                        <div class="mv-thread-list" id="eventList">
+                            <div class="mv-skeleton"></div>
+                            <div class="mv-skeleton"></div>
+                        </div>
+                    </div>
+                </aside>
+
+                <section class="mv-chat-panel" aria-label="Selected chat">
+                    <div class="mv-chat-top">
+                        <div class="mv-chat-default" id="chatDefaultHeader">
+                            <p id="activeThreadType">Pick a conversation</p>
+                            <h2 id="activeThreadName">Chat</h2>
+                            <div class="mv-chat-actions">
+                                <button type="button" id="challengeThreadBtn" disabled>Challenge</button>
+                            </div>
+                        </div>
+                        <div class="mv-match-context hidden" id="teamMatchContext"></div>
+                    </div>
+
+                    <div class="mv-message-list" id="messageList">
+                        <div class="mv-empty large">Choose a chat to start.</div>
+                    </div>
+
+                    <form class="mv-composer" id="messageForm">
+                        <input id="messageInput" maxlength="2000" autocomplete="off" placeholder="Write a message..." disabled>
+                        <button type="submit" id="sendMessageBtn" disabled>Send</button>
+                    </form>
+                </section>
+            </div>
+        </section>
+
+        <!-- ===== TRADE AREA ===== -->
+        <section class="ch-area hidden" data-ch-area="trade" aria-label="Trade board">
+            <div class="ch-area-head">
+                <div>
+                    <p class="mv-kicker">Club marketplace</p>
+                    <h2 class="ch-area-title">Trade Board</h2>
+                </div>
+                <a class="ch-action-btn" href="/pages/dart-trader-create-vnext.html">+ Create listing</a>
+            </div>
+
+            <div class="ch-trade-filters" id="tradeCategoryFilters">
+                <button class="active" type="button" data-trade-category="all">All</button>
+                <button type="button" data-trade-category="darts">Darts</button>
+                <button type="button" data-trade-category="flights">Flights</button>
+                <button type="button" data-trade-category="shafts">Shafts</button>
+                <button type="button" data-trade-category="cases">Cases</button>
+                <button type="button" data-trade-category="boards">Boards</button>
+                <button type="button" data-trade-category="accessories">Accessories</button>
+            </div>
+
+            <p class="ch-trade-status" id="tradeStatus">Loading listings...</p>
+
+            <div class="ch-trade-grid" id="tradeGrid">
+                <div class="mv-skeleton"></div>
+                <div class="mv-skeleton"></div>
+                <div class="mv-skeleton"></div>
+            </div>
+        </section>
+
+        <!-- ===== MEMBERS AREA ===== -->
+        <section class="ch-area hidden" data-ch-area="members" aria-label="Members directory">
+            <div class="ch-area-head">
+                <div>
+                    <p class="mv-kicker">People directory</p>
+                    <h2 class="ch-area-title">Members</h2>
+                </div>
+            </div>
+
+            <div class="ch-members-toolbar">
+                <input id="memberSearch" type="search" placeholder="Search players, teams, levels..." autocomplete="off">
+                <div class="ch-member-filters" id="memberFilters">
+                    <button class="active" type="button" data-member-filter="all">All</button>
+                    <button type="button" data-member-filter="A">A</button>
+                    <button type="button" data-member-filter="B">B</button>
+                    <button type="button" data-member-filter="C">C</button>
+                    <button type="button" data-member-filter="F">Fill-ins</button>
+                </div>
+            </div>
+
+            <p class="ch-trade-status" id="membersStatus">Loading members...</p>
+
+            <div class="ch-members-grid" id="membersGrid">
+                <div class="mv-skeleton"></div>
+                <div class="mv-skeleton"></div>
+                <div class="mv-skeleton"></div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Challenge modal (kept — used by the Chat area challenge button) -->
+    <div class="mv-modal" id="challengeModal" aria-hidden="true">
+        <div class="mv-modal-card" role="dialog" aria-modal="true" aria-labelledby="challengeTitle">
+            <p class="mv-kicker">Send a playable request</p>
+            <h2 id="challengeTitle">Send Challenge</h2>
+            <p id="challengeSubtitle">Pick the format. The other player gets the request in the thread and can launch the scorer from it.</p>
+
+            <div class="mv-game-grid" id="gameTypeGrid">
+                <button class="active" type="button" data-game-type="501"><strong>501</strong><span>X01</span></button>
+                <button type="button" data-game-type="301"><strong>301</strong><span>X01</span></button>
+                <button type="button" data-game-type="cricket"><strong>C</strong><span>Cricket</span></button>
+                <button type="button" data-game-type="corks_choice"><strong>Choice</strong><span>Cork wins pick</span></button>
+            </div>
+
+            <div class="mv-config-grid">
+                <label>Race to
+                    <select id="challengeRaceTo">
+                        <option value="3">3 legs</option>
+                        <option value="5">5 legs</option>
+                        <option value="7">7 legs</option>
+                        <option value="9">9 legs</option>
+                    </select>
+                </label>
+                <label>Start rule
+                    <select id="challengeStartRule">
+                        <option value="cork_every_leg">Cork every leg</option>
+                        <option value="alternate_cork_first_deciding">Alternate after first cork</option>
+                        <option value="loser_starts_cork_first_deciding">Loser starts after first cork</option>
+                        <option value="winner_starts_cork_first_deciding">Winner starts after first cork</option>
+                        <option value="home_first">You start</option>
+                        <option value="away_first">Opponent starts</option>
+                    </select>
+                </label>
+                <label>In
+                    <select id="challengeInRule">
+                        <option value="straight">Straight in</option>
+                        <option value="double">Double in</option>
+                    </select>
+                </label>
+                <label>Out
+                    <select id="challengeOutRule">
+                        <option value="double">Double out</option>
+                        <option value="straight">Straight out</option>
+                        <option value="master">Master out</option>
+                    </select>
+                </label>
+                <label class="wide">Message
+                    <input id="challengeMessage" maxlength="200" placeholder="Let's play.">
+                </label>
+            </div>
+
+            <div id="challengeStatus" class="mv-status"></div>
+            <div class="mv-modal-actions">
+                <button type="button" id="sendChallengeBtn">Send challenge</button>
+                <button type="button" id="closeChallengeBtn">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/brdc-toast.js"></script>
+    <script src="/components/brdc-navigation-init.js?v=18"></script>
+    <script>
+        initBRDCNavigation({ page: 'clubhouse', pageTitle: 'Clubhouse', showBreadcrumbs: false, showBackButton: true });
+    </script>
+    <script type="module" src="/js/messages-vnext.js?v=15"></script>
+</body>
+</html>

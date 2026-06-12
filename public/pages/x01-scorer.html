@@ -524,6 +524,73 @@
         .action-btn.enter { background: var(--green, #10b981); color: white; font-size: 28px; border: none; }
         .action-row { flex: 1; }
         .action-row .action-btn.enter { height: 100%; }
+        .autoscore-assist {
+            display: none;
+            margin-top: 6px;
+            padding: 10px 12px;
+            border: 2px solid rgba(145,215,235,0.45);
+            background: rgba(145,215,235,0.08);
+            border-radius: 10px;
+            gap: 8px;
+        }
+        .autoscore-assist.active {
+            display: grid;
+        }
+        .autoscore-assist-header {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            align-items: center;
+        }
+        .autoscore-assist-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 18px;
+            letter-spacing: 1px;
+            color: var(--teal);
+        }
+        .autoscore-assist-meta {
+            color: var(--text-dim);
+            font-size: 12px;
+            line-height: 1.35;
+        }
+        .autoscore-assist-score {
+            font-family: 'Rowdies', cursive;
+            font-size: 28px;
+            color: var(--yellow);
+            line-height: 1;
+        }
+        .autoscore-assist-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .autoscore-assist .mini-btn {
+            border: 2px solid rgba(255,255,255,0.18);
+            background: rgba(255,255,255,0.08);
+            color: #fff;
+            padding: 8px 10px;
+            border-radius: 8px;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 16px;
+            letter-spacing: 1px;
+            cursor: pointer;
+        }
+        .autoscore-assist .mini-btn.apply {
+            background: rgba(16,185,129,0.18);
+            border-color: rgba(16,185,129,0.7);
+        }
+        .autoscore-assist-log {
+            display: grid;
+            gap: 4px;
+        }
+        .autoscore-assist-log:empty {
+            display: none;
+        }
+        .autoscore-assist-log-item {
+            font-size: 11px;
+            color: var(--text-dim);
+            line-height: 1.3;
+        }
 
         /* Modals */
         .modal {
@@ -973,6 +1040,28 @@
                 transform: scale(1);
             }
 
+            .container {
+                max-width: 100%;
+            }
+
+            .score-display {
+                min-width: 0;
+            }
+
+            .team-panel {
+                padding: 10px 6px 8px;
+            }
+
+            .thrower-name {
+                font-size: clamp(22px, 5vw, 32px);
+                letter-spacing: 1px;
+            }
+
+            .stats-line {
+                font-size: 12px;
+                gap: 4px;
+            }
+
             .input-layout {
                 grid-template-columns: minmax(24px, 44px) minmax(0, 1fr) minmax(24px, 44px);
             }
@@ -985,6 +1074,32 @@
             .throw-card {
                 font-size: clamp(16px, 4vw, 24px);
                 padding: 6px 0;
+            }
+        }
+
+        @media (max-width: 900px) and (orientation: portrait) {
+            .score-display {
+                flex: 0 0 auto;
+                min-height: 38dvh;
+            }
+
+            .input-section {
+                flex: 1 1 auto;
+                min-height: 0;
+            }
+
+            .score-value {
+                font-size: clamp(52px, 18vw, 112px);
+            }
+
+            .game-info-bar {
+                width: min(92vw, 420px);
+            }
+
+            .game-title {
+                max-width: 100%;
+                overflow: hidden;
+                text-overflow: ellipsis;
             }
         }
 
@@ -1042,6 +1157,10 @@
                 font-size: 9px;
             }
 
+            .score-display {
+                min-height: 34dvh;
+            }
+
             /* Stats grid */
             .stats-grid {
                 gap: 3px;
@@ -1073,6 +1192,12 @@
             /* Very narrow phones */
             .score-value {
                 font-size: 60px;
+            }
+            .team-panel {
+                padding: 8px 4px 6px;
+            }
+            .thrower-name {
+                font-size: 20px;
             }
             .input-layout {
                 grid-template-columns: 18px minmax(0, 1fr) 18px;
@@ -1255,6 +1380,19 @@
 
                     <div class="action-row">
                         <button class="action-btn enter" onclick="submitCurrentScore()">ENTER</button>
+                    </div>
+                    <div class="autoscore-assist" id="autoscoreAssist">
+                        <div class="autoscore-assist-header">
+                            <div class="autoscore-assist-title">Score Assist</div>
+                            <div class="autoscore-assist-score" id="autoscoreAssistScore">-</div>
+                        </div>
+                        <div class="autoscore-assist-meta" id="autoscoreAssistMeta">Waiting for board phone suggestions.</div>
+                        <div class="autoscore-assist-actions">
+                            <button type="button" class="mini-btn apply" onclick="applyAutoscoreCandidate()">Apply</button>
+                            <button type="button" class="mini-btn" onclick="fillAutoscoreCandidate()">Fill Only</button>
+                            <button type="button" class="mini-btn" onclick="dismissAutoscoreCandidate()">Dismiss</button>
+                        </div>
+                        <div class="autoscore-assist-log" id="autoscoreAssistLog"></div>
                     </div>
                 </div>
 
@@ -1639,7 +1777,7 @@
     </div>
 
 <script type="module">
-import { callFunction, showLoading, hideLoading } from '/js/firebase-config.js';
+import { auth, callFunction, showLoading, hideLoading, db, collection, query, orderBy, limit, onSnapshot, addDoc, serverTimestamp } from '/js/firebase-config.js';
 import { callWithQueue, setupOfflineQueue, processCallQueue, saveGameState, getGameState, clearGameState, initOfflineStorage } from '/js/offline-storage.js';
 
 // Visual Viewport Height Fix (for iOS keyboard resize)
@@ -1712,10 +1850,16 @@ let matchId = params.get('match_id');
 let tournamentId = params.get('tournament_id'); // Tournament support
 let tournamentMatchId = params.get('tournament_match_id'); // Tournament match ID
 let tournamentType = params.get('tournament_type') || 'single'; // 'single' or 'double'
+let isMatchmakerTournament = params.get('matchmaker') === 'true' || params.get('matchmaker') === '1';
 let bracketType = params.get('bracket_type') || ''; // 'winners', 'losers', 'grand_finals_1', 'grand_finals_2'
 let returnUrl = params.get('return_url') || ''; // Where to navigate back after scoring
 let eventId = params.get('event_id') || ''; // For regular tournament events
 let tDirectorPin = params.get('director_pin') || ''; // For double-elim auth
+let autoscoreSessionId = null;
+let autoscoreCandidate = null;
+let autoscoreDismissedIds = new Set();
+let autoscoreUnsubscribe = null;
+let autoscoreHistory = [];
 let gameIndex = parseInt(params.get('game_index') || '0');
 let gameNumber = parseInt(params.get('game_number') || '1');
 let checkout = params.get('checkout') || 'double';
@@ -1723,6 +1867,7 @@ let inRule = params.get('in_rule') || 'straight';
 let adminPin = params.get('admin_pin') || '';
 let fromMatch = params.get('from_match') === 'true';
 let isCasual = params.get('casual') === 'true';
+let pickupDraftId = params.get('pickup_draft_id') || sessionStorage.getItem('brdcPickupDraftId') || null;
 let matchPin = params.get('match_pin') || '';
 let isKnockout = params.get('knockout') === 'true';
 let knockoutId = params.get('knockout_id') || '';
@@ -1730,6 +1875,15 @@ let knockoutMatchNumber = parseInt(params.get('match_number') || '0');
 let totalGames = parseInt(params.get('total_games') || '0');
 let homeTeamName = decodeURIComponent(params.get('home_team_name') || 'Home');
 let awayTeamName = decodeURIComponent(params.get('away_team_name') || 'Away');
+
+function buildStreamingSessionCode(seed) {
+    let hash = 0;
+    for (let i = 0; i < seed.length; i++) {
+        hash = ((hash << 5) - hash) + seed.charCodeAt(i);
+        hash |= 0;
+    }
+    return Math.abs(hash).toString(36).toUpperCase().padStart(6, '0').slice(0, 6);
+}
 
 let homePlayers = [], awayPlayers = [];
 try { homePlayers = JSON.parse(params.get('home_players') || '[]'); } catch(e) { toastWarning('Could not parse player roster'); }
@@ -1744,8 +1898,13 @@ let useCork = params.get('cork') !== 'false'; // Default to cork unless explicit
 let corkRule = params.get('cork_rule') || 'alternate_cork_first_deciding';
 let corkOption = params.get('cork_option') || 'alternate_random_first_last'; // Who has option to choose first/second
 let corkOptionHolder = null; // Who has the option this leg
-let lastLegWinner = null; // Track who won the previous leg for loser_starts rule
-let lastLegStarter = null; // Track who started the previous leg for alternating
+function parseSideIndexParam(value) {
+    if (value === 'home' || value === '0') return 0;
+    if (value === 'away' || value === '1') return 1;
+    return null;
+}
+let lastLegWinner = parseSideIndexParam(params.get('last_leg_winner')); // Track who won the previous leg for loser_starts rule
+let lastLegStarter = parseSideIndexParam(params.get('last_leg_starter')); // Track who started the previous leg for alternating
 let loadedMatchData = null; // Store full match data for saving
 let practiceMode = params.get('practice_mode') || null;
 let isChicago = params.get('chicago') === 'true';
@@ -2008,6 +2167,71 @@ let currentLegFirstThrow = null; // Who threw first in current leg
 let legCorkWinner = []; // Who won the cork for each leg ('home', 'away', or null if no cork)
 let currentLegCorkWinner = null; // Who won the cork for current leg
 
+function getMixedGameConfig() {
+    if (!isMixedGame) return null;
+
+    try {
+        const mixedLegsParam = params.get('mixed_legs');
+        if (mixedLegsParam) {
+            return { legs: JSON.parse(mixedLegsParam) };
+        }
+    } catch (e) {
+        console.warn('Failed to parse mixed_legs param:', e);
+    }
+
+    try {
+        const stored = JSON.parse(sessionStorage.getItem('mixedGameConfig') || '{}');
+        return Array.isArray(stored.legs) ? stored : null;
+    } catch (e) {
+        console.warn('Failed to parse mixedGameConfig from sessionStorage:', e);
+    }
+
+    return null;
+}
+
+function getCurrentMixedLegConfig() {
+    const mixedConfig = getMixedGameConfig();
+    return mixedConfig?.legs?.[mixedLegIndex] || null;
+}
+
+function getDisplayLegNumber() {
+    return isMixedGame ? mixedLegIndex + 1 : leg;
+}
+
+function getDisplayLegTotal() {
+    const mixedConfig = getMixedGameConfig();
+    return isMixedGame && mixedConfig?.legs?.length
+        ? mixedConfig.legs.length
+        : (LEGS_TO_WIN * 2 - 1);
+}
+
+function getCurrentLegLabel() {
+    if (isMixedGame) {
+        const currentLeg = getCurrentMixedLegConfig();
+        if (currentLeg) {
+            const legType = currentLeg.game_type || currentLeg.type || '';
+            if (legType === 'cricket') return 'CRICKET';
+            if (legType === 'corks_choice' || legType === 'choice') return "CORK'S CHOICE";
+
+            const score = currentLeg.x01_value || currentLeg.score || parseInt(legType, 10) || STARTING_SCORE || 501;
+            const inText = currentLeg.in_rule === 'double' || currentLeg.inRule === 'double' ? 'DI' : 'SI';
+            const outRule = currentLeg.out_rule || currentLeg.outRule || checkout;
+            const outText = outRule === 'double' ? 'DO' : (outRule === 'master' ? 'MO' : 'SO');
+            return `${score} ${inText}/${outText}`;
+        }
+    }
+
+    if (isChoiceGame) return "CORK'S CHOICE";
+
+    const inText = inRule === 'double' ? 'DI' : 'SI';
+    const outText = checkout === 'double' ? 'DO' : (checkout === 'master' ? 'MO' : 'SO');
+    return `${STARTING_SCORE} ${inText}/${outText}`;
+}
+
+if (isMixedGame) {
+    leg = mixedLegIndex + 1;
+}
+
 // Leg tracking for summaries
 let legStats = [[], []]; // Track each leg's stats for both teams
 let currentLegStats = [{}, {}]; // Stats for current leg
@@ -2228,7 +2452,58 @@ if (isMixedGame) {
 // OFFLINE BACKUP - Save/Restore game state
 // ============================================
 
-const GAME_STATE_ID = `x01_${leagueId || 'casual'}_${matchId || Date.now()}`;
+const GAME_STATE_ID = `x01_${leagueId || 'casual'}_${matchId || 'match'}_g${gameNumber || 0}_l${isMixedGame ? mixedLegIndex : 0}`;
+
+function setPickupDraftId(value) {
+    pickupDraftId = value || null;
+    if (pickupDraftId) {
+        sessionStorage.setItem('brdcPickupDraftId', pickupDraftId);
+    } else {
+        sessionStorage.removeItem('brdcPickupDraftId');
+    }
+}
+
+function buildScorerNavigationParams(legIndex = mixedLegIndex) {
+    const newParams = new URLSearchParams();
+
+    if (leagueId) newParams.set('league_id', leagueId);
+    if (matchId) newParams.set('match_id', matchId);
+    if (typeof gameIndex !== 'undefined' && gameIndex !== null) newParams.set('game_index', String(gameIndex));
+    if (typeof gameNumber !== 'undefined' && gameNumber !== null) newParams.set('game_number', String(gameNumber));
+    if (fromMatch) newParams.set('from_match', 'true');
+    if (typeof totalGames !== 'undefined' && totalGames) newParams.set('total_games', String(totalGames));
+    if (homeTeamName) newParams.set('home_team_name', homeTeamName);
+    if (awayTeamName) newParams.set('away_team_name', awayTeamName);
+    if (adminPin) newParams.set('admin_pin', adminPin);
+    if (pickupDraftId) newParams.set('pickup_draft_id', pickupDraftId);
+
+    newParams.set('home_players', JSON.stringify(homePlayers));
+    newParams.set('away_players', JSON.stringify(awayPlayers));
+    newParams.set('casual', isCasual ? 'true' : 'false');
+    newParams.set('legs_to_win', String(LEGS_TO_WIN));
+    newParams.set('home_legs', String(teams[0].legs || 0));
+    newParams.set('away_legs', String(teams[1].legs || 0));
+    if (lastLegWinner !== null) newParams.set('last_leg_winner', lastLegWinner === 0 ? 'home' : 'away');
+    if (lastLegStarter !== null) newParams.set('last_leg_starter', lastLegStarter === 0 ? 'home' : 'away');
+
+    if (isMixedGame) {
+        newParams.set('mixed', 'true');
+        newParams.set('mixed_leg', String(legIndex));
+        const mixedConfig = JSON.parse(sessionStorage.getItem('mixedGameConfig') || '{}');
+        if (Array.isArray(mixedConfig.legs) && mixedConfig.legs.length) {
+            newParams.set('mixed_legs', JSON.stringify(mixedConfig.legs));
+        }
+    }
+
+    if (useCork) {
+        newParams.set('cork', 'true');
+        if (corkRule) newParams.set('cork_rule', corkRule);
+        if (corkOption) newParams.set('cork_option', corkOption);
+        if (corkWinnerGets) newParams.set('cork_winner_gets', corkWinnerGets);
+    }
+
+    return newParams;
+}
 
 async function backupGameState() {
     try {
@@ -2270,7 +2545,8 @@ async function backupGameState() {
             isMixedGame: isMixedGame,
             mixedLegIndex: mixedLegIndex,
             isCorksChoice: isCorksChoice,
-            isCasual: isCasual
+            isCasual: isCasual,
+            pickupDraftId: pickupDraftId
         };
 
         await saveGameState(GAME_STATE_ID, state);
@@ -2332,6 +2608,7 @@ function restoreGameState(saved) {
     legCorkWinner = saved.legCorkWinner || [];
     lastLegWinner = saved.lastLegWinner;
     lastLegStarter = saved.lastLegStarter;
+    setPickupDraftId(saved.pickupDraftId || null);
 
     // Update UI
     updateUI();
@@ -2348,17 +2625,363 @@ async function clearSavedGame() {
     }
 }
 
+function buildTournamentProgressPayload(gameType, legData, winner = null) {
+    const payload = {
+        scorer_type: gameType === 'cricket' ? 'cricket' : 'x01',
+        game_number: gameNumber,
+        game_stats: {
+            game_type: gameType,
+            starting_score: STARTING_SCORE,
+            legs: legData
+        },
+        saved_from: 'scorer_checkpoint'
+    };
+
+    if (tournamentType === 'double') {
+        payload.team1_legs_won = teams[0].legs || 0;
+        payload.team2_legs_won = teams[1].legs || 0;
+    } else {
+        payload.player1_legs_won = teams[0].legs || 0;
+        payload.player2_legs_won = teams[1].legs || 0;
+    }
+
+    if (winner) payload.winner = winner;
+    return payload;
+}
+
+function buildPickupProgressPayload(legData) {
+    const statPlayerId = params.get('stat_player_id');
+    const player1IsBot = isHomeBot();
+    const player2IsBot = isAwayBot();
+    const player1BotId = player1IsBot ? (homePlayers[0]?.registeredBotId || null) : null;
+    const player2BotId = player2IsBot ? (awayPlayers[0]?.registeredBotId || null) : null;
+
+    return {
+        draft_id: pickupDraftId,
+        game_type: STARTING_SCORE.toString(),
+        players: [
+            {
+                id: statPlayerId || player1BotId || null,
+                name: homePlayers[0]?.name || teams[0].name,
+                is_bot: player1IsBot
+            },
+            {
+                id: player2BotId || null,
+                name: awayPlayers[0]?.name || teams[1].name,
+                is_bot: player2IsBot
+            }
+        ],
+        legs: legData,
+        match_config: {
+            bestOfLegs: LEGS_TO_WIN * 2 - 1,
+            bestOfSets: 1,
+            doubleOut: checkout === 'double',
+            masterOut: checkout === 'master',
+            outRule: checkout,
+            doubleIn: inRule === 'double'
+        },
+        progress: {
+            scorer_type: 'x01',
+            game_number: gameNumber,
+            home_legs_won: teams[0].legs || 0,
+            away_legs_won: teams[1].legs || 0
+        }
+    };
+}
+
+function buildCasualChallengeProgressPayload(legData) {
+    return {
+        match_id: matchId,
+        game_type: STARTING_SCORE.toString(),
+        players: [
+            {
+                id: homePlayers[0]?.id || null,
+                name: homePlayers[0]?.name || teams[0].name,
+                is_bot: isHomeBot()
+            },
+            {
+                id: awayPlayers[0]?.id || null,
+                name: awayPlayers[0]?.name || teams[1].name,
+                is_bot: isAwayBot()
+            }
+        ],
+        legs: legData,
+        match_config: {
+            bestOfLegs: LEGS_TO_WIN * 2 - 1,
+            bestOfSets: 1,
+            doubleOut: checkout === 'double',
+            masterOut: checkout === 'master',
+            outRule: checkout,
+            doubleIn: inRule === 'double'
+        },
+        progress: {
+            scorer_type: 'x01',
+            game_number: gameNumber,
+            home_legs_won: teams[0].legs || 0,
+            away_legs_won: teams[1].legs || 0
+        }
+    };
+}
+
+function toNumber(value, fallback = 0) {
+    const num = Number(value);
+    return Number.isFinite(num) ? num : fallback;
+}
+
+function rebuildX01TeamTotalsFromLegs() {
+    const freshTeams = [0, 1].map(side => ({
+        darts: 0,
+        points: 0,
+        tons: 0,
+        ton40s: 0,
+        ton80s: 0,
+        ton_00: 0,
+        ton_20: 0,
+        ton_40: 0,
+        ton_60: 0,
+        ton_80: 0,
+        ton_71: 0,
+        highCheckout: 0,
+        highScore: 0,
+        bestLeg: 999,
+        totalCheckouts: 0,
+        checkoutAttempts: 0,
+        checkoutDarts: 0,
+        first9Darts: 0,
+        first9Points: 0
+    }));
+
+    for (let i = 0; i < Math.max(legStats[0].length, legStats[1].length); i++) {
+        const homeLeg = legStats[0][i] || {};
+        const awayLeg = legStats[1][i] || {};
+        const pairs = [
+            [freshTeams[0], homeLeg],
+            [freshTeams[1], awayLeg]
+        ];
+
+        pairs.forEach(([team, leg]) => {
+            team.darts += toNumber(leg.darts);
+            team.points += toNumber(leg.points);
+            team.tons += toNumber(leg.tons);
+            team.ton40s += toNumber(leg.ton40s);
+            team.ton80s += toNumber(leg.ton80s);
+            team.ton_00 += toNumber(leg.ton_00);
+            team.ton_20 += toNumber(leg.ton_20);
+            team.ton_40 += toNumber(leg.ton_40);
+            team.ton_60 += toNumber(leg.ton_60);
+            team.ton_80 += toNumber(leg.ton_80);
+            team.ton_71 += toNumber(leg.ton_71);
+            team.checkoutAttempts += toNumber(leg.checkout_attempts);
+            team.checkoutDarts += toNumber(leg.checkout_darts);
+            team.first9Darts += toNumber(leg.first9Darts);
+            team.first9Points += toNumber(leg.first9Points);
+            if (toNumber(leg.checkout) > 0) {
+                team.totalCheckouts += 1;
+                team.highCheckout = Math.max(team.highCheckout, toNumber(leg.checkout));
+            }
+            team.highScore = Math.max(team.highScore, toNumber(leg.high_score));
+            if (toNumber(leg.darts) > 0) {
+                team.bestLeg = Math.min(team.bestLeg, toNumber(leg.darts));
+            }
+        });
+    }
+
+    [0, 1].forEach(side => {
+        Object.assign(teams[side], freshTeams[side]);
+        if (teams[side].bestLeg === 999) teams[side].bestLeg = 999;
+        teams[side].score = STARTING_SCORE;
+    });
+}
+
+function applyServerCheckpointToX01(progressPayload, overrideLegs = null) {
+    const legs = Array.isArray(overrideLegs)
+        ? overrideLegs
+        : (Array.isArray(progressPayload?.game_stats?.legs) ? progressPayload.game_stats.legs : []);
+    if (!legs.length) return false;
+
+    history = [];
+    throwHistory = [[], []];
+    legStats = [[], []];
+    allPlayerLegStats = [];
+    legThrowsHistory = [];
+    legFirstThrow = [];
+    legCorkWinner = [];
+    activePlayerIndex = [0, 0];
+
+    legs.forEach((savedLeg, index) => {
+        const home = savedLeg?.home_stats || {};
+        const away = savedLeg?.away_stats || {};
+
+        legStats[0].push({
+            darts: toNumber(home.darts_thrown),
+            points: toNumber(home.points_scored),
+            first9Darts: toNumber(home.first9_darts),
+            first9Points: toNumber(home.first9_points),
+            tons: toNumber(home.tons),
+            ton40s: toNumber(home.ton_40) + toNumber(home.ton_60),
+            ton80s: toNumber(home.ton_80),
+            ton_00: toNumber(home.ton_00),
+            ton_20: toNumber(home.ton_20),
+            ton_40: toNumber(home.ton_40),
+            ton_60: toNumber(home.ton_60),
+            ton_80: toNumber(home.ton_80),
+            ton_71: toNumber(home.ton_71),
+            checkout: toNumber(home.checkout),
+            checkout_attempts: toNumber(home.checkout_attempts),
+            checkout_darts: toNumber(home.checkout_darts),
+            high_score: toNumber(home.high_score),
+            first_turn_score: toNumber(home.first_turn_score),
+            ton_points: toNumber(home.ton_points),
+            threw_first: home.threw_first ?? null,
+            co_80_attempts: toNumber(home.co_80_attempts),
+            co_80_hits: toNumber(home.co_80_hits),
+            co_120_attempts: toNumber(home.co_120_attempts),
+            co_120_hits: toNumber(home.co_120_hits),
+            co_140_attempts: toNumber(home.co_140_attempts),
+            co_140_hits: toNumber(home.co_140_hits),
+            co_161_attempts: toNumber(home.co_161_attempts),
+            co_161_hits: toNumber(home.co_161_hits)
+        });
+
+        legStats[1].push({
+            darts: toNumber(away.darts_thrown),
+            points: toNumber(away.points_scored),
+            first9Darts: toNumber(away.first9_darts),
+            first9Points: toNumber(away.first9_points),
+            tons: toNumber(away.tons),
+            ton40s: toNumber(away.ton_40) + toNumber(away.ton_60),
+            ton80s: toNumber(away.ton_80),
+            ton_00: toNumber(away.ton_00),
+            ton_20: toNumber(away.ton_20),
+            ton_40: toNumber(away.ton_40),
+            ton_60: toNumber(away.ton_60),
+            ton_80: toNumber(away.ton_80),
+            ton_71: toNumber(away.ton_71),
+            checkout: toNumber(away.checkout),
+            checkout_attempts: toNumber(away.checkout_attempts),
+            checkout_darts: toNumber(away.checkout_darts),
+            high_score: toNumber(away.high_score),
+            first_turn_score: toNumber(away.first_turn_score),
+            ton_points: toNumber(away.ton_points),
+            threw_first: away.threw_first ?? null,
+            co_80_attempts: toNumber(away.co_80_attempts),
+            co_80_hits: toNumber(away.co_80_hits),
+            co_120_attempts: toNumber(away.co_120_attempts),
+            co_120_hits: toNumber(away.co_120_hits),
+            co_140_attempts: toNumber(away.co_140_attempts),
+            co_140_hits: toNumber(away.co_140_hits),
+            co_161_attempts: toNumber(away.co_161_attempts),
+            co_161_hits: toNumber(away.co_161_hits)
+        });
+
+        allPlayerLegStats.push(savedLeg?.player_stats || {});
+        legFirstThrow.push(savedLeg?.first_throw === 'away' ? 1 : 0);
+        legCorkWinner.push(savedLeg?.cork_winner || null);
+
+        const rounds = [];
+        (savedLeg?.throws || []).forEach(round => {
+            if (round?.home) {
+                rounds[0] = rounds[0] || [];
+                rounds[0].push({
+                    player: round.home.player || homePlayers[0]?.name || teams[0].name,
+                    value: toNumber(round.home.score),
+                    remaining: toNumber(round.home.remaining),
+                    bust: !!round.home.bust,
+                    checkout_darts: toNumber(round.home.checkout_darts, undefined)
+                });
+            }
+            if (round?.away) {
+                rounds[1] = rounds[1] || [];
+                rounds[1].push({
+                    player: round.away.player || awayPlayers[0]?.name || teams[1].name,
+                    value: toNumber(round.away.score),
+                    remaining: toNumber(round.away.remaining),
+                    bust: !!round.away.bust,
+                    checkout_darts: toNumber(round.away.checkout_darts, undefined)
+                });
+            }
+        });
+        legThrowsHistory[index] = [rounds[0] || [], rounds[1] || []];
+    });
+
+    teams[0].legs = toNumber(progressPayload?.home_legs_won ?? progressPayload?.team1_legs_won, legs.filter(l => l?.winner === 'home').length);
+    teams[1].legs = toNumber(progressPayload?.away_legs_won ?? progressPayload?.team2_legs_won, legs.filter(l => l?.winner === 'away').length);
+    rebuildX01TeamTotalsFromLegs();
+    resetCurrentLegStats();
+    leg = Math.min(legs.length + 1, LEGS_TO_WIN * 2 - 1);
+    currentLegFirstThrow = null;
+    currentLegCorkWinner = null;
+    activeTeam = 0;
+    updateUI();
+    updateThrowHistory();
+    return true;
+}
+
+async function checkForServerCheckpoint() {
+    try {
+        let result = null;
+        let progress = null;
+        let legs = null;
+
+        if (leagueId && matchId) {
+            result = await callFunction('getLeagueGameProgress', {
+                league_id: leagueId,
+                match_id: matchId,
+                game_number: gameNumber,
+                admin_pin: adminPin
+            });
+            progress = result?.progress || null;
+        } else if (tournamentId && tournamentMatchId) {
+            result = await callFunction('getTournamentMatchProgress', {
+                tournament_id: tournamentId,
+                match_id: tournamentMatchId,
+                director_pin: tDirectorPin
+            });
+            progress = result?.progress || null;
+        } else if (isCasual && matchId && String(matchId).startsWith('casual_') && auth.currentUser) {
+            result = await callFunction('getCasualChallengeProgress', {
+                match_id: matchId
+            });
+            progress = result?.progress || null;
+            legs = result?.legs || [];
+        } else if (isCasual && pickupDraftId) {
+            result = await callFunction('getPickupGameProgress', {
+                draft_id: pickupDraftId
+            });
+            progress = result?.progress || null;
+            legs = result?.legs || [];
+        } else {
+            return false;
+        }
+
+        const savedLegs = legs || progress?.game_stats?.legs || [];
+        if (!Array.isArray(savedLegs) || !savedLegs.length) return false;
+
+        const homeLegs = toNumber(progress?.home_legs_won ?? progress?.team1_legs_won, 0);
+        const awayLegs = toNumber(progress?.away_legs_won ?? progress?.team2_legs_won, 0);
+        if (!confirm(`Resume server checkpoint?\n\n${teams[0].name}: ${homeLegs} legs\n${teams[1].name}: ${awayLegs} legs\n\nThis restores the last saved completed leg and starts the next leg.`)) {
+            return false;
+        }
+
+        return applyServerCheckpointToX01({
+            ...progress,
+            home_legs_won: homeLegs,
+            away_legs_won: awayLegs
+        }, savedLegs);
+    } catch (e) {
+        console.warn('Error checking server checkpoint:', e);
+        return false;
+    }
+}
+
 async function init() {
     // Show verification mode banner if in verification mode
     if (isVerificationMode) {
         document.getElementById('verificationBanner').classList.add('active');
     }
 
-    document.getElementById('gameTitle').textContent = `SET ${gameNumber} LEG 1`;
-    // Build format display: e.g., "501 DI/DO" or "301 SI/DO"
-    const inDisplay = inRule === 'double' ? 'DI' : 'SI';
-    const outDisplay = checkout === 'double' ? 'DO' : (checkout === 'master' ? 'MO' : 'SO');
-    document.getElementById('gameFormat').textContent = `${STARTING_SCORE} ${inDisplay}/${outDisplay}`;
+    document.getElementById('gameTitle').textContent = `SET ${gameNumber} LEG ${getDisplayLegNumber()}`;
+    document.getElementById('gameFormat').textContent = getCurrentLegLabel();
 
     // Set initial thrower names (first name only)
     const homeFirst = (homePlayers[0]?.name || 'Home').split(' ')[0];
@@ -2367,14 +2990,18 @@ async function init() {
     document.getElementById('awayThrowerName').textContent = awayFirst;
 
     updateUI();
+    initTournamentAutoscoreAssist();
 
-    // Auto-start double-elim tournament matches
-    if (tournamentId && tournamentMatchId && tournamentType === 'double') {
+    // Auto-start tournament matches
+    if (tournamentId && tournamentMatchId) {
         try {
-            await callFunction('startDoubleElimMatch', {
-                tournament_id: tournamentId,
-                match_id: tournamentMatchId
-            });
+            await callFunction(
+                tournamentType === 'double' ? 'startDoubleElimMatch' : 'startTournamentMatch',
+                {
+                    tournament_id: tournamentId,
+                    match_id: tournamentMatchId
+                }
+            );
         } catch (e) {
             console.warn('Could not auto-start match (may already be in progress):', e.message);
         }
@@ -2403,6 +3030,12 @@ async function init() {
     const hasRestoredGame = await checkForSavedGame();
     if (hasRestoredGame) {
         // Game restored - don't show cork modal, just continue
+        return;
+    }
+
+    const hasServerCheckpoint = await checkForServerCheckpoint();
+    if (hasServerCheckpoint) {
+        showStarterModal(shouldCorkThisLeg(leg));
         return;
     }
 
@@ -2510,37 +3143,8 @@ let pendingStarter = null;
 
 function showStarterModal(needsCork) {
     // Update leg info
-    document.getElementById('starterLegInfo').textContent = `LEG ${leg} of ${LEGS_TO_WIN * 2 - 1}`;
-
-    // Update game info - show the CURRENT leg's game type
-    if (isMixedGame) {
-        // Get current leg config from URL mixed_legs param or sessionStorage
-        let currentGameLabel = '';
-        try {
-            const mixedLegsParam = params.get('mixed_legs');
-            if (mixedLegsParam) {
-                const legs = JSON.parse(mixedLegsParam);
-                const currentLeg = legs[mixedLegIndex];
-                if (currentLeg) {
-                    const gt = currentLeg.game_type || '';
-                    if (gt === 'cricket') {
-                        currentGameLabel = 'CRICKET';
-                    } else if (gt === 'corks_choice' || gt === 'choice') {
-                        currentGameLabel = "CORK'S CHOICE";
-                    } else {
-                        const ir = currentLeg.in_rule === 'double' ? 'DI' : 'SI';
-                        const or2 = currentLeg.out_rule === 'double' ? 'DO' : (currentLeg.out_rule === 'master' ? 'MO' : 'SO');
-                        currentGameLabel = `${currentLeg.x01_value || 501} ${ir}/${or2}`;
-                    }
-                }
-            }
-        } catch (e) {}
-        document.getElementById('preLegGame').textContent = currentGameLabel || `${STARTING_SCORE}`;
-    } else {
-        const inText = inRule === 'double' ? 'DI' : 'SI';
-        const outText = checkout === 'double' ? 'DO' : (checkout === 'master' ? 'MO' : 'SO');
-        document.getElementById('preLegGame').textContent = `${STARTING_SCORE} ${inText}/${outText}`;
-    }
+    document.getElementById('starterLegInfo').textContent = `LEG ${getDisplayLegNumber()} of ${getDisplayLegTotal()}`;
+    document.getElementById('preLegGame').textContent = getCurrentLegLabel();
 
     // Update team names
     document.getElementById('preLegHomeName').textContent = teams[0].name;
@@ -2865,6 +3469,8 @@ window.selectDoublesChoice = function(gameType) {
 
     // Cork winner starts
     pendingStarter = corkOptionHolder;
+    corkWinnerSide = corkOptionHolder === 0 ? 'home' : 'away';
+    currentLegCorkWinner = corkWinnerSide;
 
     document.getElementById('doublesChoicePhase').style.display = 'none';
     showStarterReadyPhase();
@@ -3251,6 +3857,127 @@ function updateInputDisplay() {
 
     // Update ENTER button outshot hint
     updateCheckoutHint();
+}
+
+function renderAutoscoreAssist() {
+    const root = document.getElementById('autoscoreAssist');
+    if (!root) return;
+    if (!autoscoreCandidate) {
+        root.classList.remove('active');
+        return;
+    }
+
+    const score = Number(autoscoreCandidate.score);
+    const scoreLabel = Number.isFinite(score) ? String(score) : '-';
+    const darts = Number(autoscoreCandidate.darts) || 3;
+    const source = autoscoreCandidate.source || 'board phone';
+    const confidence = autoscoreCandidate.confidence ?? autoscoreCandidate.quality_score ?? autoscoreCandidate.quality ?? null;
+
+    document.getElementById('autoscoreAssistScore').textContent = scoreLabel;
+    document.getElementById('autoscoreAssistMeta').textContent =
+        `${darts} dart${darts === 1 ? '' : 's'} from ${source}${confidence !== null ? ` • Confidence ${confidence}` : ''}`;
+    root.classList.add('active');
+    renderAutoscoreHistory();
+}
+
+function renderAutoscoreHistory() {
+    const log = document.getElementById('autoscoreAssistLog');
+    if (!log) return;
+    log.innerHTML = autoscoreHistory.map((entry) =>
+        `<div class="autoscore-assist-log-item">${entry}</div>`
+    ).join('');
+}
+
+function pushAutoscoreHistory(action, candidate, detail) {
+    const score = Number(candidate?.score);
+    const scoreLabel = Number.isFinite(score) ? score : '-';
+    autoscoreHistory.unshift(`${action}: ${scoreLabel}${detail ? ` (${detail})` : ''}`);
+    autoscoreHistory = autoscoreHistory.slice(0, 4);
+    renderAutoscoreHistory();
+}
+
+async function recordAutoscoreDecision(action, candidate, extras = {}) {
+    if (!autoscoreSessionId || !candidate?.id) return;
+    await addDoc(collection(db, 'streaming_sessions', autoscoreSessionId, 'autoscore_reviews'), {
+        candidate_id: candidate.id,
+        action,
+        source: 'x01-scorer',
+        score: candidate.score ?? null,
+        darts: candidate.darts ?? null,
+        reviewed_at: serverTimestamp(),
+        ...extras
+    }).catch(() => {});
+}
+
+window.applyAutoscoreCandidate = function() {
+    if (!autoscoreCandidate) return;
+    const score = Number(autoscoreCandidate.score);
+    const darts = Number(autoscoreCandidate.darts) || 3;
+    if (!Number.isFinite(score) || score < 0 || score > 180) {
+        toastWarning('Score assist value is not valid for x01.');
+        return;
+    }
+    autoscoreDismissedIds.add(autoscoreCandidate.id);
+    const candidate = autoscoreCandidate;
+    autoscoreCandidate = null;
+    renderAutoscoreAssist();
+    pushAutoscoreHistory('Applied', candidate, `${darts} dart${darts === 1 ? '' : 's'}`);
+    recordAutoscoreDecision('apply', candidate, { applied_score: score, applied_darts: darts });
+    submitScore(score, darts);
+};
+
+window.fillAutoscoreCandidate = function() {
+    if (!autoscoreCandidate) return;
+    const score = Number(autoscoreCandidate.score);
+    if (!Number.isFinite(score) || score < 0 || score > 180) {
+        toastWarning('Score assist value is not valid for x01.');
+        return;
+    }
+    inputValue = String(score);
+    pendingOp = null;
+    storedValue = 0;
+    runningTotal = 0;
+    pendingMultiplier = null;
+    updateInputDisplay();
+    pushAutoscoreHistory('Filled', autoscoreCandidate, 'input only');
+    recordAutoscoreDecision('fill_only', autoscoreCandidate);
+};
+
+window.dismissAutoscoreCandidate = function() {
+    if (!autoscoreCandidate?.id) return;
+    pushAutoscoreHistory('Dismissed', autoscoreCandidate);
+    recordAutoscoreDecision('dismiss', autoscoreCandidate);
+    autoscoreDismissedIds.add(autoscoreCandidate.id);
+    autoscoreCandidate = null;
+    renderAutoscoreAssist();
+};
+
+function initTournamentAutoscoreAssist() {
+    if (!tournamentId || !tournamentMatchId) return;
+    autoscoreSessionId = buildStreamingSessionCode(`tournament:${tournamentId}:${tournamentMatchId}`);
+    autoscoreUnsubscribe?.();
+    autoscoreUnsubscribe = onSnapshot(
+        query(
+            collection(db, 'streaming_sessions', autoscoreSessionId, 'autoscore_candidates'),
+            orderBy('timestamp', 'desc'),
+            limit(1)
+        ),
+        (snapshot) => {
+            if (snapshot.empty) {
+                autoscoreCandidate = null;
+                renderAutoscoreAssist();
+                return;
+            }
+            const docSnap = snapshot.docs[0];
+            const candidate = { id: docSnap.id, ...docSnap.data() };
+            if (autoscoreDismissedIds.has(candidate.id) || candidate.review_status === 'reject' || candidate.review_status === 'rejected') {
+                return;
+            }
+            autoscoreCandidate = candidate;
+            renderAutoscoreAssist();
+        },
+        () => {}
+    );
 }
 
 window.submitCurrentScore = function() {
@@ -3820,7 +4547,10 @@ function completeCheckout(score, dartsUsed) {
     allPlayerLegStats.push(legPlayerStats);
 
     // Save throw history for this leg (DartConnect format)
-    legThrowsHistory.push([...throwHistory[0].map(t => ({...t})), [...throwHistory[1].map(t => ({...t}))]]);
+    legThrowsHistory.push([
+        throwHistory[0].map(t => ({ ...t })),
+        throwHistory[1].map(t => ({ ...t }))
+    ]);
     legFirstThrow.push(currentLegFirstThrow);
     legCorkWinner.push(currentLegCorkWinner); // Track cork winner for audit trail
 
@@ -4134,7 +4864,7 @@ function updateUI() {
 
     document.getElementById('homeLegs').textContent = teams[0].legs;
     document.getElementById('awayLegs').textContent = teams[1].legs;
-    document.getElementById('gameTitle').textContent = `SET ${gameNumber} LEG ${leg}`;
+    document.getElementById('gameTitle').textContent = `SET ${gameNumber} LEG ${getDisplayLegNumber()}`;
 
     // Leg avg
     const homeLegDarts = currentLegStats[0].darts;
@@ -4498,34 +5228,284 @@ function buildModalLegCard(winnerIdx, checkoutScore) {
     '</div>';
 }
 
-// Save completed leg to Firestore for crash recovery (fire-and-forget)
-function saveLegToFirestore() {
-    if (!leagueId || !matchId) return;
-
-    const legData = [];
+function buildLegData() {
+    const legs = [];
     const numLegs = Math.max(legStats[0].length, legStats[1].length);
+
+    const homePlayerName = homePlayers[0]?.name || teams[0].name;
+    const awayPlayerName = awayPlayers[0]?.name || teams[1].name;
+
     for (let i = 0; i < numLegs; i++) {
         const homeLeg = legStats[0][i] || {};
         const awayLeg = legStats[1][i] || {};
         const legWinner = (homeLeg.checkout && homeLeg.checkout > 0) ? 'home' : 'away';
-        legData.push({
-            leg_number: i + 1,
+
+        const legThrows = legThrowsHistory[i] || [[], []];
+        const firstThrow = legFirstThrow[i] !== undefined ? (legFirstThrow[i] === 0 ? 'home' : 'away') : 'home';
+        const throws = [];
+
+        const homeThrows = legThrows[0] || [];
+        const awayThrows = legThrows[1] || [];
+        const maxRounds = Math.max(homeThrows.length, awayThrows.length);
+
+        for (let r = 0; r < maxRounds; r++) {
+            const homeT = homeThrows[r];
+            const awayT = awayThrows[r];
+            const roundData = { round: r + 1 };
+
+            if (homeT) {
+                roundData.home = {
+                    player: homeT.player || homePlayerName,
+                    score: homeT.value,
+                    remaining: homeT.remaining,
+                    bust: homeT.bust || false
+                };
+                if (homeT.value === 180) roundData.home.notable = '180';
+                else if (homeT.value >= 171) roundData.home.notable = 'T80';
+                else if (homeT.value >= 140) roundData.home.notable = 'TON+';
+                else if (homeT.value >= 100) roundData.home.notable = 'TON';
+                else if (homeT.value >= 95) roundData.home.notable = '95+';
+                if (homeLeg.checkout && r === homeThrows.length - 1 && legWinner === 'home') {
+                    roundData.home.checkout = true;
+                    roundData.home.checkout_darts = homeT.checkout_darts || 3;
+                }
+            }
+
+            if (awayT) {
+                roundData.away = {
+                    player: awayT.player || awayPlayerName,
+                    score: awayT.value,
+                    remaining: awayT.remaining,
+                    bust: awayT.bust || false
+                };
+                if (awayT.value === 180) roundData.away.notable = '180';
+                else if (awayT.value >= 171) roundData.away.notable = 'T80';
+                else if (awayT.value >= 140) roundData.away.notable = 'TON+';
+                else if (awayT.value >= 100) roundData.away.notable = 'TON';
+                else if (awayT.value >= 95) roundData.away.notable = '95+';
+                if (awayLeg.checkout && r === awayThrows.length - 1 && legWinner === 'away') {
+                    roundData.away.checkout = true;
+                    roundData.away.checkout_darts = awayT.checkout_darts || 3;
+                }
+            }
+
+            throws.push(roundData);
+        }
+
+        const player_stats = {};
+        const legPlayerStats = allPlayerLegStats[i] || {};
+
+        homePlayers.forEach(p => {
+            if (!p?.name) return;
+            const ps = legPlayerStats[p.name] || {};
+            player_stats[p.name] = {
+                darts_thrown: ps.darts || 0,
+                points_scored: ps.points || 0,
+                darts: ps.darts || 0,
+                points: ps.points || 0,
+                average: ps.darts > 0 ? parseFloat(((ps.points || 0) / (ps.darts || 1) * 3).toFixed(2)) : 0,
+                tons: (ps.ton_00 || 0) + (ps.ton_20 || 0) + (ps.ton_40 || 0) + (ps.ton_60 || 0) + (ps.ton_80 || 0),
+                ton_00: ps.ton_00 || 0,
+                ton_20: ps.ton_20 || 0,
+                ton_40: ps.ton_40 || 0,
+                ton_60: ps.ton_60 || 0,
+                ton_80: ps.ton_80 || 0,
+                ton_points: ps.ton_points || 0,
+                checkout: ps.checkout || 0,
+                checkout_attempts: ps.checkout_attempts || 0,
+                checkout_darts: ps.checkout_darts || 0,
+                high_score: ps.high_score || 0,
+                first_turn_score: ps.first_turn_score || 0,
+                first9_darts: ps.first9Darts || 0,
+                first9_points: ps.first9Points || 0,
+                co_80_attempts: ps.co_80_attempts || 0,
+                co_80_hits: ps.co_80_hits || 0,
+                co_120_attempts: ps.co_120_attempts || 0,
+                co_120_hits: ps.co_120_hits || 0,
+                co_140_attempts: ps.co_140_attempts || 0,
+                co_140_hits: ps.co_140_hits || 0,
+                co_161_attempts: ps.co_161_attempts || 0,
+                co_161_hits: ps.co_161_hits || 0
+            };
+        });
+
+        if (homePlayers.length === 1 && !legPlayerStats[homePlayerName]) {
+            player_stats[homePlayerName] = {
+                darts: homeLeg.darts || 0,
+                points: homeLeg.points || 0,
+                average: homeLeg.darts > 0 ? parseFloat(((homeLeg.points || 0) / (homeLeg.darts || 1) * 3).toFixed(2)) : 0,
+                tons: (homeLeg.ton_00 || 0) + (homeLeg.ton_20 || 0) + (homeLeg.ton_40 || 0) + (homeLeg.ton_60 || 0) + (homeLeg.ton_80 || 0),
+                ton_80: homeLeg.ton_80 || 0,
+                checkout: legWinner === 'home' ? (homeLeg.checkout || 0) : 0
+            };
+        }
+
+        awayPlayers.forEach(p => {
+            if (!p?.name) return;
+            const ps = legPlayerStats[p.name] || {};
+            player_stats[p.name] = {
+                darts_thrown: ps.darts || 0,
+                points_scored: ps.points || 0,
+                darts: ps.darts || 0,
+                points: ps.points || 0,
+                average: ps.darts > 0 ? parseFloat(((ps.points || 0) / (ps.darts || 1) * 3).toFixed(2)) : 0,
+                tons: (ps.ton_00 || 0) + (ps.ton_20 || 0) + (ps.ton_40 || 0) + (ps.ton_60 || 0) + (ps.ton_80 || 0),
+                ton_00: ps.ton_00 || 0,
+                ton_20: ps.ton_20 || 0,
+                ton_40: ps.ton_40 || 0,
+                ton_60: ps.ton_60 || 0,
+                ton_80: ps.ton_80 || 0,
+                ton_points: ps.ton_points || 0,
+                checkout: ps.checkout || 0,
+                checkout_attempts: ps.checkout_attempts || 0,
+                checkout_darts: ps.checkout_darts || 0,
+                high_score: ps.high_score || 0,
+                first_turn_score: ps.first_turn_score || 0,
+                first9_darts: ps.first9Darts || 0,
+                first9_points: ps.first9Points || 0,
+                co_80_attempts: ps.co_80_attempts || 0,
+                co_80_hits: ps.co_80_hits || 0,
+                co_120_attempts: ps.co_120_attempts || 0,
+                co_120_hits: ps.co_120_hits || 0,
+                co_140_attempts: ps.co_140_attempts || 0,
+                co_140_hits: ps.co_140_hits || 0,
+                co_161_attempts: ps.co_161_attempts || 0,
+                co_161_hits: ps.co_161_hits || 0
+            };
+        });
+
+        if (awayPlayers.length === 1 && !legPlayerStats[awayPlayerName]) {
+            player_stats[awayPlayerName] = {
+                darts: awayLeg.darts || 0,
+                points: awayLeg.points || 0,
+                average: awayLeg.darts > 0 ? parseFloat(((awayLeg.points || 0) / (awayLeg.darts || 1) * 3).toFixed(2)) : 0,
+                tons: (awayLeg.ton_00 || 0) + (awayLeg.ton_20 || 0) + (awayLeg.ton_40 || 0) + (awayLeg.ton_60 || 0) + (awayLeg.ton_80 || 0),
+                ton_80: awayLeg.ton_80 || 0,
+                checkout: legWinner === 'away' ? (awayLeg.checkout || 0) : 0
+            };
+        }
+
+        const legCorkWinnerValue = legCorkWinner[i] || null;
+
+        legs.push({
+            leg_number: isMixedGame ? mixedLegIndex + 1 : i + 1,
             format: STARTING_SCORE.toString(),
             winner: legWinner,
-            home_stats: { darts_thrown: homeLeg.darts || 0, points_scored: homeLeg.points || 0 },
-            away_stats: { darts_thrown: awayLeg.darts || 0, points_scored: awayLeg.points || 0 }
+            first_throw: firstThrow,
+            cork_winner: legCorkWinnerValue,
+            home_stats: {
+                darts_thrown: homeLeg.darts || 0,
+                points_scored: homeLeg.points || 0,
+                first9_darts: homeLeg.first9Darts || 0,
+                first9_points: homeLeg.first9Points || 0,
+                tons: homeLeg.tons || 0,
+                ton_00: homeLeg.ton_00 || 0,
+                ton_20: homeLeg.ton_20 || 0,
+                ton_40: homeLeg.ton_40 || 0,
+                ton_60: homeLeg.ton_60 || 0,
+                ton_80: homeLeg.ton_80 || 0,
+                ton_forties: (homeLeg.ton_40 || 0) + (homeLeg.ton_60 || 0) + (homeLeg.ton_80 || 0),
+                ton_eighties: homeLeg.ton_80 || 0,
+                ton_71: homeLeg.ton_71 || 0,
+                checkout: legWinner === 'home' ? (homeLeg.checkout || 0) : 0,
+                checkout_attempts: homeLeg.checkout_attempts || 0,
+                checkout_darts: homeLeg.checkout_darts || 0,
+                high_score: homeLeg.high_score || 0,
+                first_turn_score: homeLeg.first_turn_score || 0,
+                ton_points: homeLeg.ton_points || 0,
+                threw_first: homeLeg.threw_first,
+                co_80_attempts: homeLeg.co_80_attempts || 0,
+                co_80_hits: homeLeg.co_80_hits || 0,
+                co_120_attempts: homeLeg.co_120_attempts || 0,
+                co_120_hits: homeLeg.co_120_hits || 0,
+                co_140_attempts: homeLeg.co_140_attempts || 0,
+                co_140_hits: homeLeg.co_140_hits || 0,
+                co_161_attempts: homeLeg.co_161_attempts || 0,
+                co_161_hits: homeLeg.co_161_hits || 0
+            },
+            away_stats: {
+                darts_thrown: awayLeg.darts || 0,
+                points_scored: awayLeg.points || 0,
+                first9_darts: awayLeg.first9Darts || 0,
+                first9_points: awayLeg.first9Points || 0,
+                tons: awayLeg.tons || 0,
+                ton_00: awayLeg.ton_00 || 0,
+                ton_20: awayLeg.ton_20 || 0,
+                ton_40: awayLeg.ton_40 || 0,
+                ton_60: awayLeg.ton_60 || 0,
+                ton_80: awayLeg.ton_80 || 0,
+                ton_forties: (awayLeg.ton_40 || 0) + (awayLeg.ton_60 || 0) + (awayLeg.ton_80 || 0),
+                ton_eighties: awayLeg.ton_80 || 0,
+                ton_71: awayLeg.ton_71 || 0,
+                checkout: legWinner === 'away' ? (awayLeg.checkout || 0) : 0,
+                checkout_attempts: awayLeg.checkout_attempts || 0,
+                checkout_darts: awayLeg.checkout_darts || 0,
+                high_score: awayLeg.high_score || 0,
+                first_turn_score: awayLeg.first_turn_score || 0,
+                ton_points: awayLeg.ton_points || 0,
+                threw_first: awayLeg.threw_first,
+                co_80_attempts: awayLeg.co_80_attempts || 0,
+                co_80_hits: awayLeg.co_80_hits || 0,
+                co_120_attempts: awayLeg.co_120_attempts || 0,
+                co_120_hits: awayLeg.co_120_hits || 0,
+                co_140_attempts: awayLeg.co_140_attempts || 0,
+                co_140_hits: awayLeg.co_140_hits || 0,
+                co_161_attempts: awayLeg.co_161_attempts || 0,
+                co_161_hits: awayLeg.co_161_hits || 0
+            },
+            player_stats,
+            throws
         });
     }
 
-    callWithQueue(callFunction, 'submitGameResult', {
-        league_id: leagueId, match_id: matchId, game_number: gameNumber,
-        status: 'in_progress',
-        home_legs_won: teams[0].legs, away_legs_won: teams[1].legs,
-        admin_pin: adminPin,
-        game_stats: { game_type: chosenFormat || STARTING_SCORE.toString(), starting_score: STARTING_SCORE, legs: legData }
-    }).catch(e => {
-        if (e.message !== 'QUEUED_OFFLINE') console.warn('Leg progress save failed (non-critical):', e.message);
-    });
+    return legs;
+}
+
+// Save completed leg to Firestore for crash recovery (fire-and-forget)
+function saveLegToFirestore() {
+    const legData = buildLegData();
+
+    if (leagueId && matchId) {
+        callWithQueue(callFunction, 'submitGameResult', {
+            league_id: leagueId, match_id: matchId, game_number: gameNumber,
+            status: 'in_progress',
+            home_legs_won: teams[0].legs, away_legs_won: teams[1].legs,
+            admin_pin: adminPin,
+            game_stats: { game_type: chosenFormat || STARTING_SCORE.toString(), starting_score: STARTING_SCORE, legs: legData }
+        }).catch(e => {
+            if (e.message !== 'QUEUED_OFFLINE') console.warn('Leg progress save failed (non-critical):', e.message);
+        });
+        return;
+    }
+
+    if (tournamentId && tournamentMatchId) {
+        callWithQueue(callFunction, 'saveTournamentMatchProgress', {
+            tournament_id: tournamentId,
+            match_id: tournamentMatchId,
+            ...buildTournamentProgressPayload(chosenFormat || STARTING_SCORE.toString(), legData)
+        }).catch(e => {
+            if (e.message !== 'QUEUED_OFFLINE') console.warn('Tournament progress save failed (non-critical):', e.message);
+        });
+        return;
+    }
+
+    if (isCasual && matchId && String(matchId).startsWith('casual_')) {
+        callWithQueue(callFunction, 'saveCasualChallengeProgress', buildCasualChallengeProgressPayload(legData))
+            .catch(e => {
+                if (e.message !== 'QUEUED_OFFLINE') console.warn('Challenge progress save failed (non-critical):', e.message);
+            });
+        return;
+    }
+
+    if (isCasual) {
+        callWithQueue(callFunction, 'savePickupGameProgress', buildPickupProgressPayload(legData))
+            .then(result => {
+                if (result?.draft_id) setPickupDraftId(result.draft_id);
+            })
+            .catch(e => {
+                if (e.message !== 'QUEUED_OFFLINE') console.warn('Pickup progress save failed (non-critical):', e.message);
+            });
+    }
 }
 
 function showLegWinner(teamIndex) {
@@ -4580,8 +5560,8 @@ function showLegWinner(teamIndex) {
     // Backup game state after each leg for recovery
     backupGameState();
 
-    // Only save in-progress if set is NOT yet decided (avoid race with completed save)
-    if (teams[teamIndex].legs < legsToWin) {
+    // Save a backend checkpoint after each leg. Final league submit is still handled separately.
+    if ((leagueId && matchId && teams[teamIndex].legs < legsToWin) || tournamentId || isCasual) {
         saveLegToFirestore();
     }
 }
@@ -4680,31 +5660,12 @@ window.nextLeg = function() {
                 gameSaving = true;
                 clearGameState(GAME_STATE_ID).catch(() => {});
 
-                // Build common params
-                const newParams = new URLSearchParams();
-                // Preserve league/match context for return navigation
-                if (leagueId) newParams.set('league_id', leagueId);
-                if (matchId) newParams.set('match_id', matchId);
-                if (fromMatch) newParams.set('from_match', 'true');
-                newParams.set('home_players', JSON.stringify(homePlayers));
-                newParams.set('away_players', JSON.stringify(awayPlayers));
-                newParams.set('casual', isCasual ? 'true' : 'false');
-                newParams.set('mixed', 'true');
-                newParams.set('mixed_leg', nextLegIndex.toString());
-                newParams.set('legs_to_win', LEGS_TO_WIN.toString());
-                newParams.set('home_legs', teams[0].legs.toString());
-                newParams.set('away_legs', teams[1].legs.toString());
-
-                if (useCork) {
-                    newParams.set('cork', 'true');
-                    newParams.set('cork_rule', corkRule);
-                    newParams.set('cork_option', corkOption);
-                }
+                const newParams = buildScorerNavigationParams(nextLegIndex);
 
                 // Navigate to appropriate scorer based on next leg type
                 if (nextLeg.type === 'cricket') {
                     window.location.href = `/pages/league-cricket.html?${newParams.toString()}`;
-                } else if (nextLeg.type === 'corks_choice') {
+                } else if (nextLeg.type === 'corks_choice' || nextLeg.type === 'choice') {
                     // Cork's Choice - cork winner picks 501 or cricket
                     newParams.set('format', 'choice');
                     newParams.set('starting_score', '501');
@@ -4983,7 +5944,7 @@ window.saveGame = async function() {
     const awayAvg = teams[1].darts > 0 ? parseFloat((teams[1].points / teams[1].darts * 3).toFixed(2)) : 0;
 
     // Build comprehensive DartConnect-compatible leg data with throws
-    const buildLegData = () => {
+    function buildLegData() {
         const legs = [];
         const numLegs = Math.max(legStats[0].length, legStats[1].length);
 
@@ -5226,7 +6187,7 @@ window.saveGame = async function() {
             });
         }
         return legs;
-    };
+    }
 
     // Handle Chicago match progression
     if (isChicago && chicagoGame > 0) {
@@ -5377,8 +6338,8 @@ window.saveGame = async function() {
         const isFinalGame = totalGames > 0 && gameNumber >= totalGames;
 
         if (isFinalGame) {
-            // Auto-finalize match: set status to completed, update standings
-            if (leagueId && matchId) {
+            // submitGameResult already auto-finalizes the match on the last saved game
+            if (false && leagueId && matchId) {
                 try {
                     showLoading('Finalizing match...');
                     await callWithQueue(callFunction, 'finalizeMatch', {
@@ -5419,13 +6380,12 @@ window.saveGame = async function() {
             }
         } else if (tournamentId && tournamentMatchId) {
             if (tournamentType === 'double') {
-                // Double elimination (Matchmaker/Heartbreaker) submission
+                // Double elimination mixed doubles matchmaker submission
                 await callWithQueue(callFunction, 'submitDoubleElimMatchResult', {
                     tournament_id: tournamentId,
                     match_id: tournamentMatchId,
                     team1_score: teams[0].legs,
                     team2_score: teams[1].legs,
-                    director_pin: tDirectorPin,
                     game_stats: comprehensiveGameStats
                 });
             } else {
@@ -5480,6 +6440,38 @@ window.saveGame = async function() {
 
 // Save casual/pickup game with stats
 async function saveCasualGame(gameStats) {
+    const isChallengeMatch = isCasual && !!matchId && String(matchId).startsWith('casual_');
+
+    if (isChallengeMatch) {
+        showLoading('Saving match...');
+
+        try {
+            const winnerIndex = teams[0].legs >= LEGS_TO_WIN ? 0 : 1;
+            const winnerId = winnerIndex === 0 ? homePlayers[0]?.id : awayPlayers[0]?.id;
+            const payload = {
+                match_id: matchId,
+                winner_id: winnerId,
+                home_score: teams[0].legs,
+                away_score: teams[1].legs,
+                game_stats: gameStats
+            };
+
+            const result = await callFunction('completeCasualChallengeMatch', payload);
+            hideLoading();
+
+            if (result.success) {
+                showCasualGameSummary(gameStats, 'Challenge match saved. Result posted to chat.');
+            } else {
+                showCasualGameSummary(gameStats, 'Could not save challenge match: ' + (result.error || 'Unknown error'));
+            }
+        } catch (error) {
+            hideLoading();
+            console.error('Error saving challenge match:', error);
+            showCasualGameSummary(gameStats, 'Error saving challenge match: ' + error.message);
+        }
+        return;
+    }
+
     // Get player info - check URL params for pre-verified player
     const statPlayerId = params.get('stat_player_id');
     const statPlayerName = params.get('stat_player_name');
@@ -5489,7 +6481,7 @@ async function saveCasualGame(gameStats) {
     const player2IsBot = isAwayBot();
 
     // Prompt for player PINs if not pre-verified and not a bot
-    let player1Pin = statPlayerId ? null : (localStorage.getItem('brdc_player_pin') || null);
+    let player1Pin = null;
     let player2Pin = null;
 
     const player1Name = homePlayers[0]?.name || teams[0].name;
@@ -5509,7 +6501,6 @@ async function saveCasualGame(gameStats) {
     // Get PINs for human players who want to track stats
     if (!statPlayerId && !player1IsBot) {
         player1Pin = prompt(`Enter PIN for ${player1Name} to track stats (or leave blank for guest):`);
-        if (player1Pin) localStorage.setItem('brdc_player_pin', player1Pin.toUpperCase());
     }
 
     if (!player2IsBot) {
@@ -5587,6 +6578,7 @@ async function saveCasualGame(gameStats) {
         const player2BotId = player2IsBot ? (awayPlayers[0]?.registeredBotId || null) : null;
 
         const payload = {
+            draft_id: pickupDraftId,
             game_type: STARTING_SCORE.toString(),
             players: [
                 {
@@ -5618,6 +6610,7 @@ async function saveCasualGame(gameStats) {
         hideLoading();
 
         if (result.success) {
+            setPickupDraftId(null);
             showCasualGameSummary(gameStats, 'Game saved! Stats updated.');
         } else {
             showCasualGameSummary(gameStats, 'Could not save: ' + (result.error || 'Unknown error'));
@@ -6010,7 +7003,7 @@ async function navigateAway() {
         window.location.href = returnUrl;
     } else if (tournamentId && eventId) {
         window.location.href = `/pages/event-view.html?tournament_id=${tournamentId}&event_id=${eventId}`;
-    } else if (tournamentId && tournamentType === 'double') {
+    } else if (tournamentId && isMatchmakerTournament) {
         window.location.href = `/pages/matchmaker-bracket.html?tournament_id=${tournamentId}`;
     } else if (tournamentId) {
         window.location.href = `/pages/tournament-bracket.html?tournament_id=${tournamentId}`;
@@ -6212,7 +7205,7 @@ let selectedNextGameType = null;
 function getGameLabel(leg) {
     if (!leg) return '501';
     if (leg.type === 'cricket') return 'CRICKET';
-    if (leg.type === 'corks_choice') return "CORK'S CHOICE";
+    if (leg.type === 'corks_choice' || leg.type === 'choice') return "CORK'S CHOICE";
     if (leg.type === 'x01') return `${leg.score || 501} ${(leg.inRule === 'double' ? 'DI' : 'SI')}/${(leg.outRule === 'double' ? 'DO' : (leg.outRule === 'master' ? 'MO' : 'SO'))}`;
     if (leg.type === '301') return `301 ${(leg.outRule === 'double' ? 'DO' : 'SO')}`;
     if (leg.type === '701') return `701 ${(leg.outRule === 'double' ? 'DO' : 'SO')}`;
@@ -6267,16 +7260,7 @@ function applyGameSelection(type, score, inRule, outRule) {
 
 function navigateToGame(type, score, inRule, outRule, legIndex) {
     gameSaving = true; // Suppress beforeunload warning
-    const newParams = new URLSearchParams();
-    newParams.set('home_players', JSON.stringify(homePlayers));
-    newParams.set('away_players', JSON.stringify(awayPlayers));
-    newParams.set('casual', isCasual ? 'true' : 'false');
-    newParams.set('mixed', 'true');
-    newParams.set('mixed_leg', legIndex.toString());
-    newParams.set('legs_to_win', LEGS_TO_WIN.toString());
-    newParams.set('home_legs', teams[0].legs.toString());
-    newParams.set('away_legs', teams[1].legs.toString());
-    if (useCork) newParams.set('cork', 'true');
+    const newParams = buildScorerNavigationParams(legIndex);
 
     if (type === 'cricket') {
         window.location.href = `/pages/league-cricket.html?${newParams.toString()}`;

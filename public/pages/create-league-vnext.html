@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create League - BRDC</title>
+    <link rel="icon" type="image/png" href="/images/favicon.png">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#fff8ed">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap">
+    <link rel="stylesheet" href="/css/brdc-styles.css">
+    <link rel="stylesheet" href="/css/fb-mobile.css">
+    <link rel="stylesheet" href="/css/brdc-navigation.css?v=15">
+    <link rel="stylesheet" href="/css/market-events-scorer-vnext.css?v=28">
+    <style>
+        /* ── Tiebreaker ordered list ── */
+        .cl-tiebreaker-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-top: 4px;
+        }
+        .cl-tiebreaker-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 9px 12px;
+            background: var(--bg-card, #1e293b);
+            border: 2px solid rgba(255,255,255,0.12);
+            border-radius: 8px;
+            user-select: none;
+        }
+        .cl-tiebreaker-row:hover {
+            border-color: var(--teal, #91D7EB);
+        }
+        .cl-tb-priority {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 13px;
+            color: var(--text-dim, #8a8aa3);
+            min-width: 22px;
+            text-align: center;
+        }
+        .cl-tb-label {
+            flex: 1;
+            font-size: 13px;
+            color: var(--text-primary, #f0f0f0);
+        }
+        .cl-tb-btn {
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 5px;
+            color: var(--text-primary, #f0f0f0);
+            font-size: 13px;
+            cursor: pointer;
+            line-height: 1;
+            padding: 0;
+        }
+        .cl-tb-btn:hover { background: var(--teal, #91D7EB); color: #000; border-color: var(--teal, #91D7EB); }
+        .cl-tb-btn:disabled { opacity: 0.25; cursor: default; }
+        .cl-tb-btn:disabled:hover { background: rgba(255,255,255,0.06); color: var(--text-primary, #f0f0f0); border-color: rgba(255,255,255,0.15); }
+
+        /* ── Blackout date chips ── */
+        .cl-blackout-row {
+            display: flex;
+            gap: 8px;
+            align-items: flex-end;
+        }
+        .cl-blackout-row input[type="date"] {
+            flex: 1;
+        }
+        .cl-blackout-add {
+            padding: 0 18px;
+            height: 42px;
+            background: var(--teal, #91D7EB);
+            border: 2px solid #000;
+            border-radius: 8px;
+            color: #000;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 15px;
+            cursor: pointer;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .cl-blackout-add:hover { opacity: 0.85; }
+        .cl-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 8px;
+        }
+        .cl-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 10px 5px 12px;
+            background: rgba(239,68,68,0.12);
+            border: 1px solid #ef4444;
+            border-radius: 20px;
+            font-size: 12px;
+            color: #ef4444;
+        }
+        .cl-chip-remove {
+            background: none;
+            border: none;
+            color: #ef4444;
+            cursor: pointer;
+            font-size: 15px;
+            line-height: 1;
+            padding: 0;
+            display: flex;
+            align-items: center;
+        }
+        .cl-chip-remove:hover { color: #fff; }
+
+        /* ── Draft / Template action bar ── */
+        .cl-save-bar {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-items: center;
+            padding: 10px 0 4px;
+        }
+        .cl-save-bar-label {
+            font-size: 12px;
+            color: var(--text-dim, #8a8aa3);
+            margin-right: 2px;
+            white-space: nowrap;
+        }
+        .cl-save-btn {
+            padding: 6px 14px;
+            border-radius: 7px;
+            border: 2px solid rgba(255,255,255,0.18);
+            background: rgba(255,255,255,0.06);
+            color: var(--text-primary, #f0f0f0);
+            font-family: 'Bebas Neue', cursive;
+            font-size: 14px;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background 0.15s, border-color 0.15s;
+        }
+        .cl-save-btn:hover { background: rgba(255,255,255,0.13); border-color: rgba(255,255,255,0.35); }
+        .cl-save-btn.accent { border-color: var(--teal, #91D7EB); color: var(--teal, #91D7EB); }
+        .cl-save-btn.accent:hover { background: rgba(145,215,235,0.12); }
+
+        /* ── Load modal ── */
+        .cl-load-modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.65);
+            z-index: 2000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+        .cl-load-modal {
+            background: var(--bg-panel, #1a1f2e);
+            border: 2px solid rgba(255,255,255,0.18);
+            border-radius: 12px;
+            width: 100%;
+            max-width: 480px;
+            max-height: 70vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .cl-load-modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 18px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .cl-load-modal-header strong { font-size: 15px; }
+        .cl-load-close {
+            background: none;
+            border: none;
+            color: var(--text-dim, #8a8aa3);
+            font-size: 22px;
+            cursor: pointer;
+            line-height: 1;
+            padding: 0 2px;
+        }
+        .cl-load-close:hover { color: var(--text-primary, #f0f0f0); }
+        .cl-load-empty {
+            padding: 24px 18px;
+            text-align: center;
+            color: var(--text-dim, #8a8aa3);
+            font-size: 13px;
+        }
+        .cl-load-list {
+            list-style: none;
+            margin: 0;
+            padding: 8px 0;
+            overflow-y: auto;
+        }
+        .cl-load-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 18px;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+        .cl-load-item:last-child { border-bottom: none; }
+        .cl-load-badge {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 11px;
+            padding: 2px 7px;
+            border-radius: 4px;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .cl-load-badge.draft { background: rgba(251,191,36,0.18); color: #fbbf24; border: 1px solid #fbbf24; }
+        .cl-load-badge.template { background: rgba(145,215,235,0.15); color: var(--teal, #91D7EB); border: 1px solid var(--teal, #91D7EB); }
+        .cl-load-name {
+            flex: 1;
+            font-size: 13px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .cl-load-btn {
+            padding: 5px 12px;
+            border-radius: 6px;
+            border: 1px solid rgba(255,255,255,0.2);
+            background: rgba(255,255,255,0.08);
+            color: var(--text-primary, #f0f0f0);
+            font-size: 12px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .cl-load-btn:hover { background: var(--teal, #91D7EB); color: #000; border-color: var(--teal, #91D7EB); }
+    </style>
+</head>
+<body class="vnext-light-page create-league-vnext-page has-mobile-nav">
+    <main class="ves-shell">
+        <section class="ves-page-header">
+            <div>
+                <p class="ves-kicker" id="leagueSetupKicker">League setup</p>
+                <h1 id="leagueSetupTitle">Create League</h1>
+                <p id="leagueSetupCopy">Build the league rules, schedule, registration window, and match format before handing it to league management.</p>
+            </div>
+            <div class="ves-hero-actions">
+                <a class="ves-action" href="/pages/league-director-vnext.html">Director home</a>
+                <a class="ves-action" id="openLeagueLink" href="/pages/triples-vnext.html" hidden>Open league</a>
+            </div>
+        </section>
+
+        <section class="ves-panel league-create-panel">
+            <form id="createLeagueForm" class="ves-form-grid ves-create-stack">
+                <section class="ves-create-section">
+                    <p class="ves-kicker">Basics</p>
+                    <h2>League</h2>
+                    <div class="ves-config-grid">
+                        <label>
+                            <span>League name</span>
+                            <input name="name" placeholder="2027 Triples League" autocomplete="off" required>
+                        </label>
+                        <label>
+                            <span>Season</span>
+                            <input name="season" placeholder="2027" inputmode="numeric" autocomplete="off" required>
+                        </label>
+                        <label>
+                            <span>Venue</span>
+                            <input name="venue" placeholder="Venue name" autocomplete="off">
+                        </label>
+                        <label>
+                            <span>Venue address</span>
+                            <input name="venue_address" placeholder="Street, city, state" autocomplete="off">
+                        </label>
+                        <label>
+                            <span>League type</span>
+                            <select name="league_mode">
+                                <option value="draft" selected>Draft league</option>
+                                <option value="team">Team league</option>
+                            </select>
+                        </label>
+                        <label>
+                            <span>Status</span>
+                            <select name="status">
+                                <option value="draft" selected>Draft</option>
+                                <option value="registration">Registration</option>
+                                <option value="active">Active</option>
+                                <option value="playoffs">Playoffs</option>
+                                <option value="completed">Completed</option>
+                            </select>
+                        </label>
+                        <label>
+                            <span>Roster format</span>
+                            <input type="hidden" name="format" value="triples">
+                            <select name="roster_size">
+                                <option value="1">Singles</option>
+                                <option value="2">Doubles</option>
+                                <option value="3" selected>Triples</option>
+                                <option value="4">4-player</option>
+                                <option value="5">5-player</option>
+                                <option value="6">6-player</option>
+                                <option value="7">7-player</option>
+                                <option value="8">8-player</option>
+                            </select>
+                        </label>
+                    </div>
+                </section>
+
+                <section class="ves-create-section">
+                    <p class="ves-kicker">Teams</p>
+                    <h2>Registration</h2>
+                    <div class="ves-config-grid">
+                        <label>
+                            <span>Max teams</span>
+                            <input name="max_teams" type="number" min="2" max="32" placeholder="No limit">
+                        </label>
+                        <label>
+                            <span>Schedule format</span>
+                            <select name="schedule_format">
+                                <option value="round_robin" selected>Round robin</option>
+                                <option value="double_round_robin">Double round robin</option>
+                            </select>
+                        </label>
+                        <label>
+                            <span>Min players needed</span>
+                            <input name="min_players" type="number" min="1" max="10" value="3">
+                        </label>
+                        <label>
+                            <span>Max roster spots</span>
+                            <input name="max_roster" type="number" min="1" max="8" value="4">
+                        </label>
+                        <label>
+                            <span>Registration opens</span>
+                            <input name="registration_open_date" type="date" onclick="try{this.showPicker()}catch(e){}">
+                        </label>
+                        <label>
+                            <span>Registration closes</span>
+                            <input name="registration_close_date" type="date" onclick="try{this.showPicker()}catch(e){}">
+                        </label>
+                        <label>
+                            <span>Player notifications</span>
+                            <select name="registration_notifications">
+                                <option value="email_phone_required" selected>Email and phone required</option>
+                                <option value="email_required">Email required</option>
+                                <option value="phone_required">Phone required</option>
+                            </select>
+                        </label>
+                        <label>
+                            <span>Approval mode</span>
+                            <select name="registration_approval">
+                                <option value="auto" selected>Auto-approve</option>
+                                <option value="director_review">Director review</option>
+                            </select>
+                        </label>
+                    </div>
+                </section>
+
+                <section class="ves-create-section">
+                    <p class="ves-kicker">Schedule</p>
+                    <h2>Season</h2>
+                    <div class="ves-config-grid">
+                        <label>
+                            <span>Start date</span>
+                            <input name="start_date" type="date" onclick="try{this.showPicker()}catch(e){}">
+                        </label>
+                        <label>
+                            <span>League night</span>
+                            <select name="match_day">
+                                <option value="monday">Monday</option>
+                                <option value="tuesday">Tuesday</option>
+                                <option value="wednesday" selected>Wednesday</option>
+                                <option value="thursday">Thursday</option>
+                                <option value="friday">Friday</option>
+                                <option value="saturday">Saturday</option>
+                                <option value="sunday">Sunday</option>
+                            </select>
+                        </label>
+                        <label>
+                            <span>Start time</span>
+                            <input name="start_time" type="time" value="19:00" onclick="try{this.showPicker()}catch(e){}">
+                        </label>
+                        <label class="ves-label-only">
+                            <span>Blackout dates</span>
+                            <div class="cl-blackout-row">
+                                <input type="date" id="blackoutDatePicker" onclick="try{this.showPicker()}catch(e){}">
+                                <button class="cl-blackout-add" type="button" id="blackoutAddBtn">Add</button>
+                            </div>
+                            <div class="cl-chips" id="blackoutChips"></div>
+                        </label>
+                        <label>
+                            <span>Default boards available</span>
+                            <input name="default_boards_available" type="number" min="1" max="20" placeholder="Optional">
+                        </label>
+                    </div>
+                </section>
+
+                <section class="ves-create-section">
+                    <p class="ves-kicker">Match format</p>
+                    <h2>Match Sets</h2>
+                    <p class="ves-section-note">Build the set order for a match night. 501/C/CH is the standard 501, Cricket, then choice preset; Custom set lets directors build their own sequence.</p>
+                    <div class="ves-rounds-builder" id="leagueRounds">
+                        <div class="ves-round-header" aria-hidden="true">
+                            <span>Set</span>
+                            <span>Players</span>
+                            <span>Game</span>
+                            <span>Legs</span>
+                            <span>Points</span>
+                            <span>Rules</span>
+                        </div>
+                        <article class="ves-round-row" data-round="1">
+                            <strong>Set 1</strong>
+                            <select name="round_1_players"><option value="1">Singles</option><option value="2" selected>Doubles</option><option value="3">Triples</option><option value="4">4 players</option><option value="5">5 players</option><option value="6">6 players</option><option value="7">7 players</option><option value="8">8 players</option></select>
+                            <select name="round_1_game"><option value="501" selected>501</option><option value="301">301</option><option value="701">701</option><option value="cricket">Cricket</option><option value="mixed">501/C/CH</option><option value="custom">Custom set</option><option value="corks_choice">Cork's choice</option></select>
+                            <select name="round_1_best_of"><option value="1">1 leg</option><option value="3" selected>Best of 3</option><option value="5">Best of 5</option><option value="7">Best of 7</option><option value="9">Best of 9</option></select>
+                            <select name="round_1_points"><option value="1" selected>1 point</option><option value="2">2 points</option><option value="3">3 points</option></select>
+                            <div class="ves-mixed-leg-summary" data-mixed-summary="1"></div>
+                            <div class="ves-round-x01-rules" data-x01-rules="1">
+                                <label><span>In</span><select name="round_1_in_rule"><option value="straight" selected>Free in</option><option value="double">Double in</option><option value="master">Master in (D/T)</option></select></label>
+                                <label><span>Out</span><select name="round_1_out_rule"><option value="straight">Single out</option><option value="double" selected>Double out</option><option value="master">Master out (D/T)</option></select></label>
+                            </div>
+                            <div class="ves-round-mixed" data-mixed-round="1"></div>
+                        </article>
+                        <article class="ves-round-row" data-round="2">
+                            <strong>Set 2</strong>
+                            <select name="round_2_players"><option value="1">Singles</option><option value="2" selected>Doubles</option><option value="3">Triples</option><option value="4">4 players</option><option value="5">5 players</option><option value="6">6 players</option><option value="7">7 players</option><option value="8">8 players</option></select>
+                            <select name="round_2_game"><option value="cricket" selected>Cricket</option><option value="501">501</option><option value="301">301</option><option value="701">701</option><option value="mixed">501/C/CH</option><option value="custom">Custom set</option><option value="corks_choice">Cork's choice</option></select>
+                            <select name="round_2_best_of"><option value="1">1 leg</option><option value="3" selected>Best of 3</option><option value="5">Best of 5</option><option value="7">Best of 7</option><option value="9">Best of 9</option></select>
+                            <select name="round_2_points"><option value="1" selected>1 point</option><option value="2">2 points</option><option value="3">3 points</option></select>
+                            <div class="ves-mixed-leg-summary" data-mixed-summary="2"></div>
+                            <div class="ves-round-x01-rules" data-x01-rules="2">
+                                <label><span>In</span><select name="round_2_in_rule"><option value="straight" selected>Free in</option><option value="double">Double in</option><option value="master">Master in (D/T)</option></select></label>
+                                <label><span>Out</span><select name="round_2_out_rule"><option value="straight">Single out</option><option value="double" selected>Double out</option><option value="master">Master out (D/T)</option></select></label>
+                            </div>
+                            <div class="ves-round-mixed" data-mixed-round="2"></div>
+                        </article>
+                        <article class="ves-round-row" data-round="3">
+                            <strong>Set 3</strong>
+                            <select name="round_3_players"><option value="1">Singles</option><option value="2" selected>Doubles</option><option value="3">Triples</option><option value="4">4 players</option><option value="5">5 players</option><option value="6">6 players</option><option value="7">7 players</option><option value="8">8 players</option></select>
+                            <select name="round_3_game"><option value="corks_choice" selected>Cork's choice</option><option value="501">501</option><option value="301">301</option><option value="701">701</option><option value="cricket">Cricket</option><option value="mixed">501/C/CH</option><option value="custom">Custom set</option></select>
+                            <select name="round_3_best_of"><option value="1">1 leg</option><option value="3" selected>Best of 3</option><option value="5">Best of 5</option><option value="7">Best of 7</option><option value="9">Best of 9</option></select>
+                            <select name="round_3_points"><option value="1" selected>1 point</option><option value="2">2 points</option><option value="3">3 points</option></select>
+                            <div class="ves-mixed-leg-summary" data-mixed-summary="3"></div>
+                            <div class="ves-round-x01-rules" data-x01-rules="3">
+                                <label><span>In</span><select name="round_3_in_rule"><option value="straight" selected>Free in</option><option value="double">Double in</option><option value="master">Master in (D/T)</option></select></label>
+                                <label><span>Out</span><select name="round_3_out_rule"><option value="straight">Single out</option><option value="double" selected>Double out</option><option value="master">Master out (D/T)</option></select></label>
+                            </div>
+                            <div class="ves-round-mixed" data-mixed-round="3"></div>
+                        </article>
+                    </div>
+                    <div class="ves-round-actions">
+                        <button class="ves-action" type="button" id="addRoundBtn">+ Add set</button>
+                    </div>
+                </section>
+
+                <section class="ves-create-section">
+                    <p class="ves-kicker">Starting rules</p>
+                    <h2>Cork / Choice</h2>
+                    <p class="ves-section-note">These are the rules currently supported by the match hub and scorer flow. The cork winner is the option holder whenever a set requires a game choice.</p>
+                    <div class="ves-config-grid">
+                        <label>
+                            <span>Cork rule</span>
+                            <select name="cork_rule">
+                                <option value="cork_every_leg" selected>Cork every leg</option>
+                                <option value="alternate_cork_first_deciding">Alternate, cork first/deciding</option>
+                                <option value="loser_starts_cork_first_deciding">Loser starts, cork first/deciding</option>
+                                <option value="winner_starts_cork_first_deciding">Winner starts, cork first/deciding</option>
+                                <option value="home_first">Home starts first, then alternate</option>
+                                <option value="away_first">Away starts first, then alternate</option>
+                            </select>
+                        </label>
+                        <label>
+                            <span>Cork option</span>
+                            <select name="cork_option">
+                                <option value="alternate_random_first_last" selected>Alternate, random first/deciding</option>
+                                <option value="winner_chooses">Cork winner chooses</option>
+                                <option value="loser_chooses">Cork loser chooses</option>
+                                <option value="home_team_option">Home team option</option>
+                                <option value="away_team_option">Away team option</option>
+                            </select>
+                        </label>
+                        <label id="corkWinnerGetsWrap">
+                            <span>Choice winner gets</span>
+                            <select name="cork_winner_gets">
+                                <option value="choose-and-start" selected>Choose game and throw order</option>
+                                <option value="choose-only">Choose game only</option>
+                                <option value="choose-or-start">Choose game or start</option>
+                            </select>
+                        </label>
+                        <label class="ves-label-only">
+                            <span>Tiebreakers</span>
+                            <div class="cl-tiebreaker-list" id="tiebreakerList" aria-label="Tiebreaker priority order"></div>
+                        </label>
+                    </div>
+                    <div class="ves-rule-preview" id="corkRulePreview"></div>
+                </section>
+
+                <section class="ves-create-section">
+                    <p class="ves-kicker">Postseason</p>
+                    <h2>Playoffs</h2>
+                    <div class="ves-config-grid">
+                        <label>
+                            <span>Playoff format</span>
+                            <select name="playoff_format">
+                                <option value="none">No playoffs</option>
+                                <option value="single_elimination" selected>Single elimination</option>
+                                <option value="double_elimination">Double elimination</option>
+                                <option value="round_robin">Round robin finals</option>
+                            </select>
+                        </label>
+                        <label>
+                            <span>Playoff teams</span>
+                            <input name="playoff_teams" type="number" min="2" max="32" value="6">
+                        </label>
+                        <label>
+                            <span>Sets to win</span>
+                            <input name="playoff_sets_to_win" type="number" min="1" max="13" value="5">
+                        </label>
+                        <label>
+                            <span>Third-place match</span>
+                            <select name="third_place_match">
+                                <option value="true" selected>Yes</option>
+                                <option value="false">No</option>
+                            </select>
+                        </label>
+                        <label>
+                            <span>Reseed after rounds</span>
+                            <select name="playoff_reseed">
+                                <option value="false" selected>No</option>
+                                <option value="true">Yes</option>
+                            </select>
+                        </label>
+                        <label>
+                            <span>Playoff start date</span>
+                            <input name="playoff_start_date" type="date" onclick="try{this.showPicker()}catch(e){}">
+                        </label>
+                    </div>
+                </section>
+
+                <section class="ves-create-section">
+                    <p class="ves-kicker">Messaging</p>
+                    <h2>Notifications</h2>
+                    <div class="ves-config-grid">
+                        <label>
+                            <span>Match reminders</span>
+                            <select name="match_reminders">
+                                <option value="site_sms_email" selected>Site, text, and email</option>
+                                <option value="site_sms">Site and text</option>
+                                <option value="site_email">Site and email</option>
+                                <option value="site_only">Site only</option>
+                                <option value="off">Off</option>
+                            </select>
+                        </label>
+                        <label>
+                            <span>Reminder timing</span>
+                            <select name="reminder_timing">
+                                <option value="day_before">Day before</option>
+                                <option value="day_of" selected>Day of</option>
+                                <option value="both">Day before and day of</option>
+                            </select>
+                        </label>
+                        <label>
+                            <span>When up to play</span>
+                            <select name="up_next_notifications">
+                                <option value="site_sms" selected>Site and text</option>
+                                <option value="site_email">Site and email</option>
+                                <option value="site_sms_email">Site, text, and email</option>
+                                <option value="off">Off</option>
+                            </select>
+                        </label>
+                        <label>
+                            <span>Director alerts</span>
+                            <select name="director_alerts">
+                                <option value="site_sms_email" selected>Site, text, and email</option>
+                                <option value="site_sms">Site and text</option>
+                                <option value="site_only">Site only</option>
+                            </select>
+                        </label>
+                    </div>
+                </section>
+
+                <div class="cl-save-bar">
+                    <span class="cl-save-bar-label">Drafts &amp; templates:</span>
+                    <button class="cl-save-btn" type="button" id="cl-save-draft-btn">Save draft</button>
+                    <button class="cl-save-btn accent" type="button" id="cl-save-template-btn">Save as template</button>
+                    <button class="cl-save-btn" type="button" id="cl-load-btn">Load saved&hellip;</button>
+                </div>
+                <div class="ves-director-auth-actions">
+                    <button class="ves-action primary" type="submit" id="createLeagueSubmit">Create draft league</button>
+                    <a class="ves-action" href="/pages/league-director-vnext.html" id="cancelLeagueSetup">Cancel</a>
+                </div>
+                <p class="ves-form-status" id="createLeagueStatus"></p>
+            </form>
+        </section>
+    </main>
+
+    <script src="/components/brdc-navigation-init.js?v=18"></script>
+    <script type="module" src="/js/create-league-vnext.js?v=4"></script>
+    <script>
+        initBRDCNavigation({ page: 'create-league', pageTitle: 'Create League', showBreadcrumbs: false, showBackButton: true });
+    </script>
+</body>
+</html>

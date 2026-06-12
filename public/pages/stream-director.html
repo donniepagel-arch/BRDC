@@ -406,7 +406,7 @@
                 </div>
                 <div class="form-group">
                     <label class="form-label">Match Source</label>
-                    <select id="matchSource" class="form-select">
+                    <select id="matchSource" class="form-select" onchange="onMatchSourceChange()">
                         <option value="">No match linked</option>
                     </select>
                 </div>
@@ -425,16 +425,22 @@
                 </details>
                 <div class="form-group">
                     <label class="form-label">Platform</label>
-                    <select id="streamPlatform" class="form-select">
+                    <select id="streamPlatform" class="form-select" onchange="onPlatformChange()">
+                        <option value="site">BRDC Site — watch on burningriverdarts.com</option>
                         <option value="youtube">YouTube Live</option>
                         <option value="twitch">Twitch</option>
                     </select>
                 </div>
-                <div class="form-group">
+                <div class="form-group" id="streamKeyGroup" style="display:none;">
                     <label class="form-label">Stream Key</label>
                     <input type="password" id="streamKey" class="form-input" inputmode="text" placeholder="Enter stream key">
                 </div>
                 <button class="btn btn-go-live" id="goLiveBtn" onclick="toggleLive()" disabled>GO LIVE</button>
+                <div id="siteWatchLink" style="display:none; margin-top:12px; padding:12px; border:1px solid rgba(255,70,154,0.35); border-radius:10px; background:rgba(255,70,154,0.08);">
+                    <div style="font-weight:900; font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:#ff7fb8; margin-bottom:6px;">Watch link (share this)</div>
+                    <a id="siteWatchUrl" href="#" target="_blank" style="color:#ffd1e6; word-break:break-all; font-size:13px;"></a>
+                    <div style="margin-top:8px;"><button class="btn btn-secondary" type="button" onclick="copySiteWatchLink()" style="font-size:13px;">Copy link</button></div>
+                </div>
             </div>
 
             <div class="panel-section">
@@ -477,15 +483,15 @@
 
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
-        import { getFirestore, doc, setDoc, getDoc, onSnapshot, collection, deleteDoc, serverTimestamp, query, orderBy, limit } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+        import { getFirestore, doc, setDoc, getDoc, onSnapshot, collection, deleteDoc, serverTimestamp, query, orderBy, limit, where, getDocs } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
 
         const firebaseConfig = {
-            apiKey: "AIzaSyDLpaN65tYFNPJQ1TjMWS_36qFeNxJ0AZ4",
+            apiKey: "AIzaSyDN1aYhoVt3OX5EafsNTVB09i8VFx7QM1U",
             authDomain: "brdc-v2.firebaseapp.com",
             projectId: "brdc-v2",
             storageBucket: "brdc-v2.firebasestorage.app",
-            messagingSenderId: "586498498498",
-            appId: "1:586498498498:web:4b76c0b5e4b94baf0e3b5f"
+            messagingSenderId: "726670872282",
+            appId: "1:726670872282:web:913d19c8cb3b24bf919fe3"
         };
 
         const app = initializeApp(firebaseConfig);
@@ -506,6 +512,10 @@
         let isLive = false;
         let canvas, ctx;
         let animationFrame;
+
+        // Live-score overlay binding (Feature 2)
+        let liveScore = null;        // { t1, t2, s1, s2 } when a match is linked
+        let matchScoreUnsub = null;  // unsubscribe fn for the active live_matches listener
         let frameCount = 0;
         let lastFpsUpdate = 0;
 
@@ -559,6 +569,15 @@
         };
 
         window.endSession = async function() {
+            // Feature 1: if we were live on the site, mark the discoverable record not-live
+            if (isLive && document.getElementById('streamPlatform')?.value === 'site') {
+                setLiveStreamRecord(false);
+            }
+
+            // Tear down the live-score listener (Feature 2)
+            if (matchScoreUnsub) { try { matchScoreUnsub(); } catch (e) {} matchScoreUnsub = null; }
+            liveScore = null;
+
             if (sessionId) {
                 try {
                     await deleteDoc(doc(db, 'streaming_sessions', sessionId));
@@ -701,6 +720,72 @@
             toggle.setAttribute('aria-checked', showOverlay);
         };
 
+        // ========== LIVE SCORE OVERLAY (Feature 2) ==========
+
+        // Populate the Match Source dropdown with active live_matches docs.
+        async function loadLiveMatches() {
+            const select = document.getElementById('matchSource');
+            if (!select) return;
+            try {
+                // Active statuses set by startLiveMatch ('live'); accept 'in_progress' too for safety.
+                const snap = await getDocs(query(
+                    collection(db, 'live_matches'),
+                    where('status', 'in', ['live', 'in_progress'])
+                ));
+
+                // Preserve current selection across reloads.
+                const prev = select.value;
+                select.innerHTML = '<option value="">No match linked</option>';
+                snap.forEach((d) => {
+                    const m = d.data() || {};
+                    const t1 = m.team1_name || 'Team 1';
+                    const t2 = m.team2_name || 'Team 2';
+                    const opt = document.createElement('option');
+                    opt.value = d.id;
+                    opt.textContent = `${t1} vs ${t2}`;
+                    select.appendChild(opt);
+                });
+                // Restore prior selection if it still exists.
+                if (prev && select.querySelector(`option[value="${prev}"]`)) {
+                    select.value = prev;
+                }
+            } catch (e) {
+                console.error('Error loading live matches:', e);
+            }
+        }
+
+        // Subscribe to the selected live_matches doc and keep liveScore current.
+        window.onMatchSourceChange = function() {
+            const select = document.getElementById('matchSource');
+            const matchId = select ? select.value : '';
+
+            // Unsubscribe any previous listener first.
+            if (matchScoreUnsub) { try { matchScoreUnsub(); } catch (e) {} matchScoreUnsub = null; }
+            liveScore = null;
+
+            if (!matchId) return;
+
+            try {
+                matchScoreUnsub = onSnapshot(doc(db, 'live_matches', matchId), (snap) => {
+                    if (!snap.exists()) { liveScore = null; return; }
+                    const m = snap.data() || {};
+                    liveScore = {
+                        t1: m.team1_name || 'Team 1',
+                        t2: m.team2_name || 'Team 2',
+                        // Main scoreboard score = games/sets won in the match
+                        s1: (typeof m.team1_games_won === 'number') ? m.team1_games_won : 0,
+                        s2: (typeof m.team2_games_won === 'number') ? m.team2_games_won : 0
+                    };
+                }, (err) => {
+                    console.error('Live score snapshot error:', err);
+                    liveScore = null;
+                });
+            } catch (e) {
+                console.error('Error subscribing to live match:', e);
+                liveScore = null;
+            }
+        };
+
         // ========== STREAMING RELAY FUNCTIONS ==========
 
         window.connectRelay = function() {
@@ -759,7 +844,7 @@
 
             switch (message.type) {
                 case 'started':
-                    updateRelayStatus('streaming', `LIVE on ${message.platform.toUpperCase()}`);
+                    updateRelayStatus('streaming', message.platform === 'site' ? 'LIVE on the BRDC site' : `LIVE on ${message.platform.toUpperCase()}`);
                     break;
 
                 case 'stopped':
@@ -801,12 +886,57 @@
             }
         };
 
+        function onPlatformChange() {
+            const isSite = document.getElementById('streamPlatform').value === 'site';
+            document.getElementById('streamKeyGroup').style.display = isSite ? 'none' : '';
+            if (!isSite) document.getElementById('siteWatchLink').style.display = 'none';
+        }
+        function buildWatchUrl(id) {
+            return `${location.origin}/pages/watch-vnext.html?id=${encodeURIComponent(id)}`;
+        }
+
+        // Feature 1: discoverable "live now" record at live_streams/current.
+        // Only ever touched for the site platform; resilient (never throws into callers).
+        async function setLiveStreamRecord(live, watchId) {
+            try {
+                if (live) {
+                    const title = (document.getElementById('sessionCodeDisplay')?.textContent || '').trim();
+                    await setDoc(doc(db, 'live_streams', 'current'), {
+                        live: true,
+                        watch_id: watchId || sessionId || '',
+                        title: title && title !== '------' ? `Live Match (${title})` : 'Live Match',
+                        platform: 'site',
+                        started_at: serverTimestamp()
+                    });
+                } else {
+                    await setDoc(doc(db, 'live_streams', 'current'), {
+                        live: false,
+                        ended_at: serverTimestamp()
+                    }, { merge: true });
+                }
+            } catch (e) {
+                console.error('Error updating live_streams/current:', e);
+            }
+        }
+        function showSiteWatchLink(id) {
+            const url = buildWatchUrl(id);
+            const a = document.getElementById('siteWatchUrl');
+            a.textContent = url; a.href = url;
+            document.getElementById('siteWatchLink').style.display = '';
+        }
+        function copySiteWatchLink() {
+            const url = document.getElementById('siteWatchUrl').textContent;
+            navigator.clipboard?.writeText(url).then(() => toastSuccess?.('Watch link copied')).catch(()=>{});
+        }
+
         function startStreaming() {
             const platform = document.getElementById('streamPlatform').value;
-            const streamKey = document.getElementById('streamKey').value.trim();
+            const isSite = platform === 'site';
+            // Site mode hosts HLS on our relay — the session code IS the stream id (no platform key).
+            const streamKey = isSite ? (sessionId || '') : document.getElementById('streamKey').value.trim();
 
             if (!streamKey) {
-                toastWarning('Please enter your stream key');
+                toastWarning(isSite ? 'Create a session first — the session code is the stream id.' : 'Please enter your stream key');
                 return;
             }
 
@@ -833,12 +963,24 @@
                 streamKey: streamKey
             }));
 
+            // Site mode: surface the public watch link immediately (viewer retries until live)
+            if (isSite) {
+                showSiteWatchLink(streamKey);
+                // Feature 1: publish a discoverable "live now" record so the app can show Watch Live
+                setLiveStreamRecord(true, streamKey);
+            }
+
             // Start capturing canvas and sending to relay
             startCanvasCapture();
         }
 
         function stopStreaming() {
             isLive = false;
+
+            // Feature 1: clear the discoverable "live now" record (site platform only)
+            if (document.getElementById('streamPlatform')?.value === 'site') {
+                setLiveStreamRecord(false);
+            }
 
             const btn = document.getElementById('goLiveBtn');
             const badge = document.getElementById('liveBadge');
@@ -1022,54 +1164,70 @@
                     break;
             }
 
-            // Draw overlay if enabled
-            if (showOverlay) {
-                drawScorerOverlay();
+            // Draw overlay if enabled AND a live match is linked (Feature 2)
+            if (showOverlay && liveScore) {
+                try { drawScorerOverlay(); } catch (e) { /* never crash the render loop */ }
             }
 
             animationFrame = requestAnimationFrame(renderFrame);
         }
 
         function drawScorerOverlay() {
-            // Score bar at bottom
-            const barHeight = 80;
+            // Bound to a linked live match (Feature 2). Guarded so a missing field never breaks render.
+            const score = liveScore || {};
+            const t1 = score.t1 || 'Team 1';
+            const t2 = score.t2 || 'Team 2';
+            const s1 = (typeof score.s1 === 'number') ? score.s1 : 0;
+            const s2 = (typeof score.s2 === 'number') ? score.s2 : 0;
+
+            // Lower-third bar
+            const barHeight = 120;
             const barY = canvas.height - barHeight;
 
-            // Semi-transparent background
-            ctx.fillStyle = 'rgba(22, 33, 62, 0.9)';
+            // Save/restore so overlay never leaks state into the composite
+            ctx.save();
+
+            // Semi-transparent dark background
+            ctx.fillStyle = 'rgba(22, 33, 62, 0.88)';
             ctx.fillRect(0, barY, canvas.width, barHeight);
 
-            // Top border
-            ctx.strokeStyle = '#FF469A';
-            ctx.lineWidth = 4;
-            ctx.beginPath();
-            ctx.moveTo(0, barY);
-            ctx.lineTo(canvas.width, barY);
-            ctx.stroke();
-
-            // Player names and scores (placeholder)
-            ctx.font = 'bold 36px "Bebas Neue", sans-serif';
-            ctx.fillStyle = '#91D7EB';
-            ctx.textAlign = 'left';
-            ctx.fillText('PLAYER 1', 40, barY + 50);
-
-            ctx.textAlign = 'right';
-            ctx.fillText('PLAYER 2', canvas.width - 40, barY + 50);
-
-            ctx.font = 'bold 48px "Bebas Neue", sans-serif';
+            // Pink top accent
             ctx.fillStyle = '#FF469A';
-            ctx.textAlign = 'center';
-            ctx.fillText('501 - 501', canvas.width / 2, barY + 55);
+            ctx.fillRect(0, barY, canvas.width, 6);
 
-            // BRDC Logo/watermark
-            ctx.font = 'bold 24px "Bebas Neue", sans-serif';
-            ctx.fillStyle = 'rgba(255, 70, 154, 0.5)';
+            ctx.textBaseline = 'middle';
+            const midY = barY + barHeight / 2 + 4;
+
+            // Team 1 name (left, white)
+            ctx.font = '700 56px "Bebas Neue", Inter, sans-serif';
+            ctx.fillStyle = '#FFFFFF';
             ctx.textAlign = 'left';
+            ctx.fillText(t1.toUpperCase(), 60, midY);
+
+            // Team 2 name (right, white)
+            ctx.textAlign = 'right';
+            ctx.fillText(t2.toUpperCase(), canvas.width - 60, midY);
+
+            // Score block in the center (pink accent)
+            const scoreText = `${s1} — ${s2}`;
+            ctx.font = '800 72px Inter, "Bebas Neue", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillStyle = '#FF469A';
+            ctx.fillText(scoreText, canvas.width / 2, midY);
+
+            // BRDC watermark
+            ctx.font = '700 24px "Bebas Neue", sans-serif';
+            ctx.fillStyle = 'rgba(255, 70, 154, 0.55)';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'alphabetic';
             ctx.fillText('BRDC LIVE', 30, 40);
+
+            ctx.restore();
         }
 
         // Initialize
         initCanvas();
+        loadLiveMatches();
     </script>
 </body>
 </html>

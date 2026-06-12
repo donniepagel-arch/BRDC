@@ -49,7 +49,7 @@ function callCloudFunction(functionName, data) {
 }
 
 async function main() {
-    const leagueId = process.argv[2] || 'aOq4Y0ETxPZ66tM1uUtP'; // Winter Triple Draft
+    const leagueId = process.argv[2] || 'aOq4Y0ETxPZ66tM1uUtP'; // 2026 Triples League
 
     console.log(`Generating feed for league: ${leagueId}`);
 

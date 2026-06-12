@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LEDA - Messaging</title>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #1a3a5c;
+            --secondary: #2e7db5;
+            --accent: #7ec8c8;
+            --bg-dark: #0d1f33;
+            --bg-panel: #0f2744;
+            --bg-card: #142d50;
+            --text-light: #f0f0f0;
+            --text-dim: #8a9ab5;
+            --success: #22c55e;
+            --danger: #ef4444;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            background-color: var(--bg-dark);
+            color: var(--text-light);
+            display: flex;
+            min-height: 100vh;
+        }
+
+        h1, h2, h3, h4, h5, h6 {
+            font-family: 'Bebas Neue', sans-serif;
+            color: var(--text-light);
+        }
+
+        .sidebar {
+            width: 200px;
+            background-color: var(--bg-panel);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.2);
+        }
+
+        .sidebar-logo {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 2em;
+            color: var(--accent);
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .sidebar a, .sidebar button {
+            color: var(--text-dim);
+            text-decoration: none;
+            padding: 10px 15px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            transition: background-color 0.2s, color 0.2s;
+            background: none;
+            border: none;
+            text-align: left;
+            cursor: pointer;
+            font-size: 1em;
+        }
+
+        .sidebar a:hover, .sidebar button:hover {
+            background-color: var(--bg-card);
+            color: var(--text-light);
+        }
+
+        .sidebar a.active {
+            background-color: var(--primary);
+            color: var(--text-light);
+        }
+
+        .main-content {
+            flex-grow: 1;
+            padding: 20px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .header h1 {
+            margin: 0;
+            color: var(--primary);
+        }
+
+        .btn {
+            background-color: var(--secondary);
+            color: var(--text-light);
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: background-color 0.2s;
+        }
+
+        .btn-primary {
+            background-color: var(--primary);
+        }
+
+        .btn-primary:hover {
+            background-color: #152f4a;
+        }
+
+        .card {
+            background-color: var(--bg-panel);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .audience-selector {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .audience-selector label {
+            background-color: var(--bg-card);
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.2s, border-color 0.2s;
+            border: 1px solid transparent;
+        }
+
+        .audience-selector input[type="radio"] {
+            display: none;
+        }
+
+        .audience-selector input[type="radio"]:checked + label {
+            background-color: var(--primary);
+            border-color: var(--accent);
+            color: var(--text-light);
+        }
+
+        .audience-details {
+            margin-top: 15px;
+            padding: 15px;
+            background-color: var(--bg-card);
+            border-radius: 8px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: var(--text-light);
+            font-weight: 500;
+        }
+
+        .form-group input, .form-group textarea, .form-group select {
+            width: calc(100% - 24px);
+            padding: 10px 12px;
+            border-radius: 5px;
+            border: 1px solid var(--bg-dark);
+            background-color: var(--bg-dark);
+            color: var(--text-light);
+            font-size: 1em;
+        }
+
+        .form-group textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .tab-controls {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 2px solid var(--bg-card);
+        }
+
+        .tab-controls button {
+            background: none;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            color: var(--text-dim);
+            font-size: 1.1em;
+            transition: color 0.2s, border-bottom 0.2s;
+        }
+
+        .tab-controls button.active {
+            color: var(--accent);
+            border-bottom: 2px solid var(--accent);
+            font-weight: 600;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .char-counter, .recipient-count {
+            font-size: 0.9em;
+            color: var(--text-dim);
+            text-align: right;
+            margin-top: 5px;
+        }
+
+        .message-history table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background-color: var(--bg-card);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .message-history th, .message-history td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--bg-dark);
+        }
+
+        .message-history th {
+            background-color: var(--primary);
+            color: var(--text-light);
+            font-weight: 500;
+            text-transform: uppercase;
+            font-size: 0.85em;
+        }
+
+        .message-history tr:last-child td {
+            border-bottom: none;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.6);
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background-color: var(--bg-panel);
+            margin: auto;
+            padding: 30px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            position: relative;
+        }
+
+        .close-button {
+            color: var(--text-dim);
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close-button:hover,
+        .close-button:focus {
+            color: var(--text-light);
+            text-decoration: none;
+        }
+
+        .player-list {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid var(--bg-card);
+            padding: 10px;
+            border-radius: 5px;
+            background-color: var(--bg-dark);
+        }
+
+        .player-list div {
+            margin-bottom: 5px;
+        }
+
+        .player-list input[type="checkbox"] {
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <nav class="sidebar">
+        <div class="sidebar-logo">LEDA</div>
+        <a href="/leda/manager/dashboard.html">Dashboard</a>
+        <a href="/leda/manager/events.html">Events</a>
+        <a href="/leda/manager/players.html">Players</a>
+        <a href="/leda/manager/standings.html">Standings</a>
+        <a href="/leda/manager/messaging.html" class="active">Messaging</a>
+        <button onclick="logout()">Logout</button>
+    </nav>
+
+    <div class="main-content">
+        <div class="header">
+            <h1>Messaging</h1>
+        </div>
+
+        <div class="card">
+            <h2>Send New Message</h2>
+            <div class="form-group">
+                <label>Audience:</label>
+                <div class="audience-selector">
+                    <input type="radio" id="audience-all" name="audience" value="all" checked>
+                    <label for="audience-all">All Players</label>
+
+                    <input type="radio" id="audience-event" name="audience" value="event">
+                    <label for="audience-event">Registered for Event</label>
+
+                    <input type="radio" id="audience-custom" name="audience" value="custom">
+                    <label for="audience-custom">Custom Selection</label>
+                </div>
+            </div>
+
+            <div id="audience-details" class="audience-details">
+                <div id="event-selector" style="display:none;">
+                    <label for="event-dropdown">Select Event:</label>
+                    <select id="event-dropdown" class="form-control">
+                        <!-- Events will be loaded here -->
+                    </select>
+                </div>
+                <div id="player-custom-selector" style="display:none;">
+                    <label>Select Players:</label>
+                    <div class="player-list" id="custom-player-list">
+                        <!-- Player checkboxes will be loaded here -->
+                    </div>
+                </div>
+                <div class="recipient-count">Estimated Recipients: <span id="estimated-recipient-count">0</span></div>
+            </div>
+
+            <div class="tab-controls">
+                <button id="sms-tab-btn" class="active" onclick="openChannelTab('sms')">SMS</button>
+                <button id="push-tab-btn" onclick="openChannelTab('push')">Push</button>
+            </div>
+
+            <div id="sms-panel" class="tab-content active">
+                <div class="form-group">
+                    <label for="sms-message">SMS Message (max 160 chars):</label>
+                    <textarea id="sms-message" maxlength="160"></textarea>
+                    <div class="char-counter">Characters: <span id="sms-char-count">0</span>/160</div>
+                </div>
+                <button class="btn btn-primary" onclick="confirmSendMessage('sms')">Send SMS</button>
+            </div>
+
+            <div id="push-panel" class="tab-content">
+                <div class="form-group">
+                    <label for="push-title">Push Notification Title:</label>
+                    <input type="text" id="push-title">
+                </div>
+                <div class="form-group">
+                    <label for="push-body">Push Notification Body:</label>
+                    <textarea id="push-body"></textarea>
+                </div>
+                <button class="btn btn-primary" onclick="confirmSendMessage('push')">Send Push</button>
+            </div>
+        </div>
+
+        <div class="card message-history">
+            <h2>Message History</h2>
+            <table id="message-history-table">
+                <thead>
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>Channel</th>
+                        <th>Recipients</th>
+                        <th>Message Preview</th>
+                        <th>Sent By</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Message history will be inserted here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div id="sendConfirmationModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" onclick="closeModal('sendConfirmationModal')">&times;</span>
+            <h2>Confirm Message Send</h2>
+            <p id="confirm-message-text"></p>
+            <p><strong>Message Preview:</strong></p>
+            <p id="message-preview-content" style="white-space: pre-wrap;"></p>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('sendConfirmationModal')">Cancel</button>
+                <button type="button" class="btn btn-primary" id="confirm-send-btn">Send Message</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getFirestore, collection, getDocs, doc, query, where, orderBy } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-functions.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDN1aYhoVt3OX5EafsNTVB09i8VFx7QM1U",
+            authDomain: "brdc-v2.firebaseapp.com",
+            projectId: "brdc-v2",
+            storageBucket: "brdc-v2.firebasestorage.app",
+            messagingSenderId: "726670872282",
+            appId: "1:726670872282:web:913d19c8cb3b24bf919fe3"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const functions = getFunctions(app);
+
+        const orgId = 'leda';
+        let allPlayers = [];
+        let allEvents = [];
+        let currentChannel = 'sms';
+
+        async function checkAuthAndLoadData() {
+            onAuthStateChanged(auth, async (user) => {
+                if (!user) {
+                    window.location.href = '/leda/login.html';
+                    return;
+                }
+                const userRole = sessionStorage.getItem('userRole');
+                if (sessionStorage.getItem('orgId') !== orgId || userRole !== 'manager') {
+                    alert('Unauthorized access.');
+                    window.location.href = '/leda/login.html';
+                    return;
+                }
+                await loadPlayers();
+                await loadEvents();
+                await loadMessageHistory();
+                updateRecipientCount();
+            });
+        }
+
+        async function loadPlayers() {
+            try {
+                const playersCol = collection(db, `organizations/${orgId}/players`);
+                const playerSnapshot = await getDocs(playersCol);
+                allPlayers = playerSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderCustomPlayerList();
+            } catch (error) {
+                console.error("Error loading players: ", error);
+                alert("Failed to load players.");
+            }
+        }
+
+        async function loadEvents() {
+            try {
+                const eventsCol = collection(db, `organizations/${orgId}/events`);
+                const eventSnapshot = await getDocs(eventsCol);
+                allEvents = eventSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderEventDropdown();
+            } catch (error) {
+                console.error("Error loading events: ", error);
+                alert("Failed to load events.");
+            }
+        }
+
+        async function loadMessageHistory() {
+            try {
+                const messageLogCol = collection(db, `organizations/${orgId}/message_log`);
+                const messageSnapshot = await getDocs(query(messageLogCol, orderBy('timestamp', 'desc')));
+                const messages = messageSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderMessageHistory(messages);
+            } catch (error) {
+                console.error("Error loading message history: ", error);
+                alert("Failed to load message history.");
+            }
+        }
+
+        function renderMessageHistory(messages) {
+            const tableBody = document.querySelector('#message-history-table tbody');
+            tableBody.innerHTML = '';
+            messages.forEach(msg => {
+                const row = tableBody.insertRow();
+                const timestamp = msg.timestamp ? new Date(msg.timestamp.seconds * 1000).toLocaleString() : 'N/A';
+                row.innerHTML = `
+                    <td>${timestamp}</td>
+                    <td>${msg.channel}</td>
+                    <td>${msg.recipient_count || 'N/A'}</td>
+                    <td>${msg.message ? msg.message.substring(0, 50) + (msg.message.length > 50 ? '...' : '') : ''}</td>
+                    <td>${msg.sent_by || 'N/A'}</td>
+                `;
+            });
+        }
+
+        function renderEventDropdown() {
+            const dropdown = document.getElementById('event-dropdown');
+            dropdown.innerHTML = '<option value="">-- Select an Event --</option>';
+            allEvents.forEach(event => {
+                const option = document.createElement('option');
+                option.value = event.id;
+                option.textContent = event.name;
+                dropdown.appendChild(option);
+            });
+        }
+
+        function renderCustomPlayerList() {
+            const playerListDiv = document.getElementById('custom-player-list');
+            playerListDiv.innerHTML = '';
+            allPlayers.forEach(player => {
+                const div = document.createElement('div');
+                div.innerHTML = `
+                    <input type="checkbox" id="player-${player.id}" value="${player.id}" class="custom-player-checkbox">
+                    <label for="player-${player.id}">${player.name} (${player.email || player.phone || 'N/A'})</label>
+                `;
+                playerListDiv.appendChild(div);
+            });
+        }
+
+        document.querySelectorAll('input[name="audience"]').forEach(radio => {
+            radio.addEventListener('change', updateAudienceUI);
+        });
+        document.getElementById('event-dropdown').addEventListener('change', updateRecipientCount);
+        document.getElementById('custom-player-list').addEventListener('change', updateRecipientCount);
+
+        function updateAudienceUI() {
+            const selectedAudience = document.querySelector('input[name="audience"]:checked').value;
+            document.getElementById('event-selector').style.display = selectedAudience === 'event' ? 'block' : 'none';
+            document.getElementById('player-custom-selector').style.display = selectedAudience === 'custom' ? 'block' : 'none';
+            updateRecipientCount();
+        }
+
+        async function updateRecipientCount() {
+            const selectedAudience = document.querySelector('input[name="audience"]:checked').value;
+            let count = 0;
+
+            if (selectedAudience === 'all') {
+                count = allPlayers.length;
+            } else if (selectedAudience === 'event') {
+                const eventId = document.getElementById('event-dropdown').value;
+                if (eventId) {
+                    try {
+                        const registrationsCol = collection(db, `organizations/${orgId}/events/${eventId}/registrations`);
+                        const registrationSnapshot = await getDocs(registrationsCol);
+                        count = registrationSnapshot.docs.length;
+                    } catch (error) {
+                        console.error("Error fetching registrations count: ", error);
+                        count = 0;
+                    }
+                }
+            } else if (selectedAudience === 'custom') {
+                count = document.querySelectorAll('.custom-player-checkbox:checked').length;
+            }
+            document.getElementById('estimated-recipient-count').textContent = count;
+        }
+
+        window.openChannelTab = function(channel) {
+            document.querySelectorAll('.tab-controls button').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+
+            document.getElementById(`${channel}-tab-btn`).classList.add('active');
+            document.getElementById(`${channel}-panel`).classList.add('active');
+            currentChannel = channel;
+        }
+
+        document.getElementById('sms-message').addEventListener('input', (e) => {
+            document.getElementById('sms-char-count').textContent = e.target.value.length;
+        });
+
+        function showModal(modalId) {
+            document.getElementById(modalId).style.display = 'flex';
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        window.onclick = function(event) {
+            if (event.target.classList.contains('modal')) {
+                event.target.style.display = 'none';
+            }
+        }
+
+        window.confirmSendMessage = async function(channel) {
+            const audienceType = document.querySelector('input[name="audience"]:checked').value;
+            const recipientCount = document.getElementById('estimated-recipient-count').textContent;
+            let messageContent = '';
+            let messageTitle = '';
+
+            if (channel === 'sms') {
+                messageContent = document.getElementById('sms-message').value;
+                if (!messageContent) { alert('SMS message cannot be empty.'); return; }
+            } else if (channel === 'push') {
+                messageTitle = document.getElementById('push-title').value;
+                messageContent = document.getElementById('push-body').value;
+                if (!messageTitle || !messageContent) { alert('Push notification title and body cannot be empty.'); return; }
+            }
+
+            document.getElementById('confirm-message-text').textContent = `Send to ${recipientCount} players via ${channel.toUpperCase()}?`;
+            document.getElementById('message-preview-content').textContent = 
+                channel === 'push' ? `Title: ${messageTitle}\nBody: ${messageContent}` : messageContent;
+
+            document.getElementById('confirm-send-btn').onclick = () => sendMessage(channel, audienceType, messageTitle, messageContent);
+            showModal('sendConfirmationModal');
+        }
+
+        async function sendMessage(channel, audienceType, title, message) {
+            closeModal('sendConfirmationModal');
+            document.getElementById('confirm-send-btn').disabled = true;
+
+            let payload = {
+                orgId,
+                audience: audienceType,
+                channel,
+                message,
+                title: title || null // For push notifications
+            };
+
+            if (audienceType === 'event') {
+                payload.eventId = document.getElementById('event-dropdown').value;
+                if (!payload.eventId) { alert('Please select an event for event-based messaging.'); document.getElementById('confirm-send-btn').disabled = false; return; }
+            } else if (audienceType === 'custom') {
+                const selectedPlayerIds = Array.from(document.querySelectorAll('.custom-player-checkbox:checked'))
+                                                .map(cb => cb.value);
+                if (selectedPlayerIds.length === 0) { alert('Please select at least one player for custom messaging.'); document.getElementById('confirm-send-btn').disabled = false; return; }
+                payload.playerIds = selectedPlayerIds;
+            }
+
+            try {
+                const sendOrgMessage = httpsCallable(functions, 'sendOrgMessage');
+                await sendOrgMessage(payload);
+                alert('Message sent successfully!');
+                // Clear message fields
+                document.getElementById('sms-message').value = '';
+                document.getElementById('sms-char-count').textContent = '0';
+                document.getElementById('push-title').value = '';
+                document.getElementById('push-body').value = '';
+
+                await loadMessageHistory(); // Refresh history
+            } catch (error) {
+                console.error("Error sending message: ", error);
+                alert("Failed to send message: " + error.message);
+            } finally {
+                document.getElementById('confirm-send-btn').disabled = false;
+            }
+        }
+
+
+        // Logout
+        window.logout = async function() {
+            try {
+                await signOut(auth);
+                sessionStorage.clear();
+                window.location.href = '/leda/login.html';
+            } catch (error) {
+                console.error("Error signing out: ", error);
+                alert("Failed to log out.");
+            }
+        }
+
+        checkAuthAndLoadData();
+    </script>
+    <footer style="text-align:center;padding:20px;color:rgba(255,255,255,0.25);font-size:11px;letter-spacing:1px;text-transform:uppercase;">Powered by <a href="https://looptlabs.com" style="color:rgba(255,255,255,0.35);text-decoration:none;">Loopt Labs</a></footer>
+</body>
+</html>

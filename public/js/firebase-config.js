@@ -28,12 +28,38 @@ const authReadyPromise = new Promise((resolve) => {
     });
 });
 
-async function waitForAuthReady(timeoutMs = 1500) {
+async function waitForAuthReady(timeoutMs = 5000) {
     if (authReadyResolved || auth.currentUser) return auth.currentUser;
     return await Promise.race([
         authReadyPromise,
         new Promise((resolve) => setTimeout(() => resolve(auth.currentUser || null), timeoutMs))
     ]);
+}
+
+function shouldRetryFunctionCall(error, functionName) {
+    const msg = (error?.message || '').toLowerCase();
+    if (!msg) return false;
+    const authSensitive = new Set([
+        'getplayersession',
+        'gettournamentplayerruntime',
+        'getconversations',
+        'getplayerchatrooms'
+    ]);
+    const isAuthSensitive = authSensitive.has(String(functionName || '').toLowerCase());
+    if (!isAuthSensitive) return false;
+    return msg.includes('failed to fetch')
+        || msg.includes('unauthorized')
+        || msg.includes('cors')
+        || msg.includes('networkerror');
+}
+
+function isQuietFunctionCall(functionName) {
+    const quietFunctions = new Set([
+        'getunreadnotificationcount',
+        'getunreadcount',
+        'getplayerchallenges'
+    ]);
+    return quietFunctions.has(String(functionName || '').toLowerCase());
 }
 
 /**
@@ -68,18 +94,18 @@ async function uploadImage(file, folder = 'images') {
 async function callFunction(functionName, data = {}) {
     const url = `https://us-central1-brdc-v2.cloudfunctions.net/${functionName}`;
 
-    const headers = { 'Content-Type': 'application/json' };
-    const user = auth.currentUser || await waitForAuthReady();
-    if (user) {
-        try {
-            const token = await user.getIdToken();
-            headers['Authorization'] = `Bearer ${token}`;
-        } catch (e) {
-            console.warn('[callFunction] Could not get ID token:', e.message);
+    async function executeAttempt(forceAuthWait = false) {
+        const headers = { 'Content-Type': 'application/json' };
+        const user = auth.currentUser || await waitForAuthReady(forceAuthWait ? 6500 : 5000);
+        if (user) {
+            try {
+                const token = await user.getIdToken(forceAuthWait);
+                headers['Authorization'] = `Bearer ${token}`;
+            } catch (e) {
+                console.warn('[callFunction] Could not get ID token:', e.message);
+            }
         }
-    }
 
-    try {
         const response = await fetch(url, {
             method: 'POST',
             headers,
@@ -99,14 +125,32 @@ async function callFunction(functionName, data = {}) {
 
         if (!response.ok) {
             const errorMsg = responseData.error || responseData.message || `HTTP error! status: ${response.status}`;
-            console.error('Function error:', errorMsg);
+            if (!isQuietFunctionCall(functionName)) {
+                console.error('Function error:', errorMsg);
+            }
             throw new Error(errorMsg);
         }
 
         return responseData;
+    }
 
+    try {
+        return await executeAttempt(false);
     } catch (error) {
-        console.error('Error calling ' + functionName + ':', error);
+        if (shouldRetryFunctionCall(error, functionName)) {
+            try {
+                await new Promise((resolve) => setTimeout(resolve, 900));
+                return await executeAttempt(true);
+            } catch (retryError) {
+                if (!isQuietFunctionCall(functionName)) {
+                    console.error('Error calling ' + functionName + ':', retryError);
+                }
+                throw retryError;
+            }
+        }
+        if (!isQuietFunctionCall(functionName)) {
+            console.error('Error calling ' + functionName + ':', error);
+        }
         throw error;
     }
 }
@@ -182,6 +226,7 @@ export {
     signOut,
     sendPasswordResetEmail,
     onAuthStateChanged,
+    waitForAuthReady,
     GoogleAuthProvider,
     signInWithPopup
 };

@@ -21,6 +21,8 @@ const PLAYER_CONFIG = {
     'Jenn Malek': { team: 'D. Pagel', pos: 'p3' },
     'Jennifer Malek': { team: 'D. Pagel', pos: 'p3' },
     'Matt Wentz': { team: 'D. Pagel', pos: 'p2' },
+    'Matty Wentz': { team: 'D. Pagel', pos: 'p2' },
+    'Matthew Wentz': { team: 'D. Pagel', pos: 'p2' },
 
     'Nathan Kull': { team: 'N. Kull', pos: 'p1' },
     'Nate Kull': { team: 'N. Kull', pos: 'p1' },

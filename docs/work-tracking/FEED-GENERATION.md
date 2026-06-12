@@ -37,7 +37,7 @@ cd scripts
 node generate-feed.js [league_id]
 ```
 
-**Default League:** `aOq4Y0ETxPZ66tM1uUtP` (Winter Triple Draft)
+**Default League:** `aOq4Y0ETxPZ66tM1uUtP` (2026 Triples League)
 
 ### 3. Dashboard Integration
 **File:** `public/pages/dashboard.html`
@@ -104,7 +104,7 @@ leagues/{leagueId}/feed/{feedItemId}
 
 ## Feed Generation Stats
 
-**Winter Triple Draft League:**
+**2026 Triples League:**
 - 129 feed items generated (up from 106)
 - Includes all matches through Week 2
 - All notable events from imported match data

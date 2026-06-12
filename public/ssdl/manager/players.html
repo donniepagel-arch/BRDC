@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SSDL - Players</title>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #1a3a5c;
+            --secondary: #2e7db5;
+            --accent: #7ec8c8;
+            --bg-dark: #0d1f33;
+            --bg-panel: #0f2744;
+            --bg-card: #142d50;
+            --text-light: #f0f0f0;
+            --text-dim: #8a9ab5;
+            --success: #22c55e;
+            --danger: #ef4444;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            background-color: var(--bg-dark);
+            color: var(--text-light);
+            display: flex;
+            min-height: 100vh;
+        }
+
+        h1, h2, h3, h4, h5, h6 {
+            font-family: 'Bebas Neue', sans-serif;
+            color: var(--text-light);
+        }
+
+        .sidebar {
+            width: 200px;
+            background-color: var(--bg-panel);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.2);
+        }
+
+        .sidebar-logo {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 2em;
+            color: var(--accent);
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .sidebar a, .sidebar button {
+            color: var(--text-dim);
+            text-decoration: none;
+            padding: 10px 15px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            transition: background-color 0.2s, color 0.2s;
+            background: none;
+            border: none;
+            text-align: left;
+            cursor: pointer;
+            font-size: 1em;
+        }
+
+        .sidebar a:hover, .sidebar button:hover {
+            background-color: var(--bg-card);
+            color: var(--text-light);
+        }
+
+        .sidebar a.active {
+            background-color: var(--primary);
+            color: var(--text-light);
+        }
+
+        .main-content {
+            flex-grow: 1;
+            padding: 20px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .header h1 {
+            margin: 0;
+            color: var(--primary);
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            background-color: var(--secondary);
+            color: var(--text-light);
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: background-color 0.2s;
+        }
+
+        .btn-primary {
+            background-color: var(--primary);
+        }
+
+        .btn-primary:hover {
+            background-color: #152f4a;
+        }
+
+        .btn-accent {
+            background-color: var(--accent);
+            color: var(--bg-dark);
+        }
+
+        .btn-accent:hover {
+            background-color: #69b3b3;
+        }
+
+        .btn-danger {
+            background-color: var(--danger);
+        }
+
+        .btn-danger:hover {
+            background-color: #c03939;
+        }
+
+        .search-input {
+            width: 300px;
+            padding: 8px 12px;
+            border-radius: 5px;
+            border: 1px solid var(--bg-card);
+            background-color: var(--bg-panel);
+            color: var(--text-light);
+            font-size: 0.9em;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background-color: var(--bg-panel);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--bg-card);
+        }
+
+        th {
+            background-color: var(--primary);
+            color: var(--text-light);
+            font-weight: 500;
+            text-transform: uppercase;
+            font-size: 0.85em;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            font-weight: 500;
+            text-transform: capitalize;
+        }
+
+        .badge-self_signup { background-color: var(--accent); color: var(--bg-dark); }
+        .badge-imported { background-color: var(--secondary); color: var(--text-light); }
+        .badge-manual { background-color: var(--text-dim); color: var(--bg-dark); }
+        .badge-active { background-color: var(--success); color: var(--bg-dark); }
+        .badge-pending { background-color: orange; color: var(--bg-dark); }
+        .badge-inactive { background-color: var(--danger); color: var(--text-light); }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.6);
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background-color: var(--bg-panel);
+            margin: auto;
+            padding: 30px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            position: relative;
+        }
+
+        .close-button {
+            color: var(--text-dim);
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close-button:hover,
+        .close-button:focus {
+            color: var(--text-light);
+            text-decoration: none;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: var(--text-light);
+            font-weight: 500;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: calc(100% - 24px);
+            padding: 10px 12px;
+            border-radius: 5px;
+            border: 1px solid var(--bg-card);
+            background-color: var(--bg-card);
+            color: var(--text-light);
+            font-size: 1em;
+        }
+
+        .form-group textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        #csv-preview-table {
+            margin-top: 15px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        #csv-preview-table th, #csv-preview-table td {
+            font-size: 0.9em;
+            padding: 8px 10px;
+        }
+    </style>
+</head>
+<body>
+    <nav class="sidebar">
+        <div class="sidebar-logo">SSDL</div>
+        <a href="/ssdl/manager/dashboard.html">Dashboard</a>
+        <a href="/ssdl/manager/events.html">Events</a>
+        <a href="/ssdl/manager/players.html" class="active">Players</a>
+        <a href="/ssdl/manager/standings.html">Standings</a>
+        <a href="/ssdl/manager/messaging.html">Messaging</a>
+        <button onclick="logout()">Logout</button>
+    </nav>
+
+    <div class="main-content">
+        <div class="header">
+            <h1>Players</h1>
+            <div class="actions">
+                <input type="text" id="player-search" class="search-input" placeholder="Search players...">
+                <button class="btn btn-primary" onclick="showAddPlayerModal()">Add Player</button>
+                <button class="btn btn-accent" onclick="showImportCsvModal()">Import CSV</button>
+                <button class="btn btn-secondary" onclick="exportPlayersCsv()">Export CSV</button>
+                <button class="btn btn-danger" id="delete-selected-btn" style="display:none;" onclick="deleteSelectedPlayers()">Delete Selected</button>
+            </div>
+        </div>
+
+        <table id="players-table">
+            <thead>
+                <tr>
+                    <th><input type="checkbox" id="select-all-players"></th>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Phone</th>
+                    <th>Source</th>
+                    <th>Joined</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Player rows will be inserted here by JavaScript -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Add/Edit Player Modal -->
+    <div id="addEditPlayerModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" onclick="closeModal('addEditPlayerModal')">&times;</span>
+            <h2 id="modal-title">Add New Player</h2>
+            <form id="player-form">
+                <input type="hidden" id="player-id">
+                <div class="form-group">
+                    <label for="player-name">Name</label>
+                    <input type="text" id="player-name" required>
+                </div>
+                <div class="form-group">
+                    <label for="player-email">Email</label>
+                    <input type="email" id="player-email">
+                </div>
+                <div class="form-group">
+                    <label for="player-phone">Phone</label>
+                    <input type="text" id="player-phone">
+                </div>
+                <div class="form-group">
+                    <label for="player-notes">Notes</label>
+                    <textarea id="player-notes"></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('addEditPlayerModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Player</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Import CSV Modal -->
+    <div id="importCsvModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" onclick="closeModal('importCsvModal')">&times;</span>
+            <h2>Import Players from CSV</h2>
+            <div class="form-group">
+                <label for="csv-file-input">Select CSV File</label>
+                <input type="file" id="csv-file-input" accept=".csv">
+            </div>
+            <div id="csv-preview-container" style="display:none;">
+                <h3>CSV Preview</h3>
+                <table id="csv-preview-table">
+                    <thead></thead>
+                    <tbody></tbody>
+                </table>
+                <p id="csv-import-count"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('importCsvModal')">Cancel</button>
+                <button type="button" class="btn btn-primary" id="confirm-import-btn" style="display:none;" onclick="confirmCsvImport()">Confirm Import</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div id="confirmationModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" onclick="closeModal('confirmationModal')">&times;</span>
+            <h2 id="confirmation-title">Confirm Action</h2>
+            <p id="confirmation-message"></p>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('confirmationModal')">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirm-action-btn">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getFirestore, collection, getDocs, doc, query, where, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-functions.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDN1aYhoVt3OX5EafsNTVB09i8VFx7QM1U",
+            authDomain: "brdc-v2.firebaseapp.com",
+            projectId: "brdc-v2",
+            storageBucket: "brdc-v2.firebasestorage.app",
+            messagingSenderId: "726670872282",
+            appId: "1:726670872282:web:913d19c8cb3b24bf919fe3"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const functions = getFunctions(app);
+
+        const orgId = 'ssdl';
+        let players = [];
+        let filteredPlayers = [];
+
+        async function checkAuthAndLoadPlayers() {
+            onAuthStateChanged(auth, async (user) => {
+                if (!user) {
+                    window.location.href = '/ssdl/login.html';
+                    return;
+                }
+                const userRole = sessionStorage.getItem('userRole');
+                if (sessionStorage.getItem('orgId') !== orgId || userRole !== 'manager') {
+                    alert('Unauthorized access.');
+                    window.location.href = '/ssdl/login.html';
+                    return;
+                }
+
+                await loadPlayers();
+            });
+        }
+
+        async function loadPlayers() {
+            try {
+                const playersCol = collection(db, `organizations/${orgId}/players`);
+                const playerSnapshot = await getDocs(playersCol);
+                players = playerSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                filterPlayers(''); // Load all initially
+            } catch (error) {
+                console.error("Error loading players: ", error);
+                alert("Failed to load players.");
+            }
+        }
+
+        function filterPlayers(searchText) {
+            const lowerCaseSearchText = searchText.toLowerCase();
+            filteredPlayers = players.filter(player =>
+                ((player.name || '').toLowerCase().includes(lowerCaseSearchText)) ||
+                ((player.email || '').toLowerCase().includes(lowerCaseSearchText)) ||
+                ((player.phone || '').toLowerCase().includes(lowerCaseSearchText))
+            );
+            renderPlayersTable(filteredPlayers);
+        }
+
+        function renderPlayersTable(playersToRender) {
+            const tableBody = document.querySelector('#players-table tbody');
+            tableBody.innerHTML = '';
+            playersToRender.forEach(player => {
+                const row = tableBody.insertRow();
+                const displayName = player.name || [player.first_name, player.last_name].filter(Boolean).join(' ') || player.email || 'Unnamed Player';
+                const joinedDate = player.joined_date ? new Date(player.joined_date.seconds * 1000).toLocaleDateString() : 'N/A';
+                const sourceBadge = `<span class="badge badge-${player.source || 'manual'}">${player.source || 'manual'}</span>`;
+                const statusBadge = `<span class="badge badge-${player.status || 'active'}">${player.status || 'active'}</span>`;
+
+                row.innerHTML = `
+                    <td><input type="checkbox" class="player-checkbox" data-id="${player.id}"></td>
+                    <td>${displayName}</td>
+                    <td>${player.email || 'N/A'}</td>
+                    <td>${player.phone || 'N/A'}</td>
+                    <td>${sourceBadge}</td>
+                    <td>${joinedDate}</td>
+                    <td>${statusBadge}</td>
+                    <td>
+                        <button class="btn btn-secondary btn-small" onclick="showEditPlayerModal('${player.id}')">Edit</button>
+                        <button class="btn btn-danger btn-small" onclick="confirmRemovePlayer('${player.id}', '${displayName}')">Remove</button>
+                        ${player.status === 'pending' ?
+                            `<button class="btn btn-success btn-small" onclick="approvePlayer('${player.id}', '${displayName}')">Approve</button>
+                             <button class="btn btn-danger btn-small" onclick="denyPlayer('${player.id}', '${displayName}')">Deny</button>` : ''}
+                    </td>
+                `;
+            });
+            updateDeleteSelectedButtonVisibility();
+            document.getElementById('select-all-players').checked = false;
+        }
+
+        document.getElementById('player-search').addEventListener('input', (e) => {
+            filterPlayers(e.target.value);
+        });
+
+        document.getElementById('select-all-players').addEventListener('change', (e) => {
+            document.querySelectorAll('.player-checkbox').forEach(checkbox => {
+                checkbox.checked = e.target.checked;
+            });
+            updateDeleteSelectedButtonVisibility();
+        });
+
+        document.querySelector('#players-table tbody').addEventListener('change', (e) => {
+            if (e.target.classList.contains('player-checkbox')) {
+                updateDeleteSelectedButtonVisibility();
+            }
+        });
+
+        function updateDeleteSelectedButtonVisibility() {
+            const checkedCount = document.querySelectorAll('.player-checkbox:checked').length;
+            document.getElementById('delete-selected-btn').style.display = checkedCount > 0 ? 'inline-block' : 'none';
+        }
+
+        // Modals functionality
+        function showModal(modalId) {
+            document.getElementById(modalId).style.display = 'flex';
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        window.onclick = function(event) {
+            if (event.target.classList.contains('modal')) {
+                event.target.style.display = 'none';
+            }
+        }
+
+        // Add/Edit Player
+        window.showAddPlayerModal = function() {
+            document.getElementById('modal-title').textContent = 'Add New Player';
+            document.getElementById('player-id').value = '';
+            document.getElementById('player-form').reset();
+            showModal('addEditPlayerModal');
+        }
+
+        window.showEditPlayerModal = function(playerId) {
+            const player = players.find(p => p.id === playerId);
+            if (player) {
+                document.getElementById('modal-title').textContent = 'Edit Player';
+                document.getElementById('player-id').value = player.id;
+                document.getElementById('player-name').value = player.name || '';
+                document.getElementById('player-email').value = player.email || '';
+                document.getElementById('player-phone').value = player.phone || '';
+                document.getElementById('player-notes').value = player.notes || '';
+                showModal('addEditPlayerModal');
+            }
+        }
+
+        document.getElementById('player-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const playerId = document.getElementById('player-id').value;
+            const name = document.getElementById('player-name').value;
+            const email = document.getElementById('player-email').value;
+            const phone = document.getElementById('player-phone').value;
+            const notes = document.getElementById('player-notes').value;
+
+            const playerData = { name, email, phone, notes };
+
+            try {
+                if (playerId) {
+                    // Edit player
+                    const updateOrgPlayer = httpsCallable(functions, 'updateOrgPlayer');
+                    await updateOrgPlayer({ orgId, playerId, updates: playerData });
+                    alert('Player updated successfully!');
+                } else {
+                    // Add new player
+                    const addOrgPlayer = httpsCallable(functions, 'addOrgPlayer');
+                    await addOrgPlayer({ orgId, playerData });
+                    alert('Player added successfully!');
+                }
+                closeModal('addEditPlayerModal');
+                await loadPlayers();
+            } catch (error) {
+                console.error("Error saving player: ", error);
+                alert("Failed to save player: " + error.message);
+            }
+        });
+
+        // Remove Player
+        window.confirmRemovePlayer = function(playerId, playerName) {
+            document.getElementById('confirmation-title').textContent = 'Remove Player';
+            document.getElementById('confirmation-message').textContent = `Are you sure you want to remove ${playerName}? This will set their status to inactive.`;
+            document.getElementById('confirm-action-btn').onclick = async () => {
+                try {
+                    const removeOrgPlayer = httpsCallable(functions, 'removeOrgPlayer');
+                    await removeOrgPlayer({ orgId, playerId });
+                    alert('Player removed successfully (status set to inactive)!');
+                    closeModal('confirmationModal');
+                    await loadPlayers();
+                } catch (error) {
+                    console.error("Error removing player: ", error);
+                    alert("Failed to remove player: " + error.message);
+                }
+            };
+            showModal('confirmationModal');
+        }
+
+        // Approve/Deny Player (Pending status)
+        window.approvePlayer = function(playerId, playerName) {
+            document.getElementById('confirmation-title').textContent = 'Approve Player';
+            document.getElementById('confirmation-message').textContent = `Are you sure you want to approve ${playerName}? This will set their status to active.`;
+            document.getElementById('confirm-action-btn').onclick = async () => {
+                try {
+                    const approveOrgPlayer = httpsCallable(functions, 'approveOrgPlayer');
+                    await approveOrgPlayer({ orgId, playerId });
+                    alert('Player approved successfully!');
+                    closeModal('confirmationModal');
+                    await loadPlayers();
+                } catch (error) {
+                    console.error("Error approving player: ", error);
+                    alert("Failed to approve player: " + error.message);
+                }
+            };
+            showModal('confirmationModal');
+        }
+
+        window.denyPlayer = function(playerId, playerName) {
+            document.getElementById('confirmation-title').textContent = 'Deny Player';
+            document.getElementById('confirmation-message').textContent = `Are you sure you want to deny ${playerName}? This will set their status to inactive.`;
+            document.getElementById('confirm-action-btn').onclick = async () => {
+                try {
+                    const removeOrgPlayer = httpsCallable(functions, 'removeOrgPlayer'); // Denying is essentially setting to inactive
+                    await removeOrgPlayer({ orgId, playerId });
+                    alert('Player denied (status set to inactive)!');
+                    closeModal('confirmationModal');
+                    await loadPlayers();
+                } catch (error) {
+                    console.error("Error denying player: ", error);
+                    alert("Failed to deny player: " + error.message);
+                }
+            };
+            showModal('confirmationModal');
+        }
+
+        // Bulk Delete
+        window.deleteSelectedPlayers = function() {
+            const selectedPlayerIds = Array.from(document.querySelectorAll('.player-checkbox:checked'))
+                                            .map(cb => cb.dataset.id);
+
+            if (selectedPlayerIds.length === 0) {
+                alert('No players selected for deletion.');
+                return;
+            }
+
+            document.getElementById('confirmation-title').textContent = 'Delete Selected Players';
+            document.getElementById('confirmation-message').textContent = `Are you sure you want to delete ${selectedPlayerIds.length} selected players? Their status will be set to inactive.`;
+            document.getElementById('confirm-action-btn').onclick = async () => {
+                try {
+                    const removeOrgPlayer = httpsCallable(functions, 'removeOrgPlayer');
+                    for (const playerId of selectedPlayerIds) {
+                        await removeOrgPlayer({ orgId, playerId });
+                    }
+                    alert('Selected players removed successfully!');
+                    closeModal('confirmationModal');
+                    await loadPlayers();
+                } catch (error) {
+                    console.error("Error deleting selected players: ", error);
+                    alert("Failed to delete selected players: " + error.message);
+                }
+            };
+            showModal('confirmationModal');
+        }
+
+        // Import CSV
+        let importedCsvData = [];
+        window.showImportCsvModal = function() {
+            document.getElementById('csv-file-input').value = '';
+            document.getElementById('csv-preview-container').style.display = 'none';
+            document.getElementById('csv-preview-table').innerHTML = '<thead></thead><tbody></tbody>';
+            document.getElementById('csv-import-count').textContent = '';
+            document.getElementById('confirm-import-btn').style.display = 'none';
+            importedCsvData = [];
+            showModal('importCsvModal');
+        }
+
+        document.getElementById('csv-file-input').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const text = e.target.result;
+                parseCsv(text);
+            };
+            reader.readAsText(file);
+        });
+
+        function parseCsv(csvText) {
+            const lines = csvText.split('\n').filter(line => line.trim() !== '');
+            if (lines.length === 0) {
+                alert("CSV file is empty.");
+                return;
+            }
+
+            const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+            const requiredHeaders = ['name', 'email', 'phone'];
+            const missingHeaders = requiredHeaders.filter(h => !headers.includes(h));
+
+            if (missingHeaders.length > 0) {
+                alert(`CSV is missing required headers: ${missingHeaders.join(', ')}. Please ensure your CSV has 'name', 'email', and 'phone' columns.`);
+                document.getElementById('csv-file-input').value = ''; // Clear file input
+                document.getElementById('csv-preview-container').style.display = 'none';
+                document.getElementById('confirm-import-btn').style.display = 'none';
+                importedCsvData = [];
+                return;
+            }
+
+            importedCsvData = [];
+            const previewRows = [];
+
+            // Render header
+            const previewTableHead = document.querySelector('#csv-preview-table thead');
+            previewTableHead.innerHTML = `<tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>`;
+
+            for (let i = 1; i < lines.length; i++) {
+                const values = lines[i].split(',').map(v => v.trim());
+                if (values.length !== headers.length) {
+                    console.warn(`Skipping malformed row: ${lines[i]}`);
+                    continue;
+                }
+
+                const player = {};
+                for (let j = 0; j < headers.length; j++) {
+                    player[headers[j]] = values[j];
+                }
+                if (player.name) { // Ensure at least a name exists
+                    importedCsvData.push(player);
+                    previewRows.push(`<tr>${values.map(v => `<td>${v}</td>`).join('')}</tr>`);
+                }
+            }
+
+            const previewTableBody = document.querySelector('#csv-preview-table tbody');
+            previewTableBody.innerHTML = previewRows.join('');
+
+            document.getElementById('csv-import-count').textContent = `Found ${importedCsvData.length} players to import.`;
+            document.getElementById('csv-preview-container').style.display = 'block';
+            document.getElementById('confirm-import-btn').style.display = 'inline-block';
+        }
+
+        window.confirmCsvImport = async function() {
+            if (importedCsvData.length === 0) {
+                alert('No valid player data to import.');
+                return;
+            }
+
+            document.getElementById('confirm-import-btn').disabled = true;
+            document.getElementById('confirm-import-btn').textContent = 'Importing...';
+
+            try {
+                const importOrgPlayers = httpsCallable(functions, 'importOrgPlayers');
+                await importOrgPlayers({ orgId, players: importedCsvData });
+                alert('Players imported successfully!');
+                closeModal('importCsvModal');
+                await loadPlayers();
+            } catch (error) {
+                console.error("Error importing players: ", error);
+                alert("Failed to import players: " + error.message);
+            } finally {
+                document.getElementById('confirm-import-btn').disabled = false;
+                document.getElementById('confirm-import-btn').textContent = 'Confirm Import';
+            }
+        }
+
+
+        // Export CSV
+        window.exportPlayersCsv = function() {
+            if (players.length === 0) {
+                alert("No players to export.");
+                return;
+            }
+
+            const headers = ['Name', 'Email', 'Phone', 'Source', 'Joined Date', 'Status', 'Notes'];
+            const rows = players.map(player => [
+                player.name,
+                player.email || '',
+                player.phone || '',
+                player.source || 'manual',
+                player.joined_date ? new Date(player.joined_date.seconds * 1000).toLocaleDateString() : '',
+                player.status || 'active',
+                player.notes || ''
+            ]);
+
+            let csvContent = "data:text/csv;charset=utf-8,"
+                + headers.join(',') + "\n"
+                + rows.map(e => e.join(',')).join('\n');
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "ssdl_players.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // Logout
+        window.logout = async function() {
+            try {
+                await signOut(auth);
+                sessionStorage.clear();
+                window.location.href = '/ssdl/login.html';
+            } catch (error) {
+                console.error("Error signing out: ", error);
+                alert("Failed to log out.");
+            }
+        }
+
+        checkAuthAndLoadPlayers();
+    </script>
+    <footer style="text-align:center;padding:20px;color:rgba(255,255,255,0.25);font-size:11px;letter-spacing:1px;text-transform:uppercase;">Powered by <a href="https://looptlabs.com" style="color:rgba(255,255,255,0.35);text-decoration:none;">Loopt Labs</a></footer>
+</body>
+</html>

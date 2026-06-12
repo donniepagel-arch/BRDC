@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Watch Live — BRDC</title>
+    <link rel="icon" type="image/png" href="/images/favicon.png">
+    <meta name="theme-color" content="#0f1729">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700;800;900&display=swap">
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.13/dist/hls.min.js"></script>
+    <style>
+        :root { --pink:#ff469a; --ink:#fffaf2; --muted:#9aa3b4; }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0; min-height: 100vh; background: #0b1120; color: #fffaf2;
+            font-family: Inter, sans-serif; display: flex; flex-direction: column; align-items: center;
+        }
+        .watch-bar {
+            width: 100%; display: flex; align-items: center; justify-content: space-between;
+            padding: 14px 18px; border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+        .watch-bar .brand { font-family: "Bebas Neue", sans-serif; letter-spacing: .12em; font-size: 22px; color: #ff469a; }
+        .live-pill {
+            display: inline-flex; align-items: center; gap: 7px; font-weight: 900; font-size: 12px;
+            letter-spacing: .12em; text-transform: uppercase; padding: 5px 11px; border-radius: 999px;
+            background: rgba(255,70,154,0.15); color: #ff7fb8;
+        }
+        .live-pill.on { background: #e11d48; color: #fff; }
+        .live-pill .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+        .live-pill.on .dot { animation: pulse 1.2s infinite; }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+        .stage {
+            width: min(1100px, 100%); aspect-ratio: 16/9; background: #000; position: relative;
+            margin: 16px 0 8px; border-radius: 14px; overflow: hidden;
+        }
+        video { width: 100%; height: 100%; display: block; background:#000; }
+        .overlay {
+            position: absolute; inset: 0; display: grid; place-items: center; text-align: center;
+            background: radial-gradient(circle at 50% 40%, rgba(255,70,154,0.10), transparent 60%), #0b1120;
+            padding: 24px;
+        }
+        .overlay.hidden { display: none; }
+        .overlay .big { font-family: "Bebas Neue", sans-serif; font-size: clamp(28px,6vw,52px); letter-spacing:.04em; }
+        .overlay .sub { color: #9aa3b4; margin-top: 8px; font-weight: 600; }
+        .spinner { width: 36px; height: 36px; border: 3px solid rgba(255,255,255,0.15); border-top-color:#ff469a; border-radius:50%; animation: spin 1s linear infinite; margin: 0 auto 14px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .meta { width: min(1100px,100%); padding: 4px 18px 40px; }
+        .meta h1 { font-family:"Bebas Neue",sans-serif; letter-spacing:.03em; font-size: 30px; margin: 6px 0; }
+        .meta p { color:#9aa3b4; margin:0; }
+        a.back { color:#9aa3b4; text-decoration:none; font-weight:700; font-size:13px; }
+    </style>
+</head>
+<body>
+    <div class="watch-bar">
+        <span class="brand">BRDC LIVE</span>
+        <span class="live-pill" id="livePill"><span class="dot"></span><span id="liveLabel">Connecting</span></span>
+    </div>
+
+    <div class="stage">
+        <video id="video" playsinline controls autoplay muted></video>
+        <div class="overlay" id="overlay">
+            <div>
+                <div class="spinner" id="spinner"></div>
+                <div class="big" id="overlayBig">Waiting for stream…</div>
+                <div class="sub" id="overlaySub">This page will start playing automatically when the match goes live.</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="meta">
+        <h1 id="title">Live Match</h1>
+        <p id="subtitle">Burning River Darts Club</p>
+        <p style="margin-top:14px"><a class="back" href="/pages/home-vnext.html">← Back to BRDC</a></p>
+    </div>
+
+    <script>
+        const RELAY = 'https://brdc-streaming-relay-726670872282.us-central1.run.app';
+        const params = new URLSearchParams(location.search);
+        const streamId = (params.get('id') || params.get('stream') || '').trim();
+        const titleParam = params.get('title');
+        if (titleParam) document.getElementById('title').textContent = decodeURIComponent(titleParam);
+
+        const video = document.getElementById('video');
+        const overlay = document.getElementById('overlay');
+        const overlayBig = document.getElementById('overlayBig');
+        const overlaySub = document.getElementById('overlaySub');
+        const spinner = document.getElementById('spinner');
+        const livePill = document.getElementById('livePill');
+        const liveLabel = document.getElementById('liveLabel');
+
+        function setLive(on) {
+            livePill.classList.toggle('on', on);
+            liveLabel.textContent = on ? 'Live' : 'Offline';
+        }
+        function showOverlay(big, sub, showSpinner) {
+            overlay.classList.remove('hidden');
+            overlayBig.textContent = big;
+            overlaySub.textContent = sub;
+            spinner.style.display = showSpinner ? '' : 'none';
+        }
+        function hideOverlay() { overlay.classList.add('hidden'); }
+
+        if (!streamId) {
+            setLive(false);
+            showOverlay('No stream selected', 'This link is missing a stream id (?id=…).', false);
+        } else {
+            const src = `${RELAY}/hls/${encodeURIComponent(streamId)}/index.m3u8`;
+            let hls = null;
+            let playing = false;
+
+            function startPlayback() {
+                if (Hls.isSupported()) {
+                    hls = new Hls({ lowLatencyMode: true, liveSyncDurationCount: 3, manifestLoadingMaxRetry: 0 });
+                    hls.loadSource(src);
+                    hls.attachMedia(video);
+                    hls.on(Hls.Events.MANIFEST_PARSED, () => { playing = true; setLive(true); hideOverlay(); video.play().catch(()=>{}); });
+                    hls.on(Hls.Events.ERROR, (evt, data) => {
+                        if (data.fatal) {
+                            playing = false; setLive(false);
+                            try { hls.destroy(); } catch(_) {}
+                            hls = null;
+                            showOverlay('Waiting for stream…', 'The match isn’t live yet (or just ended). Retrying…', true);
+                            setTimeout(startPlayback, 4000);
+                        }
+                    });
+                } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                    // Safari native HLS
+                    video.src = src;
+                    video.addEventListener('loadedmetadata', () => { playing = true; setLive(true); hideOverlay(); });
+                    video.addEventListener('error', () => { setLive(false); showOverlay('Waiting for stream…', 'Retrying…', true); setTimeout(() => { video.src = src; }, 4000); });
+                } else {
+                    showOverlay('Unsupported browser', 'Try Chrome, Edge, or Safari.', false);
+                }
+            }
+            setLive(false);
+            showOverlay('Waiting for stream…', 'This page will start playing automatically when the match goes live.', true);
+            startPlayback();
+        }
+    </script>
+</body>
+</html>

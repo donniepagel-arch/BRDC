@@ -24,6 +24,25 @@
         textDim: 'var(--text-dim, #8a8aa3)'
     };
 
+    const IS_VNEXT_PREVIEW = window.location.pathname.includes('-vnext');
+    const ROUTES = IS_VNEXT_PREVIEW ? {
+        home: '/pages/home-vnext.html',
+        events: '/pages/events-vnext.html',
+        chat: '/pages/messages-vnext.html',
+        scorer: '/pages/scorer-setup-vnext.html',
+        trader: '/pages/dart-trader-vnext.html',
+        captain: '/pages/captain-dashboard-vnext.html',
+        profile: '/pages/player-profile-vnext.html'
+    } : {
+        home: '/pages/dashboard.html',
+        events: '/pages/events-hub.html',
+        chat: '/pages/messages.html',
+        scorer: '/pages/game-setup.html',
+        trader: '/pages/dart-trader.html',
+        captain: '/pages/captain-dashboard.html',
+        profile: '/pages/player-profile.html'
+    };
+
     // Cache helper with stale-while-revalidate pattern
     const CacheHelper = {
         FRESH_TIME: 5 * 60 * 1000,      // 5 minutes
@@ -66,12 +85,12 @@
     // Menu items configuration by section
     const MENU_ITEMS = {
         quickLinks: [
-            { icon: 'target', label: 'Scorer', href: '/pages/game-setup.html' },
+            { icon: 'target', label: 'Scorer', href: ROUTES.scorer },
             { icon: 'users', label: 'Members', href: '/pages/members.html' },
-            { icon: 'shopping-bag', label: 'Dart Trader', href: '/pages/dart-trader.html' }
+            { icon: 'shopping-bag', label: 'Dart Trader', href: ROUTES.trader }
         ],
         manage: [
-            { icon: 'clipboard', label: 'Captain Dashboard', href: '/pages/captain-dashboard.html', role: 'captain' },
+            { icon: 'clipboard', label: 'Captain Dashboard', href: ROUTES.captain, role: 'captain' },
             { icon: 'settings', label: 'League Director', href: '/pages/league-director.html', role: 'director' },
             { icon: 'shield', label: 'Site Admin', href: '/pages/admin.html', role: 'master_admin' }
         ],
@@ -101,11 +120,11 @@
 
     // Footer tabs configuration
     const FOOTER_TABS = [
-        { id: 'home', icon: '🏠', label: 'Home', href: '/pages/dashboard.html' },
-        { id: 'events', icon: '📅', label: 'Events', href: '/pages/events-hub.html' },
-        { id: 'chat', icon: '💬', label: 'Chat', href: '/pages/messages.html' },
+        { id: 'home', icon: '🏠', label: 'Home', href: ROUTES.home },
+        { id: 'events', icon: '📅', label: 'Events', href: ROUTES.events },
+        { id: 'chat', icon: '💬', label: 'Chat', href: ROUTES.chat },
         { id: 'notifications', icon: '🔔', label: 'Alerts', action: 'notifications' },
-        { id: 'profile', icon: '👤', label: 'Profile', href: '/pages/player-profile.html' }
+        { id: 'profile', icon: '👤', label: 'Profile', href: ROUTES.profile }
     ];
 
     // Inject styles
@@ -1071,11 +1090,11 @@
             this.sidebar.className = 'fb-sidebar';
             this.sidebar.innerHTML = `
                 <div class="fb-sidebar-header">
-                    <a href="/pages/dashboard.html" class="fb-sidebar-user-link">
+                    <a href="${ROUTES.home}" class="fb-sidebar-user-link">
                         <div class="fb-sidebar-avatar" id="fbSidebarAvatar">?</div>
                         <div class="fb-sidebar-user-info">
-                            <div class="fb-sidebar-user-name" id="fbSidebarUserName">Guest</div>
-                            <div class="fb-sidebar-user-role" id="fbSidebarUserRole">Player</div>
+                            <div class="fb-sidebar-user-name" id="fbSidebarUserName">Loading...</div>
+                            <div class="fb-sidebar-user-role" id="fbSidebarUserRole">Account</div>
                         </div>
                     </a>
                     <button class="fb-sidebar-close" aria-label="Close menu">&times;</button>
@@ -1222,9 +1241,9 @@
                 }
             } else {
                 // Guest/default values
-                if (avatarEl) avatarEl.textContent = '?';
-                if (nameEl) nameEl.textContent = 'Guest';
-                if (roleEl) roleEl.textContent = 'Player';
+                if (avatarEl) avatarEl.textContent = '...';
+                if (nameEl) nameEl.textContent = 'Loading...';
+                if (roleEl) roleEl.textContent = 'Account';
             }
         }
 
@@ -1240,7 +1259,7 @@
             // 2. Dashboard link
             const isHome = window.location.pathname.includes('dashboard');
             html += `<div class="fb-sidebar-section fb-sidebar-dashboard">
-                <a href="/pages/dashboard.html" class="fb-sidebar-item ${isHome ? 'active' : ''}">
+                <a href="${ROUTES.home}" class="fb-sidebar-item ${isHome ? 'active' : ''}">
                     <span class="fb-sidebar-item-icon">${SVG_ICONS.home}</span>
                     <span class="fb-sidebar-item-label">Dashboard</span>
                 </a>
@@ -1473,13 +1492,15 @@
 
             let involvements = session.involvements;
 
-            // If session doesn't have involvements, fetch via getPlayerInvolvements
+            // If session doesn't have involvements, refresh via getPlayerSession.
+            // The old getPlayerInvolvements endpoint does not exist anymore.
             if (!involvements || (!involvements.leagues?.length && !involvements.tournaments?.length)) {
                 try {
                     const { callFunction } = await import('/js/firebase-config.js');
-                    const result = await callFunction('getPlayerInvolvements', {});
+                    const result = await callFunction('getPlayerSession', {});
                     if (result.success && result.player && result.player.involvements) {
                         involvements = result.player.involvements;
+                        session.player = result.player;
                         session.involvements = involvements;
                         localStorage.setItem('brdc_session', JSON.stringify(session));
                     }
@@ -1757,7 +1778,7 @@
                 <div class="fb-chat-sidebar-header">
                     <span class="fb-chat-sidebar-title">Messages</span>
                     <div style="display: flex; align-items: center;">
-                        <button class="fb-chat-sidebar-new-btn" onclick="window.location.href='/pages/messages.html?new=1'">+ New</button>
+                        <button class="fb-chat-sidebar-new-btn" onclick="window.location.href='${ROUTES.chat}?new=1'">+ New</button>
                         <button class="fb-chat-sidebar-close" aria-label="Close messages">&times;</button>
                     </div>
                 </div>
@@ -1772,7 +1793,7 @@
                     ${this.getSkeletonHTML()}
                 </div>
                 <div class="fb-chat-sidebar-footer">
-                    <a href="/pages/messages.html" class="fb-chat-sidebar-see-all">See All Messages</a>
+                    <a href="${ROUTES.chat}" class="fb-chat-sidebar-see-all">See All Messages</a>
                 </div>
             `;
             document.body.appendChild(this.sidebar);
@@ -2309,8 +2330,8 @@
             let html = '<div class="fb-search-section-title">Quick Links</div>';
 
             const quickLinks = [
-                { icon: '🎯', title: 'Scorer', href: '/pages/game-setup.html' },
-                { icon: '📅', title: 'Events', href: '/pages/events-hub.html' },
+                { icon: '🎯', title: 'Scorer', href: ROUTES.scorer },
+                { icon: '📅', title: 'Events', href: ROUTES.events },
                 { icon: '👥', title: 'Members', href: '/pages/members.html' }
             ];
 
@@ -2572,7 +2593,7 @@
         localStorage.removeItem('brdc_player');
 
         // Redirect to login page
-        window.location.href = '/pages/dashboard.html';
+        window.location.href = ROUTES.home;
     }
 
     /**
@@ -2609,6 +2630,72 @@
         }
     }
 
+    function getStoredSession() {
+        try {
+            return JSON.parse(localStorage.getItem('brdc_session') || '{}');
+        } catch (e) {
+            return {};
+        }
+    }
+
+    function buildSessionFromPlayer(player) {
+        return {
+            player_id: player.id,
+            player,
+            name: player.name,
+            player_name: player.name,
+            source_type: 'global',
+            league_id: player.league_id || null,
+            is_admin: player.is_admin || false,
+            is_master_admin: player.is_master_admin || false,
+            is_director: player.is_director || false,
+            is_captain: player.is_captain || false,
+            involvements: player.involvements || {},
+            logged_in_at: Date.now()
+        };
+    }
+
+    function getPlayerFromSession(session) {
+        if (!session || !session.player_id) return null;
+        if (session.player && typeof session.player === 'object') return session.player;
+        return {
+            id: session.player_id,
+            name: session.name || session.player_name || 'Player',
+            league_id: session.league_id || null,
+            is_admin: session.is_admin || false,
+            is_master_admin: session.is_master_admin || false,
+            is_director: session.is_director || false,
+            is_captain: session.is_captain || false,
+            involvements: session.involvements || {}
+        };
+    }
+
+    async function ensureNavSession(forceRefresh = false) {
+        let session = getStoredSession();
+        if (!forceRefresh) {
+            const storedPlayer = getPlayerFromSession(session);
+            if (storedPlayer && (storedPlayer.name || session.involvements)) {
+                return session;
+            }
+        }
+
+        try {
+            const { auth, waitForAuthReady, callFunction } = await import('/js/firebase-config.js');
+            const user = auth.currentUser || await waitForAuthReady(5000);
+            if (!user) return session;
+
+            const result = await callFunction('getPlayerSession', {});
+            if (result?.success && result.player) {
+                session = buildSessionFromPlayer(result.player);
+                localStorage.setItem('brdc_session', JSON.stringify(session));
+            }
+        } catch (error) {
+            console.warn('[FBNav] Session hydration failed:', error?.message || error);
+        }
+
+        return session;
+    }
+
     /**
      * Initialize FB Navigation system
      */
@@ -2627,7 +2714,10 @@
         notifications.init();
 
         // Set player data for sidebar (always generate content, even without player)
-        sidebar.setPlayer(player || null);
+        const initialPlayer = player?.id
+            ? player
+            : (player?.player_id ? getPlayerFromSession(player) : getPlayerFromSession(getStoredSession()));
+        sidebar.setPlayer(initialPlayer || null);
         sidebar.generateContent();
 
         // Set active tab based on current page
@@ -2654,6 +2744,14 @@
 
         // Load badge counts
         loadBadgeCounts();
+
+        ensureNavSession(!initialPlayer).then((session) => {
+            const hydratedPlayer = getPlayerFromSession(session);
+            if (!hydratedPlayer) return;
+            sidebar.setPlayer(hydratedPlayer);
+            sidebar.generateContent();
+            loadBadgeCounts();
+        }).catch(() => {});
 
         return window.FBNav;
     }

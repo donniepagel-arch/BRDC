@@ -24,10 +24,10 @@ async function callFunction(name, body = {}) {
 
 // ─── PHASE 0: Create test tournament via API ───────────────────────────
 
-test.describe.serial('Heartbreaker Tournament E2E', () => {
+test.describe.serial('Mixed Doubles Matchmaker E2E', () => {
 
-    test('Phase 0 - Create heartbreaker tournament via API', async () => {
-        const data = await callFunction('createHeartbreakerTournament', {
+    test('Phase 0 - Create mixed doubles matchmaker tournament via API', async () => {
+        const data = await callFunction('createMixedDoublesMatchmakerTournament', {
             tournament_name: `Playwright Test ${Date.now()}`,
             tournament_date: new Date().toISOString(),
             email: 'test@playwright.dev',
@@ -127,7 +127,7 @@ test.describe.serial('Heartbreaker Tournament E2E', () => {
     });
 
     test('Phase 1f - TV page loads in each mode', async ({ page }) => {
-        const modes = ['bracket', 'partner-reveal', 'match-call', 'heartbreaker-alert'];
+        const modes = ['bracket', 'partner-reveal', 'match-call', 'mingle-alert'];
 
         for (const mode of modes) {
             await page.goto(`/pages/matchmaker-tv.html?tournament_id=${tournamentId}&mode=${mode}`);

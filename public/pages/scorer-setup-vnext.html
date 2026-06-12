@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scorer Setup VNext - BRDC</title>
+    <link rel="icon" type="image/png" href="/images/favicon.png">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#fff8ed">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap">
+    <link rel="stylesheet" href="/css/brdc-styles.css">
+    <link rel="stylesheet" href="/css/brdc-navigation.css?v=15">
+    <link rel="stylesheet" href="/css/market-events-scorer-vnext.css?v=12">
+</head>
+<body class="vnext-light-page has-mobile-nav scorer-setup-workflow-page">
+    <main class="ves-shell">
+        <section class="ves-page-header">
+            <div>
+                <p class="ves-kicker">Play now</p>
+                <h1>Scorer Setup</h1>
+                <p>Pick players, choose the game, and launch — one step at a time.</p>
+            </div>
+            <div class="ves-hero-actions">
+                <a class="ves-action" href="/pages/dashboard.html">Player Hub</a>
+                <a class="ves-action" href="/pages/messages-vnext.html?action=challenge">Challenge</a>
+            </div>
+        </section>
+
+        <section class="ves-resume-banner" id="resumeBanner" hidden>
+            <div>
+                <p class="ves-kicker">Match in progress</p>
+                <strong id="resumeMatchTitle">Saved match</strong>
+                <span id="resumeMatchMeta">Resume the saved game or start fresh.</span>
+            </div>
+            <div class="ves-resume-actions">
+                <button class="ves-action primary" type="button" id="resumeMatchBtn">Resume match</button>
+                <button class="ves-action" type="button" id="discardMatchBtn">New game</button>
+            </div>
+        </section>
+
+        <!-- ── Stepped wizard ─────────────────────────────────────── -->
+        <section class="ves-wizard" id="scorerWizard">
+
+            <div class="ves-wiz-progress" role="tablist" aria-label="Setup steps">
+                <button class="ves-wiz-dot active" type="button" data-goto="1"><span class="ves-wiz-num">1</span><em>Players</em></button>
+                <button class="ves-wiz-dot" type="button" data-goto="2"><span class="ves-wiz-num">2</span><em>Game</em></button>
+                <button class="ves-wiz-dot" type="button" data-goto="3"><span class="ves-wiz-num">3</span><em>Start</em></button>
+            </div>
+
+            <!-- STEP 1 — PLAYERS -->
+            <div class="ves-step active" data-step="1">
+                <article class="ves-panel">
+                    <div class="ves-section-heading">
+                        <h2><span>Step 1</span> Who's playing?</h2>
+                    </div>
+
+                    <div class="ves-knockout-strip">
+                        <div>
+                            <strong>Play knockout</strong>
+                            <span id="knockoutSubtext">Up to 8 teams with up to 4 players per team.</span>
+                        </div>
+                        <button class="ves-toggle" type="button" id="knockoutToggle" aria-pressed="false"></button>
+                    </div>
+                    <div class="ves-knockout-extra" id="knockoutExtra" hidden>
+                        <label>Bracket name<input id="knockoutName" placeholder="Saturday Night Darts"></label>
+                        <span>Team names below will be used on the bracket and can still be edited later.</span>
+                    </div>
+
+                    <div class="ves-player-add-row">
+                        <input id="playerNameInput" placeholder="Player name" autocomplete="off">
+                        <button class="ves-action primary" type="button" id="addPlayerBtn">Add player</button>
+                        <button class="ves-action" type="button" id="openPinModalBtn">Find profile</button>
+                        <div class="ves-bot-wrap">
+                            <button class="ves-action" type="button" id="botMenuBtn">Add bot</button>
+                            <div class="ves-bot-menu" id="botMenu" hidden>
+                                <div id="botMenuContent">Loading bots...</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="ves-player-pool empty" id="playerPool">Add players above</div>
+                    <div class="ves-team-help" id="assignmentHelp">Add at least 2 players to assign teams.</div>
+                    <div class="ves-team-card-grid" id="teamCards"></div>
+                </article>
+            </div>
+
+            <!-- STEP 2 — GAME -->
+            <div class="ves-step" data-step="2">
+                <article class="ves-panel">
+                    <div class="ves-section-heading">
+                        <h2><span>Step 2</span> The game</h2>
+                    </div>
+                    <div class="ves-config-grid ves-game-config-grid">
+                        <label>Game type<select id="gameType"><option value="501" selected>All 501</option><option value="301">All 301</option><option value="701">All 701</option><option value="cricket">All Cricket</option><option value="x01">All X01 custom</option><option value="corks_choice">All Corks Choice</option><option value="mixed">501/C/CH</option><option value="custom">Custom set</option></select></label>
+                        <label id="x01ScoreWrap" hidden>X01 start<input id="x01Score" type="number" value="501" min="101" max="1001" step="100"></label>
+                        <label class="ves-stepper-setting">Total legs<input id="numLegs" type="number" value="3" min="1" max="21" step="1"><div class="ves-stepper" data-input="numLegs"><button type="button" data-step="-1">-</button><span>3</span><button type="button" data-step="1">+</button></div></label>
+                        <label class="ves-toggle-setting">Leg mode<select id="legMode" hidden><option value="best-of" selected>Best of</option><option value="play-all">Play all</option></select><div class="ves-option-toggle" data-select="legMode"><button type="button" data-value="best-of">Best of</button><button type="button" data-value="play-all">Play all</button></div></label>
+                        <label class="ves-stepper-setting">Sets<input id="numSets" type="number" value="0" min="0" max="9" step="1"><div class="ves-stepper" data-input="numSets"><button type="button" data-step="-1">-</button><span>0</span><button type="button" data-step="1">+</button></div></label>
+                        <label class="ves-toggle-setting" id="setModeWrap">Set mode<select id="setMode" hidden><option value="best-of" selected>Best of</option><option value="play-all">Play all</option></select><div class="ves-option-toggle" data-select="setMode"><button type="button" data-value="best-of">Best of</button><button type="button" data-value="play-all">Play all</button></div></label>
+                        <label class="ves-toggle-setting" id="inRuleWrap">Start scoring<select id="inRule" hidden><option value="straight" selected>Free in</option><option value="double">Double in</option><option value="master">Master in (D/T)</option></select><div class="ves-option-toggle compact" data-select="inRule"><button type="button" data-value="straight">Free</button><button type="button" data-value="double">Double</button><button type="button" data-value="master">Master</button></div></label>
+                        <label class="ves-toggle-setting" id="outRuleWrap">Finish rule<select id="outRule" hidden><option value="double" selected>Double out</option><option value="straight">Single out</option><option value="master">Master out (D/T)</option></select><div class="ves-option-toggle compact" data-select="outRule"><button type="button" data-value="straight">Single</button><button type="button" data-value="double">Double</button><button type="button" data-value="master">Master</button></div></label>
+                        <label id="startRulesWrap">Start rule<select id="startRule"><option value="cork_every_leg" selected>Cork every leg</option><option value="alternate_cork_first_deciding">Alternate, cork first/deciding</option><option value="loser_starts_cork_first_deciding">Loser starts, cork first/deciding</option><option value="winner_starts_cork_first_deciding">Winner starts, cork first/deciding</option><option value="select-starter">Select starter</option></select></label>
+                        <label id="corkOptionWrap">Cork option<select id="corkOption"><option value="alternate_random_first_last" selected>Alternate, random first/deciding</option><option value="winner_chooses">Cork winner chooses</option><option value="loser_chooses">Cork loser chooses</option><option value="home_team_option">Team 1 option</option><option value="away_team_option">Team 2 option</option></select></label>
+                        <label id="corkOrderWrap" hidden>Cork order<select id="corkOrder"><option value="alternate-random" selected>Alternate, random first/deciding</option><option value="random-every">Random every leg</option><option value="loser-random">Loser first, random first/deciding</option><option value="winner-random">Winner first, random first/deciding</option></select></label>
+                        <label id="corkWinnerWrap" hidden>Choice winner gets<select id="corkWinnerGets"><option value="choose-and-start" selected>Choose game and start</option><option value="choose-only">Choose game only</option><option value="choose-or-start">Choose game or start</option></select></label>
+                    </div>
+
+                    <div class="ves-starter-card" id="starterCard" hidden>
+                        <span>Who starts first?</span>
+                        <div id="starterButtons"></div>
+                    </div>
+
+                    <div class="ves-mixed-config" id="mixedConfig" hidden>
+                        <p class="ves-kicker">Mixed legs</p>
+                        <p class="ves-section-note">CH means cork winner chooses from the games already played earlier in this set.</p>
+                        <div id="mixedLegRows"></div>
+                    </div>
+                </article>
+            </div>
+
+            <!-- STEP 3 — STATS & START -->
+            <div class="ves-step" data-step="3">
+                <article class="ves-panel" id="statTrackingPanel">
+                    <div class="ves-section-heading">
+                        <h2><span>Step 3</span> Stats &amp; start</h2>
+                    </div>
+                    <div class="ves-setting-row">
+                        <div>
+                            <strong>Record stats to player portal</strong>
+                            <span>Use this when one player wants the casual match recorded to their profile.</span>
+                        </div>
+                        <button class="ves-toggle" type="button" id="statToggle" aria-pressed="false"></button>
+                    </div>
+                    <div class="ves-inline-pin" id="statPinSection" hidden>
+                        <div id="statPinEntry" class="ves-pin-row">
+                            <input id="statPinInput" autocomplete="off" placeholder="Search player name">
+                            <button class="ves-action" type="button" id="statVerifyBtn">Find</button>
+                        </div>
+                        <div class="ves-profile-results" id="statProfileResults"></div>
+                        <div id="statPlayerVerified" class="ves-verified-player" hidden>
+                            <span id="statPlayerName">Player</span>
+                            <button type="button" id="clearStatPlayerBtn">Clear</button>
+                        </div>
+                    </div>
+
+                    <div class="ves-review" id="wizReview" aria-live="polite"></div>
+                </article>
+            </div>
+
+            <!-- Wizard nav -->
+            <div class="ves-wiz-nav">
+                <button class="ves-action" type="button" id="wizBack" hidden>← Back</button>
+                <button class="ves-action primary ves-wiz-grow" type="button" id="wizNext">Next →</button>
+                <button class="ves-launch ves-wiz-grow" type="button" id="startBtn" disabled hidden>Start game</button>
+            </div>
+        </section>
+    </main>
+
+    <div class="ves-modal" id="pinModal" hidden>
+        <div class="ves-modal-panel">
+            <div class="ves-modal-header">
+                <strong>Add player</strong>
+                <button type="button" id="closePinModalBtn">Close</button>
+            </div>
+            <div class="ves-tab-row">
+                <button class="active" type="button" data-pin-tab="login">Find profile</button>
+                <button type="button" data-pin-tab="register">Register</button>
+            </div>
+            <div id="pinLoginPane">
+                <p>Search for an existing player profile by name.</p>
+                <input id="pinModalInput" autocomplete="off" placeholder="Player name">
+                <div class="ves-modal-actions">
+                    <button class="ves-action" type="button" id="lookupPinBtn">Find</button>
+                </div>
+                <div class="ves-profile-results" id="profileLookupResults"></div>
+            </div>
+            <div id="pinRegisterPane" hidden>
+                <p>Create a player profile and add them to this match.</p>
+                <div id="registerError" class="ves-form-error"></div>
+                <div class="ves-config-grid">
+                    <label>First name<input id="regFirstName" autocomplete="given-name"></label>
+                    <label>Last name<input id="regLastName" autocomplete="family-name"></label>
+                    <label>Phone<input id="regPhone" type="tel" autocomplete="tel"></label>
+                    <label>Email<input id="regEmail" type="email" autocomplete="email"></label>
+                </div>
+                <div class="ves-modal-actions">
+                    <button class="ves-action primary" type="button" id="registerBtn">Register</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/brdc-toast.js"></script>
+    <script src="/components/brdc-navigation-init.js?v=18"></script>
+    <script type="module" src="/js/scorer-setup-vnext.js?v=5"></script>
+    <script>
+        initBRDCNavigation({ page: 'scorer', pageTitle: 'Scorer Setup', showBreadcrumbs: false, showBackButton: true });
+    </script>
+    <!-- Wizard navigation (layered on top of the setup module; only touches nav elements) -->
+    <script>
+    (function () {
+        const wiz = document.getElementById('scorerWizard');
+        if (!wiz) return;
+        const steps = Array.from(wiz.querySelectorAll('.ves-step'));
+        const dots = Array.from(wiz.querySelectorAll('.ves-wiz-dot'));
+        const back = document.getElementById('wizBack');
+        const next = document.getElementById('wizNext');
+        const start = document.getElementById('startBtn');
+        const review = document.getElementById('wizReview');
+        const max = steps.length;
+        let cur = 1;
+
+        function buildReview() {
+            if (!review) return;
+            const gt = document.getElementById('gameType');
+            const gtLabel = gt ? gt.options[gt.selectedIndex].text : '—';
+            const legs = (document.getElementById('numLegs') || {}).value || '—';
+            const sets = parseInt((document.getElementById('numSets') || {}).value || '0', 10);
+            const pool = document.getElementById('playerPool');
+            const playerChips = pool ? pool.querySelectorAll('[data-player], .ves-player-chip, button, span.chip') : [];
+            const players = pool && !pool.classList.contains('empty')
+                ? (pool.textContent || '').trim().split('\n').filter(Boolean).length
+                : 0;
+            review.innerHTML =
+                '<p class="ves-kicker">Review</p>' +
+                '<ul class="ves-review-list">' +
+                '<li><span>Game</span><strong>' + gtLabel + '</strong></li>' +
+                '<li><span>Legs</span><strong>' + legs + (sets > 0 ? ' · ' + sets + ' sets' : '') + '</strong></li>' +
+                '</ul>' +
+                '<p class="ves-section-note">Use Back to change players or game settings, then Start.</p>';
+        }
+
+        function show(n) {
+            cur = Math.min(max, Math.max(1, n));
+            steps.forEach(s => s.classList.toggle('active', Number(s.dataset.step) === cur));
+            dots.forEach(d => {
+                const dn = Number(d.dataset.goto);
+                d.classList.toggle('active', dn === cur);
+                d.classList.toggle('done', dn < cur);
+            });
+            back.hidden = cur === 1;
+            next.hidden = cur === max;
+            if (start) start.hidden = cur !== max;
+            if (cur === max) buildReview();
+            try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) { window.scrollTo(0, 0); }
+        }
+
+        back.addEventListener('click', () => show(cur - 1));
+        next.addEventListener('click', () => show(cur + 1));
+        dots.forEach(d => d.addEventListener('click', () => show(Number(d.dataset.goto))));
+        show(1);
+    })();
+    </script>
+</body>
+</html>

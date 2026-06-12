@@ -556,7 +556,7 @@ Add breakpoints for:
 **Proposed layout:**
 ```
 ┌────────────────────────────┐
-│   WINTER TRIPLE DRAFT      │  ← 12px, dim
+│   2026 Triples League      │  ← 12px, dim
 │   WEEK 5 RECAP            │  ← 18px, yellow, Bebas Neue
 │   Jan 28, 2025            │  ← 11px, dim
 ├────────────────────────────┤
@@ -621,7 +621,7 @@ Add breakpoints for:
 ┌──────────────────────────────────┐
 │    7  -  2                       │  ← 32px, yellow, centered
 │  D. PAGEL    M. PAGEL            │  ← 14px, names below score
-│  Winter Triple Draft • Week 1    │  ← 11px, gray
+│  2026 Triples League • Week 1    │  ← 11px, gray
 │  Jan 28, 2025                    │  ← 10px, gray
 ├──────────────────────────────────┤
 │ [Team boxes...]                  │

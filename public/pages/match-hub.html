@@ -157,6 +157,9 @@
             </tr>
             </tbody>
         </table>
+        <div class="stat-note" style="margin-top: 8px; color: var(--text-muted); font-size: 11px; text-align: center;">
+            MS% = empty turns divided by all recorded turns. WN% = legs won divided by total legs played.
+        </div>
 
         <!-- Line Score (always visible, bottom of header) -->
         <div class="line-score" id="lineScore"></div>
@@ -292,6 +295,9 @@
             </tr>
             </tbody>
         </table>
+        <div class="stat-note" style="margin-top: 8px; color: var(--text-muted); font-size: 11px; text-align: center;">
+            MS% = empty turns divided by all recorded turns. WN% = legs won divided by total legs played.
+        </div>
 
         <!-- Line Score (populates as match is played) -->
         <div class="line-score" id="preLineScore"></div>
@@ -386,6 +392,184 @@
         function normalizePlayerName(name) {
             return safeName(name).trim().toLowerCase();
         }
+        function getRosterLevel(player) {
+            const known = player?.id ? allPlayersById[player.id] : allPlayersByName[player?.name || player];
+            const isFillIn = player?.isFillIn || player?.is_sub || player?.is_fill_in || player?.is_fillin || player?.fill_in || player?.team_id === 'fill_in' || player?.team_name === 'Fill-In';
+            if (isFillIn && Number(player?.position) >= 1 && Number(player?.position) <= 3) {
+                return ['A', 'B', 'C'][Number(player.position) - 1];
+            }
+            const raw = String(player?.skill_level || player?.level || player?.preferred_level || known?.skill_level || known?.level || known?.preferred_level || '').toUpperCase();
+            if (['A', 'B', 'C'].includes(raw)) return raw;
+            return isFillIn ? 'F' : '';
+        }
+        function sortRosterByLevel(a, b) {
+            const order = { A: 0, B: 1, C: 2, F: 3, '': 9 };
+            const aFill = a?.isFillIn || a?.is_sub || a?.is_fill_in || a?.is_fillin || a?.fill_in || a?.team_id === 'fill_in' || a?.team_name === 'Fill-In';
+            const bFill = b?.isFillIn || b?.is_sub || b?.is_fill_in || b?.is_fillin || b?.fill_in || b?.team_id === 'fill_in' || b?.team_name === 'Fill-In';
+            if (aFill !== bFill) return aFill ? 1 : -1;
+            const aOrder = order[getRosterLevel(a)] ?? 9;
+            const bOrder = order[getRosterLevel(b)] ?? 9;
+            if (aOrder !== bOrder) return aOrder - bOrder;
+            const aPos = Number(a?.position || 99);
+            const bPos = Number(b?.position || 99);
+            if (aPos !== bPos) return aPos - bPos;
+            return String(a?.name || a || '').localeCompare(String(b?.name || b || ''));
+        }
+        function getNameParts(name) {
+            return normalizePlayerName(name)
+                .replace(/[^a-z0-9\s]/g, ' ')
+                .split(/\s+/)
+                .filter(Boolean);
+        }
+        function getNameAliasKeys(name) {
+            const parts = getNameParts(name);
+            if (!parts.length) return [];
+            const first = parts[0];
+            const last = parts[parts.length - 1];
+            const keys = new Set([
+                parts.join(' '),
+                first,
+                last,
+                `${first} ${last}`,
+                `${first} ${last.charAt(0)}`,
+                `${first.charAt(0)} ${last}`,
+                `${first.charAt(0)}${last}`,
+                `${first}${last.charAt(0)}`
+            ]);
+            return Array.from(keys).filter(Boolean);
+        }
+        function countAliasMatches(playerNames, aliasSet) {
+            return (playerNames || []).reduce((count, name) => {
+                const aliases = getNameAliasKeys(name);
+                return count + (aliases.some(alias => aliasSet.has(alias)) ? 1 : 0);
+            }, 0);
+        }
+        function buildRosterAliasSet(players) {
+            const aliasSet = new Set();
+            (players || []).forEach(player => {
+                getNameAliasKeys(player?.name).forEach(alias => aliasSet.add(alias));
+            });
+            return aliasSet;
+        }
+        function swapWinnerSide(side) {
+            if (side === 'home') return 'away';
+            if (side === 'away') return 'home';
+            return side;
+        }
+        function swapLegOrientation(leg) {
+            if (!leg) return leg;
+            return {
+                ...leg,
+                winner: swapWinnerSide(leg.winner),
+                home: leg.away,
+                away: leg.home,
+                home_stats: leg.away_stats,
+                away_stats: leg.home_stats,
+                throws: (leg.throws || []).map(turn => ({
+                    ...turn,
+                    home: turn.away,
+                    away: turn.home
+                }))
+            };
+        }
+        function swapGameOrientation(game) {
+            return {
+                ...game,
+                home_players: game.away_players,
+                away_players: game.home_players,
+                home_legs_won: game.away_legs_won,
+                away_legs_won: game.home_legs_won,
+                home_stats: game.away_stats,
+                away_stats: game.home_stats,
+                result: game.result ? {
+                    ...game.result,
+                    home_legs: game.result.away_legs,
+                    away_legs: game.result.home_legs
+                } : game.result,
+                winner: swapWinnerSide(game.winner),
+                legs: (game.legs || []).map(swapLegOrientation),
+                _resolvedPlayers: null,
+                _playerSideLookup: null,
+                _throwSlotMap: null
+            };
+        }
+        function getAssignedSide(name, sideMap) {
+            const aliases = getNameAliasKeys(name);
+            for (const alias of aliases) {
+                if (alias && sideMap[alias]) return sideMap[alias];
+            }
+            return null;
+        }
+        function assignPlayerSide(name, side, sideMap) {
+            if (!safeName(name) || !side) return false;
+            let changed = false;
+            getNameAliasKeys(name).forEach(alias => {
+                if (!alias || sideMap[alias] === side) return;
+                sideMap[alias] = side;
+                changed = true;
+            });
+            return changed;
+        }
+        function inferMatchPlayerSides(games, homePlayers, awayPlayers) {
+            const sideMap = {};
+            (homePlayers || []).forEach(player => assignPlayerSide(player?.name || player, 'home', sideMap));
+            (awayPlayers || []).forEach(player => assignPlayerSide(player?.name || player, 'away', sideMap));
+
+            let changed = true;
+            let passes = 0;
+            while (changed && passes < 8) {
+                changed = false;
+                passes++;
+
+                (games || []).forEach(game => {
+                    const current = getScheduledGamePlayers(game);
+                    const knownHomeSides = current.home.map(name => getAssignedSide(name, sideMap)).filter(Boolean);
+                    const knownAwaySides = current.away.map(name => getAssignedSide(name, sideMap)).filter(Boolean);
+                    const hasKnown = knownHomeSides.length > 0 || knownAwaySides.length > 0;
+                    if (!hasKnown) return;
+
+                    const directConsistent =
+                        knownHomeSides.every(side => side === 'home') &&
+                        knownAwaySides.every(side => side === 'away');
+                    const swappedConsistent =
+                        knownHomeSides.every(side => side === 'away') &&
+                        knownAwaySides.every(side => side === 'home');
+
+                    if (directConsistent && !swappedConsistent) {
+                        current.home.forEach(name => { changed = assignPlayerSide(name, 'home', sideMap) || changed; });
+                        current.away.forEach(name => { changed = assignPlayerSide(name, 'away', sideMap) || changed; });
+                    } else if (swappedConsistent && !directConsistent) {
+                        current.home.forEach(name => { changed = assignPlayerSide(name, 'away', sideMap) || changed; });
+                        current.away.forEach(name => { changed = assignPlayerSide(name, 'home', sideMap) || changed; });
+                    }
+                });
+            }
+
+            return sideMap;
+        }
+        function scorePlayersForSide(names, expectedSide, sideMap) {
+            return (names || []).reduce((total, name) => {
+                return total + (getAssignedSide(name, sideMap) === expectedSide ? 1 : 0);
+            }, 0);
+        }
+        function normalizeCompletedGamesToMatchSides(games, homePlayers, awayPlayers) {
+            const sideMap = inferMatchPlayerSides(games, homePlayers, awayPlayers);
+
+            return (games || []).map(game => {
+                const current = getScheduledGamePlayers(game);
+                const directScore =
+                    scorePlayersForSide(current.home, 'home', sideMap) +
+                    scorePlayersForSide(current.away, 'away', sideMap);
+                const swappedScore =
+                    scorePlayersForSide(current.home, 'away', sideMap) +
+                    scorePlayersForSide(current.away, 'home', sideMap);
+
+                if (swappedScore > directScore) {
+                    return swapGameOrientation(game);
+                }
+                return game;
+            });
+        }
         function getScheduledGamePlayers(game) {
             return {
                 home: (game?.home_players || []).map(p => typeof p === 'string' ? p : (p?.name || 'TBD')).filter(Boolean),
@@ -415,6 +599,14 @@
             if (game?._resolvedPlayers) return game._resolvedPlayers;
 
             const scheduledPlayers = getScheduledGamePlayers(game);
+            if (scheduledPlayers.home.length || scheduledPlayers.away.length) {
+                game._resolvedPlayers = {
+                    home: scheduledPlayers.home,
+                    away: scheduledPlayers.away
+                };
+                return game._resolvedPlayers;
+            }
+
             const actualHome = [];
             const actualAway = [];
             const seenHome = new Set();
@@ -477,15 +669,17 @@
         }
         function getGamePlayerSideLookup(game) {
             if (game._playerSideLookup) return game._playerSideLookup;
-            const players = getScheduledGamePlayers(game);
+            const players = getGamePlayers(game);
             const lookup = {};
             players.home.forEach(name => {
-                const key = normalizePlayerName(name);
-                if (key) lookup[key] = 'home';
+                getNameAliasKeys(name).forEach(key => {
+                    if (key && !lookup[key]) lookup[key] = 'home';
+                });
             });
             players.away.forEach(name => {
-                const key = normalizePlayerName(name);
-                if (key) lookup[key] = 'away';
+                getNameAliasKeys(name).forEach(key => {
+                    if (key && !lookup[key]) lookup[key] = 'away';
+                });
             });
             game._playerSideLookup = lookup;
             return lookup;
@@ -519,21 +713,62 @@
         }
         function resolveThrowSide(game, slot, throwData) {
             const sideLookup = getGamePlayerSideLookup(game);
-            const playerKey = normalizePlayerName(getThrowPlayerName(throwData));
-            if (playerKey && sideLookup[playerKey]) return sideLookup[playerKey];
+            const playerAliases = getNameAliasKeys(getThrowPlayerName(throwData));
+            for (const alias of playerAliases) {
+                if (alias && sideLookup[alias]) return sideLookup[alias];
+            }
             const slotMap = getGameThrowSlotMap(game);
             return slotMap[slot] || slot;
         }
+
+        function normalizeLegStatFields(stats = {}, isCricket = false) {
+            const normalized = { ...stats };
+            const darts = Number(normalized.darts ?? normalized.darts_thrown ?? normalized.total_darts ?? 0) || 0;
+            const points = Number(normalized.points ?? normalized.points_scored ?? normalized.total_points ?? 0) || 0;
+            const marks = Number(normalized.marks ?? normalized.total_marks ?? 0) || 0;
+
+            normalized.darts = darts;
+            normalized.points = points;
+            normalized.marks = marks;
+
+            if (isCricket) {
+                normalized.mpr = Number.isFinite(Number(normalized.mpr)) && Number(normalized.mpr) > 0
+                    ? Number(normalized.mpr)
+                    : (darts > 0 ? marks / (darts / 3) : 0);
+            } else {
+                normalized.three_dart_avg = Number.isFinite(Number(normalized.three_dart_avg)) && Number(normalized.three_dart_avg) > 0
+                    ? Number(normalized.three_dart_avg)
+                    : (darts > 0 ? (points / darts) * 3 : 0);
+            }
+
+            return normalized;
+        }
+
+        function formatLegStatValue(stats = {}, isCricket = false) {
+            const normalized = normalizeLegStatFields(stats, isCricket);
+            if (isCricket) return normalized.mpr > 0 ? normalized.mpr.toFixed(2) : '-';
+            return normalized.three_dart_avg > 0 ? normalized.three_dart_avg.toFixed(1) : '-';
+        }
+
         function getLegPlayerStats(leg, game) {
             const storedStats = leg?.player_stats || {};
+            const isCricket = isCricketGame(game, leg);
             const hasStoredStats = Object.keys(storedStats).some(name => {
                 if (!safeName(name)) return false;
                 const stats = storedStats[name] || {};
-                return (stats.darts || stats.points || stats.marks || stats.mpr);
+                return (stats.darts || stats.darts_thrown || stats.points || stats.points_scored || stats.marks || stats.total_marks || stats.mpr);
             });
-            if (hasStoredStats) return storedStats;
+            if (hasStoredStats) {
+                const sideLookup = getGamePlayerSideLookup(game);
+                return Object.fromEntries(Object.entries(storedStats).map(([name, stats]) => [
+                    name,
+                    {
+                        ...normalizeLegStatFields(stats, isCricket),
+                        side: stats?.side || sideLookup[normalizePlayerName(name)] || null
+                    }
+                ]));
+            }
 
-            const isCricket = isCricketGame(game, leg);
             const synthesized = {};
 
             (leg?.throws || []).forEach(turn => {
@@ -585,6 +820,14 @@
         function getMatchActualParticipants(match) {
             const participants = { home: new Set(), away: new Set() };
             (match?.games || []).forEach(game => {
+                const scheduledGamePlayers = getGamePlayers(game);
+                scheduledGamePlayers.home.forEach(name => {
+                    if (safeName(name)) participants.home.add(name);
+                });
+                scheduledGamePlayers.away.forEach(name => {
+                    if (safeName(name)) participants.away.add(name);
+                });
+
                 (game?.legs || []).forEach(leg => {
                     const legStats = getLegPlayerStats(leg, game);
                     Object.entries(legStats).forEach(([name, stats]) => {
@@ -649,7 +892,7 @@
             return summary;
         }
         function buildCompletedRosterDisplay(baseRoster, actualNames) {
-            const scheduled = [...(baseRoster || [])].sort((a, b) => (a.position || 99) - (b.position || 99));
+            const scheduled = [...(baseRoster || [])].sort(sortRosterByLevel);
             const actualPlayers = Array.from(actualNames || []).map(name => {
                 const known = getKnownPlayerByName(name);
                 return {
@@ -706,7 +949,7 @@
                 });
             });
 
-            activePlayers.sort((a, b) => (a.position || 99) - (b.position || 99));
+            activePlayers.sort(sortRosterByLevel);
             return { activePlayers, outPlayers };
         }
 
@@ -797,16 +1040,20 @@
                 // Core roster = team players who are NOT subs/alternates
                 homeRoster = Object.values(allPlayersById)
                     .filter(p => p.team_id === matchData.home_team_id && !p.is_sub)
-                    .sort((a, b) => (a.position || 99) - (b.position || 99));
+                    .sort(sortRosterByLevel);
                 awayRoster = Object.values(allPlayersById)
                     .filter(p => p.team_id === matchData.away_team_id && !p.is_sub)
-                    .sort((a, b) => (a.position || 99) - (b.position || 99));
+                    .sort(sortRosterByLevel);
 
                 // Team subs/alternates (is_sub: true) - only shown on matches they played
                 const homeSubs = Object.values(allPlayersById)
                     .filter(p => p.team_id === matchData.home_team_id && p.is_sub);
                 const awaySubs = Object.values(allPlayersById)
                     .filter(p => p.team_id === matchData.away_team_id && p.is_sub);
+
+                if (matchData.status === 'completed' && Array.isArray(matchData.games) && matchData.games.length > 0) {
+                    matchData.games = normalizeCompletedGamesToMatchSides(matchData.games, [...homeRoster, ...homeSubs], [...awayRoster, ...awaySubs]);
+                }
 
                 // Auto-detect fill-in players from games data
                 homeDisplayRoster = [...homeRoster];
@@ -924,8 +1171,8 @@
                         });
                     }
 
-                    homeDisplayRoster.sort((a, b) => (a.position || 99) - (b.position || 99));
-                    awayDisplayRoster.sort((a, b) => (a.position || 99) - (b.position || 99));
+                    homeDisplayRoster.sort(sortRosterByLevel);
+                    awayDisplayRoster.sort(sortRosterByLevel);
 
                     const rebuiltHomeRoster = buildCompletedRosterDisplay(homeRoster, actualParticipants.home);
                     const rebuiltAwayRoster = buildCompletedRosterDisplay(awayRoster, actualParticipants.away);
@@ -1831,12 +2078,14 @@
 
 
         function renderLegSummary(homeStats, awayStats, isCricket, winner, checkoutInfo, closeoutInfo, loserRemaining) {
+            const normalizedHomeStats = normalizeLegStatFields(homeStats, isCricket);
+            const normalizedAwayStats = normalizeLegStatFields(awayStats, isCricket);
             const homeStat = isCricket
-                ? `${homeStats.mpr || '-'} MPR`
-                : `${homeStats.three_dart_avg || '-'} 3DA`;
+                ? `${formatLegStatValue(normalizedHomeStats, true)} MPR`
+                : `${formatLegStatValue(normalizedHomeStats, false)} 3DA`;
             const awayStat = isCricket
-                ? `${awayStats.mpr || '-'} MPR`
-                : `${awayStats.three_dart_avg || '-'} 3DA`;
+                ? `${formatLegStatValue(normalizedAwayStats, true)} MPR`
+                : `${formatLegStatValue(normalizedAwayStats, false)} 3DA`;
 
             // Build winner display with checkout/closeout info
             let homeWinnerInfo = '';
@@ -1869,12 +2118,12 @@
             return `
                 <div class="leg-summary">
                     <div class="home">
-                        <b>${homeStat}</b> • ${homeStats.darts_thrown || homeStats.darts || '-'} darts
+                        <b>${homeStat}</b> • ${normalizedHomeStats.darts || '-'} darts
                         ${homeWinnerInfo}
                     </div>
                     <div class="center">${isCricket ? 'MPR' : '3DA'}</div>
                     <div class="away">
-                        ${awayStats.darts_thrown || awayStats.darts || '-'} darts • <b>${awayStat}</b>
+                        ${normalizedAwayStats.darts || '-'} darts • <b>${awayStat}</b>
                         ${awayWinnerInfo}
                     </div>
                 </div>
@@ -5124,8 +5373,8 @@
             const matchDerivedStats = isPostMatch ? getMatchDerivedPlayerStats(matchData) : {};
 
             // Use displayRoster (includes subs) — it equals homeRoster when no lineup changes
-            const homeList = homeDisplayRoster.length > 0 ? homeDisplayRoster : homeRoster;
-            const awayList = awayDisplayRoster.length > 0 ? awayDisplayRoster : awayRoster;
+            const homeList = [...(homeDisplayRoster.length > 0 ? homeDisplayRoster : homeRoster)].sort(sortRosterByLevel);
+            const awayList = [...(awayDisplayRoster.length > 0 ? awayDisplayRoster : awayRoster)].sort(sortRosterByLevel);
 
             if (homeList.length === 0 && awayList.length === 0) {
                 rosterContainer.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 20px;">No roster information available</div>';
@@ -5136,12 +5385,12 @@
                 const stats = (isPostMatch && matchDerivedStats[player.name]) || allPlayersById[player.id] || player;
                 const avg = formatStat(stats.x01_three_dart_avg, 1);
                 const mpr = formatStat(stats.cricket_mpr, 2);
-                const rawLevel = String(player.level || '').toUpperCase();
+                const rawLevel = String(player.skill_level || player.level || player.preferred_level || '').toUpperCase();
                 const level = ['A', 'B', 'C'].includes(rawLevel) ? rawLevel : '';
-                const isSub = player.isFillIn;
+                const isSub = Boolean(player.isFillIn || player.is_fill_in || player.fill_in || player.team_id === 'fill_in' || player.team_name === 'Fill-In');
                 let badge = '';
                 if (isSub) {
-                    badge = '<span class="player-level-badge level-s">S</span>';
+                    badge = '<span class="player-level-badge level-f">F</span>';
                 } else if (level) {
                     badge = `<span class="player-level-badge level-${level.toLowerCase()}">${level}</span>`;
                 }
@@ -5187,11 +5436,18 @@
             }
 
             let html = '<div class="set-roster pre-match-roster-grid" style="position: relative;">';
+            const homeRenderList = [
+                ...homeList.map((player, i) => ({ player, isOut: false, compClass: homeCompClasses[i] || '' })),
+                ...homeOutPlayers.map(player => ({ player, isOut: true, compClass: '' }))
+            ].sort((a, b) => sortRosterByLevel(a.player, b.player));
+            const awayRenderList = [
+                ...awayList.map((player, i) => ({ player, isOut: false, compClass: awayCompClasses[i] || '' })),
+                ...awayOutPlayers.map(player => ({ player, isOut: true, compClass: '' }))
+            ].sort((a, b) => sortRosterByLevel(a.player, b.player));
 
             // Home roster column
             html += '<div class="roster-column home">';
-            homeList.forEach((player, i) => { html += renderPlayerRow(player, false, homeCompClasses[i], 'home'); });
-            homeOutPlayers.forEach(player => { html += renderPlayerRow(player, true, '', 'home'); });
+            homeRenderList.forEach(item => { html += renderPlayerRow(item.player, item.isOut, item.compClass, 'home'); });
             html += '</div>';
 
             // Empty center placeholder to maintain grid
@@ -5199,8 +5455,7 @@
 
             // Away roster column
             html += '<div class="roster-column away">';
-            awayList.forEach((player, i) => { html += renderPlayerRow(player, false, awayCompClasses[i], 'away'); });
-            awayOutPlayers.forEach(player => { html += renderPlayerRow(player, true, '', 'away'); });
+            awayRenderList.forEach(item => { html += renderPlayerRow(item.player, item.isOut, item.compClass, 'away'); });
             html += '</div>';
 
             html += '</div>';

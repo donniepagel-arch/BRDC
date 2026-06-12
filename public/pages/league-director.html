@@ -999,6 +999,7 @@
         .level-badge.level-a { background: var(--pink); color: white; }
         .level-badge.level-b { background: var(--teal); color: black; }
         .level-badge.level-c { background: var(--yellow); color: black; }
+        .level-badge.level-f { background: #666; color: white; }
         .level-badge.level-unassigned { background: #666; color: white; }
 
         /* Audit Log Styles */
@@ -1156,13 +1157,138 @@
 
         /* Responsive */
         @media (max-width: 768px) {
-            .container { padding: 15px; }
+            html,
+            body {
+                width: 100%;
+                max-width: 100%;
+                overflow-x: hidden;
+            }
+
+            body.has-mobile-nav {
+                padding-bottom: calc(108px + env(safe-area-inset-bottom));
+            }
+
+            .container {
+                width: 100%;
+                max-width: 100%;
+                padding: 18px 12px calc(116px + env(safe-area-inset-bottom));
+                overflow-x: hidden;
+            }
+
+            .container > div:first-child {
+                max-width: 100%;
+                min-width: 0;
+            }
+
+            h1 {
+                font-size: clamp(40px, 13vw, 64px) !important;
+                line-height: 0.95 !important;
+                overflow-wrap: anywhere;
+            }
+
+            .dashboard-grid {
+                width: 100%;
+                max-width: 100%;
+                gap: 16px;
+                margin-top: 16px;
+            }
+
+            .card,
+            .sidebar-card,
+            .match-card,
+            .director-card {
+                width: 100%;
+                max-width: 100%;
+                box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.45);
+                border-width: 3px;
+            }
+
             .card-body, .sidebar-card { padding: 16px; }
             .match-teams { grid-template-columns: 1fr; gap: 16px; }
             .vs-circle { display: none; }
-            .tab { padding: 10px 14px; font-size: 12px; }
+
+            .tab-container {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 8px;
+                width: 100%;
+                max-width: 100%;
+                padding: 8px;
+                margin-bottom: 18px;
+            }
+
+            .tab {
+                width: 100%;
+                min-width: 0;
+                justify-content: center;
+                padding: 10px 8px;
+                font-size: 12px;
+                letter-spacing: 0.8px;
+                white-space: normal;
+                line-height: 1.1;
+            }
+
+            .player-count-badge {
+                margin-left: 6px;
+            }
+
+            #standingsContainer,
+            #statsContainer,
+            #teamsContainer,
+            #playersList,
+            #fillinsList,
+            #matchesList,
+            #matchCorrectionsList,
+            #rescheduleList,
+            #forfeitList,
+            #auditLogList {
+                width: 100%;
+                max-width: 100%;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            table {
+                min-width: 680px;
+                font-size: 13px;
+            }
+
+            th,
+            td {
+                padding: 10px 12px;
+                white-space: nowrap;
+            }
+
+            .settings-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .match-row,
+            .director-card-header,
+            .filter-bar,
+            .modal-footer,
+            .match-actions {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .filter-bar input,
+            .filter-bar select,
+            .filter-bar button,
+            .modal-footer button,
+            .match-actions button,
+            .match-actions a {
+                width: 100%;
+            }
+
             .login-card { padding: 30px 20px; }
             .pin-field { font-size: 20px; height: 48px; }
+        }
+
+        @media (max-width: 420px) {
+            .tab-container {
+                grid-template-columns: 1fr;
+            }
         }
 
         /* Accessibility - Screen Reader Only */
@@ -1248,6 +1374,7 @@
                 <nav class="tab-container" role="tablist" aria-label="League director sections">
                     <button class="tab active" role="tab" aria-selected="true" aria-controls="matchesTab" onclick="switchTab('matches')">📅 Matches</button>
                     <button class="tab" role="tab" aria-selected="false" aria-controls="playersTab" onclick="switchTab('players')">🎯 Players<span id="playerCountBadge" class="player-count-badge" aria-label="player count">0</span></button>
+                    <button class="tab" role="tab" aria-selected="false" aria-controls="fillinsTab" onclick="switchTab('fillins')">🧩 Fill-Ins<span id="fillinCountBadge" class="player-count-badge" aria-label="fill-in count">0</span></button>
                     <button class="tab" role="tab" aria-selected="false" aria-controls="standingsTab" onclick="switchTab('standings')">🏆 Standings</button>
                     <button class="tab" role="tab" aria-selected="false" aria-controls="teamsTab" onclick="switchTab('teams')">👥 Teams</button>
                     <button class="tab" role="tab" aria-selected="false" aria-controls="statsTab" onclick="switchTab('stats')">📈 Stats</button>
@@ -1374,7 +1501,6 @@ Bob Wilson"></textarea>
                                     <option value="all">All Players</option>
                                     <option value="unassigned">Unassigned</option>
                                     <option value="on_team">On Team</option>
-                                    <option value="subs">Subs</option>
                                     <option value="bots">Bots</option>
                                 </select>
                             </div>
@@ -1389,6 +1515,36 @@ Bob Wilson"></textarea>
                             <!-- Players List -->
                             <div id="playersContainer">
                                 <p style="text-align: center; padding: 40px; color: #666;">Loading players...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Fill-Ins Tab -->
+                <div id="fillinsTab" class="tab-content">
+                    <div class="dashboard-grid">
+                        <div>
+                            <div class="sidebar-card">
+                                <h3 style="font-family: 'Bebas Neue', cursive; font-size: 22px; margin-bottom: 15px;">🧩 Fill-In Pool</h3>
+                                <p style="font-size: 13px; color: var(--text-dim); line-height: 1.5;">
+                                    Fill-ins live here until they are moved onto a team for a season or used as needed for lineup changes.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="filter-bar">
+                                <input type="text" id="fillinSearch" placeholder="Search fill-ins..." oninput="filterFillins()">
+                                <select id="fillinFilter" onchange="filterFillins()">
+                                    <option value="all">All Fill-Ins</option>
+                                    <option value="available">Fill-In Pool</option>
+                                    <option value="on_team">Assigned to Team</option>
+                                    <option value="bots">Bots</option>
+                                </select>
+                            </div>
+
+                            <div id="fillinsContainer">
+                                <p style="text-align: center; padding: 40px; color: #666;">Loading fill-ins...</p>
                             </div>
                         </div>
                     </div>
@@ -2137,9 +2293,9 @@ Bob Wilson"></textarea>
                                 </div>
                                     <div class="card-body">
                                         <p style="color: var(--text-dim); font-size: 13px; margin-bottom: 16px;">
-                                        Paste a DartConnect recap URL. BRDC will auto-match it to the schedule by match date, set format, player identity, levels, and roster identity. No week or match selection is required.
+                                        Paste a DartConnect recap URL. BRDC can still auto-match by date, set format, player identity, levels, and roster identity, but when DartConnect includes old unsaved games you should choose the scheduled BRDC match first so import stays anchored to the right night.
                                     </p>
-                                    <div style="display: none; grid-template-columns: minmax(120px, 180px) minmax(240px, 1fr); gap: 12px; margin-bottom: 14px;">
+                                    <div style="display: grid; grid-template-columns: minmax(120px, 180px) minmax(240px, 1fr); gap: 12px; margin-bottom: 14px;">
                                         <div class="form-group" style="margin-bottom: 0;">
                                             <label class="brdc-label">Week</label>
                                             <select id="importWeekSelect" class="brdc-input" onchange="onImportWeekChanged()">
@@ -2155,7 +2311,7 @@ Bob Wilson"></textarea>
                                     </div>
                                     <input type="hidden" id="importMatchId">
                                     <div id="importSelectedMatchSummary" style="margin: -2px 0 14px; padding: 12px 14px; border-left: 6px solid var(--teal); background: rgba(20,184,166,0.08); color: var(--text-dim); font-size: 13px;">
-                                        Paste a DartConnect recap URL to auto-match the scheduled BRDC match.
+                                        Choose the BRDC week and scheduled match first. That lets the importer ignore old unsaved DartConnect games that appear at the top of the recap.
                                     </div>
                                     <div class="form-group" style="margin-bottom: 14px;">
                                         <label class="brdc-label">DartConnect Recap URL</label>
@@ -2171,7 +2327,7 @@ Bob Wilson"></textarea>
                                         <button class="brdc-btn" id="importWorkbenchImportBtn" onclick="importValidatedPayload()" disabled>Import Matched Recap</button>
                                     </div>
                                     <div id="importWorkbenchStatus" style="margin-bottom: 16px; color: var(--text-dim);">
-                                        Paste a DartConnect recap URL. Auto-match will select the scheduled BRDC match before import.
+                                        Choose the scheduled BRDC match, then parse the DartConnect recap URL.
                                     </div>
                                     <div id="importSetSummary" style="margin-bottom: 16px;"></div>
                                     <div id="importReviewPanel" style="display: none; margin-bottom: 16px; padding: 14px; border-left: 6px solid var(--pink); background: rgba(236,72,153,0.08);">
@@ -2672,7 +2828,6 @@ Bob Wilson"></textarea>
                     involvements: player.involvements || {},
                     logged_in_at: Date.now()
                 }));
-                localStorage.removeItem('brdc_player_pin');
 
                 document.getElementById('initialLoader').style.display = 'none';
                 document.getElementById('loginOverlay').style.display = 'none';
@@ -2735,7 +2890,6 @@ Bob Wilson"></textarea>
                     involvements: player.involvements || {},
                     logged_in_at: Date.now()
                 }));
-                localStorage.removeItem('brdc_player_pin');
 
                 document.getElementById('initialLoader').style.display = 'none';
                 document.getElementById('loginOverlay').style.display = 'none';
@@ -2984,6 +3138,7 @@ Bob Wilson"></textarea>
             if (tabName === 'teams') renderTeams();
             if (tabName === 'stats') loadStats();
             if (tabName === 'players') renderPlayers();
+            if (tabName === 'fillins') renderFillins();
             if (tabName === 'settings') populateSettingsForm();
             if (tabName === 'tools') loadDirectorTools();
         };
@@ -2996,16 +3151,21 @@ Bob Wilson"></textarea>
                     container.innerHTML = '<p style="text-align: center; padding: 40px;">No standings yet.</p>';
                     return;
                 }
-                let html = `<table style="width: 100%; border-collapse: collapse; background: white; border: 3px solid var(--black);">
+                const playoffCutoff = getLeaguePlayoffCutoff();
+                let html = `<table style="width: 100%; border-collapse: collapse; background: var(--bg-card); border: 3px solid var(--black); color: var(--text-light);">
                     <thead><tr style="background: var(--pink); color: white;">
                         <th style="padding: 12px;">#</th><th style="padding: 12px; text-align: left;">Team</th>
                         <th style="padding: 12px;">W</th><th style="padding: 12px;">L</th><th style="padding: 12px;">T</th>
                         <th style="padding: 12px;">Pts</th><th style="padding: 12px;">GW</th><th style="padding: 12px;">GL</th><th style="padding: 12px;">G%</th>
                     </tr></thead><tbody>`;
                 result.standings.forEach(t => {
-                    html += `<tr style="border-bottom: 2px solid #eee;">
+                    const isPlayoffTeam = playoffCutoff > 0 && Number(t.rank) <= playoffCutoff;
+                    const teamLabel = isPlayoffTeam
+                        ? `${t.team_name} <span style="display:inline-flex;align-items:center;margin-left:8px;padding:2px 8px;border-radius:999px;background:rgba(253,216,53,0.2);color:var(--yellow);font-size:11px;font-weight:800;letter-spacing:0.04em;">PLAYOFF</span>`
+                        : t.team_name;
+                    html += `<tr style="border-bottom: 2px solid var(--border-color); background: ${isPlayoffTeam ? 'rgba(253,216,53,0.10)' : 'rgba(255,255,255,0.02)'}; color: var(--text-light);">
                         <td style="padding: 12px; text-align: center; font-weight: 700;">${t.rank}</td>
-                        <td style="padding: 12px; font-weight: 700;">${t.team_name}</td>
+                        <td style="padding: 12px; font-weight: 700;">${teamLabel}</td>
                         <td style="padding: 12px; text-align: center;">${t.wins}</td>
                         <td style="padding: 12px; text-align: center;">${t.losses}</td>
                         <td style="padding: 12px; text-align: center;">${t.ties}</td>
@@ -3016,6 +3176,9 @@ Bob Wilson"></textarea>
                     </tr>`;
                 });
                 html += '</tbody></table>';
+                if (playoffCutoff > 0) {
+                    html = `<div style="display:inline-flex;align-items:center;padding:8px 12px;border-radius:8px;background:rgba(253,216,53,0.12);color:var(--yellow);font-size:13px;font-weight:700;margin-bottom:12px;">Top ${playoffCutoff} teams highlighted for playoffs</div>` + html;
+                }
                 container.innerHTML = html;
             } catch (e) { container.innerHTML = `<p style="color: red;">Error: ${e.message}</p>`; }
         }
@@ -3032,7 +3195,7 @@ Bob Wilson"></textarea>
                 html += `<div class="sidebar-card">
                     <h3 style="font-family: 'Bebas Neue', cursive; font-size: 24px; margin-bottom: 15px;">${team.team_name}</h3>
                     <div style="line-height: 2;">${team.players ? team.players.map(p => `<div style="display: flex; justify-content: space-between;"><span style="font-weight: 600;">${posLabel(p.position)}</span><span>${p.name}${p.position === 1 ? ' 👑' : ''}</span></div>`).join('') : 'No players'}</div>
-                    <div style="margin-top: 15px; padding-top: 15px; border-top: 2px solid #eee; display: flex; justify-content: space-between;">
+                    <div style="margin-top: 15px; padding-top: 15px; border-top: 2px solid var(--border-color); display: flex; justify-content: space-between;">
                         <span>Record:</span><span style="font-weight: 700;">${team.wins}-${team.losses}${team.ties ? `-${team.ties}` : ''}</span>
                     </div>
                 </div>`;
@@ -3066,7 +3229,7 @@ Bob Wilson"></textarea>
             data.slice(0, 5).forEach((p, i) => {
                 const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}.`;
                 const value = (p && p[field] != null && p[field] !== '') ? p[field] : 0;
-                html += `<div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #eee;"><span>${medal} ${p.player_name || 'Unknown Player'}</span><span style="font-weight: 700;">${value}</span></div>`;
+                html += `<div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border-color);"><span>${medal} ${p.player_name || 'Unknown Player'}</span><span style="font-weight: 700;">${value}</span></div>`;
             });
             return html + '</div>';
         }
@@ -3080,7 +3243,8 @@ Bob Wilson"></textarea>
                 const result = await callFunction('getPlayers', { league_id: leagueId });
                 if (result.success) {
                     playersData = result.players;
-                    document.getElementById('playerCountBadge').textContent = playersData.length;
+                    document.getElementById('playerCountBadge').textContent = playersData.filter(p => !p.is_sub).length;
+                    document.getElementById('fillinCountBadge').textContent = playersData.filter(p => p.is_sub).length;
                 }
             } catch (e) { console.error('Error loading players:', e); toastError('Failed to load players'); }
         }
@@ -3094,14 +3258,14 @@ Bob Wilson"></textarea>
             const filter = document.getElementById('playerFilter').value;
 
             let filtered = playersData.filter(p => {
+                if (p.is_sub) return false;
                 const matchesSearch = p.name.toLowerCase().includes(searchTerm) ||
                     (p.email && p.email.toLowerCase().includes(searchTerm));
 
                 if (!matchesSearch) return false;
 
                 if (filter === 'unassigned') return !p.team_id;
-                if (filter === 'on_team') return p.team_id;
-                if (filter === 'subs') return p.is_sub;
+                if (filter === 'on_team') return p.team_id && p.team_id !== 'fill_in';
                 if (filter === 'bots') return p.isBot;
                 return true;
             });
@@ -3147,16 +3311,16 @@ Bob Wilson"></textarea>
                                     ${player.preferred_level ? ` · Preferred: ${player.preferred_level}` : ''}
                                 </div>
                                 <div class="player-meta" style="margin-top: 4px;">
-                                    ${teamName ? `<span style="color: #10b981; font-weight: 600;">Team: ${teamName}</span>` : '<span style="color: #f59e0b;">Unassigned</span>'}
-                                    ${player.is_sub ? ' · <span style="color: var(--yellow);">Sub</span>' : ''}
-                                    ${player.pin ? ` · PIN: <code>${player.pin}</code>` : ''}
+                                    ${player.team_id === 'fill_in' ? '<span style="color: var(--yellow); font-weight: 600;">Fill-In Pool</span>' : (teamName ? `<span style="color: #10b981; font-weight: 600;">Team: ${teamName}</span>` : '<span style="color: #f59e0b;">Unassigned</span>')}
+                                    ${player.is_sub ? ' · <span style="color: var(--yellow);">Fill-In</span>' : ''}
                                 </div>
                             </div>
                         </div>
                         <div class="player-actions">
-                            ${!player.team_id ? `
+                            ${!player.team_id || player.team_id === 'fill_in' ? `
                                 <select id="teamSelect_${player.id}" style="padding: 6px; border-radius: 4px; border: 2px solid #444; background: #1a1a2e; color: #fff; font-size: 12px;">
                                     <option value="">-- Team --</option>
+                                    <option value="__fillin__">Fill-In</option>
                                     ${teamsData.map(t => `<option value="${t.id}">${t.team_name}</option>`).join('')}
                                 </select>
                                 <select id="posSelect_${player.id}" style="padding: 6px; border-radius: 4px; border: 2px solid #444; background: #1a1a2e; color: #fff; font-size: 12px; width: 50px;">
@@ -3169,7 +3333,7 @@ Bob Wilson"></textarea>
                                 <button class="edit-btn" style="background: #666;" onclick="removeFromTeam('${player.id}')">Remove</button>
                             `}
                             <button class="edit-btn" onclick="editPlayer('${player.id}')">Edit</button>
-                            ${!player.team_id ? `<button class="delete-btn" onclick="deletePlayer('${player.id}', '${player.name}')">Delete</button>` : ''}
+                            ${!player.team_id || player.team_id === 'fill_in' ? `<button class="delete-btn" onclick="deletePlayer('${player.id}', '${player.name}')">Delete</button>` : ''}
                         </div>
                     </div>`;
             });
@@ -3178,12 +3342,92 @@ Bob Wilson"></textarea>
         }
 
         function getTeamName(teamId) {
+            if (teamId === 'fill_in') return 'Fill-In Pool';
             const team = teamsData.find(t => t.id === teamId);
             return team ? team.team_name : 'Unknown Team';
         }
 
         window.filterPlayers = function() {
             renderPlayers();
+        };
+
+        function renderFillins() {
+            const container = document.getElementById('fillinsContainer');
+            const searchTerm = (document.getElementById('fillinSearch').value || '').toLowerCase();
+            const filter = document.getElementById('fillinFilter').value;
+
+            let filtered = playersData.filter(p => {
+                if (!p.is_sub) return false;
+
+                const matchesSearch = p.name.toLowerCase().includes(searchTerm) ||
+                    (p.email && p.email.toLowerCase().includes(searchTerm));
+
+                if (!matchesSearch) return false;
+
+                if (filter === 'available') return !p.team_id || p.team_id === 'fill_in';
+                if (filter === 'on_team') return p.team_id && p.team_id !== 'fill_in';
+                if (filter === 'bots') return p.isBot;
+                return true;
+            });
+
+            if (!filtered.length) {
+                container.innerHTML = `<div class="sidebar-card" style="text-align: center; padding: 40px;">
+                    <p style="font-size: 16px; font-weight: 600;">No fill-ins match filter</p>
+                    <p style="color: #666; margin-top: 10px;">Move players into the fill-in pool as needed.</p>
+                </div>`;
+                return;
+            }
+
+            let html = '';
+            filtered.forEach(player => {
+                const teamName = player.team_id ? getTeamName(player.team_id) : null;
+                const statusClass = player.team_id ? 'on-team' : 'is-sub';
+                const botBadge = player.isBot ? `<span style="background: var(--teal); color: #000; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 700; margin-left: 8px;">BOT - ${player.botDifficulty || 'medium'}</span>` : '';
+                const levelBadge = player.level ? `<span style="background: ${player.level === 'A' ? '#ef4444' : player.level === 'B' ? '#f59e0b' : '#22c55e'}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; margin-left: 8px;">Level ${player.level}</span>` : '';
+
+                html += `
+                    <div class="player-card ${statusClass}" data-player-id="${player.id}" style="${player.isBot ? 'border-left: 3px solid var(--teal);' : ''}">
+                        <div class="player-info" style="display: flex; align-items: flex-start;">
+                            <div>
+                                <div class="player-name-display">${player.name} ${player.is_captain ? '👑' : ''}${levelBadge}${botBadge}</div>
+                                <div class="player-meta">
+                                    ${player.email ? `Email: ${player.email}` : ''}
+                                    ${player.phone ? ` · Phone: ${player.phone}` : ''}
+                                    ${player.reported_average ? ` · Avg: ${player.reported_average}` : ''}
+                                    ${player.preferred_level ? ` · Preferred: ${player.preferred_level}` : ''}
+                                </div>
+                                <div class="player-meta" style="margin-top: 4px;">
+                                    ${player.team_id === 'fill_in' ? '<span style="color: var(--yellow); font-weight: 600;">Fill-In Pool</span>' : (teamName ? `<span style="color: #10b981; font-weight: 600;">Team: ${teamName}</span>` : '<span style="color: #f59e0b;">Unassigned</span>')}
+                                    · <span style="color: var(--yellow);">Fill-In</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="player-actions">
+                            ${!player.team_id || player.team_id === 'fill_in' ? `
+                                <select id="teamSelect_${player.id}" style="padding: 6px; border-radius: 4px; border: 2px solid #444; background: #1a1a2e; color: #fff; font-size: 12px;">
+                                    <option value="">-- Team --</option>
+                                    <option value="__fillin__">Fill-In</option>
+                                    ${teamsData.map(t => `<option value="${t.id}">${t.team_name}</option>`).join('')}
+                                </select>
+                                <select id="posSelect_${player.id}" style="padding: 6px; border-radius: 4px; border: 2px solid #444; background: #1a1a2e; color: #fff; font-size: 12px; width: 50px;">
+                                    <option value="1">A</option>
+                                    <option value="2">B</option>
+                                    <option value="3">C</option>
+                                </select>
+                                <button class="edit-btn" style="background: var(--success);" onclick="assignToTeam('${player.id}')">Assign</button>
+                            ` : `
+                                <button class="edit-btn" style="background: #666;" onclick="removeFromTeam('${player.id}')">Remove</button>
+                            `}
+                            <button class="edit-btn" onclick="editPlayer('${player.id}')">Edit</button>
+                        </div>
+                    </div>`;
+            });
+
+            container.innerHTML = html;
+        }
+
+        window.filterFillins = function() {
+            renderFillins();
         };
 
         window.assignToTeam = async function(playerId) {
@@ -3197,20 +3441,26 @@ Bob Wilson"></textarea>
                 return;
             }
 
+            const isFillinPool = teamId === '__fillin__';
+            const resolvedTeamId = isFillinPool ? 'fill_in' : teamId;
+
             showLoading('Assigning player to team...');
             try {
                 const result = await callFunction('updatePlayer', {
                     league_id: leagueId,
                      player_id: playerId,
                     updates: {
-                        team_id: teamId,
-                        position: parseInt(position)
+                        team_id: resolvedTeamId,
+                        position: isFillinPool ? null : parseInt(position),
+                        is_sub: isFillinPool ? true : false
                     }
                 });
 
                 if (result.success) {
                     await loadPlayers();
+                    await loadTeams();
                     renderPlayers();
+                    renderFillins();
                 } else {
                     toastError(result.error);
                 }
@@ -3237,7 +3487,9 @@ Bob Wilson"></textarea>
 
                 if (result.success) {
                     await loadPlayers();
+                    await loadTeams();
                     renderPlayers();
+                    renderFillins();
                 } else {
                     toastError(result.error);
                 }
@@ -3604,7 +3856,7 @@ Bob Wilson"></textarea>
 
             // Populate team select
             const select = document.getElementById('bulkTeamSelect');
-            select.innerHTML = '<option value="">-- Choose Team --</option><option value="__unassign__">Unassign from Team</option>';
+            select.innerHTML = '<option value="">-- Choose Team --</option><option value="__unassign__">Unassign from Team</option><option value="__fillin__">Fill-In</option>';
             teamsData.forEach(team => {
                 select.innerHTML += `<option value="${team.id}">${team.team_name}</option>`;
             });
@@ -3629,7 +3881,7 @@ Bob Wilson"></textarea>
                 return;
             }
 
-            const targetTeamId = teamSelectValue === '__unassign__' ? null : teamSelectValue;
+            const targetTeamId = teamSelectValue === '__unassign__' ? null : (teamSelectValue === '__fillin__' ? 'fill_in' : teamSelectValue);
             const action = targetTeamId ? 'Moving' : 'Unassigning';
 
             showLoading(`${action} ${playerIds.length} players...`);
@@ -3649,6 +3901,7 @@ Bob Wilson"></textarea>
                     await loadPlayers();
                     await loadTeams();
                     renderPlayers();
+                    renderFillins();
                 } else {
                     toastError(result.error);
                 }
@@ -3959,7 +4212,7 @@ Bob Wilson"></textarea>
             document.getElementById('settingCorkRule').value = leagueData.cork_rule || 'cork_first_leg';
             document.getElementById('settingLevelRules').value = leagueData.level_rules || 'strict';
             document.getElementById('settingSessionFee').value = leagueData.session_fee || 0;
-            document.getElementById('settingPlayoffFormat').value = leagueData.playoff_format || 'none';
+            document.getElementById('settingPlayoffFormat').value = getLeaguePlayoffFormat();
             document.getElementById('settingByePoints').value = leagueData.bye_points || 'average';
             document.getElementById('settingFormat').value = leagueData.format || '501';
             document.getElementById('settingInRule').value = leagueData.in_rule || 'straight';
@@ -4308,8 +4561,26 @@ Bob Wilson"></textarea>
             }
         }
 
+        function isTriplesDraftLeague() {
+            const leagueName = String(leagueData?.league_name || leagueData?.name || '').toLowerCase();
+            return leagueId === 'aOq4Y0ETxPZ66tM1uUtP' || leagueName.includes('triples league') || leagueName.includes('triples draft');
+        }
+
+        function getLeaguePlayoffFormat() {
+            if (isTriplesDraftLeague()) return 'top_6_single';
+            return leagueData?.playoff_format || 'none';
+        }
+
+        function getLeaguePlayoffCutoff() {
+            const playoffFormat = getLeaguePlayoffFormat();
+            if (playoffFormat === 'top_8_single') return 8;
+            if (playoffFormat === 'top_6_single') return 6;
+            if (playoffFormat === 'top_4_single' || playoffFormat === 'top_4_double') return 4;
+            return 0;
+        }
+
         function updateSettingsDisplay() {
-            const formatLabels = { 'triples_draft': 'Triples Draft', 'doubles_draft': 'Doubles Draft', 'singles': 'Singles' };
+            const formatLabels = { 'triples_draft': '2026 Triples League', 'doubles_draft': 'Doubles Draft', 'singles': 'Singles' };
             const dayLabels = { monday: 'Monday', tuesday: 'Tuesday', wednesday: 'Wednesday', thursday: 'Thursday', friday: 'Friday', saturday: 'Saturday', sunday: 'Sunday' };
             const checkoutLabels = { double: 'Double Out', master: 'Master Out', straight: 'Straight Out' };
             const pointLabels = { game_based: 'Game-Based', match_based: 'Match-Based' };
@@ -4377,7 +4648,8 @@ Bob Wilson"></textarea>
 
             // League Rules
             document.getElementById('displayLevelRules').textContent = levelLabels[leagueData.level_rules] || leagueData.level_rules || 'Strict';
-            document.getElementById('displayPlayoffFormat').textContent = playoffLabels[leagueData.playoff_format] || leagueData.playoff_format || 'No Playoffs';
+            const playoffFormat = getLeaguePlayoffFormat();
+            document.getElementById('displayPlayoffFormat').textContent = playoffLabels[playoffFormat] || playoffFormat || 'No Playoffs';
             document.getElementById('displayByePoints').textContent = byeLabels[leagueData.bye_points] || leagueData.bye_points || 'Average';
             document.getElementById('displaySessionFee').textContent = leagueData.session_fee ? `$${leagueData.session_fee}` : 'Free';
 
@@ -5296,6 +5568,13 @@ Bob Wilson"></textarea>
             return `${match.home_team_name || 'Home'} vs ${match.away_team_name || 'Away'} (${status}${score})`;
         }
 
+        function formatImportWeekOption(week, matches) {
+            const weekMatches = (matches || []).filter(match => parseInt(match.week, 10) === parseInt(week, 10));
+            const firstMatchWithDate = weekMatches.find(match => match?.match_date || match?.date);
+            const dateLabel = firstMatchWithDate ? (firstMatchWithDate.match_date || firstMatchWithDate.date) : null;
+            return dateLabel ? `Week ${week} - ${dateLabel}` : `Week ${week}`;
+        }
+
         function resetImportWorkbenchPayload(message = 'Selection changed. Parse the DartConnect recap again before importing.') {
             importWorkbenchPayload = null;
             importWorkbenchValidation = null;
@@ -5405,7 +5684,7 @@ Bob Wilson"></textarea>
 
             const match = getImportSelectedMatch();
             if (!match) {
-                summary.textContent = 'Paste a DartConnect recap URL to auto-match the scheduled BRDC match.';
+                summary.textContent = 'Choose the BRDC week and scheduled match first. That forces the importer to use the correct night and helps ignore old unsaved DartConnect games at the top of the recap.';
                 return;
             }
 
@@ -5480,7 +5759,7 @@ Bob Wilson"></textarea>
 
             const selectedWeek = selectedMatch?.week || currentWeek || weeks[0];
             weekSelect.innerHTML = weeks.map(week =>
-                `<option value="${week}">Week ${week}</option>`
+                `<option value="${week}">${escapeHtml(formatImportWeekOption(week, matchesData))}</option>`
             ).join('');
             weekSelect.value = String(weeks.includes(parseInt(selectedWeek, 10)) ? selectedWeek : weeks[0]);
             populateImportMatchSelect(weekSelect.value, selectedMatch?.id || preferredMatchId);
@@ -5551,18 +5830,24 @@ Bob Wilson"></textarea>
 
         window.parseRecapToWorkbench = async function() {
             const recapUrl = document.getElementById('importRecapUrl').value.trim();
+            const selectedMatchId = document.getElementById('importMatchId')?.value?.trim();
             if (!recapUrl) {
                 toastWarning('Paste a DartConnect recap URL first');
                 return;
             }
+            if (!selectedMatchId) {
+                toastWarning('Select the BRDC week and scheduled match first');
+                return;
+            }
 
             try {
-                resetImportWorkbenchPayload('Parsing recap and matching schedule...');
-                document.getElementById('importWorkbenchStatus').textContent = 'Parsing DartConnect recap and matching it to the scheduled BRDC matchup...';
-                showLoading('Parsing recap and matching schedule...');
+                resetImportWorkbenchPayload('Parsing recap against the selected BRDC match...');
+                document.getElementById('importWorkbenchStatus').textContent = 'Parsing DartConnect recap against the selected BRDC scheduled match...';
+                showLoading('Parsing recap against selected match...');
                 const parseRequest = {
                     recapUrl,
-                    leagueId
+                    leagueId,
+                    matchId: selectedMatchId
                 };
                 const result = await callFunction('parseDartConnectRecap', parseRequest);
                 hideLoading();
@@ -6035,7 +6320,9 @@ Bob Wilson"></textarea>
                 const teamName = player.team_id ? getTeamName(player.team_id) : 'Unassigned';
                 const currentLevel = player.level || '';
                 const levelClass = currentLevel ? `level-${currentLevel.toLowerCase()}` : 'level-unassigned';
-                const levelDisplay = currentLevel || 'Unassigned';
+                const isFillIn = player.team_id === 'fill_in' || player.is_fill_in || player.fill_in;
+                const levelDisplay = isFillIn ? 'F' : (currentLevel || 'Unassigned');
+                const badgeClass = isFillIn ? 'level-f' : levelClass;
 
                 html += `
                     <div class="director-card" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px;">
@@ -6044,7 +6331,7 @@ Bob Wilson"></textarea>
                             <div style="font-size: 12px; color: var(--text-dim);">${teamName}</div>
                         </div>
                         <div style="display: flex; align-items: center; gap: 12px;">
-                            <span class="level-badge ${levelClass}">${levelDisplay}</span>
+                            <span class="level-badge ${badgeClass}">${levelDisplay}</span>
                             <select onchange="updatePlayerLevel('${player.id}', this.value)" style="padding: 6px 10px; border-radius: 4px; border: 2px solid var(--border-strong); background: var(--bg-card); color: var(--text-light); font-size: 12px;">
                                 <option value="" ${!currentLevel ? 'selected' : ''}>Unassigned</option>
                                 <option value="A" ${currentLevel === 'A' ? 'selected' : ''}>A - Advanced</option>

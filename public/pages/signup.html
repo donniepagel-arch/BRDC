@@ -308,35 +308,14 @@
             margin-bottom: 24px;
         }
 
-        .pin-display {
-            background: rgba(0,0,0,0.3);
-            border: 3px solid var(--yellow);
+        .login-hint {
+            background: rgba(145,215,235,0.1);
+            border: 2px solid var(--teal);
             border-radius: 12px;
-            padding: 20px;
+            padding: 16px 20px;
             margin: 24px 0;
-        }
-
-        .pin-label {
-            font-size: 12px;
+            font-size: 14px;
             color: var(--text-dim);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 8px;
-        }
-
-        .pin-value {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 42px;
-            color: var(--yellow);
-            letter-spacing: 8px;
-            font-weight: 700;
-        }
-
-        .pin-warning {
-            font-size: 13px;
-            color: var(--pink);
-            margin-top: 12px;
-            font-weight: 600;
         }
 
         .continue-btn {
@@ -388,11 +367,6 @@
 
             .signup-card {
                 padding: 24px 16px;
-            }
-
-            .pin-value {
-                font-size: 32px;
-                letter-spacing: 6px;
             }
         }
     </style>
@@ -486,15 +460,9 @@
                 <h2 class="success-title">Welcome to BRDC!</h2>
                 <p class="success-message">Your account has been created successfully.</p>
 
-                <div class="pin-display">
-                    <p class="pin-label">Your 8-Digit PIN</p>
-                    <p class="pin-value" id="displayPin">--------</p>
-                    <p class="pin-warning">Save this PIN! You'll need it to log in.</p>
+                <div class="login-hint">
+                    Use your email and password to log in to your new account.
                 </div>
-
-                <p class="success-message">
-                    Your PIN has also been sent to your email address.
-                </p>
 
                 <a href="/pages/dashboard.html" class="continue-btn" id="continueToDashboard">
                     Go to Dashboard
@@ -514,12 +482,12 @@
     <script>
         // Firebase config
         const firebaseConfig = {
-            apiKey: "AIzaSyApov-xE5l1EJo0CADJ3OXP5aPvFmTmrZA",
+            apiKey: "AIzaSyDN1aYhoVt3OX5EafsNTVB09i8VFx7QM1U",
             authDomain: "brdc-v2.firebaseapp.com",
             projectId: "brdc-v2",
             storageBucket: "brdc-v2.firebasestorage.app",
-            messagingSenderId: "858304543457",
-            appId: "1:858304543457:web:e119e7c6fb7d616ea57ba3"
+            messagingSenderId: "726670872282",
+            appId: "1:726670872282:web:913d19c8cb3b24bf919fe3"
         };
 
         firebase.initializeApp(firebaseConfig);
@@ -605,8 +573,8 @@
                     throw new Error(result.error || 'Registration failed');
                 }
 
-                // Success! Show the PIN
-                showSuccess(result.pin, result.player_id);
+                // Success!
+                showSuccess(null, result.player_id);
 
             } catch (error) {
                 console.error('Registration error:', error);
@@ -637,10 +605,7 @@
             document.getElementById('formCard').classList.add('hidden');
             document.getElementById('successScreen').classList.add('visible');
 
-            // Display the PIN
-            document.getElementById('displayPin').textContent = pin;
-
-            // Save session for auto-login
+            // Save session for auto-login (email/OAuth identity only)
             const firstName = document.getElementById('firstName').value.trim();
             const lastName = document.getElementById('lastName').value.trim();
             const email = document.getElementById('email').value.trim();
@@ -653,7 +618,6 @@
                 last_name: lastName,
                 phone: phone,
                 email: email,
-                pin: pin,
                 logged_in_at: new Date().toISOString()
             };
 

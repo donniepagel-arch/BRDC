@@ -1257,10 +1257,6 @@
                     <label style="display: block; margin-bottom: 5px; color: #aaa;">Phone</label>
                     <input type="tel" id="editPlayerPhone" class="form-input" style="width: 100%; padding: 10px; border: 2px solid #333; background: rgba(0,0,0,0.3); color: white;">
                 </div>
-                <div class="form-group" style="margin-bottom: 20px;">
-                    <label style="display: block; margin-bottom: 5px; color: #aaa;">PIN</label>
-                    <input type="text" id="editPlayerPin" class="form-input" style="width: 100%; padding: 10px; border: 2px solid #333; background: rgba(0,0,0,0.3); color: white; font-family: monospace; letter-spacing: 2px;">
-                </div>
                 <div style="display: flex; gap: 10px; justify-content: flex-end;">
                     <button class="brdc-btn brdc-btn-secondary" onclick="closeEditPlayerModal()">Cancel</button>
                     <button class="brdc-btn brdc-btn-primary" onclick="savePlayerEdits()">Save Changes</button>
@@ -1390,7 +1386,6 @@
                     involvements: player.involvements || {},
                     logged_in_at: Date.now()
                 }));
-                localStorage.removeItem('brdc_player_pin');
 
                 showDashboard();
             } catch (err) {
@@ -1439,7 +1434,6 @@
                     involvements: player.involvements || {},
                     logged_in_at: Date.now()
                 }));
-                localStorage.removeItem('brdc_player_pin');
 
                 showDashboard();
             } catch (err) {
@@ -1586,7 +1580,7 @@
                             </p>
                         </div>
                         <div class="item-actions">
-                            <a href="/pages/director-dashboard.html?pin=${encodeURIComponent(t.director_pin || '')}" class="dashboard-btn" onclick="event.stopPropagation();">🎯 DASHBOARD</a>
+                            <a href="/pages/director-dashboard.html?tournament_id=${encodeURIComponent(t.id || '')}" class="dashboard-btn" onclick="event.stopPropagation();">🎯 DASHBOARD</a>
                             <button class="brdc-btn brdc-btn-secondary" style="padding: 8px 12px; font-size: 12px;" onclick="event.stopPropagation(); editTournament('${escapeHtml(t.id)}')">EDIT</button>
                             <button class="delete-btn" onclick="event.stopPropagation(); deleteTournament('${escapeHtml(t.id)}', '${escapeHtml(t.name || '')}')">DELETE</button>
                         </div>
@@ -1652,68 +1646,14 @@
             filterTournaments();
         };
 
-        // Edit League
-        window.editLeague = async function(id) {
-            const league = window.leaguesData.find(l => l.id === id);
-            if (!league) return;
-
-            const newDirectorPin = prompt(`Edit Director Player PIN for "${league.name}":\n\nCurrent: ${league.director_pin || 'Not set'}\n\nEnter new 8-digit player PIN (or leave empty to keep current):`, league.director_pin || '');
-
-            if (newDirectorPin === null) return; // Cancelled
-
-            if (newDirectorPin && newDirectorPin.length !== 8) {
-                toastWarning('Player PIN must be 8 digits');
-                return;
-            }
-
-            try {
-                const result = await callFunction('adminUpdateLeague', {
-                    pin: adminPin,
-                    league_id: id,
-                    updates: newDirectorPin ? { director_pin: newDirectorPin } : {}
-                });
-
-                if (result.success) {
-                    toastSuccess('League updated');
-                    loadDashboard();
-                } else {
-                    toastError('Error: ' + result.error);
-                }
-            } catch (error) {
-                toastError('Error: ' + error.message);
-            }
+        // Edit League (PIN editing removed — use email/OAuth identity)
+        window.editLeague = function(id) {
+            toastInfo('League editing via PIN is no longer supported. Use the director dashboard.');
         };
 
-        // Edit Tournament
-        window.editTournament = async function(id) {
-            const tournament = window.tournamentsData.find(t => t.id === id);
-            if (!tournament) return;
-
-            const newDirectorPin = prompt(`Edit Director Player PIN for "${tournament.name}":\n\nCurrent: ${tournament.director_player_pin || 'Not set'}\n\nEnter new 8-digit player PIN (or leave empty to keep current):`, tournament.director_player_pin || '');
-
-            if (newDirectorPin === null) return; // Cancelled
-
-            if (newDirectorPin && newDirectorPin.length !== 8) {
-                toastWarning('Player PIN must be 8 digits');
-                return;
-            }
-
-            try {
-                const result = await callFunction('adminUpdateTournament', {
-                    pin: adminPin,
-                    tournament_id: id,
-                    updates: newDirectorPin ? { director_player_pin: newDirectorPin } : {}
-                });
-
-                if (result.success) {
-                    toastSuccess('Tournament updated');
-                    loadDashboard();
-                } else {
-                    toastError('Error: ' + result.error);
-                }
-            } catch (error) {
-                toastError('Error: ' + error.message);
-            }
+        // Edit Tournament (PIN editing removed — use email/OAuth identity)
+        window.editTournament = function(id) {
+            toastInfo('Tournament editing via PIN is no longer supported. Use the director dashboard.');
         };
 
         // Show League Details
@@ -1721,7 +1661,7 @@
             const league = window.leaguesData.find(l => l.id === id);
             if (!league) return;
 
-            toastInfo(`<b>${league.name}</b><br>ID: ${league.id}<br>Status: ${league.status}<br>Type: ${league.type}<br>Director: ${league.director_name || 'N/A'}<br>Admin PIN: ${league.admin_pin || 'N/A'}<br>Player PIN: ${league.director_pin || 'Not set'}<br>Venue: ${league.venue_name || 'N/A'}`, 8000);
+            toastInfo(`<b>${league.name}</b><br>ID: ${league.id}<br>Status: ${league.status}<br>Type: ${league.type}<br>Director: ${league.director_name || 'N/A'}<br>Venue: ${league.venue_name || 'N/A'}`, 8000);
         };
 
         // Show Tournament Details
@@ -1729,7 +1669,7 @@
             const tournament = window.tournamentsData.find(t => t.id === id);
             if (!tournament) return;
 
-            toastInfo(`<b>${tournament.name}</b><br>ID: ${tournament.id}<br>Date: ${tournament.date}<br>Status: ${tournament.status}<br>Director: ${tournament.director_name || 'N/A'}<br>Director PIN: ${tournament.director_pin || 'N/A'}<br>Player PIN: ${tournament.director_player_pin || 'Not set'}<br>Venue: ${tournament.venue_name || 'N/A'}`, 8000);
+            toastInfo(`<b>${tournament.name}</b><br>ID: ${tournament.id}<br>Date: ${tournament.date}<br>Status: ${tournament.status}<br>Director: ${tournament.director_name || 'N/A'}<br>Venue: ${tournament.venue_name || 'N/A'}`, 8000);
         };
 
         window.deleteLeague = async function(id, name) {
@@ -1895,7 +1835,7 @@
                                 <div>
                                     <div class="bot-name">${escapeHtml(bot.name)}</div>
                                     <div style="font-size: 11px; color: #666;">
-                                        PIN: <code style="background: rgba(253,216,53,0.2); padding: 2px 6px; border-radius: 4px; cursor: pointer;" onclick="navigator.clipboard.writeText('${escapeHtml(bot.pin || '')}'); toastSuccess('PIN copied!')">${escapeHtml(bot.pin || 'N/A')}</code>
+                                        ID: <code style="background: rgba(145,215,235,0.15); padding: 2px 6px; border-radius: 4px;">${escapeHtml(bot.id || 'N/A')}</code>
                                     </div>
                                 </div>
                             </div>
@@ -1957,7 +1897,7 @@
                 });
                 if (result.success) {
                     document.getElementById('botName').value = '';
-                    toastSuccess(`Bot "${name}" created!\nPIN: ${result.pin}`);
+                    toastSuccess(`Bot "${name}" created!`);
                     bots.unshift(result.bot);
                     renderBotsList();
                     loadDashboard();
@@ -2202,8 +2142,7 @@
                 filtered = filtered.filter(p =>
                     (p.name || '').toLowerCase().includes(search) ||
                     (p.email || '').toLowerCase().includes(search) ||
-                    (p.phone || '').toLowerCase().includes(search) ||
-                    (p.pin || '').toLowerCase().includes(search)
+                    (p.phone || '').toLowerCase().includes(search)
                 );
             }
 
@@ -2390,7 +2329,6 @@
             document.getElementById('editPlayerName').value = player.name || '';
             document.getElementById('editPlayerEmail').value = player.email || '';
             document.getElementById('editPlayerPhone').value = player.phone || '';
-            document.getElementById('editPlayerPin').value = player.pin || '';
             document.getElementById('editPlayerModal').style.display = 'flex';
         };
 
@@ -2403,7 +2341,6 @@
             const name = document.getElementById('editPlayerName').value.trim();
             const email = document.getElementById('editPlayerEmail').value.trim();
             const phone = document.getElementById('editPlayerPhone').value.trim();
-            const pin = document.getElementById('editPlayerPin').value.trim();
 
             if (!name) {
                 toastWarning('Name is required');
@@ -2414,7 +2351,7 @@
                 const result = await callFunction('adminUpdatePlayer', {
                     pin: adminPin,
                     player_id: playerId,
-                    updates: { name, email, phone, player_pin: pin }
+                    updates: { name, email, phone }
                 });
 
                 if (result.success) {
@@ -2425,7 +2362,6 @@
                         player.name = name;
                         player.email = email;
                         player.phone = phone;
-                        player.pin = pin;
                     }
                     filterPlayers();
                     toastSuccess('Player updated successfully');

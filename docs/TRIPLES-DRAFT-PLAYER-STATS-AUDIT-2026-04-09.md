@@ -1,7 +1,7 @@
-# Triples Draft Player Stats Audit
+# 2026 Triples League Player Stats Audit
 
 Date: 2026-04-09
-League: `aOq4Y0ETxPZ66tM1uUtP` (`Triples Draft`)
+League: `aOq4Y0ETxPZ66tM1uUtP` (`2026 Triples League`)
 
 ## Scope
 
@@ -14,7 +14,7 @@ This audit did **not** modify live player stats.
 
 ## What The Raw Match Data Actually Looks Like
 
-Completed Triples Draft matches are team-oriented at the top level:
+Completed 2026 Triples League matches are team-oriented at the top level:
 - `home_team_id`
 - `away_team_id`
 - `home_team_name`
@@ -57,7 +57,7 @@ Live cached stats docs:
 Comparison result:
 - mismatches: `58 / 58`
 
-This means the current cached player stats are not trustworthy as a complete representation of Triples Draft history.
+This means the current cached player stats are not trustworthy as a complete representation of 2026 Triples League history.
 
 ## Why The Current Recalc Path Misses This League
 
@@ -68,12 +68,12 @@ The current function `recalculatePlayerStatsFromMatches()` in [functions/leagues
 
 That only works when `game.home_players` and `game.away_players` contain player objects with IDs.
 
-Triples Draft imported matches store those arrays as player-name strings, for example:
+2026 Triples League imported matches store those arrays as player-name strings, for example:
 - `"Eddie Olschansky"`
 - `"Jeff Boss"`
 - `"Dan Partlo"`
 
-So the current recalc function can silently skip imported Triples Draft participation even though the raw per-player leg data exists.
+So the current recalc function can silently skip imported 2026 Triples League participation even though the raw per-player leg data exists.
 
 ## Name / Identity Drift
 
@@ -100,14 +100,14 @@ So the player stats problem is **not** just stale counters. It is also an identi
 
 ## Safe Conclusion
 
-For Triples Draft:
+For 2026 Triples League:
 - raw player truth still exists in completed match history
 - cached player stats are incomplete and partially fragmented by name variation
 - the current generic player recalc endpoint is not safe to trust for this league as-is
 
 ## Safe Next Repair
 
-The next correct fix is a league-specific player stats rebuild for Triples Draft:
+The next correct fix is a league-specific player stats rebuild for 2026 Triples League:
 
 1. Build a canonical name-to-player-id map from the league `players` collection plus team rosters.
 2. Add explicit alias handling for short-name variants found in imported matches.
@@ -119,9 +119,9 @@ The next correct fix is a league-specific player stats rebuild for Triples Draft
 
 ## Status
 
-Triples Draft standings are repaired.
+2026 Triples League standings are repaired.
 
-Triples Draft player stats are **not** yet repaired, but the audit now shows:
+2026 Triples League player stats are **not** yet repaired, but the audit now shows:
 - where the canonical source lives
 - why the current cached stats are wrong
 - why the generic recalc endpoint is insufficient for this imported league

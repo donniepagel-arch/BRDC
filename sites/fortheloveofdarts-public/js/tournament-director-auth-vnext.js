@@ -1,0 +1,286 @@
+import {
+    auth,
+    waitForAuthReady,
+    callFunction,
+    signInWithEmailAndPassword,
+    sendPasswordResetEmail,
+    GoogleAuthProvider,
+    signInWithPopup,
+    signOut
+} from '/js/firebase-config.js';
+
+function hasDirectorRole(player) {
+    return player?.is_director === true || player?.is_admin === true || player?.is_master_admin === true;
+}
+
+const ROOKIES_DEMO_DIRECTOR = Object.freeze({
+    id: 'demo_brian_beach',
+    player_id: 'demo_brian_beach',
+    name: 'Brian Beach',
+    email: 'brian@rookies.example',
+    phone: '555-0100',
+    source_type: 'rookies_demo',
+    league_id: 'rookies-demo-2026-triples',
+    is_admin: true,
+    is_master_admin: false,
+    is_director: true,
+    is_captain: true,
+    demo_mode: true,
+    involvements: {
+        leagues: {
+            'rookies-demo-2026-triples': {
+                role: 'director',
+                is_director: true,
+                is_captain: true,
+                team_id: 'oZSTZMxgFNz9Nz206alJ'
+            }
+        },
+        tournaments: {
+            'rookies-wing-it-wednesdays-2026-05-27': {
+                role: 'director',
+                is_director: true
+            },
+            'rookies-wing-it-wednesdays-2026-06-03': {
+                role: 'director',
+                is_director: true
+            }
+        }
+    }
+});
+
+const ROOKIES_DEMO_CREDENTIALS = Object.freeze({
+    login: 'rookies',
+    password: 'demo123'
+});
+
+function isRookiesDemoSurface() {
+    return window.location.pathname.startsWith('/rookies');
+}
+
+function storedDemoDirector() {
+    if (!isRookiesDemoSurface()) return null;
+    try {
+        const session = JSON.parse(localStorage.getItem('brdc_session') || 'null');
+        if (session?.demo_mode !== true || session?.source_type !== 'rookies_demo') return null;
+        return {
+            ...ROOKIES_DEMO_DIRECTOR,
+            ...session,
+            id: session.player_id || session.id || ROOKIES_DEMO_DIRECTOR.id,
+            player_id: session.player_id || session.id || ROOKIES_DEMO_DIRECTOR.player_id
+        };
+    } catch (error) {
+        return null;
+    }
+}
+
+function storeDirectorSession(player) {
+    const playerId = player.id || player.player_id;
+    localStorage.setItem('brdc_session', JSON.stringify({
+        player_id: playerId,
+        id: playerId,
+        name: player.name,
+        email: player.email || null,
+        phone: player.phone || null,
+        source_type: player.source_type || 'global',
+        league_id: player.league_id || null,
+        is_admin: player.is_admin || false,
+        is_master_admin: player.is_master_admin || false,
+        is_director: player.is_director || false,
+        is_captain: player.is_captain || false,
+        demo_mode: player.demo_mode === true,
+        involvements: player.involvements || {},
+        logged_in_at: Date.now()
+    }));
+    localStorage.removeItem('brdc_player_pin');
+}
+
+function setError(panel, message = '') {
+    const error = panel.querySelector('[data-director-auth-error]');
+    if (!error) return;
+    error.textContent = message;
+    error.hidden = !message;
+}
+
+function setBusy(panel, busy) {
+    panel.querySelectorAll('button, input').forEach(item => {
+        item.disabled = busy;
+    });
+}
+
+function createLoginPanel({ title, copy }) {
+    const panel = document.createElement('section');
+    panel.className = 'ves-panel ves-director-auth';
+    const isRookiesDemo = isRookiesDemoSurface();
+    const demoLogin = isRookiesDemoSurface() ? `
+        <div class="ves-director-demo">
+            <button class="ves-action director-demo-login" type="button" data-director-auth-demo>Use Rookies login</button>
+            <p>Sign in as Brian Beach with <strong>${ROOKIES_DEMO_CREDENTIALS.login}</strong> / <strong>${ROOKIES_DEMO_CREDENTIALS.password}</strong>.</p>
+        </div>
+    ` : '';
+    panel.innerHTML = `
+        <p class="ves-kicker">Director login</p>
+        <h2>${title}</h2>
+        <p class="ves-director-auth-copy">${copy}</p>
+        ${demoLogin}
+        <div class="ves-config-grid">
+            <label>${isRookiesDemo ? 'Login' : 'Email'}<input type="${isRookiesDemo ? 'text' : 'email'}" autocomplete="${isRookiesDemo ? 'username' : 'email'}" ${isRookiesDemo ? `placeholder="${ROOKIES_DEMO_CREDENTIALS.login}"` : ''} data-director-auth-email></label>
+            <label>Password<input type="password" autocomplete="current-password" ${isRookiesDemo ? `placeholder="${ROOKIES_DEMO_CREDENTIALS.password}"` : ''} data-director-auth-password></label>
+        </div>
+        <div class="ves-director-auth-actions">
+            <button class="ves-launch" type="button" data-director-auth-submit>Log in</button>
+            <button class="ves-action" type="button" data-director-auth-google>Google</button>
+            <button class="ves-action" type="button" data-director-auth-reset>Reset password</button>
+        </div>
+        <div class="ves-form-status error" data-director-auth-error hidden></div>
+    `;
+    return panel;
+}
+
+function directorLabel(player) {
+    const label = player.name || player.email || auth.currentUser?.email || 'Director';
+    return label;
+}
+
+async function currentDirectorSession() {
+    const demoDirector = storedDemoDirector();
+    if (demoDirector) return demoDirector;
+
+    await waitForAuthReady(5000);
+    if (!auth.currentUser) return null;
+
+    const result = await callFunction('getPlayerSession', {});
+    if (!result?.success || !result.player) {
+        throw new Error(result?.error || 'Could not load director account.');
+    }
+
+    if (!hasDirectorRole(result.player)) {
+        await signOut(auth).catch(() => {});
+        throw new Error('This account is not marked as a director or admin.');
+    }
+
+    storeDirectorSession(result.player);
+    return result.player;
+}
+
+export async function requireDirectorLogin(options = {}) {
+    const {
+        mountAfter,
+        gatedElements = [],
+        statusEl = null,
+        title = 'Director Access',
+        copy = 'Use a director or admin account to manage tournament setup and runtime controls.',
+        readyText = 'Director controls ready'
+    } = options;
+
+    const panel = createLoginPanel({ title, copy });
+    const anchor = mountAfter || document.querySelector('.ves-hero');
+    anchor?.insertAdjacentElement('afterend', panel);
+
+    const gates = gatedElements.filter(Boolean);
+    const showGates = (show) => {
+        gates.forEach(element => {
+            element.hidden = !show;
+        });
+        panel.hidden = show;
+    };
+    let resolveLoginReady;
+    const loginReady = new Promise((resolve) => {
+        resolveLoginReady = resolve;
+    });
+
+    const completeLogin = async (mode) => {
+        setError(panel, '');
+        setBusy(panel, true);
+        try {
+            if (mode === 'demo') {
+                storeDirectorSession(ROOKIES_DEMO_DIRECTOR);
+                window.dispatchEvent(new CustomEvent('brdc:demo-director-login', {
+                    detail: { player: ROOKIES_DEMO_DIRECTOR }
+                }));
+                showGates(true);
+                if (statusEl) statusEl.textContent = `${readyText}: ${ROOKIES_DEMO_DIRECTOR.name}`;
+                resolveLoginReady(ROOKIES_DEMO_DIRECTOR);
+                return ROOKIES_DEMO_DIRECTOR;
+            } else if (mode === 'email') {
+                const email = panel.querySelector('[data-director-auth-email]')?.value.trim();
+                const password = panel.querySelector('[data-director-auth-password]')?.value || '';
+                if (!email || !password) throw new Error('Enter your director email and password.');
+                if (
+                    isRookiesDemoSurface()
+                    && email.toLowerCase() === ROOKIES_DEMO_CREDENTIALS.login
+                    && password === ROOKIES_DEMO_CREDENTIALS.password
+                ) {
+                    return completeLogin('demo');
+                }
+                await signInWithEmailAndPassword(auth, email, password);
+            } else if (mode === 'google') {
+                const provider = new GoogleAuthProvider();
+                await signInWithPopup(auth, provider);
+            }
+
+            const player = await currentDirectorSession();
+            showGates(true);
+            if (statusEl) statusEl.textContent = `${readyText}: ${directorLabel(player)}`;
+            resolveLoginReady(player);
+            return player;
+        } catch (error) {
+            if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') return null;
+            let message = error.message || 'Director login failed.';
+            if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
+                message = 'Invalid email or password.';
+            } else if (error.code === 'auth/too-many-requests') {
+                message = 'Too many attempts. Try again later.';
+            } else if (error.code === 'auth/popup-blocked') {
+                message = 'Popup was blocked. Allow popups for this site and try again.';
+            }
+            setError(panel, message);
+            showGates(false);
+            return null;
+        } finally {
+            setBusy(panel, false);
+        }
+    };
+
+    panel.querySelector('[data-director-auth-demo]')?.addEventListener('click', () => {
+        const login = panel.querySelector('[data-director-auth-email]');
+        const password = panel.querySelector('[data-director-auth-password]');
+        if (login) login.value = ROOKIES_DEMO_CREDENTIALS.login;
+        if (password) password.value = ROOKIES_DEMO_CREDENTIALS.password;
+        password?.focus();
+    });
+    panel.querySelector('[data-director-auth-submit]')?.addEventListener('click', () => completeLogin('email'));
+    panel.querySelector('[data-director-auth-google]')?.addEventListener('click', () => completeLogin('google'));
+    panel.querySelector('[data-director-auth-password]')?.addEventListener('keydown', event => {
+        if (event.key === 'Enter') completeLogin('email');
+    });
+    panel.querySelector('[data-director-auth-email]')?.addEventListener('keydown', event => {
+        if (event.key === 'Enter') completeLogin('email');
+    });
+    panel.querySelector('[data-director-auth-reset]')?.addEventListener('click', async () => {
+        const email = panel.querySelector('[data-director-auth-email]')?.value.trim();
+        if (!email) {
+            setError(panel, 'Enter your email first.');
+            return;
+        }
+        try {
+            await sendPasswordResetEmail(auth, email);
+            setError(panel, 'Password reset email sent.');
+        } catch (error) {
+            setError(panel, error.message || 'Could not send password reset.');
+        }
+    });
+
+    showGates(false);
+    if (statusEl) statusEl.textContent = 'Director login required';
+
+    try {
+        const player = await currentDirectorSession();
+        showGates(true);
+        if (statusEl) statusEl.textContent = `${readyText}: ${directorLabel(player)}`;
+        return player;
+    } catch (error) {
+        if (auth.currentUser) setError(panel, error.message || 'Director login required.');
+        showGates(false);
+        return loginReady;
+    }
+}

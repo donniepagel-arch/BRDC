@@ -1,6 +1,6 @@
 /**
  * BRDC League System - Cloud Functions
- * Complete backend for Triples Draft League
+ * Complete backend for 2026 Triples League
  * 
  * Data Structure:
  * - leagues/{leagueId} - League settings and metadata
@@ -15,8 +15,19 @@ const functions = require('firebase-functions/v1');
 const admin = require('firebase-admin');
 const { verifyFirebaseAuth } = require('../src/firebase-auth-helper');
 const { sendManagedSms } = require('../src/messaging-config');
+const { generateLeagueFeedForLeague } = require('../generateLeagueFeed');
 
 const db = admin.firestore();
+
+async function refreshLeagueFeedSafe(leagueId, reason) {
+    if (!leagueId) return;
+    try {
+        const result = await generateLeagueFeedForLeague(leagueId);
+        console.log(`[LeagueFeed] Refreshed league ${leagueId} after ${reason}: ${result.items_generated} items`);
+    } catch (error) {
+        console.error(`[LeagueFeed] Failed to refresh league ${leagueId} after ${reason}:`, error);
+    }
+}
 
 // ============================================================================
 // MATCH FORMAT DEFINITION
@@ -68,6 +79,22 @@ function authPlayerReferencesLeague(authPlayer, leagueId) {
     return allRefs.some(ref => ref && (ref.id === leagueId || ref.league_id === leagueId));
 }
 
+function normalizeFormatToken(format) {
+    return String(format || '').trim().toLowerCase();
+}
+
+function isX01Format(format) {
+    const token = normalizeFormatToken(format);
+    if (!token) return false;
+    if (token === 'x01') return true;
+    if (/^\d+$/.test(token)) return true;
+    return /(?:^|\s)(301|501|701)(?:\s|$)/.test(token);
+}
+
+function isCricketFormat(format) {
+    return normalizeFormatToken(format).includes('cricket');
+}
+
 async function hasLeagueDirectorOrAdminAccess(req, league, leagueId, providedPin) {
     if (providedPin && await checkLeagueAccess(league, providedPin)) {
         return true;
@@ -85,6 +112,51 @@ async function hasLeagueDirectorOrAdminAccess(req, league, leagueId, providedPin
     }
 
     return authPlayer.is_director === true && authPlayerReferencesLeague(authPlayer, leagueId);
+}
+
+/**
+ * Scorer save-path authorization (submitGameResult).
+ * Deliberately NOT a director-only gate — regular players/scorers submit results
+ * on match night (see IDEAS-BACKLOG 2026-06-03). The write is accepted iff ONE of:
+ *   1. A valid legacy admin/director PIN is supplied (admin_pin escape hatch —
+ *      used by scripts/tests and director tools), OR
+ *   2. The caller's Firebase Bearer token resolves to a player who is registered
+ *      in this league (leagues/{leagueId}/players/{playerId} exists). This
+ *      intentionally covers fill-ins/subs and any rostered teammate, not just
+ *      the exact match lineup, OR
+ *   3. The caller is a league director/admin (hasLeagueDirectorOrAdminAccess).
+ * Returns { allowed, via, reason, actorId } so the caller can fail loud and log
+ * enough server-side to debug a false rejection on match night.
+ */
+async function canSubmitLeagueGameResult(req, league, leagueId, providedPin) {
+    // 1. Legacy PIN escape hatch. An explicitly-supplied invalid PIN is rejected
+    //    outright — same behavior as the previous check.
+    if (providedPin) {
+        if (await checkLeagueAccess(league, providedPin)) {
+            return { allowed: true, via: 'admin_pin', actorId: null };
+        }
+        return { allowed: false, reason: 'invalid_pin', actorId: null };
+    }
+
+    // 2. Firebase Bearer token → global player doc
+    const authPlayer = await verifyFirebaseAuth(req);
+    if (!authPlayer) {
+        return { allowed: false, reason: 'no_auth', actorId: null };
+    }
+
+    // 2a. Registered participant of THIS league (covers subs/fill-ins on the roster)
+    const leaguePlayerDoc = await db.collection('leagues').doc(leagueId)
+        .collection('players').doc(authPlayer.id).get();
+    if (leaguePlayerDoc.exists) {
+        return { allowed: true, via: 'league_player', actorId: authPlayer.id };
+    }
+
+    // 2b. League director / global admin / master admin
+    if (await hasLeagueDirectorOrAdminAccess(req, league, leagueId, null)) {
+        return { allowed: true, via: 'director_or_admin', actorId: authPlayer.id };
+    }
+
+    return { allowed: false, reason: 'not_league_participant', actorId: authPlayer.id };
 }
 
 async function getActorFromRequestOrPin(req, pin) {
@@ -139,6 +211,30 @@ function setCorsHeaders(res) {
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+}
+
+function normalizeMatchReportUrl(rawUrl) {
+    const value = String(rawUrl || '').trim();
+    if (!value) return null;
+
+    let normalized = value;
+    if (!/^https?:\/\//i.test(normalized)) {
+        normalized = `https://${normalized}`;
+    }
+
+    let parsed;
+    try {
+        parsed = new URL(normalized);
+    } catch (error) {
+        throw new Error(`Invalid URL: ${value}`);
+    }
+
+    const hostname = parsed.hostname.toLowerCase();
+    if (!hostname.includes('dartconnect.com')) {
+        throw new Error(`Only DartConnect URLs are allowed: ${value}`);
+    }
+
+    return parsed.toString();
 }
 
 function normalizePlayerName(name) {
@@ -271,7 +367,7 @@ async function buildLeaguePlayerResolver(leagueId) {
             if (playerRef.id) {
                 return players.find(player => player.id === playerRef.id) || null;
             }
-            return resolveByName(playerRef.name || playerRef.player_name);
+            return resolveByName(playerRef.name || playerRef.player_name || playerRef.player || playerRef.imported_player_label);
         }
         return resolveByName(playerRef);
     }
@@ -960,6 +1056,15 @@ async function updatePlayerStatsFromMatch(leagueId, match) {
         const current = currentDoc.data() || {};
 
         const maxMinUpdates = {};
+        const totalCheckoutPoints = current.x01_total_checkout_points || current.x01_checkout_totals || 0;
+        const totalCheckoutsHit = current.x01_checkouts_hit || current.x01_checkouts || 0;
+        if (totalCheckoutsHit > 0 && totalCheckoutPoints > 0) {
+            const avgCheckout = Math.round((totalCheckoutPoints / totalCheckoutsHit) * 100) / 100;
+            maxMinUpdates.x01_avg_checkout = avgCheckout;
+            maxMinUpdates.x01_avg_finish = avgCheckout;
+            maxMinUpdates.x01_checkout_totals = totalCheckoutPoints;
+            maxMinUpdates.x01_checkouts = totalCheckoutsHit;
+        }
 
         // X01 max stats
         if (stats.x01_high_checkout > (current.x01_high_checkout || 0)) {
@@ -1267,152 +1372,17 @@ exports.recalculatePlayerStats = functions.https.onRequest(async (req, res) => {
 // older endpoint name and its callers are outside the current repo surface.
 exports.recalcPlayerStats = exports.recalculatePlayerStats;
 
-/**
- * LEGACY / SHADOWED HANDLER
- *
- * This earlier recalc endpoint is overwritten later in this same module by the
- * throws-first `exports.recalculateLeagueStats` definition near the legacy
- * import section. Keep this block in place for now as historical reference
- * only; do not treat it as the canonical recalc surface.
- *
- * Canonical live recalc surfaces:
- * - root export via functions/import-matches.js for import-side rebuilds
- * - later throws-first exports.recalculateLeagueStats in this module
- */
-exports.recalculateLeagueStats = functions.https.onRequest(async (req, res) => {
-    setCorsHeaders(res);
-    if (req.method === 'OPTIONS') return res.status(204).send('');
-
-    try {
-        const { league_id, admin_pin } = req.body;
-
-        if (!league_id) {
-            return res.status(400).json({ success: false, error: 'league_id is required' });
-        }
-
-        // Verify admin PIN
-        const leagueDoc = await db.collection('leagues').doc(league_id).get();
-        if (!leagueDoc.exists) {
-            return res.status(404).json({ success: false, error: 'League not found' });
-        }
-
-        const league = leagueDoc.data();
-        if (admin_pin && admin_pin !== league.admin_pin && admin_pin !== league.director_pin) {
-            return res.status(403).json({ success: false, error: 'Invalid PIN' });
-        }
-
-        // Get all players in this league
-        const playersSnap = await db.collection('leagues').doc(league_id)
-            .collection('players').get();
-
-        const results = [];
-        for (const playerDoc of playersSnap.docs) {
-            const playerId = playerDoc.id;
-            try {
-                const result = await recalculatePlayerStatsFromMatches(playerId, league_id);
-                results.push({ playerId, success: true, matchesProcessed: result.matchesProcessed });
-            } catch (error) {
-                results.push({ playerId, success: false, error: error.message });
-            }
-        }
-
-        res.json({
-            success: true,
-            message: `Recalculated stats for ${results.length} players`,
-            results
-        });
-
-    } catch (error) {
-        console.error('Error recalculating league stats:', error);
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
+// NOTE: A legacy/shadowed `exports.recalculateLeagueStats` previously lived here but was
+// always overwritten by the canonical throws-first definition later in this module, so it
+// was dead code and has been removed. The canonical recalc surface is the later
+// `exports.recalculateLeagueStats` (and import-side rebuilds via functions/import-matches.js).
 
 // ============================================================================
 // AUTHENTICATION
 // ============================================================================
 
-/**
- * Verify league director PIN and return league data if valid
- */
-exports.verifyLeaguePin = functions.https.onRequest(async (req, res) => {
-    setCorsHeaders(res);
-    if (req.method === 'OPTIONS') return res.status(204).send('');
-
-    try {
-        const { league_id, pin } = req.body;
-
-        if (!pin || pin.length !== 8) {
-            return res.status(400).json({ success: false, error: 'Invalid PIN format' });
-        }
-
-        let leagueDoc;
-        let leagueId = league_id;
-
-        if (league_id) {
-            // Verify PIN for specific league
-            leagueDoc = await db.collection('leagues').doc(league_id).get();
-            if (!leagueDoc.exists) {
-                return res.status(404).json({ success: false, error: 'League not found' });
-            }
-        } else {
-            // Find league by PIN
-            let snap = await db.collection('leagues').where('admin_pin', '==', pin).get();
-            if (snap.empty) {
-                snap = await db.collection('leagues').where('director_pin', '==', pin).get();
-            }
-            if (snap.empty) {
-                return res.status(401).json({ success: false, error: 'Invalid PIN' });
-            }
-            leagueDoc = snap.docs[0];
-            leagueId = leagueDoc.id;
-        }
-
-        const league = leagueDoc.data();
-
-        // DEBUG logging
-        console.log('verifyLeaguePin - league_id:', leagueId);
-        console.log('verifyLeaguePin - entered pin:', pin, 'type:', typeof pin);
-        console.log('verifyLeaguePin - stored admin_pin:', league.admin_pin, 'type:', typeof league.admin_pin);
-        console.log('verifyLeaguePin - stored director_pin:', league.director_pin, 'type:', typeof league.director_pin);
-
-        // Check PIN matches using helper function (includes master admin check)
-        const hasAccess = await checkLeagueAccess(league, pin);
-        console.log('verifyLeaguePin - access granted:', hasAccess);
-
-        if (!hasAccess) {
-            return res.status(401).json({
-                success: false,
-                error: 'Invalid PIN',
-                debug: {
-                    league_id_used: leagueId,
-                    doc_exists: leagueDoc.exists,
-                    all_keys: Object.keys(league),
-                    entered: pin,
-                    stored_admin: league.admin_pin,
-                    stored_director: league.director_pin,
-                    has_admin_key: 'admin_pin' in league,
-                    has_director_key: 'director_pin' in league
-                }
-            });
-        }
-
-        // Return league data (excluding sensitive fields for safety)
-        const safeLeague = { ...league };
-        delete safeLeague.admin_pin;
-        delete safeLeague.director_pin;
-
-        res.json({
-            success: true,
-            league_id: leagueId,
-            league: safeLeague
-        });
-
-    } catch (error) {
-        console.error('Error verifying PIN:', error);
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
+// NOTE: exports.verifyLeaguePin (PIN-based director login) has been removed.
+// Use Firebase Auth (verifyFirebaseAuth) for all director/admin access flows.
 
 // ============================================================================
 // LEAGUE MANAGEMENT
@@ -1451,20 +1421,8 @@ exports.createLeague = functions.https.onRequest(async (req, res) => {
             : (data.full_name || '');
         const directorPlayerId = data.director_player_id || null;
 
-        // The director's player PIN IS the league admin PIN - no separate PIN generation
+        // Accept an optional legacy director_pin for backward compat (existing callers); no longer stored
         const directorPin = data.director_pin || null;
-
-        if (!directorPin || directorPin.length !== 8) {
-            return res.status(400).json({
-                success: false,
-                error: 'You must be signed in with your player PIN to create a league'
-            });
-        }
-
-        // Both admin_pin and director_pin are the same - the player's PIN
-        const adminPin = directorPin;
-
-        console.log('createLeague - Using player PIN as admin_pin:', adminPin);
 
         const league = {
             league_name: data.league_name,
@@ -1501,10 +1459,6 @@ exports.createLeague = functions.https.onRequest(async (req, res) => {
             // Director info
             director_name: directorName,
             director_player_id: directorPlayerId,
-            director_pin: directorPin, // 8-digit player PIN for dashboard access
-
-            // Auth
-            admin_pin: adminPin,
 
             // Scoring & Rules
             point_system: data.point_system || 'game_based', // game_based, match_based
@@ -1573,12 +1527,111 @@ exports.createLeague = functions.https.onRequest(async (req, res) => {
         res.json({
             success: true,
             league_id: leagueRef.id,
-            admin_pin: adminPin,
             message: 'League created successfully'
         });
 
     } catch (error) {
         console.error('Error creating league:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * Save (create or update) a league from the vNext create-league page.
+ *
+ * Writes via the Admin SDK so the Firestore rules (`leagues` allow update: if false)
+ * do not block legitimate director/owner edits. The whole vNext payload is passed
+ * through verbatim (merge), so fields like blackout_dates, rounds, tiebreakers,
+ * cork_option, etc. are preserved.
+ *
+ * Body: { league_id, payload }
+ *   - If league_id is given AND the doc exists -> UPDATE (owner/director/admin only).
+ *   - Otherwise -> CREATE (id = league_id slug if provided, else auto-generated).
+ */
+exports.saveLeague = functions.https.onRequest(async (req, res) => {
+    setCorsHeaders(res);
+    if (req.method === 'OPTIONS') return res.status(204).send('');
+
+    try {
+        const authPlayer = await verifyFirebaseAuth(req);
+        if (!authPlayer) {
+            return res.status(401).json({ success: false, error: 'Unauthorized' });
+        }
+
+        const body = req.body || {};
+        const payload = body.payload;
+        const requestedId = (body.league_id || '').toString().trim();
+
+        if (!payload || typeof payload !== 'object') {
+            return res.status(400).json({ success: false, error: 'Missing payload' });
+        }
+
+        const callerEmail = (authPlayer.email || '').toString().trim().toLowerCase();
+        const callerPlayerId = authPlayer.id || null;
+        const isMasterAdmin = callerPlayerId === MASTER_ADMIN_PLAYER_ID
+            || authPlayer.is_admin === true
+            || authPlayer.is_master_admin === true;
+
+        // Decide create vs update: update only when a league_id is given AND that doc exists.
+        let existingDoc = null;
+        if (requestedId) {
+            existingDoc = await db.collection('leagues').doc(requestedId).get();
+        }
+
+        if (existingDoc && existingDoc.exists) {
+            // ── UPDATE PATH ──────────────────────────────────────────────────
+            const league = existingDoc.data() || {};
+
+            const ownerEmail = (league.owner_email || '').toString().trim().toLowerCase();
+            const directorEmail = (league.director_email || '').toString().trim().toLowerCase();
+            const directorIds = Array.isArray(league.directors)
+                ? league.directors.map(d => (typeof d === 'string' ? d : (d && (d.id || d.player_id)))).filter(Boolean)
+                : [];
+
+            const isOwnerOrDirector = isMasterAdmin
+                || (callerPlayerId && callerPlayerId === league.owner_player_id)
+                || (callerPlayerId && callerPlayerId === league.director_player_id)
+                || (callerPlayerId && callerPlayerId === league.director_id)
+                || (callerPlayerId && directorIds.includes(callerPlayerId))
+                || (!!callerEmail && callerEmail === ownerEmail)
+                || (!!callerEmail && callerEmail === directorEmail);
+
+            if (!isOwnerOrDirector) {
+                return res.status(403).json({
+                    success: false,
+                    error: 'Not authorized to edit this league'
+                });
+            }
+
+            await db.collection('leagues').doc(requestedId).set({
+                ...payload,
+                updated_at: admin.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+
+            await refreshLeagueFeedSafe(requestedId, 'saveLeague update');
+
+            return res.json({ success: true, league_id: requestedId });
+        }
+
+        // ── CREATE PATH ──────────────────────────────────────────────────────
+        const newId = requestedId || db.collection('leagues').doc().id;
+        const doc = {
+            ...payload,
+            owner_email: callerEmail || (payload.owner_email || ''),
+            owner_player_id: callerPlayerId || payload.owner_player_id || null,
+            director_email: callerEmail || (payload.director_email || ''),
+            created_at: admin.firestore.FieldValue.serverTimestamp(),
+            updated_at: admin.firestore.FieldValue.serverTimestamp()
+        };
+
+        await db.collection('leagues').doc(newId).set(doc);
+
+        await refreshLeagueFeedSafe(newId, 'saveLeague create');
+
+        return res.json({ success: true, league_id: newId });
+
+    } catch (error) {
+        console.error('Error saving league:', error);
         res.status(500).json({ success: false, error: error.message });
     }
 });
@@ -1921,12 +1974,19 @@ exports.getPlayers = functions.https.onRequest(async (req, res) => {
 
         const playersSnapshot = await db.collection('leagues').doc(leagueId)
             .collection('players')
-            .orderBy('registered_at', 'asc')
             .get();
 
         const players = [];
         playersSnapshot.forEach(doc => {
             players.push({ id: doc.id, ...doc.data() });
+        });
+
+        players.sort((a, b) => {
+            const aTime = a.registered_at || a.added_at || a.created_at || null;
+            const bTime = b.registered_at || b.added_at || b.created_at || null;
+            const aMillis = aTime && typeof aTime.toMillis === 'function' ? aTime.toMillis() : 0;
+            const bMillis = bTime && typeof bTime.toMillis === 'function' ? bTime.toMillis() : 0;
+            return aMillis - bMillis;
         });
 
         res.json({ success: true, players: players });
@@ -2482,8 +2542,8 @@ exports.createTeam = functions.https.onRequest(async (req, res) => {
         }
 
         const league = leagueDoc.data();
-        if (!(await checkLeagueAccess(league, admin_pin))) {
-            return res.status(403).json({ success: false, error: 'Invalid PIN' });
+        if (!(await hasLeagueDirectorOrAdminAccess(req, league, league_id, admin_pin))) {
+            return res.status(403).json({ success: false, error: 'Director or admin access required' });
         }
 
         if (!player_ids || player_ids.length !== 3) {
@@ -2951,8 +3011,8 @@ exports.importSchedule = functions.https.onRequest(async (req, res) => {
         }
 
         const league = leagueDoc.data();
-        if (!(await checkLeagueAccess(league, admin_pin))) {
-            return res.status(403).json({ success: false, error: 'Invalid PIN' });
+        if (!(await hasLeagueDirectorOrAdminAccess(req, league, league_id, admin_pin))) {
+            return res.status(403).json({ success: false, error: 'Director or admin access required' });
         }
 
         // Get teams for name lookup
@@ -3080,6 +3140,102 @@ exports.getSchedule = functions.https.onRequest(async (req, res) => {
 
     } catch (error) {
         console.error('Error getting schedule:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * Save team-provided DartConnect match report links for a scheduled match.
+ * Temporary recovery endpoint so league members can contribute report links by team/week.
+ */
+exports.saveTeamMatchReportLinks = functions.https.onRequest(async (req, res) => {
+    setCorsHeaders(res);
+    if (req.method === 'OPTIONS') return res.status(204).send('');
+
+    try {
+        const {
+            league_id,
+            match_id,
+            team_id,
+            urls = []
+        } = req.body || {};
+
+        if (!league_id || !match_id || !team_id) {
+            return res.status(400).json({ success: false, error: 'Missing league_id, match_id, or team_id' });
+        }
+
+        if (!Array.isArray(urls)) {
+            return res.status(400).json({ success: false, error: 'urls must be an array' });
+        }
+
+        const matchRef = db.collection('leagues').doc(league_id).collection('matches').doc(match_id);
+        const matchDoc = await matchRef.get();
+
+        if (!matchDoc.exists) {
+            return res.status(404).json({ success: false, error: 'Match not found' });
+        }
+
+        const match = matchDoc.data();
+        if (match.home_team_id !== team_id && match.away_team_id !== team_id) {
+            return res.status(400).json({ success: false, error: 'Selected team is not part of this match' });
+        }
+
+        const cleanedUrls = [];
+        for (const url of urls.slice(0, 5)) {
+            if (!String(url || '').trim()) continue;
+            const normalized = normalizeMatchReportUrl(url);
+            if (!cleanedUrls.includes(normalized)) {
+                cleanedUrls.push(normalized);
+            }
+        }
+
+        const authPlayer = await verifyFirebaseAuth(req).catch(() => null);
+        const submitter = authPlayer ? {
+            player_id: authPlayer.id || null,
+            firebase_uid: authPlayer.firebase_uid || null,
+            name: authPlayer.name || `${authPlayer.first_name || ''} ${authPlayer.last_name || ''}`.trim() || authPlayer.email || 'Unknown',
+            email: authPlayer.email || null
+        } : {
+            player_id: null,
+            firebase_uid: null,
+            name: 'Guest',
+            email: null
+        };
+
+        const teamName = match.home_team_id === team_id ? (match.home_team_name || 'Home Team') : (match.away_team_name || 'Away Team');
+        const submissions = { ...(match.match_report_submissions || {}) };
+        submissions[team_id] = {
+            team_id,
+            team_name: teamName,
+            urls: cleanedUrls,
+            submitted_by: submitter,
+            updated_at: admin.firestore.Timestamp.now(),
+            source: 'team_match_report_page'
+        };
+
+        const mergedUrls = Array.from(new Set(
+            Object.values(submissions)
+                .flatMap(entry => Array.isArray(entry?.urls) ? entry.urls : [])
+                .concat(Array.isArray(match.match_report_links) ? match.match_report_links : [])
+                .filter(Boolean)
+        ));
+
+        await matchRef.set({
+            match_report_submissions: submissions,
+            match_report_links: mergedUrls,
+            match_report_links_updated_at: admin.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+
+        res.json({
+            success: true,
+            match_id,
+            team_id,
+            saved_count: cleanedUrls.length,
+            urls: cleanedUrls,
+            match_report_links: mergedUrls
+        });
+    } catch (error) {
+        console.error('Error saving team match report links:', error);
         res.status(500).json({ success: false, error: error.message });
     }
 });
@@ -3305,6 +3461,51 @@ exports.getMatchByPin = functions.https.onRequest(async (req, res) => {
 
     } catch (error) {
         console.error('Error getting match by PIN:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * Get saved in-progress checkpoint for a specific league game.
+ */
+exports.getLeagueGameProgress = functions.https.onRequest(async (req, res) => {
+    setCorsHeaders(res);
+    if (req.method === 'OPTIONS') return res.status(204).send('');
+
+    try {
+        const league_id = req.query.league_id || req.body.league_id;
+        const match_id = req.query.match_id || req.body.match_id;
+        const game_number = parseInt(req.query.game_number || req.body.game_number || '0', 10);
+
+        if (!league_id || !match_id || !game_number) {
+            return res.status(400).json({ success: false, error: 'Missing league_id, match_id, or game_number' });
+        }
+
+        const leagueDoc = await db.collection('leagues').doc(league_id).get();
+        if (!leagueDoc.exists) {
+            return res.status(404).json({ success: false, error: 'League not found' });
+        }
+        const matchDoc = await db.collection('leagues').doc(league_id).collection('matches').doc(match_id).get();
+        if (!matchDoc.exists) {
+            return res.status(404).json({ success: false, error: 'Match not found' });
+        }
+
+        const match = matchDoc.data() || {};
+        const game = Array.isArray(match.games)
+            ? match.games.find(g => Number(g.game_number || g.set || 0) === game_number)
+            : null;
+
+        const progress = game?.in_progress_stats || null;
+        res.json({
+            success: true,
+            match_status: match.status || null,
+            game_status: game?.status || null,
+            home_legs_won: game?.home_legs_won || 0,
+            away_legs_won: game?.away_legs_won || 0,
+            progress
+        });
+    } catch (error) {
+        console.error('Error getting league game progress:', error);
         res.status(500).json({ success: false, error: error.message });
     }
 });
@@ -3539,8 +3740,7 @@ async function updatePlayerStats(leagueId, game, legData) {
                 };
 
                 // Check if format is any X01 variant (301, 501, 701, or numeric x01)
-                const isX01 = game.format === '501' || game.format === '301' || game.format === '701' ||
-                              game.format === 'x01' || /^\d+$/.test(game.format);
+                const isX01 = isX01Format(game.format);
 
                 if (isX01) {
                     playerStats.x01_legs_played++;
@@ -3612,7 +3812,7 @@ async function updatePlayerStats(leagueId, game, legData) {
                             playerStats.x01_best_leg = legDarts;
                         }
                     }
-                } else if (game.format === 'cricket') {
+                } else if (isCricketFormat(game.format)) {
                     playerStats.cricket_legs_played++;
                     if (isWinner) playerStats.cricket_legs_won++;
                     playerStats.cricket_total_rounds += stats.rounds || 0;
@@ -3700,6 +3900,16 @@ exports.finalizeMatch = functions.https.onRequest(async (req, res) => {
         const matchDoc = await matchRef.get();
         const match = matchDoc.data();
 
+        if (match.status === 'completed' && match.finalized_via === 'submitGameResult') {
+            return res.json({
+                success: true,
+                winner: match.winner || null,
+                final_score: { home: match.home_score || 0, away: match.away_score || 0 },
+                players_updated: 0,
+                message: 'Match already finalized during live scoring'
+            });
+        }
+
         // Verify all games are complete
         const incompleteGames = match.games.filter(g => g.status !== 'completed');
         if (incompleteGames.length > 0) {
@@ -3786,6 +3996,8 @@ exports.finalizeMatch = functions.https.onRequest(async (req, res) => {
             // Log but don't fail the match finalization
             console.error('Error updating player stats:', statsError);
         }
+
+        await refreshLeagueFeedSafe(league_id, 'finalizeMatch');
 
         res.json({
             success: true,
@@ -3964,16 +4176,37 @@ exports.submitGameResult = functions.https.onRequest(async (req, res) => {
 
     try {
         const { league_id, match_id, game_number, winner, home_legs_won, away_legs_won, admin_pin, game_stats, status, home_players, away_players } = req.body;
-        const resolver = await buildLeaguePlayerResolver(league_id);
-        const unresolvedPlayers = new Set();
 
-        // Verify admin (optional - can also use match_pin)
+        if (!league_id || !match_id) {
+            return res.status(400).json({ success: false, error: 'league_id and match_id are required' });
+        }
+
         const leagueDoc = await db.collection('leagues').doc(league_id).get();
+        if (!leagueDoc.exists) {
+            return res.status(404).json({ success: false, error: 'League not found' });
+        }
         const league = leagueDoc.data();
 
-        if (admin_pin && !(await checkLeagueAccess(league, admin_pin))) {
-            return res.status(403).json({ success: false, error: 'Invalid PIN' });
+        // AUTH (hardened 2026-06-09): caller must be an authenticated league
+        // participant, a league director/admin, or supply a valid legacy admin_pin.
+        // NOT director-only — players/scorers save results on match night.
+        const authResult = await canSubmitLeagueGameResult(req, league, league_id, admin_pin);
+        if (!authResult.allowed) {
+            console.warn(
+                `[submitGameResult] REJECTED: league=${league_id} match=${match_id} game=${game_number} ` +
+                `reason=${authResult.reason} player=${authResult.actorId || 'none'} ` +
+                `hasAuthHeader=${Boolean(req.headers.authorization)} hasPin=${Boolean(admin_pin)} ` +
+                `origin=${req.headers.origin || 'unknown'}`
+            );
+            const message = authResult.reason === 'invalid_pin'
+                ? 'Invalid PIN'
+                : 'Not authorized: sign in as a league player to save results';
+            return res.status(403).json({ success: false, error: message });
         }
+        console.log(`[submitGameResult] auth ok via=${authResult.via} player=${authResult.actorId || 'pin'} league=${league_id} match=${match_id} game=${game_number}`);
+
+        const resolver = await buildLeaguePlayerResolver(league_id);
+        const unresolvedPlayers = new Set();
 
         const matchRef = db.collection('leagues').doc(league_id)
             .collection('matches').doc(match_id);
@@ -4057,6 +4290,16 @@ exports.submitGameResult = functions.https.onRequest(async (req, res) => {
         }
 
         // Update game (completed)
+        if (games[gameIndex].status === 'completed') {
+            return res.json({
+                success: true,
+                game_number: game_number,
+                status: 'already_completed',
+                message: `Game ${game_number} already completed, skipping duplicate save`,
+                unresolved_players: Array.from(unresolvedPlayers)
+            });
+        }
+
         games[gameIndex].status = 'completed';
         games[gameIndex].set = games[gameIndex].set || game_number;
         games[gameIndex].game_number = games[gameIndex].game_number || game_number;
@@ -4114,15 +4357,23 @@ exports.submitGameResult = functions.https.onRequest(async (req, res) => {
             matchUpdate.started_at = admin.firestore.FieldValue.serverTimestamp();
         }
 
-        // Auto-finalize: check if all expected games are completed
+        // Auto-finalize: regular season plays all scheduled sets; playoffs end
+        // as soon as either side reaches the majority target.
         const expectedGames = league.games_per_match || 9;
         const completedGames = games.filter(g => g.status === 'completed').length;
-        const matchFinalized = completedGames >= expectedGames;
+        const isPlayoffMatch = String(match.match_type || match.type || '').toLowerCase() === 'playoff'
+            || Boolean(match.playoff_round || match.is_playoff || match.playoff);
+        const playoffSetsToWin = Number(match.sets_to_win || match.match_sets_to_win || league.playoff_sets_to_win)
+            || Math.ceil(expectedGames / 2);
+        const matchFinalized = completedGames >= expectedGames
+            || (isPlayoffMatch && Math.max(homeScore, awayScore) >= playoffSetsToWin);
         if (matchFinalized) {
             matchUpdate.status = 'completed';
             matchUpdate.completed_at = admin.firestore.FieldValue.serverTimestamp();
             matchUpdate.winner = homeScore > awayScore ? 'home' : awayScore > homeScore ? 'away' : 'tie';
             matchUpdate.match_pin = null; // Clear PIN
+            matchUpdate.finalized_via = 'submitGameResult';
+            matchUpdate.stats_write_mode = 'per_game_incremental';
         }
 
         await matchRef.update(matchUpdate);
@@ -4183,6 +4434,7 @@ exports.submitGameResult = functions.https.onRequest(async (req, res) => {
                 }
                 await batch.commit();
                 console.log(`Match auto-finalized: ${matchUpdate.winner} wins ${homeScore}-${awayScore}`);
+                await refreshLeagueFeedSafe(league_id, 'submitGameResult');
             } catch (standingsErr) {
                 console.error('Error updating team standings:', standingsErr);
             }
@@ -5153,8 +5405,8 @@ const legacyShadowImportMatchDataReviewOnly = functions.https.onRequest(async (r
         }
 
         const league = leagueDoc.data();
-        if (!(await checkLeagueAccess(league, admin_pin))) {
-            return res.status(403).json({ success: false, error: 'Invalid PIN' });
+        if (!(await hasLeagueDirectorOrAdminAccess(req, league, league_id, admin_pin))) {
+            return res.status(403).json({ success: false, error: 'Director or admin access required' });
         }
 
         // Get match
@@ -5265,6 +5517,8 @@ const legacyShadowImportMatchDataReviewOnly = functions.https.onRequest(async (r
             points_against: admin.firestore.FieldValue.increment(homeScore)
         });
 
+        await refreshLeagueFeedSafe(league_id, 'importMatchData');
+
         res.json({
             success: true,
             message: 'Match data imported successfully',
@@ -5303,8 +5557,10 @@ exports.recalculateLeagueStats = functions.https.onRequest(async (req, res) => {
         }
 
         const league = leagueDoc.data();
-        if (admin_pin && !(await checkLeagueAccess(league, admin_pin))) {
-            return res.status(403).json({ success: false, error: 'Invalid PIN' });
+        // Require an authenticated league director/admin (or a valid PIN). Previously this only
+        // verified a PIN *if one was supplied*, so a recompute could run fully unauthenticated.
+        if (!(await hasLeagueDirectorOrAdminAccess(req, league, league_id, admin_pin))) {
+            return res.status(403).json({ success: false, error: 'Not authorized to recalculate this league' });
         }
 
         const playerResolver = await buildLeaguePlayerResolver(league_id);
@@ -5383,8 +5639,8 @@ exports.recalculateLeagueStats = functions.https.onRequest(async (req, res) => {
                     legsProcessed++;
                     const throws = leg.throws || [];
                     const legFormat = leg.format || gameFormat;
-                    const isX01 = ['501', '301', '701'].includes(legFormat) || /^\d+$/.test(legFormat);
-                    const isCricket = legFormat.toLowerCase().includes('cricket');
+                    const isX01 = isX01Format(legFormat);
+                    const isCricket = isCricketFormat(legFormat);
 
                     // Track stats for each player in this leg from throws.
                     // Throws are the canonical source of truth for league stats.
@@ -5542,6 +5798,11 @@ exports.recalculateLeagueStats = functions.https.onRequest(async (req, res) => {
                                 cricket_total_rounds: 0,
                                 cricket_5m_plus: 0,
                                 cricket_high_marks: 0,
+                                cricket_nine_mark_rounds: 0,
+                                cricket_eight_mark_rounds: 0,
+                                cricket_seven_mark_rounds: 0,
+                                cricket_six_mark_rounds: 0,
+                                cricket_five_mark_rounds: 0,
                                 matches_played: 0,
                                 matches_won: 0,
                                 matches_lost: 0,
@@ -5585,6 +5846,14 @@ exports.recalculateLeagueStats = functions.https.onRequest(async (req, res) => {
                             ps.cricket_total_rounds += stats.rounds;
                             const fivePlus = stats.marks_per_round.filter(m => m >= 5).length;
                             ps.cricket_5m_plus += fivePlus;
+                            // Per-level mark-round counts (exact marks in a round) for the High Marks breakdown.
+                            for (const m of stats.marks_per_round) {
+                                if (m === 9) ps.cricket_nine_mark_rounds++;
+                                else if (m === 8) ps.cricket_eight_mark_rounds++;
+                                else if (m === 7) ps.cricket_seven_mark_rounds++;
+                                else if (m === 6) ps.cricket_six_mark_rounds++;
+                                else if (m === 5) ps.cricket_five_mark_rounds++;
+                            }
                             const maxMarks = Math.max(0, ...stats.marks_per_round);
                             if (maxMarks > ps.cricket_high_marks) ps.cricket_high_marks = maxMarks;
                         }
@@ -5817,8 +6086,10 @@ exports.assignPlayerLevels = functions.https.onRequest(async (req, res) => {
         }
 
         const league = leagueDoc.data();
-        if (admin_pin && !(await checkLeagueAccess(league, admin_pin))) {
-            return res.status(403).json({ success: false, error: 'Invalid PIN' });
+        // Require an authenticated league director/admin (or a valid PIN). Previously this only
+        // verified a PIN *if one was supplied*, allowing unauthenticated level assignment.
+        if (!(await hasLeagueDirectorOrAdminAccess(req, league, league_id, admin_pin))) {
+            return res.status(403).json({ success: false, error: 'Not authorized to assign levels for this league' });
         }
 
         console.log(`Assigning player levels for league ${league_id}`);
@@ -6728,12 +6999,15 @@ exports.bulkMovePlayersToTeam = functions.https.onRequest(async (req, res) => {
 
         // Verify target team exists (if specified)
         let targetTeamName = null;
-        if (target_team_id) {
+        const isFillInPool = target_team_id === 'fill_in';
+        if (target_team_id && !isFillInPool) {
             const teamDoc = await db.collection('leagues').doc(league_id).collection('teams').doc(target_team_id).get();
             if (!teamDoc.exists) {
                 return res.status(404).json({ success: false, error: 'Target team not found' });
             }
             targetTeamName = teamDoc.data().team_name;
+        } else if (isFillInPool) {
+            targetTeamName = 'Fill-In Pool';
         }
 
         // Use batch write for efficiency
@@ -6760,7 +7034,10 @@ exports.bulkMovePlayersToTeam = functions.https.onRequest(async (req, res) => {
             };
 
             // If moving to a team, mark as not a sub; if unassigning, could be either
-            if (target_team_id) {
+            if (isFillInPool) {
+                updateData.is_sub = true;
+                updateData.position = null;
+            } else if (target_team_id) {
                 updateData.is_sub = false;
             }
 

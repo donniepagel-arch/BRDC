@@ -12,7 +12,7 @@ Current state:
 
 - throws-first model is enforced
 - canonical player identity is enforced in imports and scorer writes
-- Triples Draft standings and stats were rebuilt
+- 2026 Triples League standings and stats were rebuilt
 - import QA is visible in director tools
 
 Next tasks:

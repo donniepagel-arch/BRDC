@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rookies Contact Center</title>
+    <link rel="icon" type="image/png" href="/images/favicon.png">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#fff8ed">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap">
+    <link rel="stylesheet" href="/css/brdc-styles.css">
+    <link rel="stylesheet" href="/css/fb-mobile.css">
+    <link rel="stylesheet" href="/css/brdc-navigation.css?v=14">
+    <link rel="stylesheet" href="/css/market-events-scorer-vnext.css?v=20">
+    <link rel="stylesheet" href="/rookies/tenant/rookies-vnext.css?v=23">
+</head>
+<body class="vnext-light-page contact-center-vnext-page has-mobile-nav">
+    <main class="ves-shell">
+        <section class="ves-hero director-hero-compact">
+            <div>
+                <p class="ves-kicker" id="contactCenterStatus">Director contact</p>
+                <h1>Contact Center</h1>
+                <p>Build one message, choose who receives it, then review text, email, and site-message coverage before sending.</p>
+            </div>
+            <div class="ves-hero-actions">
+                <a class="ves-action" href="/rookies/pages/director-home-vnext.html">Admin Portal</a>
+                <a class="ves-action" href="/rookies/pages/messages-vnext.html">Messages</a>
+            </div>
+        </section>
+
+        <section class="contact-center-grid" id="contactCenterApp" hidden>
+            <section class="ves-panel contact-panel contact-compose-panel">
+                <div class="contact-section-head">
+                    <p class="ves-kicker">Step 1</p>
+                    <h2>Message</h2>
+                    <p>Start with what Brian needs to say. Templates are just a shortcut.</p>
+                </div>
+                <label>Subject
+                    <input id="messageSubject" maxlength="120" placeholder="Rookies darts update">
+                </label>
+                <label>Message
+                    <textarea id="messageBody" rows="8" maxlength="2000" placeholder="Write the message Brian will send..."></textarea>
+                </label>
+                <div class="contact-template-row">
+                    <button type="button" data-template="night">Tonight</button>
+                    <button type="button" data-template="checkin">Check-in</button>
+                    <button type="button" data-template="schedule">Schedule</button>
+                </div>
+                <div class="contact-message-meta">
+                    <span id="messageCount">0 characters</span>
+                    <span id="smsSegments">0 SMS segments</span>
+                </div>
+            </section>
+
+            <section class="ves-panel contact-panel">
+                <div class="contact-section-head">
+                    <p class="ves-kicker">Step 2</p>
+                    <h2>Audience</h2>
+                    <p>Pick a saved group or manually select recipients.</p>
+                </div>
+                <div class="contact-audience-grid" id="audienceOptions" aria-label="Audience options">
+                    <button type="button" data-audience="all" class="active">
+                        <strong>All contacts</strong>
+                        <span id="audAllCount">-</span>
+                    </button>
+                    <button type="button" data-audience="league">
+                        <strong>Triples league</strong>
+                        <span id="audLeagueCount">-</span>
+                    </button>
+                    <button type="button" data-audience="events">
+                        <strong>Event registrants</strong>
+                        <span id="audEventCount">-</span>
+                    </button>
+                    <button type="button" data-audience="captains">
+                        <strong>Captains</strong>
+                        <span id="audCaptainCount">-</span>
+                    </button>
+                    <button type="button" data-audience="custom">
+                        <strong>Custom</strong>
+                        <span id="audCustomCount">0</span>
+                    </button>
+                </div>
+                <label class="contact-search">Search recipients
+                    <input id="recipientSearch" type="search" placeholder="Name, email, phone, team, event">
+                </label>
+                <div class="contact-recipient-list" id="recipientList">
+                    <div class="ves-skeleton"></div>
+                </div>
+            </section>
+
+            <section class="ves-panel contact-panel">
+                <div class="contact-section-head">
+                    <p class="ves-kicker">Step 3</p>
+                    <h2>Delivery</h2>
+                    <p>Coverage updates as recipients change.</p>
+                </div>
+                <div class="contact-channel-list">
+                    <label><input type="checkbox" value="site" checked> Site message <span id="siteCoverage">- ready</span></label>
+                    <label><input type="checkbox" value="sms" checked> Text <span id="smsCoverage">- ready</span></label>
+                    <label><input type="checkbox" value="email" checked> Email <span id="emailCoverage">- ready</span></label>
+                </div>
+                <div class="contact-risk-note" id="riskNote">Send creates a logged broadcast with per-recipient delivery records.</div>
+            </section>
+
+            <section class="ves-panel contact-panel contact-review-panel">
+                <div class="contact-section-head">
+                    <p class="ves-kicker">Step 4</p>
+                    <h2>Review</h2>
+                    <p>Confirm counts and missing contact details before a future live send.</p>
+                </div>
+                <div class="contact-review-stats">
+                    <span><strong id="selectedCount">0</strong> recipients</span>
+                    <span><strong id="textReadyCount">0</strong> text-ready</span>
+                    <span><strong id="emailReadyCount">0</strong> email-ready</span>
+                    <span><strong id="siteReadyCount">0</strong> site-ready</span>
+                </div>
+                <div class="contact-message-preview">
+                    <div class="contact-message-envelope">
+                        <span>Message to send</span>
+                        <em id="previewChannels">No channels</em>
+                    </div>
+                    <article class="contact-message-bubble">
+                        <h3 id="previewSubject">No subject yet</h3>
+                        <p id="previewBody">Write a message to preview it here.</p>
+                    </article>
+                </div>
+                <div class="contact-recipient-preview" id="recipientPreview"></div>
+                <div class="contact-actions">
+                    <button class="ves-action" type="button" id="saveDraftBtn">Save draft</button>
+                    <button class="ves-action" type="button" id="copyDraftBtn">Copy message</button>
+                    <button class="ves-action primary" type="button" id="sendBtn" disabled>Send locked</button>
+                </div>
+                <div class="ves-form-status" id="contactStatus" hidden></div>
+            </section>
+        </section>
+    </main>
+
+    <script src="/components/brdc-navigation-init.js?v=18"></script>
+    <script type="module" src="/js/contact-center-vnext.js?v=7"></script>
+    <script>
+        initBRDCNavigation({ page: 'director-contact', pageTitle: 'Contact Center', showBreadcrumbs: false, showBackButton: true });
+    </script>
+    <script src="/rookies/tenant/rookies-vnext.js?v=11"></script>
+</body>
+</html>

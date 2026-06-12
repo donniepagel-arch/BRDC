@@ -1,11 +1,11 @@
-# Triples Draft Data Integrity Audit
+# 2026 Triples League Data Integrity Audit
 
 Date: 2026-04-09
 League: `aOq4Y0ETxPZ66tM1uUtP`
 
 ## Scope
 
-Audit the live Triples Draft league for:
+Audit the live 2026 Triples League league for:
 
 - raw match data presence
 - stored team standings integrity
@@ -135,7 +135,7 @@ That means the repair order should be:
 
 ## Recommended Next Task
 
-Standings repair plan for Triples Draft.
+Standings repair plan for 2026 Triples League.
 
 That plan should:
 

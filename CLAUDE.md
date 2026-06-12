@@ -6,13 +6,15 @@
 
 **The BRDC project folder is located at:**
 ```
-C:\Users\gcfrp\projects\brdc-firebase
+E:\projects\brdc-firebase
 ```
 
-**DO NOT use `C:\Users\gcfrp\brdc-firebase`** - That's an OLD DUPLICATE that should be deleted.
+(Verified 2026-06-07: this is the real working copy — it holds `firebase.json` + `.git` and all
+deploys run from here. The old `C:\Users\gcfrp\projects\brdc-firebase` / `C:\Users\gcfrp\brdc-firebase`
+paths **do not exist** — do not use them.)
 
 **Always:**
-- Work from `C:\Users\gcfrp\projects\brdc-firebase`
+- Work from `E:\projects\brdc-firebase`
 - Run `firebase deploy` from that directory
 - Reference that path in all terminal prompts
 
@@ -44,7 +46,7 @@ Task tool → subagent_type: "gsd-executor" or "general-purpose"
 ### Legacy Terminal Prompts (Still Supported)
 If the user prefers copy-paste prompts for external terminals, include:
 ```
-Working directory: C:\Users\gcfrp\projects\brdc-firebase
+Working directory: E:\projects\brdc-firebase
 Permissions: Read all, Write all, Bash (npm, node, git, firebase)
 ```
 
@@ -53,8 +55,11 @@ Permissions: Read all, Write all, Bash (npm, node, git, firebase)
 - Match ID: sgmoL4GyVUYP67aOS7wm
 
 ### Deployment
-- Frontend: `firebase deploy --only hosting`
+- **Live public site is `https://burningriverdarts.com`**, served by Firebase site `brdc-live-0428` in project `dashboard-ll` (NOT brdc-v2 — the site name is a migration leftover).
+- **Frontend (publish to burningriverdarts.com):**
+  `firebase deploy --only hosting --config firebase.current-apex-hosting.json --project dashboard-ll`
 - Backend: `firebase deploy --only functions`
+- ⚠️ A bare `firebase deploy --only hosting` does NOT reach the apex domain. See RULE 0 for the full site map.
 
 ---
 
@@ -107,12 +112,28 @@ Priority: High/Medium/Low
 
 **The user NEVER tests locally.** Local hosting buttons don't work for testing.
 
-After making any frontend changes (HTML, CSS, JS in `/public`), **always deploy**:
+After making any frontend changes (HTML, CSS, JS in `/public`), **always deploy**.
+
+**The live public site is `https://burningriverdarts.com`.** Publish to it with:
 ```bash
-firebase deploy --only hosting
+firebase deploy --only hosting --config firebase.current-apex-hosting.json --project dashboard-ll
 ```
 
-The live site is: https://brdc-v2.web.app
+### Domain → Site → Project map (verified 2026-06-02)
+| Domain | Firebase site | Project | Deploy config |
+|--------|---------------|---------|---------------|
+| **burningriverdarts.com** (real live site) | `brdc-live-0428` | `dashboard-ll` | `firebase.current-apex-hosting.json` |
+| brdc-v2.web.app | `brdc-v2` | `brdc-v2` | `firebase.brdc-v2-production-hosting.json` |
+| burningriverdarts.web.app (orphan, not the apex) | `burningriverdarts` | `brdc-v2` | `firebase.burningriverdarts-hosting.json` |
+| fortheloveofdarts.com (Rookies demo) | `fortheloveofdarts` | `fortheloveofdarts` | `firebase.fortheloveofdarts-project-hosting.json` |
+
+**Gotchas:**
+- A bare `firebase deploy --only hosting` does NOT publish to burningriverdarts.com — it hits the default project/target, which is the wrong site. Always use the apex config above for the live site.
+- The site name `burningriverdarts` is a leftover and serves only `burningriverdarts.web.app`, NOT the `.com`. Don't be fooled by the matching name.
+- OAuth/Firebase Auth only works on **authorized domains** — `burningriverdarts.com` is authorized; preview-channel `*.web.app` URLs are not, so login silently fails there.
+- A `200` on a missing `/pages/*.html` is the SPA catch-all rewrite serving `index.html`, NOT proof the page exists. Verify served **content** (page `<title>` or a `?v=` tag), not just HTTP status.
+- Preview a change without touching the live site:
+  `firebase hosting:channel:deploy <name> --only brdc-v2 --project brdc-v2` (gives a temporary `*.web.app` URL — note: auth won't work there).
 
 ---
 
@@ -174,7 +195,7 @@ if (!stats.exists()) stats = await getDoc(doc(db, 'stats', id)); // NO!
 | `week` | number | Week number in season |
 | `winner` | string | "home", "away", or "tie" |
 
-### League Scoring Hierarchy (Triples Draft)
+### League Scoring Hierarchy (2026 Triples League)
 Standings are determined in this order:
 1. **Match wins** (nights won)
 2. **Set wins** (games won, e.g., 7-2 in a night)
@@ -663,7 +684,7 @@ if (!playerQuery.empty) {
 ### Reference IDs
 | Item | ID |
 |------|-----|
-| League (Winter Triple Draft) | `aOq4Y0ETxPZ66tM1uUtP` |
+| League (2026 Triples League) | `aOq4Y0ETxPZ66tM1uUtP` |
 | Match (Pagel v Pagel, Week 1) | `sgmoL4GyVUYP67aOS7wm` |
 | Home Team (M. Pagel) | `mgR4e3zldLsM9tAnXmK8` |
 | Away Team (D. Pagel) | `U5ZEAT55xiNM9Otarafx` |

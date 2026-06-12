@@ -7,6 +7,7 @@ const functions = require('firebase-functions/v1');
 const admin = require('firebase-admin');
 const cors = require('cors')({ origin: true });
 const { verifyFirebaseAuth } = require('./src/firebase-auth-helper');
+const { getRoleFromTournament } = require('./src/tournament-auth-helper');
 
 const db = admin.firestore();
 
@@ -23,6 +24,51 @@ async function checkLeagueAdminAccess(leagueId, playerId) {
 
     const league = leagueDoc.data();
     return league.director_id === playerId || league.admin_id === playerId;
+}
+
+function hasTournamentDirectorAccess(tournament, authPlayer) {
+    if (!tournament || !authPlayer) return false;
+    const role = getRoleFromTournament(tournament, authPlayer);
+    return role === 'host' || role === 'staff' || role === 'admin';
+}
+
+function getTournamentDirectorPlayerId(tournament, fallbackPlayerId = null) {
+    return tournament?.director_player_id
+        || tournament?.director_id
+        || tournament?.host_player_id
+        || tournament?.created_by_player_id
+        || fallbackPlayerId
+        || null;
+}
+
+function getRegistrationPlayerIds(registration) {
+    if (!registration) return [];
+
+    const ids = [];
+    if (registration.player_id) ids.push(registration.player_id);
+    if (registration.player?.player_id) ids.push(registration.player.player_id);
+    if (registration.player1?.player_id) ids.push(registration.player1.player_id);
+    if (registration.player2?.player_id) ids.push(registration.player2.player_id);
+
+    return ids.filter(Boolean);
+}
+
+function uniquePlayerIds(ids) {
+    return [...new Set((ids || []).filter(Boolean))];
+}
+
+function slugify(value) {
+    return String(value || '')
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+}
+
+function getTournamentSeriesId(tournament) {
+    return tournament?.series_id
+        || tournament?.series_slug
+        || (tournament?.series_name ? slugify(tournament.series_name) : null);
 }
 
 /**
@@ -570,8 +616,7 @@ exports.createTournamentChatRoom = functions.https.onRequest((req, res) => {
             const tournament = tournamentDoc.data();
 
             // Check if admin is the director
-            const isDirector = tournament.director_id === adminPlayer.id ||
-                               adminPlayer.isAdmin;
+            const isDirector = hasTournamentDirectorAccess(tournament, adminPlayer);
 
             if (!isDirector) {
                 return res.status(401).json({
@@ -580,18 +625,34 @@ exports.createTournamentChatRoom = functions.https.onRequest((req, res) => {
                 });
             }
 
-            // Check if tournament chat already exists
-            const existingRoom = await db.collection('chat_rooms')
-                .where('tournament_id', '==', tournament_id)
-                .where('type', '==', 'tournament')
-                .limit(1)
-                .get();
+            const seriesId = getTournamentSeriesId(tournament);
+            const tournamentName = tournament.tournament_name || tournament.name || 'Tournament';
+            const roomName = seriesId ? (tournament.series_name || tournamentName) : tournamentName;
+
+            // A tournament that belongs to a series uses one persistent series room.
+            const existingRoomQuery = seriesId
+                ? db.collection('chat_rooms')
+                    .where('series_id', '==', seriesId)
+                    .where('type', '==', 'tournament')
+                    .limit(1)
+                : db.collection('chat_rooms')
+                    .where('tournament_id', '==', tournament_id)
+                    .where('type', '==', 'tournament')
+                    .limit(1);
+            const existingRoom = await existingRoomQuery.get();
 
             if (!existingRoom.empty) {
+                const existingDoc = existingRoom.docs[0];
+                const existingData = existingDoc.data();
+                const tournamentIds = uniquePlayerIds([...(existingData.tournament_ids || []), existingData.tournament_id, tournament_id]);
+                await existingDoc.ref.set({
+                    tournament_ids: tournamentIds,
+                    updated_at: admin.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
                 return res.json({
                     success: true,
-                    room_id: existingRoom.docs[0].id,
-                    message: 'Tournament chat room already exists'
+                    room_id: existingDoc.id,
+                    message: seriesId ? 'Series chat room already exists' : 'Tournament chat room already exists'
                 });
             }
 
@@ -608,13 +669,14 @@ exports.createTournamentChatRoom = functions.https.onRequest((req, res) => {
                 participantIds.push(adminPlayer.id);
             }
 
-            const tournamentName = tournament.tournament_name || tournament.name || 'Tournament';
-
             // Create chat room
             const roomRef = await db.collection('chat_rooms').add({
                 type: 'tournament',
-                name: `${tournamentName} Chat`,
-                tournament_id: tournament_id,
+                name: `${roomName} Chat`,
+                tournament_id: seriesId ? null : tournament_id,
+                tournament_ids: [tournament_id],
+                series_id: seriesId,
+                series_name: tournament.series_name || null,
                 league_id: null,
                 team_id: null,
                 match_id: null,
@@ -632,7 +694,7 @@ exports.createTournamentChatRoom = functions.https.onRequest((req, res) => {
             await roomRef.collection('messages').add({
                 sender_id: 'system',
                 sender_name: 'System',
-                text: `Welcome to ${tournamentName} chat! All registered players can communicate here.`,
+                text: `Welcome to ${roomName} chat! All registered players can communicate here.`,
                 timestamp: admin.firestore.FieldValue.serverTimestamp(),
                 type: 'system',
                 pinned: false
@@ -687,8 +749,7 @@ exports.createAllTournamentChatRooms = functions.https.onRequest((req, res) => {
             const tournament = tournamentDoc.data();
 
             // Check if admin is the director
-            const isDirector = tournament.director_id === adminPlayer.id ||
-                               adminPlayer.isAdmin;
+            const isDirector = hasTournamentDirectorAccess(tournament, adminPlayer);
 
             if (!isDirector) {
                 return res.status(401).json({
@@ -705,9 +766,7 @@ exports.createAllTournamentChatRooms = functions.https.onRequest((req, res) => {
             // Get all registered players
             const registrationsSnapshot = await db.collection('tournaments').doc(tournament_id)
                 .collection('registrations').get();
-            const allPlayerIds = registrationsSnapshot.docs
-                .map(doc => doc.data().player_id)
-                .filter(Boolean);
+            const allPlayerIds = uniquePlayerIds(registrationsSnapshot.docs.flatMap(doc => getRegistrationPlayerIds(doc.data())));
 
             if (!allPlayerIds.includes(adminPlayer.id)) {
                 allPlayerIds.push(adminPlayer.id);
@@ -751,7 +810,19 @@ exports.createAllTournamentChatRooms = functions.https.onRequest((req, res) => {
 
                 results.tournament_chat = tournamentChatRef.id;
             } else {
-                results.tournament_chat = existingTournamentChat.docs[0].id;
+                const existingDoc = existingTournamentChat.docs[0];
+                const existingData = existingDoc.data();
+                const mergedParticipants = uniquePlayerIds([...(existingData.participants || []), ...allPlayerIds]);
+                const mergedAdmins = uniquePlayerIds([...(existingData.admins || []), adminPlayer.id]);
+
+                await existingDoc.ref.set({
+                    participants: mergedParticipants,
+                    participant_count: mergedParticipants.length,
+                    admins: mergedAdmins,
+                    updated_at: admin.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
+
+                results.tournament_chat = existingDoc.id;
             }
 
             // Create event chats if tournament has multiple events
@@ -776,9 +847,7 @@ exports.createAllTournamentChatRooms = functions.https.onRequest((req, res) => {
                         .collection('events').doc(eventId)
                         .collection('registrations').get();
 
-                    const eventPlayerIds = eventRegsSnapshot.docs
-                        .map(doc => doc.data().player_id)
-                        .filter(Boolean);
+                    const eventPlayerIds = uniquePlayerIds(eventRegsSnapshot.docs.flatMap(doc => getRegistrationPlayerIds(doc.data())));
 
                     if (!eventPlayerIds.includes(adminPlayer.id)) {
                         eventPlayerIds.push(adminPlayer.id);
@@ -819,10 +888,23 @@ exports.createAllTournamentChatRooms = functions.https.onRequest((req, res) => {
                         room_id: eventChatRef.id
                     });
                 } else {
+                    const existingDoc = existingEventChat.docs[0];
+                    const existingData = existingDoc.data();
+                    const eventPlayerIds = uniquePlayerIds(eventRegsSnapshot.docs.flatMap(doc => getRegistrationPlayerIds(doc.data())));
+                    const mergedParticipants = uniquePlayerIds([...(existingData.participants || []), ...eventPlayerIds, adminPlayer.id]);
+                    const mergedAdmins = uniquePlayerIds([...(existingData.admins || []), adminPlayer.id]);
+
+                    await existingDoc.ref.set({
+                        participants: mergedParticipants,
+                        participant_count: mergedParticipants.length,
+                        admins: mergedAdmins,
+                        updated_at: admin.firestore.FieldValue.serverTimestamp()
+                    }, { merge: true });
+
                     results.event_chats.push({
                         event_id: eventId,
                         event_name: event.event_name || event.name,
-                        room_id: existingEventChat.docs[0].id,
+                        room_id: existingDoc.id,
                         existing: true
                     });
                 }
@@ -888,8 +970,9 @@ exports.createAllTournamentsChatRooms = functions.https.onRequest((req, res) => 
                             .filter(Boolean);
 
                         // Add director if not in list
-                        if (tournament.director_id && !playerIds.includes(tournament.director_id)) {
-                            playerIds.push(tournament.director_id);
+                        const directorPlayerId = getTournamentDirectorPlayerId(tournament);
+                        if (directorPlayerId && !playerIds.includes(directorPlayerId)) {
+                            playerIds.push(directorPlayerId);
                         }
 
                         // Create tournament chat room
@@ -1228,7 +1311,10 @@ exports.getPlayerChatRooms = functions.https.onRequest((req, res) => {
                     team_id: data.team_id,
                     match_id: data.match_id,
                     tournament_id: data.tournament_id || null,
+                    tournament_ids: data.tournament_ids || [],
                     event_id: data.event_id || null,
+                    series_id: data.series_id || null,
+                    series_name: data.series_name || null,
                     week: data.week || null,
                     participant_count: data.participant_count,
                     unread_count: data.unread_count?.[player.id] || 0,

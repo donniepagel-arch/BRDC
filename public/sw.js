@@ -2,9 +2,30 @@
  * BRDC Service Worker
  * Provides offline caching and IndexedDB storage for game data
  * v56 - Scorer pages use network-first to avoid stale live scoring code
+ * v58 - Purge stale nav: gold Play button (dartboard) + nav v4.x css?v=18/js?v=21
+ * v59 - Home: unify card headers (pink kicker inside every card) home-vnext.js?v=52
+ * v60 - Home: divider line under every card title home-vnext.css?v=50
+ * v61 - Home: fix signed-out Sign in link (/pages/login.html -> /) home-vnext.js?v=53
+ * v62 - Home v5: Clubhouse skin (warm gradient + diagonal texture, headline hero + snapshot card, feathered shadows) css?v=51 js?v=54
+ * v63 - Warm-bg sweep: triples/profile/match-hub/league-team/leagues now match Home (olive parchment retired)
+ * v64 - Card-shadow consistency: every primary card across vNext now uses the Home feathered shadow
+ * v65 - Diagonal hatch texture added to Events + Clubhouse (were missing it) — texture now on all pages
+ * v66 - Profile: resolve own profile when no ?id (was dead-ending on Missing player_id); friendly sign-in prompt
+ * v67 - Card-title divider under section headers across triples/profile/match-hub/league-team/events/clubhouse (Home standard)
+ * v68 - Clubhouse: Fresh listings card shows empty state instead of looping skeletons when 0 listings; messages-vnext.js?v=12
+ * v69 - Scorer setup: stepped click-through wizard (Players/Game/Start) + flip-modal font legibility; css?v=11
+ * v70 - Scorer setup: bulletproof [hidden] guard — Start button + disclosure now actually hide; css?v=12
+ * v71 - Graceful no-param states on league-team/match-hub/matchmaker-mingle+tv/tournament-register+view (was raw "Missing X_id")
+ * v72 - Scorer casual-setup title was dark-on-dark (found on real Android) — restored pink; scorer-vnext.css?v=2 * v73 - PERF: optimistic identity cache on Home (stats instant from localStorage vs ~11s cold wait) * v74 - PERF: optimistic cache rolled to Home snapshot + Profile + Triples + Clubhouse * v75 - PERF: slim snapshot caches (drop games[]/statsById) so localStorage write fits quota; home js?v=57 triples js?v=15 * v76 - PERF: Home uses batched getHomeBundle (1 call vs 3) + fallback; home js?v=58 * v77 - Codex-QA fixes: signed-out gates (Clubhouse + Captain), no-param console hygiene (6 pages), match-hub shell hide; + perf-rollout (Profile/Triples/Clubhouse optimistic cache, Home snapshot)
+ * v78-81 - Live streaming: director console + self-hosted HLS + Watch Live banner + score overlay
+ * v82 - Fable burn batch: AUTO-SCORE LAB (CV dart detection: engine + lab page + stream-camera link),
+ *        match-hub vNext report depth (RULE 17 set cards + RULE 20 badges + Awards/Leaders),
+ *        contact-center dry-run/history/delivery/resend (js?v=2 css?v=1),
+ *        signed-out consistency (home js?v=60, dashboard-auth js?v=11),
+ *        iPhone scorer usability pass, submitGameResult participant auth (functions)
  */
 
-const CACHE_VERSION = 'brdc-v56';
+const CACHE_VERSION = 'brdc-v82';
 const CACHE_NAME = `brdc-cache-${CACHE_VERSION}`;
 
 // Critical pages - scorer pages prioritized for offline use

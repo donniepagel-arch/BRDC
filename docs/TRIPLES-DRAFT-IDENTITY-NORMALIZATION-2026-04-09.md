@@ -1,7 +1,7 @@
-# Triples Draft Identity Normalization
+# 2026 Triples League Identity Normalization
 
 Date: 2026-04-09
-League: `aOq4Y0ETxPZ66tM1uUtP` (`Triples Draft`)
+League: `aOq4Y0ETxPZ66tM1uUtP` (`2026 Triples League`)
 
 ## Goal
 
@@ -31,7 +31,7 @@ Those functions were deployed live to Firebase.
 
 ## Live Verification
 
-The live `recalculateLeagueStats` endpoint was invoked successfully for Triples Draft and returned:
+The live `recalculateLeagueStats` endpoint was invoked successfully for 2026 Triples League and returned:
 
 - `matches_processed: 48`
 - `games_processed: 414`
@@ -43,7 +43,7 @@ That confirms the live backend can now resolve imported player-name variants wit
 
 ## Important Result
 
-The throws-first rebuild now produces `42` canonical player stats docs for Triples Draft.
+The throws-first rebuild now produces `42` canonical player stats docs for 2026 Triples League.
 
 That is lower than the broader mixed-data repair set because four players appear in imported side/player summaries but **never appear in raw throws**:
 
@@ -70,7 +70,7 @@ That is the correct direction for the long-term model you described.
 
 ## Remaining Gap
 
-The remaining Triples Draft issue is now specifically:
+The remaining 2026 Triples League issue is now specifically:
 
 - some imported matches preserved roster/summary data for certain players
 - but did not preserve throw-level player identity for those players

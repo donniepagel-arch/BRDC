@@ -164,7 +164,7 @@ For 3 teams in a 4-team bracket:
 **Fix**: Changed to `Math.floor(i / 2)` to correctly map two WC R1 matches to each LC R1 match.
 
 ### Seeding Strategy
-- Random shuffle of teams for "Heartbreaker" format
+- Random shuffle of teams for the mixed doubles matchmaker format
 - Could be modified for skill-based seeding in other formats
 
 ### Match Advancement

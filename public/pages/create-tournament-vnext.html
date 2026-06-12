@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Tournament VNext - BRDC</title>
+    <link rel="icon" type="image/png" href="/images/favicon.png">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#fff8ed">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap">
+    <link rel="stylesheet" href="/css/brdc-styles.css">
+    <link rel="stylesheet" href="/css/brdc-navigation.css?v=15">
+    <link rel="stylesheet" href="/css/market-events-scorer-vnext.css?v=12">
+    <style>
+        /* ── Image preview (tournament + event) ── */
+        .ct-img-wrap { display: flex; flex-direction: column; gap: 6px; }
+        .ct-img-preview-box {
+            display: none;
+            position: relative;
+            width: 100%;
+            max-width: 320px;
+        }
+        .ct-img-preview-box.visible { display: inline-block; }
+        .ct-img-preview-box img {
+            display: block;
+            width: 100%;
+            max-height: 180px;
+            object-fit: cover;
+            border-radius: 6px;
+            border: 2px solid var(--ves-border, rgba(0,0,0,0.12));
+        }
+        .ct-img-remove {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            background: var(--ves-danger, #e53935);
+            color: #fff;
+            border: none;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            font-size: 14px;
+            line-height: 24px;
+            text-align: center;
+            cursor: pointer;
+            padding: 0;
+        }
+        .ct-img-error {
+            display: none;
+            color: var(--ves-danger, #e53935);
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .ct-img-error.visible { display: block; }
+
+        /* ── Custom X01 value input ── */
+        .ct-x01-value-wrap {
+            display: none;
+            align-items: center;
+            gap: 8px;
+            margin-top: 4px;
+        }
+        .ct-x01-value-wrap.visible { display: flex; }
+        .ct-x01-value-wrap label { font-size: 13px; margin: 0; white-space: nowrap; }
+        .ct-x01-value-wrap input { width: 90px; }
+
+        /* ── Default starter picker ── */
+        .ct-starter-wrap {
+            display: none;
+            gap: 8px;
+            align-items: center;
+            margin-top: 4px;
+        }
+        .ct-starter-wrap.visible { display: flex; }
+        .ct-starter-wrap label { font-size: 13px; margin: 0; white-space: nowrap; }
+
+        /* ── Draft / Template action bar ── */
+        .ct-save-bar {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-items: center;
+            padding: 10px 0 4px;
+        }
+        .ct-save-bar-label {
+            font-size: 12px;
+            color: var(--text-dim, #8a8aa3);
+            margin-right: 2px;
+            white-space: nowrap;
+        }
+        .ct-save-btn {
+            padding: 6px 14px;
+            border-radius: 7px;
+            border: 2px solid rgba(255,255,255,0.18);
+            background: rgba(255,255,255,0.06);
+            color: var(--text-primary, #f0f0f0);
+            font-family: 'Bebas Neue', cursive;
+            font-size: 14px;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background 0.15s, border-color 0.15s;
+        }
+        .ct-save-btn:hover { background: rgba(255,255,255,0.13); border-color: rgba(255,255,255,0.35); }
+        .ct-save-btn.accent { border-color: var(--teal, #91D7EB); color: var(--teal, #91D7EB); }
+        .ct-save-btn.accent:hover { background: rgba(145,215,235,0.12); }
+
+        /* ── Load modal ── */
+        .ct-load-modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.65);
+            z-index: 2000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+        .ct-load-modal {
+            background: var(--bg-panel, #1a1f2e);
+            border: 2px solid rgba(255,255,255,0.18);
+            border-radius: 12px;
+            width: 100%;
+            max-width: 480px;
+            max-height: 70vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .ct-load-modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 18px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .ct-load-modal-header strong { font-size: 15px; }
+        .ct-load-close {
+            background: none;
+            border: none;
+            color: var(--text-dim, #8a8aa3);
+            font-size: 22px;
+            cursor: pointer;
+            line-height: 1;
+            padding: 0 2px;
+        }
+        .ct-load-close:hover { color: var(--text-primary, #f0f0f0); }
+        .ct-load-empty {
+            padding: 24px 18px;
+            text-align: center;
+            color: var(--text-dim, #8a8aa3);
+            font-size: 13px;
+        }
+        .ct-load-list {
+            list-style: none;
+            margin: 0;
+            padding: 8px 0;
+            overflow-y: auto;
+        }
+        .ct-load-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 18px;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+        .ct-load-item:last-child { border-bottom: none; }
+        .ct-load-badge {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 11px;
+            padding: 2px 7px;
+            border-radius: 4px;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .ct-load-badge.draft { background: rgba(251,191,36,0.18); color: #fbbf24; border: 1px solid #fbbf24; }
+        .ct-load-badge.template { background: rgba(145,215,235,0.15); color: var(--teal, #91D7EB); border: 1px solid var(--teal, #91D7EB); }
+        .ct-load-name {
+            flex: 1;
+            font-size: 13px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .ct-load-btn {
+            padding: 5px 12px;
+            border-radius: 6px;
+            border: 1px solid rgba(255,255,255,0.2);
+            background: rgba(255,255,255,0.08);
+            color: var(--text-primary, #f0f0f0);
+            font-size: 12px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .ct-load-btn:hover { background: var(--teal, #91D7EB); color: #000; border-color: var(--teal, #91D7EB); }
+    </style>
+</head>
+<body class="vnext-light-page create-tournament-vnext-page create-event-workflow-page has-mobile-nav">
+    <main class="ves-shell">
+        <section class="ves-page-header">
+            <div>
+                <p class="ves-kicker" id="createStatus">Tournament builder</p>
+                <h1>Create Event</h1>
+                <p>Set the event basics first. Registration, check-in, draw, boards, and match calls are managed from runtime.</p>
+            </div>
+            <div class="ves-hero-actions">
+                <a class="ves-action" href="/pages/events-vnext.html">Events</a>
+                <a class="ves-action" href="/pages/director-home-vnext.html">Admin portal</a>
+            </div>
+        </section>
+
+        <form id="createTournamentForm" class="ves-builder wide">
+            <section class="ves-panel">
+                <div class="ves-section-heading">
+                    <h2><span>Step 1</span> Event basics</h2>
+                </div>
+                <div class="ves-config-grid">
+                    <label>Start from<select id="tournamentPreset" name="preset"><option value="">Blank event</option><option value="blind_draw">Blind draw night</option><option value="weekly_series">Weekly series</option><option value="mixed_doubles_matchmaker">Mixed doubles matchmaker</option></select></label>
+                    <label>Name<input name="tournament_name" required placeholder="Friday Online 501"></label>
+                    <label>Date<input name="tournament_date" type="date" required onclick="try{this.showPicker()}catch(e){}"></label>
+                    <label>Time<input name="tournament_time" type="time" onclick="try{this.showPicker()}catch(e){}"></label>
+                    <label>Max players<input name="max_players" type="number" min="2" max="256" value="16"></label>
+                    <label>Series<select name="series_mode" id="seriesMode"><option value="single" selected>Single event</option><option value="series">Recurring series</option></select></label>
+                    <label>Registration closes<input name="registration_close_time" type="time" onclick="try{this.showPicker()}catch(e){}"></label>
+                </div>
+                <label class="ves-textarea-label">Details<textarea name="tournament_details" rows="3" placeholder="Format notes, payout, check-in details."></textarea></label>
+            </section>
+
+            <details class="ves-panel ves-details-panel">
+                <summary>
+                    <span>
+                        <small>Branding</small>
+                        <strong>Image / media</strong>
+                    </span>
+                    <b>Optional</b>
+                </summary>
+                <div class="ves-config-grid">
+                    <label class="ct-img-wrap">Tournament image
+                        <input name="tournament_image" id="ct-tournament-image" type="file" accept="image/*">
+                        <span class="ct-img-error" id="ct-tournament-image-err">Image must be under 5 MB.</span>
+                        <span class="ct-img-preview-box" id="ct-tournament-image-preview">
+                            <img src="" alt="Tournament image preview">
+                            <button type="button" class="ct-img-remove" aria-label="Remove image" data-remove-for="ct-tournament-image">&times;</button>
+                        </span>
+                    </label>
+                </div>
+            </details>
+
+            <details class="ves-panel ves-details-panel" id="registrationVotingPanel">
+                <summary>
+                    <span>
+                        <small>Registration</small>
+                        <strong>Player voting</strong>
+                    </span>
+                    <b>Optional</b>
+                </summary>
+                <div class="ves-runtime-options compact">
+                    <label><input type="checkbox" name="registration_voting_enabled"> Let players vote during registration</label>
+                    <label><input type="checkbox" name="registration_vote_required" checked> Require a vote before registering</label>
+                </div>
+                <div class="ves-config-grid">
+                    <label>Question<input name="registration_vote_question" value="What should we play this week?"></label>
+                    <label>Default winner<input name="registration_vote_selected_label" placeholder="Leave blank until director locks it"></label>
+                </div>
+                <label class="ves-textarea-label">Voting options<textarea name="registration_vote_options" rows="5">Blind draw doubles
+Mixed doubles matchmaker
+501/C/CH
+Cricket luck draw
+Mystery format</textarea></label>
+                <p class="ves-section-note">Votes collect with registrations. Runtime shows totals, but the director still locks the final format manually.</p>
+            </details>
+
+            <details class="ves-panel ves-details-panel">
+                <summary>
+                    <span>
+                        <small>Where</small>
+                        <strong>Location mode</strong>
+                    </span>
+                    <b>Advanced</b>
+                </summary>
+                <div class="ves-choice-grid" id="locationChoices">
+                    <button class="active" type="button" data-location="online">Online / virtual</button>
+                    <button type="button" data-location="flexible">In-person flex</button>
+                    <button type="button" data-location="specific">Specific location</button>
+                </div>
+                <input type="hidden" name="location_mode" id="locationMode" value="online">
+                <div class="ves-config-grid">
+                    <label>Location label<input name="venue_name" id="venueName" value="Online"></label>
+                    <label id="venueAddressWrap">Address<input name="venue_address" id="venueAddress" placeholder="Street, city, state"></label>
+                </div>
+            </details>
+
+            <details class="ves-panel ves-details-panel" id="matchmakerSettings" hidden>
+                <summary>
+                    <span>
+                        <small>Matchmaker</small>
+                        <strong>Social format</strong>
+                    </span>
+                    <b>Cupid shuffle</b>
+                </summary>
+                <div class="ves-config-grid">
+                    <label><input type="checkbox" name="partner_matching" checked> Partner matching</label>
+                    <label><input type="checkbox" name="breakup_enabled" checked> Breakup / rematch flow</label>
+                    <label><input type="checkbox" name="savage_summaries_enabled" checked> Savage summaries</label>
+                    <label>Nudge limit<input name="nudge_limit" type="number" min="0" max="20" value="3"></label>
+                    <label>Winners game<select name="winners_game_type"><option value="cricket" selected>Cricket</option><option value="501">501</option><option value="corks_choice">Cork's choice</option></select></label>
+                    <label>Winners best of<input name="winners_best_of" type="number" min="1" step="2" value="3"></label>
+                    <label>Losers game<select name="losers_game_type"><option value="501" selected>501</option><option value="cricket">Cricket</option><option value="corks_choice">Cork's choice</option></select></label>
+                    <label>Losers best of<input name="losers_best_of" type="number" min="1" step="2" value="1"></label>
+                    <label>Mingle cutoff<select name="mingle_cutoff"><option value="wc_r2_last_start" selected>Until winners round 2 final match starts</option><option value="winners_round_2_start">When winners round 2 starts</option><option value="quarterfinals">Quarterfinals</option></select></label>
+                </div>
+            </details>
+
+            <section class="ves-panel">
+                <div class="ves-section-heading">
+                    <h2><span>Step 2</span> Draw / Boards</h2>
+                </div>
+                <div class="ves-config-grid">
+                    <label>Boards available<input name="boards_available" type="number" min="0" max="64" value="8"></label>
+                    <label>Unavailable boards<input name="unavailable_boards" placeholder="Example: 2, 5"></label>
+                    <label>Draw type<select name="draw_type">
+                        <option value="blind_draw_doubles" selected>Blind draw doubles</option>
+                        <option value="manual_teams">Manual teams</option>
+                        <option value="singles">Singles</option>
+                    </select></label>
+                    <label>Draw pool<select name="draw_pool">
+                        <option value="all_registered">All registered</option>
+                        <option value="checked_in_only" selected>Checked-in only</option>
+                    </select></label>
+                </div>
+                <div class="ves-runtime-options compact">
+                    <label><input type="checkbox" name="allow_house_player" checked> Allow house player when odd</label>
+                    <label><input type="checkbox" name="auto_generate_runtime" checked> Use runtime to generate bracket</label>
+                </div>
+            </section>
+
+            <div id="eventEditors" class="ves-event-editors">
+            <details class="ves-panel ves-details-panel ves-event-editor" data-event-index="1">
+                <summary>
+                    <span>
+                        <small>Event 1</small>
+                        <strong>Format settings</strong>
+                    </span>
+                    <b>Mixed, best of 3</b>
+                </summary>
+                <div class="ves-config-grid">
+                    <label>Event name<input name="event_name" required value="Singles 501"></label>
+                    <label>Entry type<select name="entry_type"><option value="individual">Singles</option><option value="doubles">Doubles</option><option value="triples">Triples (3v3)</option><option value="mixed_doubles">Mixed doubles</option><option value="blind_draw">Blind Draw</option><option value="team">Team</option></select></label>
+                    <label>Bracket<select name="format"><option value="single_elimination">Single elimination</option><option value="double_elimination">Double elimination</option><option value="round_robin">Round robin</option><option value="swiss">Swiss</option></select></label>
+                    <label>Game<select name="game"><option value="501">501</option><option value="301">301</option><option value="701">701</option><option value="x01">All X01 (custom)</option><option value="cricket">Cricket</option><option value="corks_choice">Cork's choice</option><option value="mixed">501/C/CH</option><option value="custom">Custom set</option></select></label>
+                    <div class="ct-x01-value-wrap" id="ct-x01-wrap-static">
+                        <label for="ct-x01-val-static">Starting score</label>
+                        <input type="number" id="ct-x01-val-static" name="x01_value" min="2" step="1" value="501">
+                    </div>
+                    <label>Total legs<input name="best_of" type="number" min="1" step="2" value="3"></label>
+                    <label>Leg mode<select name="leg_mode"><option value="best-of" selected>Best of</option><option value="play-all">Play all</option></select></label>
+                    <label>Sets<input name="num_sets" type="number" min="1" value="1"></label>
+                    <label>Set mode<select name="set_mode"><option value="best-of" selected>Best of</option><option value="play-all">Play all</option></select></label>
+                    <label>In rule<select name="in_option"><option value="straight">Free in</option><option value="double">Double in</option><option value="master">Master in (D/T)</option></select></label>
+                    <label>Out rule<select name="out_option"><option value="double">Double out</option><option value="straight">Single out</option><option value="master">Master out (D/T)</option></select></label>
+                    <label>Start rule<select name="start_rule" id="ct-start-rule-static">
+                        <option value="cork_every_leg">Cork every leg — flip/cork decides</option>
+                        <option value="alternate_cork_first_deciding">Alternate; cork first &amp; deciding leg</option>
+                        <option value="loser_starts_cork_first_deciding">Loser starts; cork first &amp; deciding</option>
+                        <option value="winner_starts_cork_first_deciding">Winner starts; cork first &amp; deciding</option>
+                        <option value="home_starts_no_cork">Home / higher seed starts (fixed)</option>
+                        <option value="league_rule">League-dependent (defer to league rule)</option>
+                        <option value="choose_no_cork">Select starter, no cork</option>
+                    </select></label>
+                    <div class="ct-starter-wrap" id="ct-starter-wrap-static">
+                        <label for="ct-default-starter-static">Who starts</label>
+                        <select name="default_starter" id="ct-default-starter-static">
+                            <option value="home">Home / Higher seed</option>
+                            <option value="away">Away / Lower seed</option>
+                        </select>
+                    </div>
+                    <label>Cork option<select name="cork_option"><option value="alternate_random_first_last">Alternate, random first/deciding</option><option value="winner_chooses">Cork winner chooses</option><option value="loser_chooses">Cork loser chooses</option><option value="home_team_option">Higher seed/home option</option><option value="away_team_option">Lower seed/away option</option></select></label>
+                    <label>Cork order<select name="cork_order"><option value="alternate-random">Alternate, random first/deciding</option><option value="random-every">Random every leg</option><option value="loser-random">Loser first, random first/deciding</option><option value="winner-random">Winner first, random first/deciding</option></select></label>
+                    <label>Choice winner gets<select name="cork_winner_gets"><option value="choose-and-start">Choose game and start</option><option value="choose-only">Choose game only</option><option value="choose-or-start">Choose game or start</option></select></label>
+                    <label>Entry fee<input name="entry_fee" type="number" min="0" step="0.01" value="0"></label>
+                    <label>Event start<input name="event_start_time" type="time" onclick="try{this.showPicker()}catch(e){}"></label>
+                    <label class="ct-img-wrap">Event image
+                        <input name="event_image" class="ct-event-image-input" type="file" accept="image/*">
+                        <span class="ct-img-error ct-event-image-err">Image must be under 5 MB.</span>
+                        <span class="ct-img-preview-box ct-event-image-preview">
+                            <img src="" alt="Event image preview">
+                            <button type="button" class="ct-img-remove" aria-label="Remove image">&times;</button>
+                        </span>
+                    </label>
+                </div>
+                <div class="ves-mixed-config" id="tournamentMixedConfig" data-mixed-config>
+                    <p class="ves-kicker">Mixed legs</p>
+                    <p class="ves-section-note">CH means cork winner chooses from the games already played earlier in this set.</p>
+                    <div data-mixed-rows></div>
+                </div>
+                <div class="ves-playoff-config">
+                    <p class="ves-kicker">Late-round overrides</p>
+                    <div class="ves-config-grid">
+                        <label><input type="checkbox" name="enable_playoff_settings"> Use semi/final format overrides</label>
+                        <label>Semis format<select name="semis_format"><option value="legs" selected>Best of legs</option><option value="sets">Best of sets</option></select></label>
+                        <label>Semis legs<input name="semis_num_legs" type="number" min="1" step="2" value="3"></label>
+                        <label>Semis sets<input name="semis_num_sets" type="number" min="1" step="2" value="3"></label>
+                        <label>Finals format<select name="finals_format"><option value="legs" selected>Best of legs</option><option value="sets">Best of sets</option></select></label>
+                        <label>Finals legs<input name="finals_num_legs" type="number" min="1" step="2" value="5"></label>
+                        <label>Finals sets<input name="finals_num_sets" type="number" min="1" step="2" value="5"></label>
+                    </div>
+                </div>
+                <label class="ves-textarea-label">Event details<textarea name="event_details" rows="3" placeholder="Special rules, payout notes, or callout copy."></textarea></label>
+            </details>
+            </div>
+
+            <button class="ves-action ves-add-event" type="button" id="addEventBtn">Add another event</button>
+
+            <details class="ves-panel ves-details-panel">
+                <summary>
+                    <span>
+                        <small>Runtime</small>
+                        <strong>Player tools</strong>
+                    </span>
+                    <b>Defaults on</b>
+                </summary>
+                <div class="ves-runtime-options">
+                    <label><input type="checkbox" name="enable_tournament_chat" checked> Tournament chat</label>
+                    <label><input type="checkbox" name="auto_create_match_rooms" checked> Auto-create match rooms</label>
+                    <label><input type="checkbox" name="require_check_in" checked> Player check-in</label>
+                    <label><input type="checkbox" name="allow_player_self_report" checked> Player self-report</label>
+                    <label><input type="checkbox" name="enable_player_challenges" checked> Player challenges</label>
+                    <label><input type="checkbox" name="enable_runtime_notifications" checked> Runtime notifications</label>
+                    <label><input type="checkbox" name="enable_video_streaming"> Video placeholders</label>
+                    <label><input type="checkbox" name="enable_score_assist"> Score assist placeholders</label>
+                </div>
+            </details>
+
+            <div class="ct-save-bar">
+                <span class="ct-save-bar-label">Drafts &amp; templates:</span>
+                <button class="ct-save-btn" type="button" id="ct-save-draft-btn">Save draft</button>
+                <button class="ct-save-btn accent" type="button" id="ct-save-template-btn">Save as template</button>
+                <button class="ct-save-btn" type="button" id="ct-load-btn">Load saved&hellip;</button>
+            </div>
+            <button class="ves-launch" type="submit" id="createTournamentBtn">Create event</button>
+            <div class="ves-empty" id="createResult" hidden></div>
+        </form>
+    </main>
+
+    <script src="/js/brdc-toast.js"></script>
+    <script src="/components/brdc-navigation-init.js?v=18"></script>
+    <script type="module" src="/js/create-tournament-vnext.js?v=8"></script>
+    <script>
+        initBRDCNavigation({ page: 'events', pageTitle: 'Create Tournament', showBreadcrumbs: false, showBackButton: true });
+    </script>
+</body>
+</html>

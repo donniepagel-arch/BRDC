@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>BRDC Auto-Score Lab</title>
+    <link rel="icon" type="image/png" href="/images/favicon.png">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap">
+    <style>
+        /* Camera tool — dark theme by design (scorer family: dark + bright contrast) */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #0f172b;
+            color: #fffaf2;
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            padding: 14px 14px 40px;
+        }
+        .lab-shell { max-width: 760px; margin: 0 auto; }
+        .lab-kicker {
+            font-size: 12px; font-weight: 800; letter-spacing: 2.5px;
+            color: #FF469A; text-transform: uppercase;
+        }
+        h1 {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: clamp(40px, 10vw, 64px);
+            line-height: 0.95; letter-spacing: 1px; margin: 2px 0 4px;
+        }
+        .lab-sub { color: #93a0bd; font-size: 13px; margin-bottom: 14px; }
+
+        .mode-tabs { display: flex; gap: 8px; margin-bottom: 14px; }
+        .mode-tab {
+            flex: 1; padding: 12px 8px; border-radius: 12px; border: 1px solid #2c3a5c;
+            background: #1a2440; color: #93a0bd; font-weight: 700; font-size: 13px;
+            letter-spacing: 1px; cursor: pointer; text-transform: uppercase;
+        }
+        .mode-tab.active { background: #FF469A; border-color: #FF469A; color: #fff; }
+
+        .panel {
+            background: #16203a; border: 1px solid #2c3a5c; border-radius: 16px;
+            padding: 14px; margin-bottom: 14px;
+        }
+        .panel-title {
+            font-size: 11px; font-weight: 800; letter-spacing: 2px; color: #FF469A;
+            text-transform: uppercase; padding-bottom: 8px; margin-bottom: 10px;
+            border-bottom: 1px solid #2c3a5c;
+        }
+
+        .stage-wrap { position: relative; border-radius: 12px; overflow: hidden; background: #000; }
+        #stage { width: 100%; display: block; touch-action: manipulation; }
+        video { display: none; }
+
+        .btn-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+        .lab-btn {
+            padding: 12px 16px; border-radius: 12px; border: none; cursor: pointer;
+            font-weight: 800; font-size: 13px; letter-spacing: 1px; text-transform: uppercase;
+            background: #2c3a5c; color: #fffaf2;
+        }
+        .lab-btn.primary { background: linear-gradient(180deg, #FF469A, #d63384); color: #fff; }
+        .lab-btn.gold { background: #FFC928; color: #1a2440; }
+        .lab-btn:disabled { opacity: 0.4; cursor: default; }
+
+        .guide {
+            background: #1a2440; border: 1px dashed #FF469A; color: #fffaf2;
+            border-radius: 12px; padding: 10px 12px; font-size: 14px; margin-top: 10px;
+        }
+        .guide b { color: #FFC928; }
+
+        .turn-board {
+            display: flex; align-items: center; gap: 14px; margin-top: 4px;
+        }
+        .turn-total {
+            font-family: 'Bebas Neue', sans-serif; font-size: 64px; color: #FFC928;
+            line-height: 1; min-width: 90px;
+        }
+        .dart-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+        .dart-chip {
+            background: #1a2440; border: 1px solid #2c3a5c; border-radius: 10px;
+            padding: 8px 12px; font-family: 'JetBrains Mono', monospace; font-weight: 700;
+            font-size: 18px; color: #fffaf2;
+        }
+        .dart-chip .conf { display: block; font-size: 10px; color: #93a0bd; font-weight: 500; }
+        .dart-chip.flash { animation: chipflash 0.8s ease-out; }
+        @keyframes chipflash { 0% { background: #FF469A; transform: scale(1.15); } 100% { background: #1a2440; transform: scale(1); } }
+
+        .log {
+            font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #93a0bd;
+            max-height: 180px; overflow-y: auto; line-height: 1.7;
+        }
+        .log .hit { color: #FFC928; }
+        .log .info { color: #91D7EB; }
+        .log .err { color: #ff6b6b; }
+
+        .status-pill {
+            display: inline-block; padding: 4px 12px; border-radius: 999px;
+            font-size: 11px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase;
+            background: #2c3a5c; color: #93a0bd;
+        }
+        .status-pill.ready { background: #133b2a; color: #38e08f; }
+        .status-pill.motion { background: #4a1d34; color: #FF469A; }
+
+        .test-list { font-size: 13px; line-height: 1.9; font-family: 'JetBrains Mono', monospace; }
+        .test-list .ok { color: #38e08f; }
+        .test-list .bad { color: #ff6b6b; }
+        .hidden { display: none !important; }
+        .hint { color: #93a0bd; font-size: 12px; margin-top: 8px; }
+        a.back { color: #91D7EB; font-size: 13px; text-decoration: none; }
+    </style>
+</head>
+<body>
+<div class="lab-shell">
+    <p class="lab-kicker">BRDC Streaming · Beta</p>
+    <h1>Auto-Score Lab</h1>
+    <p class="lab-sub">Point the board cam, calibrate with 4 taps, and let the camera score the darts. <a class="back" href="/pages/stream-camera.html">← camera rig</a></p>
+
+    <div class="mode-tabs">
+        <button class="mode-tab active" data-mode="camera">📷 Camera</button>
+        <button class="mode-tab" data-mode="photo">🖼️ Photo</button>
+        <button class="mode-tab" data-mode="selftest">🧪 Self-test</button>
+    </div>
+
+    <!-- ── CAMERA + PHOTO share the stage ── -->
+    <div class="panel" id="stagePanel">
+        <div class="panel-title" id="stageTitle">Camera</div>
+        <div class="stage-wrap">
+            <canvas id="stage" width="1280" height="720"></canvas>
+        </div>
+        <div class="guide hidden" id="guideBox"></div>
+        <div class="btn-row" id="cameraBtns">
+            <button class="lab-btn primary" id="btnStartCam">Start camera</button>
+            <button class="lab-btn" id="btnCalibrate" disabled>Calibrate (4 taps)</button>
+            <button class="lab-btn gold hidden" id="btnDetect">Start detecting</button>
+            <button class="lab-btn hidden" id="btnNewTurn">New turn</button>
+        </div>
+        <div class="btn-row hidden" id="photoBtns">
+            <label class="lab-btn primary" for="photoInput">Load photo</label>
+            <input type="file" id="photoInput" accept="image/*" style="display:none">
+            <button class="lab-btn" id="btnPhotoCal" disabled>Calibrate (4 taps)</button>
+        </div>
+        <p class="hint" id="stageHint">Camera mode: live detection. Photo mode: load a picture of your board with darts, calibrate, then tap each dart tip to see the computed score.</p>
+    </div>
+
+    <!-- ── TURN ── -->
+    <div class="panel" id="turnPanel">
+        <div class="panel-title">This turn <span class="status-pill" id="detState" style="float:right">idle</span></div>
+        <div class="turn-board">
+            <div class="turn-total" id="turnTotal">0</div>
+            <div class="dart-chips" id="dartChips"></div>
+        </div>
+        <div class="btn-row">
+            <button class="lab-btn primary hidden" id="btnSendCandidate">Send to scorer</button>
+        </div>
+        <div class="btn-row" id="sessionLinkRow">
+            <input id="sessionCodeInput" placeholder="Scorer code" maxlength="10" style="flex:1; min-width:120px; padding:12px; border-radius:12px; border:1px solid #2c3a5c; background:#1a2440; color:#FFC928; font-family:'JetBrains Mono',monospace; font-size:16px; letter-spacing:2px; text-transform:uppercase;">
+            <button class="lab-btn" id="btnLinkSession">Link scorer</button>
+        </div>
+        <p class="hint">Enter the board-phone code shown on the scorer to send detected turns as score candidates (scorer confirms before applying).</p>
+    </div>
+
+    <!-- ── LOG ── -->
+    <div class="panel">
+        <div class="panel-title">Log</div>
+        <div class="log" id="log"></div>
+    </div>
+
+    <!-- ── SELF TEST ── -->
+    <div class="panel hidden" id="testPanel">
+        <div class="panel-title">Engine self-test (this browser)</div>
+        <div class="test-list" id="testList">Press run.</div>
+        <div class="btn-row"><button class="lab-btn primary" id="btnRunTests">Run self-test</button></div>
+    </div>
+
+    <video id="cam" playsinline muted></video>
+</div>
+
+<script type="module">
+import {
+    CAL_TARGETS, BOARD_RADII, SEGMENT_ORDER,
+    calibrate, applyHomography, scoreFromImagePoint, scoreFromBoardPoint,
+    computeHomography, toGray, diffMask, denoiseMask, findBlobs, findDartTip, createDetector
+} from '/js/autoscore-engine.js?v=4';
+
+const $ = (id) => document.getElementById(id);
+const stage = $('stage'), ctx = stage.getContext('2d');
+const video = $('cam');
+const logEl = $('log');
+
+const params = new URLSearchParams(location.search);
+let sessionCode = (params.get('session') || '').toUpperCase();
+
+let mode = 'camera';
+let cal = null;                 // { H, inverse }
+let calPoints = [];             // image-space taps
+let calibrating = false;
+let detecting = false;
+let detector = null;
+let photoImg = null;
+let camRunning = false;
+let turn = { darts: [], total: 0 };
+const CAL_KEY = 'brdc:autoscore:cal:v1';
+
+function log(msg, cls = '') {
+    const d = document.createElement('div');
+    if (cls) d.className = cls;
+    d.textContent = `${new Date().toLocaleTimeString()} ${msg}`;
+    logEl.prepend(d);
+    while (logEl.children.length > 80) logEl.lastChild.remove();
+}
+
+// ── Mode switching ──────────────────────────────────────────────────────────
+document.querySelectorAll('.mode-tab').forEach(btn => btn.addEventListener('click', () => {
+    document.querySelectorAll('.mode-tab').forEach(b => b.classList.toggle('active', b === btn));
+    mode = btn.dataset.mode;
+    $('stagePanel').classList.toggle('hidden', mode === 'selftest');
+    $('turnPanel').classList.toggle('hidden', mode === 'selftest');
+    $('testPanel').classList.toggle('hidden', mode !== 'selftest');
+    $('cameraBtns').classList.toggle('hidden', mode !== 'camera');
+    $('photoBtns').classList.toggle('hidden', mode !== 'photo');
+    $('stageTitle').textContent = mode === 'camera' ? 'Camera' : 'Photo';
+    stopCalibration();
+    if (mode === 'photo' && photoImg) drawPhoto();
+}));
+
+// ── Camera ──────────────────────────────────────────────────────────────────
+$('btnStartCam').addEventListener('click', async () => {
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+            audio: false
+        });
+        video.srcObject = stream;
+        await video.play();
+        stage.width = video.videoWidth || 1280;
+        stage.height = video.videoHeight || 720;
+        camRunning = true;
+        $('btnCalibrate').disabled = false;
+        log(`camera ${stage.width}x${stage.height}`, 'info');
+        const saved = loadCal();
+        if (saved) {
+            cal = saved.cal; calPoints = saved.points;
+            log('restored saved calibration — recalibrate if the camera moved', 'info');
+            $('btnDetect').classList.remove('hidden');
+        }
+        requestAnimationFrame(renderLoop);
+    } catch (e) {
+        log('camera failed: ' + e.message, 'err');
+    }
+});
+
+function renderLoop() {
+    if (!camRunning) return;
+    if (mode === 'camera') {
+        ctx.drawImage(video, 0, 0, stage.width, stage.height);
+        drawOverlay();
+    }
+    requestAnimationFrame(renderLoop);
+}
+
+// ── Photo mode ──────────────────────────────────────────────────────────────
+$('photoInput').addEventListener('change', (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    const img = new Image();
+    img.onload = () => {
+        photoImg = img;
+        stage.width = img.naturalWidth; stage.height = img.naturalHeight;
+        cal = null; calPoints = [];
+        drawPhoto();
+        $('btnPhotoCal').disabled = false;
+        log(`photo loaded ${img.naturalWidth}x${img.naturalHeight}`, 'info');
+    };
+    img.src = URL.createObjectURL(f);
+});
+function drawPhoto() {
+    if (!photoImg) return;
+    ctx.drawImage(photoImg, 0, 0, stage.width, stage.height);
+    drawOverlay();
+}
+
+// ── Calibration (shared) ────────────────────────────────────────────────────
+function startCalibration() {
+    calibrating = true; calPoints = []; cal = null;
+    $('guideBox').classList.remove('hidden');
+    updateGuide();
+}
+function stopCalibration() {
+    calibrating = false;
+    $('guideBox').classList.add('hidden');
+}
+function updateGuide() {
+    const t = CAL_TARGETS[calPoints.length];
+    $('guideBox').innerHTML = t
+        ? `Tap <b>${t.label}</b> &nbsp;(${calPoints.length + 1}/4)`
+        : 'Done';
+}
+$('btnCalibrate').addEventListener('click', startCalibration);
+$('btnPhotoCal').addEventListener('click', startCalibration);
+
+stage.addEventListener('click', (e) => {
+    const r = stage.getBoundingClientRect();
+    const pt = {
+        x: (e.clientX - r.left) * (stage.width / r.width),
+        y: (e.clientY - r.top) * (stage.height / r.height)
+    };
+    if (calibrating) {
+        calPoints.push(pt);
+        log(`cal point ${calPoints.length}: ${pt.x | 0},${pt.y | 0}`);
+        if (calPoints.length === 4) {
+            try {
+                cal = calibrate(calPoints);
+                stopCalibration();
+                saveCal();
+                log('CALIBRATED ✔ — overlay should hug the board rings', 'hit');
+                if (mode === 'camera') $('btnDetect').classList.remove('hidden');
+            } catch (err) {
+                log('calibration failed: ' + err.message, 'err');
+                calPoints = [];
+            }
+        }
+        updateGuide();
+        if (mode === 'photo') drawPhoto();
+        return;
+    }
+    // Photo mode after calibration: tap = score that point
+    if (mode === 'photo' && cal) {
+        const res = scoreFromImagePoint(cal.H, pt);
+        log(`tap → ${res.label} (${res.score}) @ ${res.boardX.toFixed(0)},${res.boardY.toFixed(0)}mm`, 'hit');
+        addDartToTurn(res, 1, pt);
+        drawPhoto();
+    }
+});
+
+function saveCal() {
+    try { localStorage.setItem(CAL_KEY, JSON.stringify({ points: calPoints, w: stage.width, h: stage.height })); } catch {}
+}
+function loadCal() {
+    try {
+        const raw = JSON.parse(localStorage.getItem(CAL_KEY) || 'null');
+        if (!raw || raw.w !== stage.width || raw.h !== stage.height) return null;
+        return { cal: calibrate(raw.points), points: raw.points };
+    } catch { return null; }
+}
+
+// ── Overlay drawing ─────────────────────────────────────────────────────────
+function drawOverlay() {
+    // taps
+    for (let i = 0; i < calPoints.length; i++) {
+        const p = calPoints[i];
+        ctx.beginPath(); ctx.arc(p.x, p.y, 7, 0, 7);
+        ctx.fillStyle = '#FF469A'; ctx.fill();
+        ctx.fillStyle = '#fff'; ctx.font = 'bold 13px Inter';
+        ctx.fillText(String(i + 1), p.x - 4, p.y + 5);
+    }
+    if (!cal) return;
+    // rings via inverse homography
+    ctx.lineWidth = 1.5;
+    const rings = [BOARD_RADII.doubleOuter, BOARD_RADII.doubleInner, BOARD_RADII.tripleOuter, BOARD_RADII.tripleInner, BOARD_RADII.singleBull];
+    for (const r of rings) {
+        ctx.beginPath();
+        for (let a = 0; a <= 360; a += 6) {
+            const rad = a * Math.PI / 180;
+            const p = applyHomography(cal.inverse, { x: r * Math.sin(rad), y: -r * Math.cos(rad) });
+            a === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y);
+        }
+        ctx.strokeStyle = 'rgba(145,215,235,0.75)'; ctx.stroke();
+    }
+    // wedge lines
+    for (let i = 0; i < 20; i++) {
+        const rad = (i * 18 + 9) * Math.PI / 180;
+        const a = applyHomography(cal.inverse, { x: BOARD_RADII.singleBull * Math.sin(rad), y: -BOARD_RADII.singleBull * Math.cos(rad) });
+        const b = applyHomography(cal.inverse, { x: BOARD_RADII.doubleOuter * Math.sin(rad), y: -BOARD_RADII.doubleOuter * Math.cos(rad) });
+        ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
+        ctx.strokeStyle = 'rgba(145,215,235,0.35)'; ctx.stroke();
+    }
+    // detected darts this turn
+    for (const d of turn.darts) {
+        if (!d.imagePt) continue;
+        ctx.beginPath(); ctx.arc(d.imagePt.x, d.imagePt.y, 9, 0, 7);
+        ctx.strokeStyle = '#FFC928'; ctx.lineWidth = 3; ctx.stroke();
+        ctx.fillStyle = '#FFC928'; ctx.font = 'bold 16px Inter';
+        ctx.fillText(d.res.label, d.imagePt.x + 12, d.imagePt.y - 8);
+    }
+}
+
+// ── Detection loop ──────────────────────────────────────────────────────────
+const PROC_W = 320;
+const procCanvas = document.createElement('canvas');
+const procCtx = procCanvas.getContext('2d', { willReadFrequently: true });
+let detectTimer = null;
+
+$('btnDetect').addEventListener('click', () => {
+    if (!cal) { log('calibrate first', 'err'); return; }
+    detecting = !detecting;
+    $('btnDetect').textContent = detecting ? 'Stop detecting' : 'Start detecting';
+    $('btnNewTurn').classList.toggle('hidden', !detecting);
+    if (detecting) {
+        const scale = PROC_W / stage.width;
+        procCanvas.width = PROC_W;
+        procCanvas.height = Math.round(stage.height * scale);
+        detector = createDetector({ w: procCanvas.width, h: procCanvas.height });
+        newTurn();
+        detectTimer = setInterval(detectFrame, 130);
+        log('detector armed — keep camera still', 'info');
+    } else {
+        clearInterval(detectTimer);
+        setState('idle');
+    }
+});
+
+function detectFrame() {
+    if (!detecting || !camRunning) return;
+    procCtx.drawImage(video, 0, 0, procCanvas.width, procCanvas.height);
+    const frame = procCtx.getImageData(0, 0, procCanvas.width, procCanvas.height);
+    const gray = toGray(frame.data, procCanvas.width, procCanvas.height);
+    const events = detector.push(gray);
+    setState(detector.state === 'MOTION' ? 'motion' : 'ready');
+    for (const ev of events) {
+        if (ev.type === 'dart') {
+            const scaleUp = stage.width / procCanvas.width;
+            const imagePt = { x: ev.tip.x * scaleUp, y: ev.tip.y * scaleUp };
+            const res = scoreFromImagePoint(cal.H, imagePt);
+            addDartToTurn(res, ev.tip.confidence, imagePt);
+            log(`DART ${ev.dartNumber}: ${res.label} = ${res.score} (conf ${(ev.tip.confidence * 100) | 0}%)`, 'hit');
+        } else if (ev.type === 'turn-reset') {
+            log('darts pulled — new turn', 'info');
+            newTurn();
+        } else if (ev.type === 'rebaseline') {
+            log('view changed (exposure shift / camera bump) — re-anchored, turn cleared', 'info');
+            newTurn();
+        }
+    }
+}
+
+function setState(s) {
+    const el = $('detState');
+    el.textContent = s;
+    el.className = 'status-pill' + (s === 'ready' ? ' ready' : s === 'motion' ? ' motion' : '');
+}
+
+// ── Turn state ──────────────────────────────────────────────────────────────
+function newTurn() {
+    turn = { darts: [], total: 0 };
+    renderTurn();
+}
+$('btnNewTurn').addEventListener('click', () => { detector?.forceNewTurn(); newTurn(); });
+
+function addDartToTurn(res, confidence, imagePt) {
+    if (turn.darts.length >= 3) newTurn();
+    turn.darts.push({ res, confidence, imagePt });
+    turn.total = turn.darts.reduce((s, d) => s + d.res.score, 0);
+    renderTurn();
+}
+function renderTurn() {
+    $('turnTotal').textContent = turn.total;
+    const wrap = $('dartChips');
+    wrap.innerHTML = '';
+    turn.darts.forEach((d, i) => {
+        const c = document.createElement('div');
+        c.className = 'dart-chip' + (i === turn.darts.length - 1 ? ' flash' : '');
+        c.innerHTML = `${d.res.label}<span class="conf">${(d.confidence * 100) | 0}% conf</span>`;
+        wrap.appendChild(c);
+    });
+    $('btnSendCandidate').classList.toggle('hidden', !(sessionCode && turn.darts.length > 0));
+}
+
+// ── Optional: feed candidates into a streaming session (?session=CODE) ─────
+let fb = null;
+async function ensureFirebase() {
+    if (fb) return fb;
+    const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js');
+    const { getFirestore, collection, addDoc, serverTimestamp } =
+        await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js');
+    const app = initializeApp({
+        apiKey: "AIzaSyDN1aYhoVt3OX5EafsNTVB09i8VFx7QM1U",
+        authDomain: "brdc-v2.firebaseapp.com",
+        projectId: "brdc-v2",
+        storageBucket: "brdc-v2.firebasestorage.app",
+        messagingSenderId: "726670872282",
+        appId: "1:726670872282:web:913d19c8cb3b24bf919fe3"
+    });
+    fb = { db: getFirestore(app), collection, addDoc, serverTimestamp };
+    return fb;
+}
+$('btnSendCandidate').addEventListener('click', async () => {
+    if (!sessionCode || !turn.darts.length) return;
+    try {
+        const { db, collection, addDoc, serverTimestamp } = await ensureFirebase();
+        await addDoc(collection(db, 'streaming_sessions', sessionCode, 'autoscore_candidates'), {
+            game: 'x01',
+            score: turn.total,
+            darts: turn.darts.length,
+            detail: turn.darts.map(d => d.res.label),
+            role: 'board',
+            source: 'autoscore-lab',
+            status: 'candidate',
+            timestamp: serverTimestamp()
+        });
+        log(`sent candidate: ${turn.total} (${turn.darts.map(d => d.res.label).join(' ')})`, 'hit');
+    } catch (e) {
+        log('send failed: ' + e.message, 'err');
+    }
+});
+function reflectSessionLink() {
+    const linked = !!sessionCode;
+    $('sessionCodeInput').value = sessionCode;
+    $('btnLinkSession').textContent = linked ? 'Linked ✔' : 'Link scorer';
+    $('btnSendCandidate').classList.toggle('hidden', !(linked && turn.darts.length > 0));
+    if (linked) log(`session ${sessionCode} linked — turns can be sent as score candidates`, 'info');
+}
+$('btnLinkSession').addEventListener('click', () => {
+    sessionCode = $('sessionCodeInput').value.trim().toUpperCase();
+    reflectSessionLink();
+});
+if (sessionCode) reflectSessionLink();
+
+// ── In-browser self-test ────────────────────────────────────────────────────
+$('btnRunTests').addEventListener('click', () => {
+    const out = [];
+    const t = (name, cond) => out.push({ name, cond });
+
+    // scoring spot checks
+    t('T20 = 60', scoreFromBoardPoint(0, -103).score === 60);
+    t('D-Bull = 50', scoreFromBoardPoint(0, 2).score === 50);
+    const i16 = SEGMENT_ORDER.indexOf(16), rad16 = i16 * 18 * Math.PI / 180;
+    t('D16 = 32', scoreFromBoardPoint(166 * Math.sin(rad16), -166 * Math.cos(rad16)).score === 32);
+    t('Miss outside board', scoreFromBoardPoint(0, -175).score === 0);
+
+    // homography round trip
+    try {
+        const proj = (p) => ({ x: (1.7 * p.x - 0.3 * p.y + 400) / (1 + 0.0003 * p.x), y: (0.2 * p.x + 1.5 * p.y + 300) / (1 + 0.0003 * p.x) });
+        const imgPts = CAL_TARGETS.map(c => proj({ x: c.x, y: c.y }));
+        const c2 = calibrate(imgPts);
+        const back = applyHomography(c2.H, proj({ x: 0, y: -103 }));
+        t('Homography maps synthetic T20 within 0.5mm', Math.hypot(back.x, back.y + 103) < 0.5);
+    } catch { t('Homography maps synthetic T20 within 0.5mm', false); }
+
+    // blob + tip on synthetic mask
+    const w = 200, h = 150, mask = new Uint8Array(w * h);
+    for (let s = 0; s <= 160; s++) {
+        const t2 = s / 160, cx = 40 + 80 * t2, cy = 30 + 70 * t2, half = (2 + 7 * t2) / 2;
+        for (let dy = -4; dy <= 4; dy++) for (let dx = -4; dx <= 4; dx++) {
+            if (dx * dx + dy * dy <= half * half) {
+                const px = Math.round(cx + dx), py = Math.round(cy + dy);
+                if (px >= 0 && py >= 0 && px < w && py < h) mask[py * w + px] = 1;
+            }
+        }
+    }
+    const blobs = findBlobs(mask, w, h, 12);
+    t('Synthetic dart blob found', blobs.length === 1);
+    if (blobs.length === 1) {
+        const tip = findDartTip(blobs[0], w);
+        t('Tip at thin end (±6px)', Math.hypot(tip.x - 40, tip.y - 30) < 6);
+    }
+
+    // detector smoke
+    const det = createDetector({ w: 64, h: 48 });
+    const bg = new Uint8Array(64 * 48).fill(90);
+    for (let i = 0; i < 4; i++) det.push(bg);
+    t('Detector settles READY', det.state === 'READY');
+
+    const list = $('testList');
+    const passN = out.filter(o => o.cond).length;
+    list.innerHTML = out.map(o =>
+        `<div class="${o.cond ? 'ok' : 'bad'}">${o.cond ? '✔' : '✗'} ${o.name}</div>`).join('') +
+        `<div style="margin-top:8px;font-weight:800">${passN}/${out.length} passed</div>`;
+    log(`self-test: ${passN}/${out.length}`, passN === out.length ? 'hit' : 'err');
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rookies Darts Hub</title>
+    <link rel="icon" type="image/png" href="/images/favicon.png">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#fff8ed">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap">
+    <link rel="stylesheet" href="/css/brdc-styles.css">
+    <link rel="stylesheet" href="/css/brdc-navigation.css?v=14">
+    <link rel="stylesheet" href="/css/market-events-scorer-vnext.css?v=31">
+    <link rel="stylesheet" href="/rookies/tenant/rookies-vnext.css?v=23">
+</head>
+<body class="vnext-light-page create-tournament-vnext-page create-event-workflow-page has-mobile-nav">
+    <main class="ves-shell">
+        <section class="ves-page-header">
+            <div>
+                <p class="ves-kicker" id="createStatus">Tournament builder</p>
+                <h1>Create Event</h1>
+                <p>Set the event basics first. Registration, check-in, draw, boards, and match calls are managed from runtime.</p>
+            </div>
+            <div class="ves-hero-actions">
+                <a class="ves-action" href="/rookies/pages/events-vnext.html">Events</a>
+                <a class="ves-action" href="/rookies/pages/director-home-vnext.html">Admin portal</a>
+            </div>
+        </section>
+
+        <form id="createTournamentForm" class="ves-builder wide">
+            <section class="ves-panel">
+                <div class="ves-section-heading">
+                    <h2><span>Step 1</span> Event basics</h2>
+                </div>
+                <div class="ves-config-grid">
+                    <label>Start from<select id="tournamentPreset" name="preset"><option value="">Blank event</option><option value="blind_draw">Blind draw night</option><option value="weekly_series">Weekly series</option><option value="mixed_doubles_matchmaker">Mixed doubles matchmaker</option></select></label>
+                    <label>Name<input name="tournament_name" required placeholder="Friday Online 501"></label>
+                    <label>Date<input name="tournament_date" type="date" required></label>
+                    <label>Time<input name="tournament_time" type="time"></label>
+                    <label>Max players<input name="max_players" type="number" min="2" max="256" value="16"></label>
+                    <label>Series<select name="series_mode" id="seriesMode"><option value="single" selected>Single event</option><option value="series">Recurring series</option></select></label>
+                    <label>Registration closes<input name="registration_close_time" type="time"></label>
+                </div>
+                <label class="ves-textarea-label">Details<textarea name="tournament_details" rows="3" placeholder="Format notes, payout, check-in details."></textarea></label>
+            </section>
+
+            <details class="ves-panel ves-details-panel">
+                <summary>
+                    <span>
+                        <small>Branding</small>
+                        <strong>Image / media</strong>
+                    </span>
+                    <b>Optional</b>
+                </summary>
+                <div class="ves-config-grid">
+                    <label>Tournament image<input name="tournament_image" type="file" accept="image/*"></label>
+                </div>
+            </details>
+
+            <details class="ves-panel ves-details-panel" id="registrationVotingPanel">
+                <summary>
+                    <span>
+                        <small>Registration</small>
+                        <strong>Player voting</strong>
+                    </span>
+                    <b>Wing It</b>
+                </summary>
+                <div class="ves-runtime-options compact">
+                    <label><input type="checkbox" name="registration_voting_enabled"> Let players vote during registration</label>
+                    <label><input type="checkbox" name="registration_vote_required" checked> Require a vote before registering</label>
+                </div>
+                <div class="ves-config-grid">
+                    <label>Question<input name="registration_vote_question" value="What should we play this week?"></label>
+                    <label>Default winner<input name="registration_vote_selected_label" placeholder="Leave blank until director locks it"></label>
+                </div>
+                <label class="ves-textarea-label">Voting options<textarea name="registration_vote_options" rows="5">Blind draw doubles
+Mixed doubles matchmaker
+501/C/CH
+Cricket luck draw
+Mystery format</textarea></label>
+                <p class="ves-section-note">Votes collect with registrations. Runtime shows totals, but the director still locks the final format manually.</p>
+            </details>
+
+            <details class="ves-panel ves-details-panel">
+                <summary>
+                    <span>
+                        <small>Where</small>
+                        <strong>Location mode</strong>
+                    </span>
+                    <b>Advanced</b>
+                </summary>
+                <div class="ves-choice-grid" id="locationChoices">
+                    <button class="active" type="button" data-location="online">Online / virtual</button>
+                    <button type="button" data-location="flexible">In-person flex</button>
+                    <button type="button" data-location="specific">Specific location</button>
+                </div>
+                <input type="hidden" name="location_mode" id="locationMode" value="online">
+                <div class="ves-config-grid">
+                    <label>Location label<input name="venue_name" id="venueName" value="Online"></label>
+                    <label id="venueAddressWrap">Address<input name="venue_address" id="venueAddress" placeholder="Street, city, state"></label>
+                </div>
+            </details>
+
+            <details class="ves-panel ves-details-panel" id="matchmakerSettings" hidden>
+                <summary>
+                    <span>
+                        <small>Matchmaker</small>
+                        <strong>Social format</strong>
+                    </span>
+                    <b>Cupid shuffle</b>
+                </summary>
+                <div class="ves-config-grid">
+                    <label><input type="checkbox" name="partner_matching" checked> Partner matching</label>
+                    <label><input type="checkbox" name="breakup_enabled" checked> Breakup / rematch flow</label>
+                    <label><input type="checkbox" name="savage_summaries_enabled" checked> Savage summaries</label>
+                    <label>Nudge limit<input name="nudge_limit" type="number" min="0" max="20" value="3"></label>
+                    <label>Winners game<select name="winners_game_type"><option value="cricket" selected>Cricket</option><option value="501">501</option><option value="corks_choice">Cork's choice</option></select></label>
+                    <label>Winners best of<input name="winners_best_of" type="number" min="1" step="2" value="3"></label>
+                    <label>Losers game<select name="losers_game_type"><option value="501" selected>501</option><option value="cricket">Cricket</option><option value="corks_choice">Cork's choice</option></select></label>
+                    <label>Losers best of<input name="losers_best_of" type="number" min="1" step="2" value="1"></label>
+                    <label>Mingle cutoff<select name="mingle_cutoff"><option value="wc_r2_last_start" selected>Until winners round 2 final match starts</option><option value="winners_round_2_start">When winners round 2 starts</option><option value="quarterfinals">Quarterfinals</option></select></label>
+                </div>
+            </details>
+
+            <section class="ves-panel">
+                <div class="ves-section-heading">
+                    <h2><span>Step 2</span> Draw / Boards</h2>
+                </div>
+                <div class="ves-config-grid">
+                    <label>Boards available<input name="boards_available" type="number" min="0" max="64" value="8"></label>
+                    <label>Unavailable boards<input name="unavailable_boards" placeholder="Example: 2, 5"></label>
+                    <label>Draw type<select name="draw_type">
+                        <option value="blind_draw_doubles" selected>Blind draw doubles</option>
+                        <option value="manual_teams">Manual teams</option>
+                        <option value="singles">Singles</option>
+                    </select></label>
+                    <label>Draw pool<select name="draw_pool">
+                        <option value="all_registered">All registered</option>
+                        <option value="checked_in_only" selected>Checked-in only</option>
+                    </select></label>
+                </div>
+                <div class="ves-runtime-options compact">
+                    <label><input type="checkbox" name="allow_house_player" checked> Allow house player when odd</label>
+                    <label><input type="checkbox" name="auto_generate_runtime" checked> Use runtime to generate bracket</label>
+                </div>
+            </section>
+
+            <div id="eventEditors" class="ves-event-editors">
+            <details class="ves-panel ves-details-panel ves-event-editor" data-event-index="1">
+                <summary>
+                    <span>
+                        <small>Event 1</small>
+                        <strong>Format settings</strong>
+                    </span>
+                    <b>Mixed, best of 3</b>
+                </summary>
+                <div class="ves-config-grid">
+                    <label>Event name<input name="event_name" required value="Singles 501"></label>
+                    <label>Entry type<select name="entry_type"><option value="individual">Singles</option><option value="doubles">Doubles</option><option value="mixed_doubles">Mixed doubles</option><option value="blind_draw">Blind Draw</option><option value="team">Team</option></select></label>
+                    <label>Bracket<select name="format"><option value="single_elimination">Single elimination</option><option value="double_elimination">Double elimination</option><option value="round_robin">Round robin</option><option value="swiss">Swiss</option></select></label>
+                    <label>Game<select name="game"><option value="501">501</option><option value="301">301</option><option value="701">701</option><option value="cricket">Cricket</option><option value="corks_choice">Cork's choice</option><option value="mixed">501/C/CH</option><option value="custom">Custom set</option></select></label>
+                    <label>Total legs<input name="best_of" type="number" min="1" step="2" value="3"></label>
+                    <label>Leg mode<select name="leg_mode"><option value="best-of" selected>Best of</option><option value="play-all">Play all</option></select></label>
+                    <label>Sets<input name="num_sets" type="number" min="1" value="1"></label>
+                    <label>Set mode<select name="set_mode"><option value="best-of" selected>Best of</option><option value="play-all">Play all</option></select></label>
+                    <label>In rule<select name="in_option"><option value="straight">Free in</option><option value="double">Double in</option><option value="master">Master in (D/T)</option></select></label>
+                    <label>Out rule<select name="out_option"><option value="double">Double out</option><option value="straight">Single out</option><option value="master">Master out (D/T)</option></select></label>
+                    <label>Start rule<select name="start_rule"><option value="cork_every_leg">Cork every leg</option><option value="alternate_cork_first_deciding">Alternate, cork first/deciding</option><option value="loser_starts_cork_first_deciding">Loser starts, cork first/deciding</option><option value="winner_starts_cork_first_deciding">Winner starts, cork first/deciding</option><option value="choose_no_cork">Select starter, no cork</option></select></label>
+                    <label>Cork option<select name="cork_option"><option value="alternate_random_first_last">Alternate, random first/deciding</option><option value="winner_chooses">Cork winner chooses</option><option value="loser_chooses">Cork loser chooses</option><option value="home_team_option">Higher seed/home option</option><option value="away_team_option">Lower seed/away option</option></select></label>
+                    <label>Cork order<select name="cork_order"><option value="alternate-random">Alternate, random first/deciding</option><option value="random-every">Random every leg</option><option value="loser-random">Loser first, random first/deciding</option><option value="winner-random">Winner first, random first/deciding</option></select></label>
+                    <label>Choice winner gets<select name="cork_winner_gets"><option value="choose-and-start">Choose game and start</option><option value="choose-only">Choose game only</option><option value="choose-or-start">Choose game or start</option></select></label>
+                    <label>Entry fee<input name="entry_fee" type="number" min="0" step="0.01" value="0"></label>
+                    <label>Event start<input name="event_start_time" type="time"></label>
+                    <label>Event image<input name="event_image" type="file" accept="image/*"></label>
+                </div>
+                <div class="ves-mixed-config" id="tournamentMixedConfig" data-mixed-config>
+                    <p class="ves-kicker">Mixed legs</p>
+                    <div data-mixed-rows></div>
+                </div>
+                <div class="ves-playoff-config">
+                    <p class="ves-kicker">Late-round overrides</p>
+                    <div class="ves-config-grid">
+                        <label><input type="checkbox" name="enable_playoff_settings"> Use semi/final format overrides</label>
+                        <label>Semis format<select name="semis_format"><option value="legs" selected>Best of legs</option><option value="sets">Best of sets</option></select></label>
+                        <label>Semis legs<input name="semis_num_legs" type="number" min="1" step="2" value="3"></label>
+                        <label>Semis sets<input name="semis_num_sets" type="number" min="1" step="2" value="3"></label>
+                        <label>Finals format<select name="finals_format"><option value="legs" selected>Best of legs</option><option value="sets">Best of sets</option></select></label>
+                        <label>Finals legs<input name="finals_num_legs" type="number" min="1" step="2" value="5"></label>
+                        <label>Finals sets<input name="finals_num_sets" type="number" min="1" step="2" value="5"></label>
+                    </div>
+                </div>
+                <label class="ves-textarea-label">Event details<textarea name="event_details" rows="3" placeholder="Special rules, payout notes, or callout copy."></textarea></label>
+            </details>
+            </div>
+
+            <button class="ves-action ves-add-event" type="button" id="addEventBtn">Add another event</button>
+
+            <details class="ves-panel ves-details-panel">
+                <summary>
+                    <span>
+                        <small>Runtime</small>
+                        <strong>Player tools</strong>
+                    </span>
+                    <b>Defaults on</b>
+                </summary>
+                <div class="ves-runtime-options">
+                    <label><input type="checkbox" name="enable_tournament_chat" checked> Tournament chat</label>
+                    <label><input type="checkbox" name="auto_create_match_rooms" checked> Auto-create match rooms</label>
+                    <label><input type="checkbox" name="require_check_in" checked> Player check-in</label>
+                    <label><input type="checkbox" name="allow_player_self_report" checked> Player self-report</label>
+                    <label><input type="checkbox" name="enable_player_challenges" checked> Player challenges</label>
+                    <label><input type="checkbox" name="enable_runtime_notifications" checked> Runtime notifications</label>
+                    <label><input type="checkbox" name="enable_video_streaming"> Video placeholders</label>
+                    <label><input type="checkbox" name="enable_score_assist"> Score assist placeholders</label>
+                </div>
+            </details>
+
+            <button class="ves-launch" type="submit" id="createTournamentBtn">Create event</button>
+            <div class="ves-empty" id="createResult" hidden></div>
+        </form>
+    </main>
+
+    <script src="/js/brdc-toast.js"></script>
+    <script src="/components/brdc-navigation-init.js?v=18"></script>
+    <script type="module" src="/js/create-tournament-vnext.js?v=15"></script>
+    <script>
+        initBRDCNavigation({ page: 'Events', pageTitle: 'Create Tournament', showBreadcrumbs: false, showBackButton: true });
+    </script>
+    <script src="/rookies/tenant/rookies-vnext.js?v=11"></script>
+</body>
+</html>

@@ -84,7 +84,7 @@ Goal:
 - verify one real live path after the Phase 1 changes
 
 Verified:
-- known Triples Draft recap sample parses live
+- known 2026 Triples League recap sample parses live
 - parsed groups match scheduled groups `9/9`
 - unresolved turn players `0`
 - sample imported throw owner resolves from `Kevin Y` to canonical player `Kevin Yasenchak`

@@ -178,6 +178,12 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Public, precomputed page summaries. Cloud Functions/Admin SDK writes these.
+    match /leagues/{leagueId}/public_cache/{cacheId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
     // League activity feed
     match /leagues/{leagueId}/feed/{feedId} {
       allow read: if true;
@@ -201,25 +207,62 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // Templates - user-specific
+    // ── Drafts & Templates (per-user; site owner can read templates) ──────────
+    // Helpers used below:
+    //   isOwner(data) – caller's uid matches the stored player_id
+    //   isSiteOwner()  – caller is the site-owner email (donniepagel@gmail.com)
+    function isOwner(data) {
+      return request.auth != null && request.auth.uid == data.player_id;
+    }
+    function isSiteOwner() {
+      return request.auth != null
+        && request.auth.token.email == 'donniepagel@gmail.com';
+    }
+
+    // Templates - private to owner; site owner can also read (for redistribution)
     match /league_templates/{templateId} {
-      allow read: if true;
-      allow write: if false; // Only cloud functions
+      // Owner can read their own; site owner can read all (for redistribution).
+      // Public flag is always false — not publicly readable.
+      allow read: if isOwner(resource.data) || isSiteOwner();
+      // Owner creates their own doc; field validation ensures player_id matches auth uid.
+      allow create: if request.auth != null
+        && request.resource.data.player_id == request.auth.uid
+        && request.resource.data.get('public', false) == false;
+      // Owner may overwrite their own template.
+      allow update: if isOwner(resource.data)
+        && request.resource.data.player_id == resource.data.player_id
+        && request.resource.data.get('public', false) == false;
+      allow delete: if false; // Only cloud functions / admin SDK
     }
 
     match /tournament_templates/{templateId} {
-      allow read: if true;
-      allow write: if false; // Only cloud functions
+      allow read: if isOwner(resource.data) || isSiteOwner();
+      allow create: if request.auth != null
+        && request.resource.data.player_id == request.auth.uid
+        && request.resource.data.get('public', false) == false;
+      allow update: if isOwner(resource.data)
+        && request.resource.data.player_id == resource.data.player_id
+        && request.resource.data.get('public', false) == false;
+      allow delete: if false;
     }
 
+    // Drafts - private to owner only
     match /league_drafts/{draftId} {
-      allow read: if true;
-      allow write: if false;
+      allow read: if isOwner(resource.data);
+      allow create: if request.auth != null
+        && request.resource.data.player_id == request.auth.uid;
+      allow update: if isOwner(resource.data)
+        && request.resource.data.player_id == resource.data.player_id;
+      allow delete: if false;
     }
 
     match /tournament_drafts/{draftId} {
-      allow read: if true;
-      allow write: if false;
+      allow read: if isOwner(resource.data);
+      allow create: if request.auth != null
+        && request.resource.data.player_id == request.auth.uid;
+      allow update: if isOwner(resource.data)
+        && request.resource.data.player_id == resource.data.player_id;
+      allow delete: if false;
     }
 
     // ===== MESSAGING SYSTEM =====
@@ -425,6 +468,13 @@ service cloud.firestore {
       allow read, write: if true;  // INTENTIONALLY OPEN: Required for WebRTC signaling
     }
 
+    // Live broadcast discovery doc (single 'current' doc).
+    // Public read so the app can show a "Watch Live" banner; writes by an authed director console.
+    match /live_streams/{docId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
     // ===== PICKUP GAMES =====
 
     // Pickup games - public read for events list
@@ -454,8 +504,11 @@ service cloud.firestore {
         && request.resource.data.seller_id != null
         && request.resource.data.title != null
         && request.resource.data.price != null;
-      allow update: if hasValidData()
-        && resource.data.seller_id == request.resource.data.seller_id;  // Only owner can edit
+      allow update: if request.auth != null
+        && resource.data.seller_id == request.resource.data.seller_id  // can't reassign ownership
+        // Only the actual owner: the seller's player doc must carry the editor's firebase_uid.
+        // (Creating a listing requires login, which links firebase_uid, so sellers always have it.)
+        && get(/databases/$(database)/documents/players/$(resource.data.seller_id)).data.firebase_uid == request.auth.uid;
       allow delete: if false;  // SECURITY: Only cloud functions can delete (prevents griefing)
     }
 

@@ -11,72 +11,122 @@
 import { callFunction, db, auth, onAuthStateChanged } from '/js/firebase-config.js';
 import { collection, doc, getDoc, getDocs, query, where, orderBy, limit } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
 import { currentPlayer, dashboardData, setCurrentPlayer, setDashboardData } from '/js/dashboard/dashboard-state.js';
-import { loadScheduleStories } from '/js/dashboard/dashboard-schedule.js';
-import { loadFeed } from '/js/dashboard/dashboard-feed.js';
-import { initMemberImportCard } from '/js/dashboard/dashboard-import.js?v=4';
+import { loadScheduleStories } from '/js/dashboard/dashboard-schedule.js?v=5';
+import { loadFeed } from '/js/dashboard/dashboard-feed.js?v=30';
 
 // ===== INITIALIZATION =====
 
-function initDashboard() {
-    hideInitialLoader();
+/**
+ * Caches that must NOT survive a DEFINITIVE signed-out state.
+ * Targeted keys only — never blanket-clear storage (other features keep
+ * OAuth tokens / capability state in the same stores).
+ */
+function clearSignedOutCaches() {
+    try {
+        localStorage.removeItem('brdc_session');
+        sessionStorage.removeItem('currentPlayer');
+        // vNext Home optimistic identity caches (same signed-out rule)
+        localStorage.removeItem('brdc:vnext:home:identity:v1');
+        for (let i = localStorage.length - 1; i >= 0; i--) {
+            const key = localStorage.key(i);
+            if (!key) continue;
+            if (key.startsWith('dashboard_data_v2_') || key.startsWith('brdc:vnext:home:snapshot:')) {
+                localStorage.removeItem(key);
+            }
+        }
+    } catch (e) { /* storage unavailable — purge is best-effort */ }
+}
 
-    onAuthStateChanged(auth, async (user) => {
+/**
+ * Auth-definitive dashboard init.
+ *
+ * RULE: act only INSIDE onAuthStateChanged callbacks. The SDK fires the first
+ * callback only after persistence (IndexedDB) has been read, so:
+ *  - a signed-in user never gets a login flash while auth initializes
+ *    (the old `waitForAuthReady(1500)` race could expire BEFORE auth resolved
+ *    and wrongly clear brdc_session + show login), and
+ *  - a definitive signed-out state (first callback null, OR a later
+ *    mid-session sign-out from another tab / token revocation) always purges
+ *    the cached identity so the dashboard can never keep rendering it.
+ */
+function initDashboardStable() {
+    const savedSession = localStorage.getItem('brdc_session');
+
+    if (savedSession) {
+        // Optimistic: returning user — keep login hidden while auth resolves.
+        const loginOverlay = document.getElementById('loginOverlay');
+        if (loginOverlay) loginOverlay.classList.add('hidden');
+        showInitialLoader('Loading your dashboard...');
+    } else {
+        hideInitialLoader();
+    }
+
+    let firstAuthCallback = true;
+    onAuthStateChanged(auth, (user) => {
+        const isFirst = firstAuthCallback;
+        firstAuthCallback = false;
+
         if (!user) {
-            // No Firebase Auth session — show login
-            localStorage.removeItem('brdc_session');
+            // DEFINITIVE signed-out — cached identity must not survive.
+            clearSignedOutCaches();
             showLoginPage();
             return;
         }
 
-        // User is authenticated — check for a fresh local session
-        const savedSession = localStorage.getItem('brdc_session');
-        const SESSION_MAX_AGE = 30 * 60 * 1000; // 30 minutes
+        // Signed-in transitions AFTER page load are driven by login() /
+        // loginWithGoogle(), which run their own session+load flow — don't
+        // double-load from here.
+        if (!isFirst) return;
 
-        if (savedSession) {
-            try {
-                const session = JSON.parse(savedSession);
-                const age = Date.now() - (session.logged_in_at || 0);
-                if (session.player_id && age < SESSION_MAX_AGE) {
-                    // Session is fresh — go straight to dashboard
-                    showInitialLoader('Loading your dashboard...');
-                    loadDashboard(session.player_id, session.source_type, session.league_id);
-                    return;
-                }
-            } catch (e) {
-                localStorage.removeItem('brdc_session');
-            }
-        }
-
-        // Auth user exists but session is missing or expired — refresh from backend
-        showInitialLoader('Loading your dashboard...');
-        try {
-            const result = await callFunction('getPlayerSession', {});
-            if (!result || !result.success) {
-                throw new Error(result?.error || 'Could not load player data');
-            }
-            const player = result.player;
-            const session = {
-                player_id: player.id,
-                name: player.name,
-                source_type: 'global',
-                league_id: player.league_id || null,
-                team_id: player.team_id || null,
-                is_admin: player.is_admin || false,
-                is_master_admin: player.is_master_admin || false,
-                is_director: player.is_director || false,
-                is_captain: player.is_captain || false,
-                involvements: player.involvements || {},
-                logged_in_at: Date.now()
-            };
-            localStorage.setItem('brdc_session', JSON.stringify(session));
-            localStorage.removeItem('brdc_player_pin');
-            loadDashboard(session.player_id, session.source_type, session.league_id);
-        } catch (err) {
-            console.error('[initDashboard] Session refresh failed:', err);
-            localStorage.removeItem('brdc_session');
-            showLoginPage();
-        }
+        bootstrapSignedInDashboard();
     });
+}
+
+async function bootstrapSignedInDashboard() {
+    const savedSession = localStorage.getItem('brdc_session');
+    const SESSION_MAX_AGE = 30 * 60 * 1000; // 30 minutes
+
+    if (savedSession) {
+        try {
+            const session = JSON.parse(savedSession);
+            const age = Date.now() - (session.logged_in_at || 0);
+            if (session.player_id && age < SESSION_MAX_AGE) {
+                showInitialLoader('Loading your dashboard...');
+                loadDashboard(session.player_id, session.source_type, session.league_id);
+                return;
+            }
+        } catch (e) {
+            localStorage.removeItem('brdc_session');
+        }
+    }
+
+    showInitialLoader('Loading your dashboard...');
+    try {
+        const result = await callFunction('getPlayerSession', {});
+        if (!result || !result.success) {
+            throw new Error(result?.error || 'Could not load player data');
+        }
+        const player = result.player;
+        const session = {
+            player_id: player.id,
+            name: player.name,
+            source_type: 'global',
+            league_id: player.league_id || null,
+            team_id: player.team_id || null,
+            is_admin: player.is_admin || false,
+            is_master_admin: player.is_master_admin || false,
+            is_director: player.is_director || false,
+            is_captain: player.is_captain || false,
+            involvements: player.involvements || {},
+            logged_in_at: Date.now()
+        };
+        localStorage.setItem('brdc_session', JSON.stringify(session));
+        loadDashboard(session.player_id, session.source_type, session.league_id);
+    } catch (err) {
+        console.error('[initDashboard] Session refresh failed:', err);
+        localStorage.removeItem('brdc_session');
+        showLoginPage();
+    }
 }
 
 function hideInitialLoader() {
@@ -273,7 +323,6 @@ function renderDashboard() {
 
     // Load schedule stories and feed
     loadScheduleStories(roles);
-    initMemberImportCard();
     loadFeed();
 
     // Update composer avatar with logged-in player initial
@@ -331,7 +380,6 @@ window.login = async function() {
             logged_in_at: Date.now()
         };
         localStorage.setItem('brdc_session', JSON.stringify(session));
-        localStorage.removeItem('brdc_player_pin'); // remove old PIN storage
 
         // Hide login UI and show loading state
         if (loader) { loader.classList.add('hidden'); loader.style.display = 'none'; }
@@ -390,7 +438,6 @@ window.loginWithGoogle = async function() {
             logged_in_at: Date.now()
         };
         localStorage.setItem('brdc_session', JSON.stringify(session));
-        localStorage.removeItem('brdc_player_pin');
 
         if (loader) { loader.classList.add('hidden'); loader.style.display = 'none'; }
         document.getElementById('loginOverlay').classList.add('hidden');
@@ -435,8 +482,7 @@ window.logout = async function() {
     } catch (e) {
         console.warn('Logout error:', e);
     }
-    localStorage.removeItem('brdc_session');
-    localStorage.removeItem('brdc_player_pin');
+    clearSignedOutCaches();
     if (window.FBNav && typeof window.FBNav.logout === 'function') window.FBNav.logout();
     const loginPage = document.getElementById('loginOverlay');
     const dashboardContent = document.getElementById('mainContent');
@@ -450,7 +496,7 @@ window.moduleLoaded = true;
 // ===== EXPORTS =====
 
 export {
-    initDashboard,
+    initDashboardStable as initDashboard,
     loadDashboard,
     renderDashboard,
     CacheHelper,

@@ -1,0 +1,808 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard — LEDA</title>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #1a3a5c;
+            --secondary: #2e7db5;
+            --accent: #7ec8c8;
+            --bg-dark: #0d1f33;
+            --bg-panel: #0f2744;
+            --bg-card: #142d50;
+            --text-light: #f0f0f0;
+            --text-dim: #8a9ab5;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-light);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        h1, h2, h3, h4, h5, h6 {
+            font-family: 'Bebas Neue', sans-serif;
+            color: var(--accent);
+            margin-bottom: 1rem;
+        }
+
+        header {
+            background-color: var(--primary);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 1.8rem;
+            color: var(--text-light);
+        }
+
+        nav a {
+            color: var(--text-light);
+            text-decoration: none;
+            margin-left: 1.5rem;
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }
+
+        nav a:hover {
+            color: var(--accent);
+        }
+
+        main {
+            flex-grow: 1;
+            padding: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        section {
+            background-color: var(--bg-panel);
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .card-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background-color: var(--bg-card);
+            padding: 1.5rem;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .card h3 {
+            color: var(--secondary);
+            font-size: 1.2rem;
+            margin-top: 0;
+            margin-bottom: 0.5rem;
+        }
+
+        .card p {
+            font-size: 2.5rem;
+            font-weight: 600;
+            color: var(--text-light);
+            margin: 0;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: var(--text-dim);
+            font-weight: 500;
+        }
+
+        .form-group input[type="text"],
+        .form-group input[type="email"],
+        .form-group input[type="tel"],
+        .form-group input[type="url"],
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 0.75rem;
+            background-color: var(--bg-card);
+            border: 1px solid var(--primary);
+            border-radius: 4px;
+            color: var(--text-light);
+            box-sizing: border-box;
+            font-size: 1rem;
+        }
+
+        .form-group input[type="checkbox"] {
+            margin-right: 0.5rem;
+        }
+
+        button {
+            background-color: var(--secondary);
+            color: white;
+            padding: 0.8rem 1.5rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: background-color 0.3s ease;
+        }
+
+        button.danger {
+            background-color: #e74c3c;
+        }
+
+        button:hover {
+            background-color: var(--accent);
+        }
+
+        button.danger:hover {
+            background-color: #c0392b;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1.5rem;
+        }
+
+        table th, table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--bg-card);
+        }
+
+        table th {
+            background-color: var(--primary);
+            color: var(--text-light);
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.9rem;
+        }
+
+        table td {
+            color: var(--text-light);
+            background-color: var(--bg-panel);
+        }
+
+        table tr:hover td {
+            background-color: var(--bg-card);
+        }
+
+        .actions button {
+            padding: 0.5rem 0.8rem;
+            font-size: 0.85rem;
+            margin-right: 0.5rem;
+        }
+
+        footer {
+            margin-top: auto;
+            background-color: var(--primary);
+            color: var(--text-dim);
+            text-align: center;
+            padding: 1rem;
+            font-size: 0.9rem;
+        }
+
+        .toast {
+            visibility: hidden;
+            min-width: 250px;
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            border-radius: 2px;
+            padding: 16px;
+            position: fixed;
+            z-index: 1;
+            left: 50%;
+            transform: translateX(-50%);
+            bottom: 30px;
+            font-size: 17px;
+        }
+
+        .toast.show {
+            visibility: visible;
+            -webkit-animation: fadein 0.5s, fadeout 0.5s 2.5s;
+            animation: fadein 0.5s, fadeout 0.5s 2.5s;
+        }
+
+        @-webkit-keyframes fadein {
+            from {bottom: 0; opacity: 0;}
+            to {bottom: 30px; opacity: 1;}
+        }
+
+        @keyframes fadein {
+            from {bottom: 0; opacity: 0;}
+            to {bottom: 30px; opacity: 1;}
+        }
+
+        @-webkit-keyframes fadeout {
+            from {bottom: 30px; opacity: 1;}
+            to {bottom: 0; opacity: 0;}
+        }
+
+        @keyframes fadeout {
+            from {bottom: 30px; opacity: 1;}
+            to {bottom: 0; opacity: 0;}
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Admin Dashboard — LEDA</h1>
+        <nav>
+            <a href="/leda/manager/dashboard.html">Manager Dashboard</a>
+            <a href="#" id="logout-button">Logout</a>
+        </nav>
+    </header>
+
+    <main>
+        <div id="loading" style="text-align: center; padding: 2rem;">Loading dashboard...</div>
+
+        <div id="dashboard-content" style="display: none;">
+            <section>
+                <h2>League Stats</h2>
+                <div class="card-row">
+                    <div class="card">
+                        <h3>Active Players</h3>
+                        <p id="stat-active-players">0</p>
+                    </div>
+                    <div class="card">
+                        <h3>Teams</h3>
+                        <p id="stat-teams">0</p>
+                    </div>
+                    <div class="card">
+                        <h3>Events</h3>
+                        <p id="stat-events">0</p>
+                    </div>
+                    <div class="card">
+                        <h3>Managers</h3>
+                        <p id="stat-managers">0</p>
+                    </div>
+                </div>
+            </section>
+
+            <section>
+                <h2>Organization Settings</h2>
+                <form id="org-settings-form">
+                    <div class="form-group">
+                        <label for="league-name">League Name</label>
+                        <input type="text" id="league-name" name="leagueName">
+                    </div>
+                    <div class="form-group">
+                        <label for="short-name">Short Name</label>
+                        <input type="text" id="short-name" name="shortName">
+                    </div>
+                    <div class="form-group">
+                        <label for="contact-email">Contact Email</label>
+                        <input type="email" id="contact-email" name="contactEmail">
+                    </div>
+                    <div class="form-group">
+                        <label for="phone">Phone</label>
+                        <input type="tel" id="phone" name="phone">
+                    </div>
+                    <div class="form-group">
+                        <label for="address">Address</label>
+                        <input type="text" id="address" name="address">
+                    </div>
+                    <div class="form-group">
+                        <label for="website-url">Website URL</label>
+                        <input type="url" id="website-url" name="websiteUrl">
+                    </div>
+                    <div class="form-group">
+                        <label for="facebook-url">Facebook URL</label>
+                        <input type="url" id="facebook-url" name="facebookUrl">
+                    </div>
+                    <button type="submit">Save Settings</button>
+                </form>
+            </section>
+
+            <section>
+                <h2>Manager Management</h2>
+                <div class="table-container">
+                    <table id="managers-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Role</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Managers will be loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>Add New Manager</h3>
+                <form id="add-manager-form">
+                    <div class="form-group">
+                        <label for="new-manager-email">Email</label>
+                        <input type="email" id="new-manager-email" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="new-manager-name">Name</label>
+                        <input type="text" id="new-manager-name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="new-manager-role">Role</label>
+                        <select id="new-manager-role">
+                            <option value="league_manager">League Manager</option>
+                            <option value="president">President</option>
+                        </select>
+                    </div>
+                    <button type="submit">Add Manager</button>
+                </form>
+            </section>
+
+            <section>
+                <h2>Board Members</h2>
+                <div class="table-container">
+                    <table id="board-members-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Role/Title</th>
+                                <th>Email</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Board members will be loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>Add New Board Member</h3>
+                <form id="add-board-member-form">
+                    <div class="form-group">
+                        <label for="new-board-name">Name</label>
+                        <input type="text" id="new-board-name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="new-board-role">Role/Title</label>
+                        <input type="text" id="new-board-role" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="new-board-email">Email</label>
+                        <input type="email" id="new-board-email" required>
+                    </div>
+                    <button type="submit">Add Board Member</button>
+                </form>
+            </section>
+
+            <section>
+                <h2>News Management</h2>
+                <div class="table-container">
+                    <table id="news-table">
+                        <thead>
+                            <tr>
+                                <th>Title</th>
+                                <th>Content Snippet</th>
+                                <th>Date</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- News posts will be loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>Add New News Post</h3>
+                <form id="add-news-form">
+                    <div class="form-group">
+                        <label for="news-title">Title</label>
+                        <input type="text" id="news-title" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="news-content">Content</label>
+                        <textarea id="news-content" rows="5" required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <input type="checkbox" id="news-pinned">
+                        <label for="news-pinned">Pinned</label>
+                    </div>
+                    <button type="submit">Add News Post</button>
+                </form>
+            </section>
+        </div>
+    </main>
+
+    <footer>
+        Powered by Loopt Labs
+    </footer>
+
+    <div id="toast" class="toast"></div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
+        import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
+        import { getFirestore, doc, getDoc, getDocs, collection, addDoc, deleteDoc, updateDoc, query, where, orderBy, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+        import { getFunctions, httpsCallable } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-functions.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDN1aYhoVt3OX5EafsNTVB09i8VFx7QM1U",
+            authDomain: "brdc-v2.firebaseapp.com",
+            projectId: "brdc-v2",
+            storageBucket: "brdc-v2.firebasestorage.app",
+            messagingSenderId: "726670872282",
+            appId: "1:726670872282:web:913d19c8cb3b24bf919fe3"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const functions = getFunctions(app);
+
+        const orgId = 'leda'; // IMPORTANT: This will be changed for SSDL
+
+        // Cloud Function callables
+        const addOrgManager = httpsCallable(functions, 'addOrgManager');
+        const removeOrgManager = httpsCallable(functions, 'removeOrgManager');
+
+        const loadingDiv = document.getElementById('loading');
+        const dashboardContentDiv = document.getElementById('dashboard-content');
+        const logoutButton = document.getElementById('logout-button');
+        const toastDiv = document.getElementById('toast');
+
+        function showToast(message, isError = false) {
+            toastDiv.className = 'toast show';
+            toastDiv.textContent = message;
+            toastDiv.style.backgroundColor = isError ? '#e74c3c' : '#27ae60';
+            setTimeout(() => {
+                toastDiv.className = toastDiv.className.replace('show', '');
+            }, 3000);
+        }
+
+        async function loadDashboard() {
+            loadingDiv.style.display = 'none';
+            dashboardContentDiv.style.display = 'block';
+
+            await Promise.all([
+                loadLeagueStats(),
+                loadOrgSettings(),
+                loadManagers(),
+                loadBoardMembers(),
+                loadNews()
+            ]);
+        }
+
+        async function loadLeagueStats() {
+            try {
+                const activePlayersQuery = query(collection(db, `organizations/${orgId}/players`), where('status', '==', 'active'));
+                const activePlayersSnapshot = await getDocs(activePlayersQuery);
+                document.getElementById('stat-active-players').textContent = activePlayersSnapshot.size;
+
+                const teamsSnapshot = await getDocs(collection(db, `organizations/${orgId}/teams`));
+                document.getElementById('stat-teams').textContent = teamsSnapshot.size;
+
+                const eventsSnapshot = await getDocs(collection(db, `organizations/${orgId}/events`));
+                document.getElementById('stat-events').textContent = eventsSnapshot.size;
+
+                const managersSnapshot = await getDocs(collection(db, `organizations/${orgId}/managers`));
+                document.getElementById('stat-managers').textContent = managersSnapshot.size;
+            } catch (error) {
+                console.error("Error loading league stats:", error);
+                showToast("Error loading league stats.", true);
+            }
+        }
+
+        async function loadOrgSettings() {
+            try {
+                const orgDocRef = doc(db, 'organizations', orgId);
+                const orgDocSnap = await getDoc(orgDocRef);
+
+                if (orgDocSnap.exists()) {
+                    const data = orgDocSnap.data();
+                    document.getElementById('league-name').value = data.leagueName || '';
+                    document.getElementById('short-name').value = data.shortName || '';
+                    document.getElementById('contact-email').value = data.contactEmail || '';
+                    document.getElementById('phone').value = data.phone || '';
+                    document.getElementById('address').value = data.address || '';
+                    document.getElementById('website-url').value = data.websiteUrl || '';
+                    document.getElementById('facebook-url').value = data.facebookUrl || '';
+                }
+            } catch (error) {
+                console.error("Error loading organization settings:", error);
+                showToast("Error loading organization settings.", true);
+            }
+        }
+
+        async function loadManagers() {
+            try {
+                const managersCollectionRef = collection(db, `organizations/${orgId}/managers`);
+                const managersSnapshot = await getDocs(managersCollectionRef);
+                const managersTableBody = document.getElementById('managers-table').querySelector('tbody');
+                managersTableBody.innerHTML = '';
+
+                managersSnapshot.forEach(managerDoc => {
+                    const manager = managerDoc.data();
+                    const row = managersTableBody.insertRow();
+                    row.innerHTML = `
+                        <td>${manager.name || 'N/A'}</td>
+                        <td>${manager.email || 'N/A'}</td>
+                        <td>
+                            <select class="manager-role-select" data-manager-id="${managerDoc.id}">
+                                <option value="league_manager" ${manager.role === 'league_manager' ? 'selected' : ''}>League Manager</option>
+                                <option value="president" ${manager.role === 'president' ? 'selected' : ''}>President</option>
+                            </select>
+                        </td>
+                        <td class="actions">
+                            <button class="danger remove-manager-button" data-manager-id="${managerDoc.id}">Remove</button>
+                        </td>
+                    `;
+                });
+
+                document.querySelectorAll('.manager-role-select').forEach(select => {
+                    select.addEventListener('change', async (e) => {
+                        const managerId = e.target.dataset.managerId;
+                        const newRole = e.target.value;
+                        try {
+                            await updateDoc(doc(db, `organizations/${orgId}/managers`, managerId), { role: newRole });
+                            showToast("Manager role updated successfully.");
+                        } catch (error) {
+                            console.error("Error updating manager role:", error);
+                            showToast("Error updating manager role.", true);
+                        }
+                    });
+                });
+
+                document.querySelectorAll('.remove-manager-button').forEach(button => {
+                    button.addEventListener('click', async (e) => {
+                        const managerId = e.target.dataset.managerId;
+                        if (confirm("Are you sure you want to remove this manager?")) {
+                            try {
+                                await removeOrgManager({ orgId, managerId });
+                                showToast("Manager removed successfully.");
+                                loadManagers(); // Reload managers
+                            } catch (error) {
+                                console.error("Error removing manager:", error);
+                                showToast("Error removing manager.", true);
+                            }
+                        }
+                    });
+                });
+
+            } catch (error) {
+                console.error("Error loading managers:", error);
+                showToast("Error loading managers.", true);
+            }
+        }
+
+        async function loadBoardMembers() {
+            try {
+                const boardCollectionRef = collection(db, `organizations/${orgId}/board`);
+                const boardSnapshot = await getDocs(boardCollectionRef);
+                const boardMembersTableBody = document.getElementById('board-members-table').querySelector('tbody');
+                boardMembersTableBody.innerHTML = '';
+
+                boardSnapshot.forEach(memberDoc => {
+                    const member = memberDoc.data();
+                    const row = boardMembersTableBody.insertRow();
+                    row.innerHTML = `
+                        <td>${member.name || 'N/A'}</td>
+                        <td>${member.role || 'N/A'}</td>
+                        <td>${member.email || 'N/A'}</td>
+                        <td class="actions">
+                            <button class="danger remove-board-member-button" data-member-id="${memberDoc.id}">Remove</button>
+                        </td>
+                    `;
+                });
+
+                document.querySelectorAll('.remove-board-member-button').forEach(button => {
+                    button.addEventListener('click', async (e) => {
+                        const memberId = e.target.dataset.memberId;
+                        if (confirm("Are you sure you want to remove this board member?")) {
+                            try {
+                                await deleteDoc(doc(db, `organizations/${orgId}/board`, memberId));
+                                showToast("Board member removed successfully.");
+                                loadBoardMembers(); // Reload board members
+                            } catch (error) {
+                                console.error("Error removing board member:", error);
+                                showToast("Error removing board member.", true);
+                            }
+                        }
+                    });
+                });
+
+            } catch (error) {
+                console.error("Error loading board members:", error);
+                showToast("Error loading board members.", true);
+            }
+        }
+
+        async function loadNews() {
+            try {
+                const newsCollectionRef = collection(db, `organizations/${orgId}/news`);
+                const newsQuery = query(newsCollectionRef, orderBy('published_at', 'desc'));
+                const newsSnapshot = await getDocs(newsQuery);
+                const newsTableBody = document.getElementById('news-table').querySelector('tbody');
+                newsTableBody.innerHTML = '';
+
+                newsSnapshot.forEach(newsDoc => {
+                    const newsItem = newsDoc.data();
+                    const row = newsTableBody.insertRow();
+                    const contentSnippet = newsItem.content ? newsItem.content.substring(0, 100) + (newsItem.content.length > 100 ? '...' : '') : '';
+                    const date = newsItem.published_at ? new Date(newsItem.published_at.toDate()).toLocaleDateString() : 'N/A';
+                    const pinnedBadge = newsItem.pinned ? '<span style="background-color: var(--accent); color: var(--bg-dark); padding: 3px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600;">Pinned</span>' : '';
+
+                    row.innerHTML = `
+                        <td>${newsItem.title || 'N/A'}</td>
+                        <td>${contentSnippet}</td>
+                        <td>${date}</td>
+                        <td>${pinnedBadge}</td>
+                        <td class="actions">
+                            <button class="toggle-pin-news-button" data-news-id="${newsDoc.id}" data-pinned="${newsItem.pinned}">
+                                ${newsItem.pinned ? 'Unpin' : 'Pin'}
+                            </button>
+                            <button class="danger remove-news-button" data-news-id="${newsDoc.id}">Delete</button>
+                        </td>
+                    `;
+                });
+
+                document.querySelectorAll('.toggle-pin-news-button').forEach(button => {
+                    button.addEventListener('click', async (e) => {
+                        const newsId = e.target.dataset.newsId;
+                        const currentPinned = e.target.dataset.pinned === 'true';
+                        try {
+                            await updateDoc(doc(db, `organizations/${orgId}/news`, newsId), { pinned: !currentPinned });
+                            showToast(`News post ${!currentPinned ? 'pinned' : 'unpinned'} successfully.`);
+                            loadNews(); // Reload news
+                        } catch (error) {
+                            console.error("Error toggling pin status:", error);
+                            showToast("Error toggling pin status.", true);
+                        }
+                    });
+                });
+
+                document.querySelectorAll('.remove-news-button').forEach(button => {
+                    button.addEventListener('click', async (e) => {
+                        const newsId = e.target.dataset.newsId;
+                        if (confirm("Are you sure you want to delete this news post?")) {
+                            try {
+                                await deleteDoc(doc(db, `organizations/${orgId}/news`, newsId));
+                                showToast("News post deleted successfully.");
+                                loadNews(); // Reload news
+                            } catch (error) {
+                                console.error("Error deleting news post:", error);
+                                showToast("Error deleting news post.", true);
+                            }
+                        }
+                    });
+                });
+
+            } catch (error) {
+                console.error("Error loading news:", error);
+                showToast("Error loading news.", true);
+            }
+        }
+
+        // --- Event Listeners ---
+
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) {
+                window.location.href = '../login.html';
+                return;
+            }
+            const managerDoc = await getDoc(doc(db, `organizations/${orgId}/managers`, user.uid));
+            if (!managerDoc.exists()) {
+                window.location.href = '../login.html';
+                return;
+            }
+            const role = managerDoc.data().role;
+            if (role !== 'admin' && role !== 'president') {
+                alert('Access denied. President/Admin access required.');
+                window.location.href = '../manager/dashboard.html';
+                return;
+            }
+            loadDashboard();
+        });
+
+        logoutButton.addEventListener('click', async (e) => {
+            e.preventDefault();
+            await signOut(auth);
+            window.location.href = '../login.html';
+        });
+
+        document.getElementById('org-settings-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = {
+                leagueName: document.getElementById('league-name').value,
+                shortName: document.getElementById('short-name').value,
+                contactEmail: document.getElementById('contact-email').value,
+                phone: document.getElementById('phone').value,
+                address: document.getElementById('address').value,
+                websiteUrl: document.getElementById('website-url').value,
+                facebookUrl: document.getElementById('facebook-url').value,
+            };
+            try {
+                await updateDoc(doc(db, 'organizations', orgId), formData);
+                showToast("Organization settings updated successfully.");
+            } catch (error) {
+                console.error("Error updating organization settings:", error);
+                showToast("Error updating organization settings.", true);
+            }
+        });
+
+        document.getElementById('add-manager-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('new-manager-email').value;
+            const name = document.getElementById('new-manager-name').value;
+            const role = document.getElementById('new-manager-role').value;
+            try {
+                await addOrgManager({ orgId, email, name, role });
+                showToast("Manager added successfully.");
+                document.getElementById('add-manager-form').reset();
+                loadManagers(); // Reload managers
+            } catch (error) {
+                console.error("Error adding manager:", error);
+                showToast("Error adding manager: " + error.message, true);
+            }
+        });
+
+        document.getElementById('add-board-member-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('new-board-name').value;
+            const role = document.getElementById('new-board-role').value;
+            const email = document.getElementById('new-board-email').value;
+            try {
+                await addDoc(collection(db, `organizations/${orgId}/board`), { name, role, email });
+                showToast("Board member added successfully.");
+                document.getElementById('add-board-member-form').reset();
+                loadBoardMembers(); // Reload board members
+            } catch (error) {
+                console.error("Error adding board member:", error);
+                showToast("Error adding board member.", true);
+            }
+        });
+
+        document.getElementById('add-news-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const title = document.getElementById('news-title').value;
+            const content = document.getElementById('news-content').value;
+            const pinned = document.getElementById('news-pinned').checked;
+            try {
+                await addDoc(collection(db, `organizations/${orgId}/news`), {
+                    title,
+                    content,
+                    pinned,
+                    published_at: new Date(),
+                    created_at: serverTimestamp()
+                });
+                showToast("News post added successfully.");
+                document.getElementById('add-news-form').reset();
+                loadNews(); // Reload news
+            } catch (error) {
+                console.error("Error adding news post:", error);
+                showToast("Error adding news post.", true);
+            }
+        });
+
+    </script>
+</body>
+</html>

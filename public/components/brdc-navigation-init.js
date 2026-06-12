@@ -1,19 +1,12 @@
 /**
- * BRDC Navigation Integration Script
- * Single include to add navigation to any page
+ * BRDC Navigation Integration Script v4.2
+ * Single include to add navigation to any page.
  *
- * Usage in HTML:
- * <script src="/components/brdc-navigation-init.js"></script>
- * <script>
- *   initBRDCNavigation({
- *     page: 'dashboard',
- *     breadcrumbs: [
- *       { label: 'Home', url: '/pages/dashboard.html' },
- *       { label: 'Leagues', url: '/pages/leagues.html' },
- *       { label: 'Winter Triple Draft', url: '#' }
- *     ]
- *   });
- * </script>
+ * Usage (unchanged — all vNext pages already call this):
+ *   initBRDCNavigation({ pageTitle: 'League', page: 'league', backUrl: '' });
+ *
+ * vNext pages  → new 5-tab responsive nav (brdc-navigation.js v4.0)
+ * OG pages     → legacy fb-nav sidebar unchanged
  */
 
 // Load required CSS if not already loaded
@@ -32,146 +25,142 @@ function loadScript(src, callback) {
         if (callback) callback();
         return;
     }
-
     const script = document.createElement('script');
     script.src = src;
-    script.onload = callback;
+    if (callback) script.onload = callback;
     document.head.appendChild(script);
 }
 
 /**
- * Initialize BRDC Navigation on current page
+ * Detect vNext: any path with "-vnext" in it.
+ * This is the SINGLE gate for all fb-sidebar suppression logic.
+ */
+function isVNextPage() {
+    return /-vnext/.test(window.location.pathname);
+}
+
+/**
+ * Initialize BRDC Navigation on current page.
+ * Entry point called by every vNext page.
  */
 window.initBRDCNavigation = function (options = {}) {
-    // Default options
     const config = {
-        page: options.page || '',
-        pageTitle: options.pageTitle || '',
-        backUrl: options.backUrl || '',
-        showMobileNav: options.showMobileNav !== false,
-        showBreadcrumbs: options.showBreadcrumbs !== false && (options.breadcrumbs || []).length > 0,
-        showBackButton: options.showBackButton !== false,
-        showSearch: options.showSearch === true,
-        breadcrumbs: options.breadcrumbs || []
+        page:            options.page       || '',
+        pageTitle:       options.pageTitle  || document.title || 'BRDC',
+        backUrl:         options.backUrl    || '',
+        showSearch:      options.showSearch === true,
+        // legacy compat keys (unused by v4.0 but preserved so callers don't break)
+        showMobileNav:   options.showMobileNav !== false,
+        showBreadcrumbs: false,
+        showBackButton:  options.showBackButton !== false,
+        breadcrumbs:     options.breadcrumbs || [],
     };
 
-    // Load required CSS
+    // ── CSS ──────────────────────────────────────────
     loadCSS('/css/fb-mobile.css');
-    loadCSS('/css/brdc-navigation.css?v=11');
+    loadCSS('/css/brdc-navigation.css?v=18');
     if (config.showSearch) loadCSS('/css/brdc-search.css');
 
-    // Load accessibility utilities
+    // ── Accessibility helpers ─────────────────────────
     loadScript('/js/a11y-helpers.js');
 
-    // Load sidebar navigation (hamburger menu drawer) on all pages
-    loadScript('/js/fb-nav.js?v=13', function () {
-        // Initialize ONLY the sidebar if not already done.
-        // Don't call FBNav.init() which creates a duplicate footer nav.
-        // Dashboard does its own full init via dashboard-auth.js.
-        if (window.FBNav && !window.FBNav.sidebar && window.FBNav.SidebarMenu) {
-            try {
-                const session = JSON.parse(localStorage.getItem('brdc_session') || '{}');
-                const player = session.player_id ? session : null;
-                const sidebar = new window.FBNav.SidebarMenu();
-                sidebar.init();
-                sidebar.setPlayer(player);
-                sidebar.generateContent();
-                window.FBNav.sidebar = sidebar;
-            } catch (e) {
-                // Sidebar init failed - hamburger fallback will retry on click
+    // ── FB-NAV SIDEBAR GATE ───────────────────────────
+    // On vNext pages the new top bar / bottom tab bar IS the nav.
+    // The fb-sidebar (SidebarMenu from fb-nav.js) must NOT render on vNext.
+    // We skip loading fb-nav.js entirely for vNext pages.
+    // OG pages continue loading it exactly as before.
+    if (!isVNextPage()) {
+        loadScript('/js/fb-nav.js?v=13', function () {
+            // OG pages: init sidebar only (not full FBNav.init which adds a duplicate footer).
+            if (window.FBNav && !window.FBNav.sidebar && window.FBNav.SidebarMenu) {
+                try {
+                    const session = JSON.parse(localStorage.getItem('brdc_session') || '{}');
+                    const player  = session.player || (session.player_id ? session : null);
+                    const sidebar = new window.FBNav.SidebarMenu();
+                    sidebar.init();
+                    sidebar.setPlayer(player);
+                    sidebar.generateContent();
+                    window.FBNav.sidebar = sidebar;
+                } catch (e) {
+                    // Sidebar init failed — hamburger fallback will retry on click
+                }
             }
-        }
-    });
-
-    // Add body class for mobile nav padding
-    if (config.showMobileNav) {
-        document.body.classList.add('has-mobile-nav');
-    }
-
-    // Add page-specific body class
-    if (config.page) {
-        document.body.classList.add(`page-${config.page}`);
-    }
-
-    // Load navigation component - v2.0 auto-inits, so we just configure it
-    loadScript('/components/brdc-navigation.js?v=12', function () {
-        // If already auto-initialized, just update config
-        if (window.brdcNavInitialized && window.brdcNav) {
-            window.brdcNav.currentPage = config.page || window.brdcNav.detectCurrentPage();
-            if (config.pageTitle) window.brdcNav.setPageTitle(config.pageTitle);
-            window.brdcNav.setActivePage(window.brdcNav.currentPage);
-            // Update breadcrumbs if provided
-            if (config.breadcrumbs && config.breadcrumbs.length > 0) {
-                window.brdcNav.breadcrumbPath = config.breadcrumbs;
-                window.brdcNav.renderBreadcrumbs();
-            }
-            return;
-        }
-
-        // Otherwise init manually (for pages that don't auto-trigger)
-        const nav = new BRDCNavigation({
-            page: config.page,
-            pageTitle: config.pageTitle,
-            backUrl: config.backUrl,
-            showMobileNav: config.showMobileNav,
-            showBreadcrumbs: config.showBreadcrumbs,
-            showBackButton: config.showBackButton,
-            breadcrumbPath: config.breadcrumbs
         });
+    }
+    // No fb-nav.js load on vNext. CSS also hides .fb-sidebar on has-brdc-nav pages
+    // as a belt-and-suspenders guard (see brdc-navigation.css).
 
-        nav.init();
-        window.brdcNav = nav;
-        window.brdcNavInitialized = true;
-    });
+    // ── Chat drawer (OG pages only — vNext chat is in the Clubhouse tab) ──
+    if (!isVNextPage()) {
+        loadScript('/js/chat-drawer.js?v=8');
+    }
 
-    // Load search component if enabled
+    // ── Search component ─────────────────────────────
     if (config.showSearch) {
         loadScript('/components/brdc-search.js');
     }
 
-    // Load chat drawer for site-wide swipe-to-chat
-    loadScript('/js/chat-drawer.js?v=4');
+    // ── NAV COMPONENT v4.0 ───────────────────────────
+    loadScript('/components/brdc-navigation.js?v=22', function () {
+        // If already initialized, update config only
+        if (window.brdcNavInitialized && window.brdcNav) {
+            if (config.pageTitle) window.brdcNav.setPageTitle(config.pageTitle);
+            if (config.page)      window.brdcNav.setActivePage(config.page);
+            return;
+        }
+
+        const nav = new BRDCNavigation({
+            pageTitle:  config.pageTitle,
+            backUrl:    config.backUrl,
+            showSearch: config.showSearch,
+        });
+
+        // Override active tab if caller specified page explicitly
+        // Use the normalizer so legacy page keys (e.g. 'chat', 'trader') resolve correctly
+        if (config.page) {
+            const resolved = nav._normalizePage(config.page);
+            if (resolved) nav.activeTab = resolved;
+        }
+
+        nav.init();
+        window.brdcNav            = nav;
+        window.brdcNavInitialized = true;
+
+        // Skip-to-content link (accessibility)
+        if (!document.getElementById('brdcSkipNav')) {
+            const skip  = document.createElement('a');
+            skip.id     = 'brdcSkipNav';
+            skip.href   = '#mainContent';
+            skip.textContent = 'Skip to main content';
+            document.body.insertBefore(skip, document.body.firstChild);
+        }
+    });
 };
 
 
 /**
- * Quick navigation helpers
+ * Quick navigation helpers (unchanged API — kept for any pages that call BRDCNav.*)
  */
 window.BRDCNav = {
-    // Navigate to dashboard
-    goHome: function () {
-        window.location.href = '/pages/dashboard.html';
+    goHome() {
+        window.location.href = isVNextPage()
+            ? '/pages/home-vnext.html'
+            : '/pages/dashboard.html';
     },
-
-    // Navigate to league
-    goToLeague: function (leagueId) {
-        window.location.href = `/pages/league-view.html?id=${leagueId}`;
+    goToLeague(leagueId) {
+        window.location.href = `/pages/triples-vnext.html${leagueId ? '?league_id=' + leagueId : ''}`;
     },
-
-    // Navigate to profile
-    goToProfile: function (playerId) {
-        if (playerId) {
-            window.location.href = `/pages/player-profile.html?id=${playerId}`;
-        } else {
-            window.location.href = '/pages/player-profile.html';
-        }
+    goToProfile(playerId) {
+        const base = isVNextPage() ? '/pages/player-profile-vnext.html' : '/pages/player-profile.html';
+        window.location.href = playerId ? `${base}?id=${playerId}` : base;
     },
-
-    // Navigate back
-    goBack: function () {
-        if (window.history.length > 1) {
-            window.history.back();
-        } else {
-            this.goHome();
-        }
+    goBack() {
+        if (window.history.length > 1) { window.history.back(); return; }
+        this.goHome();
     },
-
-    // Open search
-    openSearch: function () {
-        if (window.brdcSearch) {
-            window.brdcSearch.openSearch();
-        }
+    openSearch() {
+        window.brdcSearch?.openSearch?.();
     }
 };
 
-console.log('✅ BRDC Navigation system loaded. Use initBRDCNavigation() to initialize.');
+console.log('✅ BRDC Navigation init v4.2 loaded. Call initBRDCNavigation() to initialize.');

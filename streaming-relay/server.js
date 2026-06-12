@@ -8,9 +8,14 @@
 const { spawn } = require('child_process');
 const { WebSocketServer } = require('ws');
 const http = require('http');
+const fs = require('fs');
+const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 
 const PORT = process.env.PORT || 8080;
+// Self-hosted HLS output lives here and is served over HTTP at /hls/<streamId>/...
+const HLS_ROOT = process.env.HLS_ROOT || '/tmp/hls';
+try { fs.mkdirSync(HLS_ROOT, { recursive: true }); } catch (_) {}
 
 // Active streaming sessions
 const sessions = new Map();
@@ -31,6 +36,21 @@ const server = http.createServer((req, res) => {
       activeSessions: sessions.size,
       uptime: process.uptime()
     }));
+  } else if (req.url.startsWith('/hls/')) {
+    // Serve self-hosted HLS playlist + segments (CORS-open for the site player)
+    const rel = decodeURIComponent(req.url.replace(/^\/hls\//, '').split('?')[0]);
+    const filePath = path.join(HLS_ROOT, rel);
+    if (!filePath.startsWith(HLS_ROOT)) { res.writeHead(403); res.end('Forbidden'); return; }
+    fs.readFile(filePath, (err, buf) => {
+      if (err) { res.writeHead(404); res.end('Not found'); return; }
+      const isManifest = filePath.endsWith('.m3u8');
+      res.writeHead(200, {
+        'Content-Type': isManifest ? 'application/vnd.apple.mpegurl' : (filePath.endsWith('.ts') ? 'video/mp2t' : 'application/octet-stream'),
+        'Access-Control-Allow-Origin': '*',
+        'Cache-Control': isManifest ? 'no-cache, no-store' : 'public, max-age=15'
+      });
+      res.end(buf);
+    });
   } else if (req.url === '/') {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
     res.end('BRDC Streaming Relay Server');
@@ -136,47 +156,47 @@ wss.on('connection', (ws, req) => {
       return;
     }
 
-    const rtmpUrl = RTMP_URLS[platform];
-    if (!rtmpUrl) {
-      ws.send(JSON.stringify({
-        type: 'error',
-        message: `Unknown platform: ${platform}`
-      }));
-      return;
+    let ffmpegArgs;
+    let hlsPath = null;
+
+    if (platform === 'site') {
+      // ── Self-hosted HLS on burningriverdarts.com (no YouTube/Twitch) ──
+      // streamKey doubles as the stream id; viewers fetch /hls/<id>/index.m3u8
+      const hlsDir = path.join(HLS_ROOT, streamKey);
+      try { fs.mkdirSync(hlsDir, { recursive: true }); } catch (_) {}
+      hlsPath = `/hls/${streamKey}/index.m3u8`;
+      console.log(`[${sessionId}] Starting SELF-HOSTED HLS → ${hlsPath}`);
+      ffmpegArgs = [
+        '-f', 'webm', '-i', 'pipe:0',
+        '-c:v', 'libx264', '-preset', 'veryfast', '-tune', 'zerolatency',
+        '-b:v', '3500k', '-maxrate', '3500k', '-bufsize', '7000k', '-pix_fmt', 'yuv420p',
+        '-g', '60', '-keyint_min', '60',
+        '-c:a', 'aac', '-b:a', '128k', '-ar', '44100', '-ac', '2',
+        '-f', 'hls',
+        '-hls_time', '2',                 // 2s segments → ~6-12s viewer latency
+        '-hls_list_size', '6',            // rolling ~12s window
+        '-hls_flags', 'delete_segments+append_list+omit_endlist',
+        '-hls_segment_filename', path.join(hlsDir, 'seg_%05d.ts'),
+        path.join(hlsDir, 'index.m3u8')
+      ];
+    } else {
+      // ── RTMP to YouTube / Twitch / Facebook ──
+      const rtmpUrl = RTMP_URLS[platform];
+      if (!rtmpUrl) {
+        ws.send(JSON.stringify({ type: 'error', message: `Unknown platform: ${platform}` }));
+        return;
+      }
+      const fullRtmpUrl = `${rtmpUrl}/${streamKey}`;
+      console.log(`[${sessionId}] Starting stream to ${platform}`);
+      ffmpegArgs = [
+        '-f', 'webm', '-i', 'pipe:0',
+        '-c:v', 'libx264', '-preset', 'veryfast', '-tune', 'zerolatency',
+        '-b:v', '4500k', '-maxrate', '4500k', '-bufsize', '9000k', '-pix_fmt', 'yuv420p',
+        '-g', '60', '-keyint_min', '60',
+        '-c:a', 'aac', '-b:a', '128k', '-ar', '44100', '-ac', '2',
+        '-f', 'flv', fullRtmpUrl
+      ];
     }
-
-    const fullRtmpUrl = `${rtmpUrl}/${streamKey}`;
-    console.log(`[${sessionId}] Starting stream to ${platform}`);
-
-    // FFmpeg command to transcode webm input to RTMP output
-    // Input: webm (VP8/VP9 video, Opus audio) from browser MediaRecorder
-    // Output: H.264 video, AAC audio for RTMP compatibility
-    const ffmpegArgs = [
-      // Input options
-      '-f', 'webm',           // Input format
-      '-i', 'pipe:0',         // Read from stdin
-
-      // Video encoding
-      '-c:v', 'libx264',      // H.264 codec (required for RTMP)
-      '-preset', 'veryfast',  // Fast encoding for real-time
-      '-tune', 'zerolatency', // Minimize latency
-      '-b:v', '4500k',        // Video bitrate
-      '-maxrate', '4500k',
-      '-bufsize', '9000k',
-      '-pix_fmt', 'yuv420p',  // Pixel format
-      '-g', '60',             // Keyframe interval (2 seconds at 30fps)
-      '-keyint_min', '60',
-
-      // Audio encoding
-      '-c:a', 'aac',          // AAC codec (required for RTMP)
-      '-b:a', '128k',         // Audio bitrate
-      '-ar', '44100',         // Sample rate
-      '-ac', '2',             // Stereo
-
-      // Output
-      '-f', 'flv',            // FLV container for RTMP
-      fullRtmpUrl
-    ];
 
     console.log(`[${sessionId}] FFmpeg args:`, ffmpegArgs.join(' '));
 
@@ -225,7 +245,7 @@ wss.on('connection', (ws, req) => {
       }));
     });
 
-    ws.send(JSON.stringify({ type: 'started', platform }));
+    ws.send(JSON.stringify({ type: 'started', platform, hlsPath }));
   }
 
   function stopStream() {

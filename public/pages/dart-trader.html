@@ -46,23 +46,32 @@
 
         /* ===== MARKETPLACE LAYOUT ===== */
         .marketplace-wrapper {
-            display: flex;
+            display: block;
             min-height: 100vh;
+            width: min(980px, calc(100vw - 560px));
+            min-width: 620px;
+            margin: 0 auto;
+            padding: 20px 0 32px;
         }
 
-        /* ===== SIDEBAR (Desktop) ===== */
+        /* ===== FILTER PANEL (Desktop) ===== */
         .marketplace-sidebar {
-            width: 280px;
-            min-width: 280px;
-            background: var(--bg-panel);
-            border-right: 2px solid rgba(255,255,255,0.1);
+            width: 100%;
+            min-width: 0;
+            background: linear-gradient(180deg, rgba(22, 33, 62, 0.96), rgba(30, 42, 71, 0.94));
+            border: 1px solid rgba(255,255,255,0.12);
             padding: 20px 16px;
-            position: fixed;
-            top: 0;
-            left: 0;
-            bottom: 0;
-            overflow-y: auto;
-            z-index: 40;
+            position: static;
+            max-height: none;
+            overflow: visible;
+            z-index: 1;
+            border-radius: 18px;
+            box-shadow: 0 18px 45px rgba(0,0,0,0.24);
+            margin-bottom: 18px;
+            display: grid;
+            grid-template-columns: minmax(180px, 1fr) minmax(220px, 1.2fr);
+            gap: 14px 18px;
+            align-items: start;
         }
 
         .sidebar-title {
@@ -70,7 +79,7 @@
             font-size: 28px;
             letter-spacing: 2px;
             color: var(--yellow);
-            margin-bottom: 16px;
+            margin-bottom: 0;
         }
 
         .create-listing-btn {
@@ -87,7 +96,7 @@
             text-decoration: none;
             cursor: pointer;
             transition: all 0.15s;
-            margin-bottom: 16px;
+            margin-bottom: 0;
             box-shadow: 0 2px 8px rgba(255, 70, 154, 0.3);
         }
 
@@ -97,7 +106,8 @@
         }
 
         .sidebar-search {
-            margin-bottom: 16px;
+            margin-bottom: 0;
+            grid-column: 1 / -1;
         }
 
         .sidebar-search input {
@@ -128,13 +138,19 @@
             letter-spacing: 1px;
             margin-bottom: 8px;
             padding: 0 4px;
+            align-self: center;
         }
 
         .sidebar-categories {
-            margin-bottom: 16px;
+            margin-bottom: 0;
+            grid-column: 1 / -1;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
         }
 
         .sidebar-category {
+            flex: 1 1 130px;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -173,11 +189,16 @@
 
         /* Sidebar Filters */
         .sidebar-filters {
-            margin-bottom: 16px;
+            margin-bottom: 0;
+            grid-column: 1 / -1;
+            display: grid;
+            grid-template-columns: repeat(4, minmax(130px, 1fr));
+            gap: 10px;
+            align-items: end;
         }
 
         .sidebar-filters details {
-            margin-bottom: 4px;
+            margin-bottom: 0;
         }
 
         .sidebar-filters summary {
@@ -229,6 +250,7 @@
         }
 
         .sidebar-divider {
+            display: none;
             height: 1px;
             background: rgba(255,255,255,0.1);
             margin: 12px 0;
@@ -269,6 +291,7 @@
             text-align: center;
             margin-top: 8px;
             transition: all 0.12s;
+            grid-column: 1 / -1;
         }
 
         .sidebar-clear-btn:hover {
@@ -278,10 +301,10 @@
 
         /* ===== MAIN CONTENT ===== */
         .marketplace-main {
-            flex: 1;
-            margin-left: 280px;
-            padding: 20px 24px;
+            margin-left: 0;
+            padding: 0;
             min-height: 100vh;
+            min-width: 0;
         }
 
         /* Mobile Search Bar (hidden on desktop) */
@@ -641,12 +664,30 @@
 
         /* ===== MOBILE RESPONSIVE ===== */
         @media (max-width: 900px) {
+            .marketplace-wrapper {
+                width: 100%;
+                min-width: 0;
+                padding: 0;
+            }
+
+            .marketplace-sidebar {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar-filters {
+                grid-template-columns: repeat(2, minmax(130px, 1fr));
+            }
+
             .listings-grid {
                 grid-template-columns: repeat(2, 1fr);
             }
         }
 
         @media (max-width: 768px) {
+            .marketplace-wrapper {
+                display: block;
+            }
+
             .marketplace-sidebar {
                 display: none;
             }
@@ -1005,12 +1046,12 @@
     <script>
         // Firebase config
         const firebaseConfig = {
-            apiKey: "AIzaSyApov-xE5l1EJo0CADJ3OXP5aPvFmTmrZA",
+            apiKey: "AIzaSyDN1aYhoVt3OX5EafsNTVB09i8VFx7QM1U",
             authDomain: "brdc-v2.firebaseapp.com",
             projectId: "brdc-v2",
             storageBucket: "brdc-v2.firebasestorage.app",
-            messagingSenderId: "858304543457",
-            appId: "1:858304543457:web:e119e7c6fb7d616ea57ba3"
+            messagingSenderId: "726670872282",
+            appId: "1:726670872282:web:913d19c8cb3b24bf919fe3"
         };
 
         firebase.initializeApp(firebaseConfig);
@@ -1044,6 +1085,7 @@
                 document.getElementById('mobileMyListingsChip').style.display = '';
             }
 
+            resetFilterControls();
             loadListings();
             setupEventListeners();
         });
@@ -1433,6 +1475,11 @@
 
         // Clear all filters
         function clearFilters() {
+            resetFilterControls();
+            applyFilters();
+        }
+
+        function resetFilterControls() {
             document.getElementById('searchInput').value = '';
             document.getElementById('mobileSearchInput').value = '';
             document.getElementById('priceSelect').value = '';
@@ -1445,7 +1492,6 @@
             document.getElementById('mWeightSelect').value = '';
             document.getElementById('mMaterialSelect').value = '';
             document.getElementById('mPointTypeSelect').value = '';
-            applyFilters();
         }
 
         // Utility functions

@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2026 Triples League - BRDC</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://firestore.googleapis.com">
+    <link rel="icon" type="image/png" href="/images/favicon.png">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#f7f1e8">
+
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap">
+    <link rel="stylesheet" href="/css/brdc-styles.css">
+    <link rel="stylesheet" href="/css/fb-mobile.css">
+    <link rel="stylesheet" href="/css/brdc-navigation.css?v=15">
+    <link rel="stylesheet" href="/css/triples-vnext.css?v=8">
+</head>
+<body class="triples-vnext-page has-mobile-nav">
+    <main class="tv-shell" id="mainContent">
+        <section class="tv-hero">
+            <div>
+                <p class="tv-kicker">2026 Triples League</p>
+                <h1>League command center.</h1>
+                <p class="tv-hero-copy" id="leagueSubtitle">Playoffs first, with regular season standings, schedule, stats, rosters, fill-ins, and league talk one step away.</p>
+            </div>
+            <div class="tv-hero-actions">
+                <a href="/pages/home-vnext.html">Home</a>
+                <a href="/pages/messages-vnext.html">League chat</a>
+                <a href="/pages/members-vnext.html">Members</a>
+            </div>
+        </section>
+
+        <section class="tv-card tv-now-card" id="leagueSnapshot">
+            <div class="tv-loading">Loading 2026 Triples League...</div>
+        </section>
+
+        <section class="tv-card tv-view-card" data-view-card="league">
+            <nav class="tv-view-tabs" aria-label="Triples league views">
+                <button type="button" class="active" data-view-target="standings">Standings</button>
+                <button type="button" data-view-target="schedule">Schedule</button>
+                <button type="button" data-view-target="stats">Stats</button>
+                <button type="button" data-view-target="teams">Teams</button>
+                <button type="button" data-view-target="fillins">Fill-ins</button>
+                <button type="button" data-view-target="chat">Chat</button>
+                <button type="button" data-view-target="manage" data-director-only hidden>Manage</button>
+            </nav>
+
+            <div class="tv-view-pane active" data-view-pane="standings">
+                <div class="tv-section-head">
+                    <div>
+                        <p class="tv-kicker">League</p>
+                        <h2>Standings</h2>
+                    </div>
+                </div>
+                <div class="tv-standings-switch" role="tablist" aria-label="Standings views">
+                    <button type="button" class="active" data-standings-target="playoffs" aria-selected="true">Playoffs</button>
+                    <button type="button" data-standings-target="regular" aria-selected="false">Regular season</button>
+                </div>
+                <div class="tv-standings-panel active" data-standings-panel="playoffs" aria-hidden="false">
+                    <div class="tv-playoffs" id="playoffBracket"></div>
+                </div>
+                <div class="tv-standings-panel" data-standings-panel="regular" aria-hidden="true">
+                    <div class="tv-standings" id="standingsList"></div>
+                </div>
+            </div>
+
+            <div class="tv-view-pane" data-view-pane="schedule">
+                <div class="tv-section-head">
+                    <div>
+                        <p class="tv-kicker">Match nights</p>
+                        <h2>Schedule</h2>
+                    </div>
+                    <div class="tv-week-strip" id="weekStrip"></div>
+                </div>
+                <div class="tv-schedule" id="scheduleList"></div>
+            </div>
+
+            <div class="tv-view-pane" data-view-pane="stats">
+                <div class="tv-section-head">
+                    <div>
+                        <p class="tv-kicker">League stats</p>
+                        <h2>Stats</h2>
+                    </div>
+                </div>
+                <div class="tv-stats-container" id="statsContainer">
+                    <div class="tv-empty">Loading stats...</div>
+                </div>
+                <div class="tv-stat-grid" style="margin-top:18px">
+                    <div>
+                        <h3>501 3DA</h3>
+                        <div class="tv-leaders" id="x01Leaders"></div>
+                    </div>
+                    <div>
+                        <h3>Cricket MPR</h3>
+                        <div class="tv-leaders" id="cricketLeaders"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tv-view-pane" data-view-pane="teams">
+                <div class="tv-section-head">
+                    <div>
+                        <p class="tv-kicker">Rosters</p>
+                        <h2>Teams</h2>
+                    </div>
+                    <a href="/pages/triples-vnext.html#teams">Roster view</a>
+                </div>
+                <div class="tv-team-grid" id="teamGrid"></div>
+            </div>
+
+            <div class="tv-view-pane" data-view-pane="fillins">
+                <div class="tv-section-head">
+                    <div>
+                        <p class="tv-kicker">Available help</p>
+                        <h2>Fill-ins</h2>
+                    </div>
+                    <div class="tv-section-actions">
+                        <span id="fillinCount">-</span>
+                        <button type="button" id="openFillinSignupBtn" class="tv-primary-action">Join fill-in list</button>
+                    </div>
+                </div>
+                <div class="tv-fillin-grid" id="fillinGrid"></div>
+            </div>
+
+            <div class="tv-view-pane" data-view-pane="chat">
+                <div class="tv-section-head">
+                    <div>
+                        <p class="tv-kicker">Communication</p>
+                        <h2>Where league talk happens</h2>
+                    </div>
+                    <a href="/pages/messages-vnext.html">Open messages</a>
+                </div>
+                <div class="tv-chat-grid">
+                    <a class="tv-chat-card" href="/pages/messages-vnext.html">
+                        <strong>League room</strong>
+                        <span>Results, general chatter, announcements, and league questions.</span>
+                    </a>
+                    <a class="tv-chat-card" href="/pages/messages-vnext.html">
+                        <strong>Team rooms</strong>
+                        <span>Lineups, fill-ins, rides, and match-night coordination.</span>
+                    </a>
+                    <a class="tv-chat-card" href="/pages/messages-vnext.html?action=challenge">
+                        <strong>Challenges</strong>
+                        <span>Send a match invite when someone is online or leave a request for later.</span>
+                    </a>
+                </div>
+            </div>
+
+            <div class="tv-view-pane" data-view-pane="manage" data-director-only hidden>
+                <div class="tv-section-head">
+                    <div>
+                        <p class="tv-kicker">Director tools</p>
+                        <h2>Manage League</h2>
+                    </div>
+                </div>
+                <div class="tv-manage-grid" id="leagueManageGrid">
+                    <div class="tv-empty">Loading director tools...</div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <div class="tv-modal" id="fillinSignupModal" aria-hidden="true">
+        <div class="tv-modal-card" role="dialog" aria-modal="true" aria-labelledby="fillinSignupTitle">
+            <p class="tv-kicker">2026 Triples League fill-in</p>
+            <h2 id="fillinSignupTitle">Sign up as a fill-in</h2>
+            <p class="tv-muted">Captains can contact you when someone is out. This does not submit until you press the final signup button.</p>
+            <form id="fillinSignupForm">
+                <label>Full name<input id="fillinName" name="full_name" autocomplete="name" required></label>
+                <label>Email<input id="fillinEmail" name="email" type="email" autocomplete="email" required></label>
+                <label>Phone<input id="fillinPhone" name="phone" autocomplete="tel" required></label>
+                <label>Level
+                    <select id="fillinLevel" name="preferred_level">
+                        <option value="">Not sure</option>
+                        <option value="A">A</option>
+                        <option value="B">B</option>
+                        <option value="C">C</option>
+                    </select>
+                </label>
+                <label>501 average<input id="fillin501" name="avg_501" type="number" step="0.01" inputmode="decimal" placeholder="Optional"></label>
+                <label>Cricket MPR<input id="fillinCricket" name="avg_cricket" type="number" step="0.01" inputmode="decimal" placeholder="Optional"></label>
+                <label class="wide">Profile photo<input id="fillinPhoto" name="photo" type="file" accept="image/*"></label>
+                <label class="check wide"><input id="fillinSms" name="sms_opt_in" type="checkbox" checked> Captains can text me for fill-in requests</label>
+                <div class="tv-modal-status" id="fillinSignupStatus"></div>
+                <div class="tv-modal-actions">
+                    <button type="submit" id="submitFillinSignupBtn">Sign up as fill-in</button>
+                    <button type="button" id="closeFillinSignupBtn">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script type="module" src="/js/triples-vnext.js?v=15"></script>
+    <script src="/components/brdc-navigation-init.js?v=18"></script>
+    <script>
+        initBRDCNavigation({
+            page: 'league',
+            pageTitle: '2026 Triples League',
+            showBreadcrumbs: false,
+            showBackButton: true
+        });
+    </script>
+</body>
+</html>

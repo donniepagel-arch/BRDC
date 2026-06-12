@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SSDL - Standings</title>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #1a3a5c;
+            --secondary: #2e7db5;
+            --accent: #7ec8c8;
+            --bg-dark: #0d1f33;
+            --bg-panel: #0f2744;
+            --bg-card: #142d50;
+            --text-light: #f0f0f0;
+            --text-dim: #8a9ab5;
+            --success: #22c55e;
+            --danger: #ef4444;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            background-color: var(--bg-dark);
+            color: var(--text-light);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        h1, h2, h3, h4, h5, h6 {
+            font-family: 'Bebas Neue', sans-serif;
+            color: var(--text-light);
+        }
+
+        .top-nav {
+            background-color: var(--bg-panel);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+
+        .nav-logo {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 2em;
+            color: var(--accent);
+        }
+
+        .nav-links a, .top-nav button {
+            color: var(--text-dim);
+            text-decoration: none;
+            padding: 8px 15px;
+            margin-left: 15px;
+            border-radius: 5px;
+            transition: background-color 0.2s, color 0.2s;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1em;
+        }
+
+        .nav-links a:hover, .top-nav button:hover {
+            background-color: var(--bg-card);
+            color: var(--text-light);
+        }
+
+        .nav-links a.active {
+            background-color: var(--primary);
+            color: var(--text-light);
+        }
+
+        .main-content {
+            padding: 30px;
+            max-width: 1200px;
+            margin: 0 auto;
+            flex-grow: 1;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .section-header {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 2.2em;
+            color: var(--primary);
+            margin-bottom: 20px;
+            border-bottom: 2px solid var(--primary);
+            padding-bottom: 10px;
+        }
+
+        .card {
+            background-color: var(--bg-panel);
+            border-radius: 8px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .division-tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .division-tabs button {
+            background-color: var(--bg-card);
+            color: var(--text-dim);
+            border: 1px solid var(--primary);
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+        }
+
+        .division-tabs button:hover {
+            background-color: var(--primary);
+            color: var(--text-light);
+        }
+
+        .division-tabs button.active {
+            background-color: var(--secondary);
+            border-color: var(--secondary);
+            color: var(--text-light);
+        }
+
+        .standings-table-container {
+            margin-top: 20px;
+        }
+
+        .standings-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+
+        .standings-table th,
+        .standings-table td {
+            border: 1px solid var(--bg-card);
+            padding: 12px;
+            text-align: left;
+        }
+
+        .standings-table th {
+            background-color: var(--primary);
+            color: var(--text-light);
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 1.1em;
+            text-transform: uppercase;
+        }
+
+        .standings-table tbody tr:nth-child(even) {
+            background-color: var(--bg-card);
+        }
+
+        .standings-table tbody tr:hover {
+            background-color: var(--bg-dark);
+        }
+
+        .standings-table td {
+            color: var(--text-light);
+        }
+
+        .empty-state {
+            text-align: center;
+            color: var(--text-dim);
+            font-size: 1.2em;
+            margin-top: 50px;
+        }
+        footer {
+            text-align: center;
+            padding: 20px;
+            color: rgba(255,255,255,0.25);
+            font-size: 11px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+        footer a {
+            color: rgba(255,255,255,0.35);
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <nav class="top-nav">
+        <span class="nav-logo">SSDL</span>
+        <div id="org-switcher-container"></div>
+        <div class="nav-links">
+            <a href="/ssdl/login.html">Member Login</a>
+        </div>
+    </nav>
+
+    <div class="main-content">
+        <h1 class="section-header" id="season-name">Standings</h1>
+
+        <div id="standings-content">
+            <div class="division-tabs" id="division-tabs">
+                <!-- Division tabs will be loaded here -->
+            </div>
+            <div id="standings-tables-container">
+                <!-- Standings tables will be loaded here -->
+            </div>
+        </div>
+        <p id="empty-standings-state" class="empty-state" style="display: none;">Standings will be posted here when available.</p>
+
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getFirestore, collection, query, where, getDocs, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDN1aYhoVt3OX5EafsNTVB09i8VFx7QM1U",
+            authDomain: "brdc-v2.firebaseapp.com",
+            projectId: "brdc-v2",
+            storageBucket: "brdc-v2.firebasestorage.app",
+            messagingSenderId: "726670872282",
+            appId: "1:726670872282:web:913d19c8cb3b24bf919fe3"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        const orgId = 'ssdl';
+
+        import { detectUserOrgs, renderOrgSwitcher } from '/ssdl/js/org-switcher.js';
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                const orgs = await detectUserOrgs(user.uid);
+                renderOrgSwitcher(orgs, 'ssdl', document.getElementById('org-switcher-container'));
+            }
+        });
+
+        const seasonNameHeader = document.getElementById('season-name');
+        const divisionTabsContainer = document.getElementById('division-tabs');
+        const standingsTablesContainer = document.getElementById('standings-tables-container');
+        const emptyStandingsState = document.getElementById('empty-standings-state');
+
+        let allTeams = [];
+        let divisions = [];
+        let activeSeason = null;
+
+        async function loadStandings() {
+            try {
+                // 1. Get active season or most recent season
+                const seasonsCol = collection(db, `organizations/${orgId}/seasons`);
+                let qSeason = query(seasonsCol, where('status', '==', 'active'), limit(1));
+                let seasonSnapshot = await getDocs(qSeason);
+
+                if (seasonSnapshot.empty) {
+                    // Fallback to most recent season if no active season
+                    qSeason = query(seasonsCol, orderBy('start_date', 'desc'), limit(1));
+                    seasonSnapshot = await getDocs(qSeason);
+                }
+
+                if (seasonSnapshot.empty) {
+                    emptyStandingsState.style.display = 'block';
+                    document.getElementById('standings-content').style.display = 'none';
+                    return;
+                }
+                emptyStandingsState.style.display = 'none';
+                document.getElementById('standings-content').style.display = 'block';
+
+                activeSeason = { id: seasonSnapshot.docs[0].id, ...seasonSnapshot.docs[0].data() };
+                seasonNameHeader.textContent = `${activeSeason.name || 'Current Season'}${activeSeason.current_week ? ' — Week ' + activeSeason.current_week : ''}`;
+
+                // 2. Load teams for the active season
+                const teamsCol = collection(db, `organizations/${orgId}/teams`);
+                const qTeams = query(teamsCol, where('season', '==', activeSeason.id));
+                const teamSnapshot = await getDocs(qTeams);
+
+                if (teamSnapshot.empty) {
+                    emptyStandingsState.style.display = 'block';
+                    document.getElementById('standings-content').style.display = 'none';
+                    return;
+                }
+
+                allTeams = teamSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                
+                // Calculate total points (TP = PS + SP) and sort
+                allTeams.forEach(team => {
+                    team.TP = (team.PS || 0) + (team.SP || 0);
+                });
+                allTeams.sort((a, b) => b.TP - a.TP);
+
+                // Extract unique divisions and sort alphabetically
+                divisions = [...new Set(allTeams.map(team => team.division))].sort();
+
+                renderDivisionTabs();
+                if (divisions.length > 0) {
+                    renderStandingsTable(divisions[0]); // Show first division by default
+                }
+
+            } catch (error) {
+                console.error("Error loading standings: ", error);
+                emptyStandingsState.style.display = 'block';
+                document.getElementById('standings-content').style.display = 'none';
+            }
+        }
+
+        function renderDivisionTabs() {
+            divisionTabsContainer.innerHTML = '';
+            divisions.forEach((division, index) => {
+                const button = document.createElement('button');
+                button.textContent = division;
+                button.classList.add('division-tab-button');
+                if (index === 0) {
+                    button.classList.add('active');
+                }
+                button.addEventListener('click', () => {
+                    document.querySelectorAll('.division-tab-button').forEach(btn => btn.classList.remove('active'));
+                    button.classList.add('active');
+                    renderStandingsTable(division);
+                });
+                divisionTabsContainer.appendChild(button);
+            });
+        }
+
+        function renderStandingsTable(division) {
+            standingsTablesContainer.innerHTML = '';
+            const filteredTeams = allTeams.filter(team => team.division === division);
+
+            const tableContainer = document.createElement('div');
+            tableContainer.classList.add('standings-table-container');
+            tableContainer.innerHTML = `
+                <h3>${division} Division</h3>
+                <table class="standings-table">
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Team Name</th>
+                            <th>Venue</th>
+                            <th>PS</th>
+                            <th>SP</th>
+                            <th>TP</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${filteredTeams.map((team, index) => `
+                            <tr>
+                                <td>${index + 1}</td>
+                                <td>${team.name}</td>
+                                <td>${team.venue || 'N/A'}</td>
+                                <td>${team.PS || 0}</td>
+                                <td>${team.SP || 0}</td>
+                                <td>${team.TP}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+            standingsTablesContainer.appendChild(tableContainer);
+        }
+
+        loadStandings();
+    </script>
+    <footer>Powered by <a href="https://looptlabs.com" style="color:rgba(255,255,255,0.35);text-decoration:none;">Loopt Labs</a></footer>
+</body>
+</html>

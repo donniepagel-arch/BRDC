@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SSDL Manager Events</title>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
+        import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
+        import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc, query, orderBy, getDoc } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+        import { getFunctions, httpsCallable } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-functions.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDN1aYhoVt3OX5EafsNTVB09i8VFx7QM1U",
+            authDomain: "brdc-v2.firebaseapp.com",
+            projectId: "brdc-v2",
+            storageBucket: "brdc-v2.firebasestorage.app",
+            messagingSenderId: "726670872282",
+            appId: "1:726670872282:web:913d19c8cb3b24bf919fe3"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const functions = getFunctions(app);
+        const orgId = 'ssdl';
+
+        const createOrgEvent = httpsCallable(functions, 'createOrgEvent');
+        const updateOrgEvent = httpsCallable(functions, 'updateOrgEvent');
+        const deleteOrgEvent = httpsCallable(functions, 'deleteOrgEvent');
+
+        let currentEditingEventId = null;
+
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) {
+                window.location.href = '../login.html';
+                return;
+            }
+
+            const userRole = sessionStorage.getItem('userRole');
+            const storedOrgId = sessionStorage.getItem('orgId');
+
+            if (userRole !== 'manager' || storedOrgId !== orgId) {
+                alert('Unauthorized access.');
+                await signOut(auth);
+                window.location.href = '../login.html';
+                return;
+            }
+
+            await fetchEvents();
+        });
+
+        async function fetchEvents() {
+            const eventsRef = collection(db, `organizations/${orgId}/events`);
+            const q = query(eventsRef, orderBy('date', 'desc'));
+            const snapshot = await getDocs(q);
+            const eventsTableBody = document.getElementById('events-table-body');
+            eventsTableBody.innerHTML = '';
+
+            snapshot.forEach(doc => {
+                const event = { id: doc.id, ...doc.data() };
+                const row = eventsTableBody.insertRow();
+                row.dataset.eventId = event.id;
+                row.innerHTML = `
+                    <td>${event.name}</td>
+                    <td>${event.date.toDate().toLocaleDateString()} ${event.date.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
+                    <td>${event.venue}</td>
+                    <td>${event.type}</td>
+                    <td>${event.preRegistrationEnabled ? 'Yes' : 'No'}</td>
+                    <td>${event.registrationCount || 0}</td>
+                    <td>
+                        <button class="button-small button-secondary edit-event-btn" data-id="${event.id}">Edit</button>
+                        <button class="button-small button-danger delete-event-btn" data-id="${event.id}">Delete</button>
+                    </td>
+                `;
+                row.addEventListener('click', (e) => {
+                    if (!e.target.classList.contains('button-small')) {
+                        toggleRegistrations(event.id);
+                    }
+                });
+            });
+        }
+
+        async function toggleRegistrations(eventId) {
+            let expandedRow = document.querySelector(`.expanded-row[data-event-id="${eventId}"]`);
+            if (expandedRow) {
+                expandedRow.remove();
+            } else {
+                const eventRow = document.querySelector(`tr[data-event-id="${eventId}"]`);
+                expandedRow = document.createElement('tr');
+                expandedRow.classList.add('expanded-row');
+                expandedRow.dataset.eventId = eventId;
+                expandedRow.innerHTML = `
+                    <td colspan="7">
+                        <h4>Registrations for ${eventId}</h4>
+                        <button class="button-small button-secondary export-csv-btn" data-event-id="${eventId}">Export CSV</button>
+                        <div id="registrations-list-${eventId}">Loading registrations...</div>
+                    </td>
+                `;
+                eventRow.after(expandedRow);
+                await fetchRegistrations(eventId);
+            }
+        }
+
+        async function fetchRegistrations(eventId) {
+            const registrationsRef = collection(db, `organizations/${orgId}/events/${eventId}/registrations`);
+            const snapshot = await getDocs(registrationsRef);
+            const registrationsDiv = document.getElementById(`registrations-list-${eventId}`);
+            registrationsDiv.innerHTML = '';
+
+            if (snapshot.empty) {
+                registrationsDiv.innerHTML = '<p>No registrations yet.</p>';
+                return;
+            }
+
+            const table = document.createElement('table');
+            table.classList.add('data-table');
+            table.innerHTML = `
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>Registered On</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            `;
+            const tbody = table.querySelector('tbody');
+
+            snapshot.forEach(doc => {
+                const reg = doc.data();
+                const row = tbody.insertRow();
+                row.innerHTML = `
+                    <td>${reg.name}</td>
+                    <td>${reg.email || 'N/A'}</td>
+                    <td>${reg.phone || 'N/A'}</td>
+                    <td>${reg.registeredOn ? reg.registeredOn.toDate().toLocaleDateString() : 'N/A'}</td>
+                `;
+            });
+            registrationsDiv.appendChild(table);
+        }
+
+        function exportRegistrationsToCsv(eventId) {
+            const registrationsRef = collection(db, `organizations/${orgId}/events/${eventId}/registrations`);
+            getDocs(registrationsRef).then(snapshot => {
+                let csv = 'Name,Email,Phone,Registered On\n';
+                snapshot.forEach(doc => {
+                    const reg = doc.data();
+                    const date = reg.registeredOn ? reg.registeredOn.toDate().toLocaleDateString() : 'N/A';
+                    csv += `${reg.name || ''},${reg.email || ''},${reg.phone || ''},${date}\n`;
+                });
+
+                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = `registrations_${eventId}.csv`;
+                link.click();
+            }).catch(error => {
+                alert('Error exporting registrations: ' + error.message);
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('logout-button').addEventListener('click', async () => {
+                await signOut(auth);
+                sessionStorage.clear();
+                window.location.href = '../login.html';
+            });
+
+            const addEventModal = document.getElementById('add-edit-event-modal');
+            const addEventButton = document.getElementById('add-event-button');
+            const closeEventModal = document.querySelector('#add-edit-event-modal .close-button');
+            const eventForm = document.getElementById('event-form');
+            const modalTitle = document.getElementById('event-modal-title');
+
+            addEventButton.addEventListener('click', () => {
+                modalTitle.textContent = 'Add New Event';
+                eventForm.reset();
+                document.getElementById('event-capacity-group').style.display = 'none';
+                document.getElementById('event-pre-registration').checked = false; // Default to false
+                currentEditingEventId = null;
+                addEventModal.style.display = 'block';
+            });
+
+            closeEventModal.addEventListener('click', () => {
+                addEventModal.style.display = 'none';
+            });
+
+            window.addEventListener('click', (e) => {
+                if (e.target === addEventModal) {
+                    addEventModal.style.display = 'none';
+                }
+            });
+
+            eventForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const name = e.target.name.value;
+                const date = new Date(e.target.date.value);
+                const venue = e.target.venue.value;
+                const description = e.target.description.value;
+                const type = e.target.type.value;
+                const preRegistrationEnabled = e.target['pre-registration'].checked;
+                const capacity = preRegistrationEnabled ? parseInt(e.target.capacity.value) : null;
+
+                if (!date || isNaN(date.getTime())) {
+                    alert('Invalid date/time provided.');
+                    return;
+                }
+
+                const eventData = {
+                    name, date, venue, description, type, preRegistrationEnabled, capacity,
+                    timestamp: new Date(),
+                    registrationCount: 0 // Initialize count
+                };
+
+                try {
+                    if (currentEditingEventId) {
+                        // Update Event
+                        await updateOrgEvent({ orgId, eventId: currentEditingEventId, updates: eventData });
+                        alert('Event updated successfully!');
+                    } else {
+                        // Add Event
+                        await createOrgEvent({ orgId, eventData });
+                        alert('Event added successfully!');
+                    }
+                    addEventModal.style.display = 'none';
+                    fetchEvents(); // Refresh the event list
+                } catch (error) {
+                    alert('Error saving event: ' + error.message);
+                }
+            });
+
+            document.getElementById('events-table-body').addEventListener('click', async (e) => {
+                if (e.target.classList.contains('edit-event-btn')) {
+                    const eventId = e.target.dataset.id;
+                    currentEditingEventId = eventId;
+                    modalTitle.textContent = 'Edit Event';
+
+                    const eventDocRef = doc(db, `organizations/${orgId}/events`, eventId);
+                    const eventDoc = await getDoc(eventDocRef);
+                    const event = eventDoc.data();
+
+                    if (event) {
+                        eventForm.name.value = event.name;
+                        eventForm.date.value = event.date.toDate().toISOString().slice(0, 16);
+                        eventForm.venue.value = event.venue;
+                        eventForm.description.value = event.description;
+                        eventForm.type.value = event.type;
+                        eventForm['pre-registration'].checked = event.preRegistrationEnabled;
+                        if (event.preRegistrationEnabled) {
+                            document.getElementById('event-capacity-group').style.display = 'block';
+                            eventForm.capacity.value = event.capacity || '';
+                        } else {
+                            document.getElementById('event-capacity-group').style.display = 'none';
+                        }
+                        addEventModal.style.display = 'block';
+                    }
+                } else if (e.target.classList.contains('delete-event-btn')) {
+                    const eventId = e.target.dataset.id;
+                    if (confirm('Are you sure you want to delete this event and all its registrations?')) {
+                        try {
+                            await deleteOrgEvent({ orgId, eventId });
+                            alert('Event deleted successfully!');
+                            fetchEvents();
+                        } catch (error) {
+                            alert('Error deleting event: ' + error.message);
+                        }
+                    }
+                }
+            });
+
+            document.getElementById('event-pre-registration').addEventListener('change', (e) => {
+                document.getElementById('event-capacity-group').style.display = e.target.checked ? 'block' : 'none';
+            });
+
+            document.body.addEventListener('click', (e) => {
+                if (e.target.classList.contains('export-csv-btn')) {
+                    exportRegistrationsToCsv(e.target.dataset.eventId);
+                }
+            });
+        });
+    </script>
+    <style>
+        :root {
+            --primary: #1a3a5c;
+            --secondary: #2e7db5;
+            --accent: #7ec8c8;
+            --bg-dark: #0d1f33;
+            --bg-panel: #0f2744;
+            --bg-card: #142d50;
+            --text-light: #f0f0f0;
+            --text-dim: #8a9ab5;
+            --border-color: rgba(255,255,255,0.12);
+            --success: #22c55e;
+            --danger: #ef4444;
+            --yellow: #f0c040;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-dark);
+            color: var(--text-light);
+            display: flex;
+            min-height: 100vh;
+        }
+        h1, h2, h3, h4, h5, h6 {
+            font-family: 'Bebas Neue', sans-serif;
+            color: var(--accent);
+            letter-spacing: 1.5px;
+            text-shadow: 2px 2px 0px var(--primary);
+        }
+        .sidebar {
+            width: 250px;
+            background-color: var(--bg-panel);
+            padding: 1.5rem;
+            border-right: 1px solid var(--border-color);
+            box-shadow: 4px 0px 0px var(--primary);
+            display: flex;
+            flex-direction: column;
+        }
+        .sidebar h2 {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        .sidebar nav ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .sidebar nav ul li {
+            margin-bottom: 1rem;
+        }
+        .sidebar nav ul li a {
+            display: block;
+            padding: 0.75rem 1rem;
+            color: var(--text-light);
+            text-decoration: none;
+            border-radius: 5px;
+            transition: background-color 0.3s ease, color 0.3s ease;
+            font-size: 1.1rem;
+        }
+        .sidebar nav ul li a.active, .sidebar nav ul li a:hover {
+            background-color: var(--primary);
+            color: var(--accent);
+        }
+        .main-content {
+            flex-grow: 1;
+            padding: 2rem;
+        }
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+        .button {
+            display: inline-block;
+            padding: 0.75rem 1.5rem;
+            background-color: var(--secondary);
+            color: var(--text-light);
+            text-decoration: none;
+            border-radius: 5px;
+            transition: background-color 0.3s ease;
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 1rem;
+            text-shadow: 1px 1px 0px var(--primary);
+            border: 1px solid var(--border-color);
+            cursor: pointer;
+        }
+        .button-secondary {
+            background-color: var(--secondary);
+        }
+        .button-danger {
+            background-color: var(--danger);
+        }
+        .button:hover {
+            background-color: var(--accent);
+            box-shadow: 2px 2px 0px var(--primary);
+        }
+        .button-danger:hover {
+            background-color: #dc2626;
+        }
+        .button-small {
+            padding: 0.5rem 0.8rem;
+            font-size: 0.8rem;
+            margin-left: 0.5rem;
+        }
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+            background-color: var(--bg-card);
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 4px 4px 0px var(--primary);
+        }
+        .data-table th,
+        .data-table td {
+            padding: 1rem;
+            border: 1px solid var(--border-color);
+            text-align: left;
+        }
+        .data-table th {
+            background-color: var(--bg-panel);
+            color: var(--accent);
+            font-family: 'Bebas Neue', sans-serif;
+            text-shadow: 1px 1px 0px var(--primary);
+        }
+        .data-table tbody tr:nth-child(even) {
+            background-color: var(--bg-dark);
+        }
+        .data-table tbody tr:hover {
+            background-color: var(--bg-panel);
+        }
+        .data-table td:last-child {
+            text-align: center;
+        }
+        .expanded-row td {
+            background-color: var(--bg-panel);
+            padding: 1rem 2rem;
+            border-top: 2px solid var(--accent);
+            border-bottom: 2px solid var(--accent);
+        }
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.6);
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background-color: var(--bg-card);
+            margin: auto;
+            padding: 2rem;
+            border: 1px solid var(--border-color);
+            width: 80%;
+            max-width: 600px;
+            border-radius: 8px;
+            box-shadow: 8px 8px 0px var(--primary);
+            position: relative;
+        }
+        .close-button {
+            color: var(--text-dim);
+            position: absolute;
+            top: 10px;
+            right: 20px;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close-button:hover,
+        .close-button:focus {
+            color: var(--accent);
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .modal h2 {
+            margin-top: 0;
+            color: var(--accent);
+            text-align: center;
+        }
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: var(--text-light);
+            font-weight: bold;
+        }
+        .form-group input[type="text"],
+        .form-group input[type="datetime-local"],
+        .form-group textarea,
+        .form-group select,
+        .form-group input[type="number"] {
+            width: calc(100% - 20px);
+            padding: 0.75rem 10px;
+            background-color: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            color: var(--text-light);
+            font-size: 1rem;
+        }
+        .form-group input[type="checkbox"] {
+            margin-right: 0.5rem;
+        }
+        .modal-buttons {
+            text-align: right;
+            margin-top: 1.5rem;
+        }
+        .modal-buttons .button-submit {
+            padding: 0.75rem 1.5rem;
+            font-size: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h2>SSDL Manager</h2>
+        <nav>
+            <ul>
+                <li><a href="./dashboard.html">Dashboard</a></li>
+                <li><a href="./events.html" class="active">Events</a></li>
+                <li><a href="./players.html">Players</a></li>
+                <li><a href="./standings.html">Standings</a></li>
+                <li><a href="./messaging.html">Messaging</a></li>
+                <li><a href="#" id="logout-button">Logout</a></li>
+            </ul>
+        </nav>
+    </div>
+    <div class="main-content">
+        <div class="section-header">
+            <h1>Events Management</h1>
+            <button class="button" id="add-event-button">Add Event</button>
+        </div>
+
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Date & Time</th>
+                    <th>Venue</th>
+                    <th>Type</th>
+                    <th>Pre-reg</th>
+                    <th>Reg Count</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="events-table-body">
+                <tr><td colspan="7">Loading events...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Add/Edit Event Modal -->
+    <div id="add-edit-event-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <h2 id="event-modal-title">Add New Event</h2>
+            <form id="event-form">
+                <div class="form-group">
+                    <label for="event-name">Event Name</label>
+                    <input type="text" id="event-name" name="name" required>
+                </div>
+                <div class="form-group">
+                    <label for="event-date">Date & Time</label>
+                    <input type="datetime-local" id="event-date" name="date" required>
+                </div>
+                <div class="form-group">
+                    <label for="event-venue">Venue</label>
+                    <input type="text" id="event-venue" name="venue" required>
+                </div>
+                <div class="form-group">
+                    <label for="event-description">Description</label>
+                    <textarea id="event-description" name="description" rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="event-type">Type</label>
+                    <select id="event-type" name="type" required>
+                        <option value="League Night">League Night</option>
+                        <option value="Tournament">Tournament</option>
+                        <option value="Special Event">Special Event</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <input type="checkbox" id="event-pre-registration" name="pre-registration">
+                    <label for="event-pre-registration" style="display: inline;">Enable Pre-Registration</label>
+                </div>
+                <div class="form-group" id="event-capacity-group" style="display: none;">
+                    <label for="event-capacity">Capacity (optional)</label>
+                    <input type="number" id="event-capacity" name="capacity" min="1">
+                </div>
+                <div class="modal-buttons">
+                    <button type="submit" class="button button-submit">Save Event</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <footer style="text-align:center;padding:20px;color:rgba(255,255,255,0.25);font-size:11px;letter-spacing:1px;text-transform:uppercase;">Powered by <a href="https://looptlabs.com" style="color:rgba(255,255,255,0.35);text-decoration:none;">Loopt Labs</a></footer>
+</body>
+</html>

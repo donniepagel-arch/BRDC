@@ -6,6 +6,7 @@
 const functions = require('firebase-functions/v1');
 const admin = require('firebase-admin');
 const cors = require('cors')({ origin: true });
+const { verifyFirebaseAuth } = require('./src/firebase-auth-helper');
 
 const db = admin.firestore();
 
@@ -27,34 +28,15 @@ exports.migrateTeamPlayersToDocuments = functions.https.onRequest((req, res) => 
         }
 
         try {
-            const { admin_pin, league_id, dry_run = false } = req.body;
+            const { league_id, dry_run = false } = req.body;
 
-            // Simple admin check - require a known admin PIN
-            if (!admin_pin) {
-                return res.status(401).json({ error: 'Admin PIN required' });
+            // Require master admin Firebase token
+            const authPlayer = await verifyFirebaseAuth(req);
+            if (!authPlayer || !authPlayer.is_master_admin) {
+                return res.status(403).json({ error: 'Not authorized - master admin required' });
             }
 
-            // Verify player exists with this PIN (site admins have known PINs)
-            // Check both as string and number since PIN storage may vary
-            let adminSnap = await db.collection('players')
-                .where('pin', '==', admin_pin)
-                .limit(1)
-                .get();
-
-            if (adminSnap.empty) {
-                // Try as number
-                adminSnap = await db.collection('players')
-                    .where('pin', '==', parseInt(admin_pin))
-                    .limit(1)
-                    .get();
-            }
-
-            if (adminSnap.empty) {
-                return res.status(403).json({ error: 'Not authorized - invalid PIN' });
-            }
-
-            const adminPlayer = adminSnap.docs[0].data();
-            console.log('Migration requested by:', adminPlayer.name || adminPlayer.email || admin_pin);
+            console.log('Migration requested by:', authPlayer.name || authPlayer.email || authPlayer.id);
 
             const results = {
                 leagues_processed: 0,
@@ -220,27 +202,10 @@ exports.checkMigrationStatus = functions.https.onRequest((req, res) => {
         }
 
         try {
-            const { admin_pin } = req.body;
-
-            if (!admin_pin) {
-                return res.status(401).json({ error: 'Admin PIN required' });
-            }
-
-            // Verify player exists with this PIN
-            let adminSnap = await db.collection('players')
-                .where('pin', '==', admin_pin)
-                .limit(1)
-                .get();
-
-            if (adminSnap.empty) {
-                adminSnap = await db.collection('players')
-                    .where('pin', '==', parseInt(admin_pin))
-                    .limit(1)
-                    .get();
-            }
-
-            if (adminSnap.empty) {
-                return res.status(403).json({ error: 'Not authorized - invalid PIN' });
+            // Require master admin Firebase token
+            const authPlayer = await verifyFirebaseAuth(req);
+            if (!authPlayer || !authPlayer.is_master_admin) {
+                return res.status(403).json({ error: 'Not authorized - master admin required' });
             }
 
             const status = {
@@ -314,27 +279,12 @@ exports.recalculateTeamStandings = functions.https.onRequest((req, res) => {
         }
 
         try {
-            const { admin_pin, league_id, dry_run = false } = req.body;
+            const { league_id, dry_run = false } = req.body;
 
-            if (!admin_pin) {
-                return res.status(401).json({ error: 'Admin PIN required' });
-            }
-
-            // Verify player exists with this PIN
-            let adminSnap = await db.collection('players')
-                .where('pin', '==', admin_pin)
-                .limit(1)
-                .get();
-
-            if (adminSnap.empty) {
-                adminSnap = await db.collection('players')
-                    .where('pin', '==', parseInt(admin_pin))
-                    .limit(1)
-                    .get();
-            }
-
-            if (adminSnap.empty) {
-                return res.status(403).json({ error: 'Not authorized - invalid PIN' });
+            // Require master admin Firebase token
+            const authPlayer = await verifyFirebaseAuth(req);
+            if (!authPlayer || !authPlayer.is_master_admin) {
+                return res.status(403).json({ error: 'Not authorized - master admin required' });
             }
 
             const results = {

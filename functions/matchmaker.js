@@ -12,8 +12,58 @@
 
 const functions = require('firebase-functions/v1');
 const admin = require('firebase-admin');
+const { verifyFirebaseAuth } = require('./src/firebase-auth-helper');
+const { requireTournamentAccess } = require('./src/tournament-auth-helper');
 
 const db = admin.firestore();
+
+function normalizeText(value) {
+    return String(value || '')
+        .trim()
+        .replace(/\s+/g, ' ')
+        .toLowerCase();
+}
+
+async function resolveRegisteredPlayerId(candidate, authPlayer = null) {
+    if (!candidate) return null;
+    if (candidate.player_id) return candidate.player_id;
+
+    const candidateEmail = normalizeText(candidate.email);
+    const candidateName = normalizeText(candidate.name);
+    const authEmail = normalizeText(authPlayer?.email);
+    const authName = normalizeText(authPlayer?.name);
+
+    if (authPlayer?.id) {
+        if (candidateEmail && authEmail && candidateEmail === authEmail) {
+            return authPlayer.id;
+        }
+        if (candidateName && authName && candidateName === authName) {
+            return authPlayer.id;
+        }
+    }
+
+    if (candidateEmail) {
+        const emailSnap = await db.collection('players')
+            .where('email', '==', candidateEmail)
+            .limit(1)
+            .get();
+        if (!emailSnap.empty) {
+            return emailSnap.docs[0].id;
+        }
+    }
+
+    if (candidateName) {
+        const nameSnap = await db.collection('players')
+            .where('name', '==', candidate.name.trim())
+            .limit(2)
+            .get();
+        if (nameSnap.size === 1) {
+            return nameSnap.docs[0].id;
+        }
+    }
+
+    return null;
+}
 
 /**
  * Create a matchmaker tournament with partner matching enabled
@@ -27,6 +77,7 @@ exports.createMatchmakerTournament = functions.https.onRequest(async (req, res) 
 
     try {
         const data = req.body;
+        const authPlayer = await verifyFirebaseAuth(req);
 
         // Validate required fields
         if (!data.tournament_name || !data.tournament_date || !data.email) {
@@ -36,8 +87,13 @@ exports.createMatchmakerTournament = functions.https.onRequest(async (req, res) 
             });
         }
 
-        // Use provided PIN or generate one
-        const pin = data.director_pin || Math.floor(10000000 + Math.random() * 90000000).toString();
+        // Retain incoming director_pin if provided (legacy callers); no longer generated for new tournaments
+        const pin = data.director_pin || null;
+        const integerOr = (value, fallback) => {
+            const parsed = parseInt(value, 10);
+            return Number.isFinite(parsed) ? parsed : fallback;
+        };
+        const enabledUnlessFalse = value => value !== false;
 
         const tournamentData = {
             // Basic info
@@ -50,11 +106,12 @@ exports.createMatchmakerTournament = functions.https.onRequest(async (req, res) 
             image_url: data.image_url || '',
 
             // Director info
-            director_name: data.director_name || 'Unknown',
-            director_email: data.email,
-            director_phone: data.director_phone || '',
-            director_pin: pin,
-            director_player_id: data.director_player_id || null,
+            director_name: data.director_name || authPlayer.display_name || 'Unknown',
+            director_email: authPlayer.email || data.email,
+            director_phone: data.director_phone || data.phone || '',
+            director_player_id: data.director_player_id || authPlayer.id || null,
+            director_firebase_uid: authPlayer.firebase_uid || null,
+            created_by_player_id: authPlayer.id || null,
 
             // Matchmaker-specific settings
             matchmaker_enabled: true,
@@ -92,7 +149,6 @@ exports.createMatchmakerTournament = functions.https.onRequest(async (req, res) 
         res.json({
             success: true,
             tournament_id: tournamentRef.id,
-            pin: pin,
             message: 'Matchmaker tournament created successfully',
             settings: {
                 format: 'double_elimination',
@@ -105,7 +161,7 @@ exports.createMatchmakerTournament = functions.https.onRequest(async (req, res) 
 
     } catch (error) {
         console.error('Create matchmaker tournament error:', error);
-        res.status(500).json({ success: false, error: error.message });
+        res.status(error.status || 500).json({ success: false, error: error.message });
     }
 });
 
@@ -121,7 +177,8 @@ exports.matchmakerRegister = functions.https.onRequest(async (req, res) => {
     if (req.method === 'OPTIONS') return res.status(204).send('');
 
     try {
-        const { tournament_id, registration_type, team_name, player1, player2, player } = req.body;
+        const { tournament_id, registration_type, team_name, player1, player2, player, registration_vote } = req.body;
+        const authPlayer = await verifyFirebaseAuth(req);
 
         if (!tournament_id) {
             return res.status(400).json({ success: false, error: 'Missing tournament_id' });
@@ -135,6 +192,26 @@ exports.matchmakerRegister = functions.https.onRequest(async (req, res) => {
         }
 
         const tournament = tournamentDoc.data();
+        const normalizeVoteOptionId = (value) => String(value || '')
+            .trim()
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '_')
+            .replace(/^_+|_+$/g, '')
+            .slice(0, 64);
+        const registrationVote = registration_vote && registration_vote.option_id
+            ? {
+                question: String(registration_vote.question || tournament.registration_vote_question || 'What should we play this week?').trim(),
+                option_id: normalizeVoteOptionId(registration_vote.option_id),
+                label: String(registration_vote.label || registration_vote.option_id).trim(),
+                suggestion: String(registration_vote.suggestion || '').trim().slice(0, 500)
+            }
+            : null;
+        if (tournament.registration_voting_enabled === true
+            && tournament.registration_vote_required !== false
+            && tournament.registration_vote_locked !== true
+            && !registrationVote) {
+            return res.status(400).json({ success: false, error: 'Please choose your event vote before registering' });
+        }
 
         // Validate it's a matchmaker tournament
         if (!tournament.matchmaker_enabled) {
@@ -156,30 +233,39 @@ exports.matchmakerRegister = functions.https.onRequest(async (req, res) => {
                 return res.status(400).json({ success: false, error: 'Mixed doubles requires one male and one female player' });
             }
 
+            const resolvedPlayer1Id = await resolveRegisteredPlayerId(player1, authPlayer);
+            const resolvedPlayer2Id = await resolveRegisteredPlayerId(player2, authPlayer);
+
             const regDoc = await registrationsRef.add({
                 type: 'team',
                 team_name: team_name || `${player1.name} & ${player2.name}`,
                 player1: {
                     name: player1.name,
-                    player_id: player1.player_id || null,
+                    email: player1.email || null,
+                    phone: player1.phone || null,
+                    player_id: resolvedPlayer1Id,
                     gender: player1.gender,
                     checked_in: false,
                     checked_in_at: null
                 },
                 player2: {
                     name: player2.name,
-                    player_id: player2.player_id || null,
+                    email: player2.email || null,
+                    phone: player2.phone || null,
+                    player_id: resolvedPlayer2Id,
                     gender: player2.gender,
                     checked_in: false,
                     checked_in_at: null
                 },
                 matched: true,  // Pre-formed teams are already matched
+                ...(registrationVote ? { registration_vote: registrationVote } : {}),
                 registered_at: timestamp
             });
 
             // Update tournament counts
             await tournamentRef.update({
-                'registration_counts.teams': admin.firestore.FieldValue.increment(1)
+                'registration_counts.teams': admin.firestore.FieldValue.increment(1),
+                ...(registrationVote?.option_id ? { [`registration_vote_counts.${registrationVote.option_id}`]: admin.firestore.FieldValue.increment(1) } : {})
             });
 
             return res.json({
@@ -194,11 +280,15 @@ exports.matchmakerRegister = functions.https.onRequest(async (req, res) => {
                 return res.status(400).json({ success: false, error: 'Single registration requires player info with gender' });
             }
 
+            const resolvedPlayerId = await resolveRegisteredPlayerId(player, authPlayer);
+
             const regDoc = await registrationsRef.add({
                 type: 'single',
                 player: {
                     name: player.name,
-                    player_id: player.player_id || null,
+                    email: player.email || null,
+                    phone: player.phone || null,
+                    player_id: resolvedPlayerId,
                     gender: player.gender,
                     checked_in: false,
                     checked_in_at: null
@@ -206,13 +296,15 @@ exports.matchmakerRegister = functions.https.onRequest(async (req, res) => {
                 matched: false,
                 matched_with: null,
                 team_id: null,
+                ...(registrationVote ? { registration_vote: registrationVote } : {}),
                 registered_at: timestamp
             });
 
             // Update tournament counts
             const countField = player.gender === 'M' ? 'registration_counts.singles_male' : 'registration_counts.singles_female';
             await tournamentRef.update({
-                [countField]: admin.firestore.FieldValue.increment(1)
+                [countField]: admin.firestore.FieldValue.increment(1),
+                ...(registrationVote?.option_id ? { [`registration_vote_counts.${registrationVote.option_id}`]: admin.firestore.FieldValue.increment(1) } : {})
             });
 
             return res.json({
@@ -228,7 +320,7 @@ exports.matchmakerRegister = functions.https.onRequest(async (req, res) => {
 
     } catch (error) {
         console.error('Matchmaker registration error:', error);
-        res.status(500).json({ success: false, error: error.message });
+        res.status(error.status || 500).json({ success: false, error: error.message });
     }
 });
 
@@ -319,23 +411,13 @@ exports.matchmakerDrawPartners = functions.https.onRequest(async (req, res) => {
     if (req.method === 'OPTIONS') return res.status(204).send('');
 
     try {
-        const { tournament_id, director_pin } = req.body;
+        const { tournament_id } = req.body;
 
-        if (!tournament_id || !director_pin) {
-            return res.status(400).json({ success: false, error: 'Missing tournament_id or director_pin' });
+        if (!tournament_id) {
+            return res.status(400).json({ success: false, error: 'Missing tournament_id' });
         }
 
-        const tournamentRef = db.collection('tournaments').doc(tournament_id);
-        const tournamentDoc = await tournamentRef.get();
-
-        if (!tournamentDoc.exists) {
-            return res.status(404).json({ success: false, error: 'Tournament not found' });
-        }
-
-        const tournament = tournamentDoc.data();
-        if (tournament.director_pin !== director_pin) {
-            return res.status(403).json({ success: false, error: 'Invalid PIN' });
-        }
+        const { tournamentRef } = await requireTournamentAccess(req, tournament_id);
 
         // Get all unmatched singles
         const registrationsRef = tournamentRef.collection('registrations');
@@ -413,7 +495,7 @@ exports.matchmakerDrawPartners = functions.https.onRequest(async (req, res) => {
 
     } catch (error) {
         console.error('Partner draw error:', error);
-        res.status(500).json({ success: false, error: error.message });
+        res.status(error.status || 500).json({ success: false, error: error.message });
     }
 });
 
@@ -456,25 +538,13 @@ exports.matchmakerBreakup = functions.https.onRequest(async (req, res) => {
     if (req.method === 'OPTIONS') return res.status(204).send('');
 
     try {
-        const { tournament_id, team_id, player_id, director_pin } = req.body;
+        const { tournament_id, team_id, player_id } = req.body;
 
         if (!tournament_id || !team_id || !player_id) {
             return res.status(400).json({ success: false, error: 'Missing required fields' });
         }
 
-        const tournamentRef = db.collection('tournaments').doc(tournament_id);
-        const tournamentDoc = await tournamentRef.get();
-
-        if (!tournamentDoc.exists) {
-            return res.status(404).json({ success: false, error: 'Tournament not found' });
-        }
-
-        const tournament = tournamentDoc.data();
-
-        // Verify director PIN
-        if (tournament.director_pin !== director_pin) {
-            return res.status(403).json({ success: false, error: 'Invalid PIN' });
-        }
+        const { tournamentRef, tournament } = await requireTournamentAccess(req, tournament_id);
 
         // Check if breakups are still allowed (not past cutoff round)
         const breakupCutoff = tournament.breakup_cutoff || 'quarterfinals';
@@ -545,7 +615,7 @@ exports.matchmakerBreakup = functions.https.onRequest(async (req, res) => {
 
     } catch (error) {
         console.error('Breakup error:', error);
-        res.status(500).json({ success: false, error: error.message });
+        res.status(error.status || 500).json({ success: false, error: error.message });
     }
 });
 
@@ -561,23 +631,13 @@ exports.matchmakerRematch = functions.https.onRequest(async (req, res) => {
     if (req.method === 'OPTIONS') return res.status(204).send('');
 
     try {
-        const { tournament_id, director_pin } = req.body;
+        const { tournament_id } = req.body;
 
-        if (!tournament_id || !director_pin) {
+        if (!tournament_id) {
             return res.status(400).json({ success: false, error: 'Missing required fields' });
         }
 
-        const tournamentRef = db.collection('tournaments').doc(tournament_id);
-        const tournamentDoc = await tournamentRef.get();
-
-        if (!tournamentDoc.exists) {
-            return res.status(404).json({ success: false, error: 'Tournament not found' });
-        }
-
-        const tournament = tournamentDoc.data();
-        if (tournament.director_pin !== director_pin) {
-            return res.status(403).json({ success: false, error: 'Invalid PIN' });
-        }
+        const { tournamentRef } = await requireTournamentAccess(req, tournament_id);
 
         // Get unmatched players from breakup pool
         const breakupPoolRef = tournamentRef.collection('breakup_pool');
@@ -653,7 +713,7 @@ exports.matchmakerRematch = functions.https.onRequest(async (req, res) => {
 
     } catch (error) {
         console.error('Rematch error:', error);
-        res.status(500).json({ success: false, error: error.message });
+        res.status(error.status || 500).json({ success: false, error: error.message });
     }
 });
 
@@ -767,11 +827,11 @@ function generateSavageSummary(match_stats, player_id) {
 }
 
 /**
- * Trigger Heartbreaker when team loses in Winners Bracket
+ * Trigger the mingle flow when a team loses in Winners Bracket
  * Generates savage summaries and adds team to heartbroken list
  * Returns immediately - client handles 20-second delay before showing UI
  */
-exports.triggerHeartbreaker = functions.https.onRequest(async (req, res) => {
+const triggerMingleReentryForTeamHandler = async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -788,7 +848,7 @@ exports.triggerHeartbreaker = functions.https.onRequest(async (req, res) => {
             });
         }
 
-        const tournamentRef = db.collection('tournaments').doc(tournament_id);
+        const { tournamentRef } = await requireTournamentAccess(req, tournament_id);
         const tournamentDoc = await tournamentRef.get();
 
         if (!tournamentDoc.exists) {
@@ -801,7 +861,7 @@ exports.triggerHeartbreaker = functions.https.onRequest(async (req, res) => {
         if (!tournament.format || tournament.format !== 'double_elimination') {
             return res.status(400).json({
                 success: false,
-                error: 'Heartbreaker only available in double elimination format'
+                error: 'Mingle flow is only available in double elimination format'
             });
         }
 
@@ -847,17 +907,19 @@ exports.triggerHeartbreaker = functions.https.onRequest(async (req, res) => {
 
         res.json({
             success: true,
-            message: 'Heartbreaker triggered - team added to heartbroken list',
+            message: 'Mingle flow triggered - team added to the re-entry pool',
             team_id: team_id,
             summaries_generated: true,
             note: 'Client should wait 20 seconds before showing mingle UI'
         });
 
     } catch (error) {
-        console.error('Trigger heartbreaker error:', error);
-        res.status(500).json({ success: false, error: error.message });
+        console.error('Trigger mingle flow error:', error);
+        res.status(error.status || 500).json({ success: false, error: error.message });
     }
-});
+};
+
+exports.triggerMingleReentryForTeam = functions.https.onRequest(triggerMingleReentryForTeamHandler);
 
 /**
  * Submit anonymous breakup decision during mingle period
@@ -880,7 +942,7 @@ exports.submitBreakupDecision = functions.https.onRequest(async (req, res) => {
             });
         }
 
-        const tournamentRef = db.collection('tournaments').doc(tournament_id);
+        const { tournamentRef } = await requireTournamentAccess(req, tournament_id);
         const tournamentDoc = await tournamentRef.get();
 
         if (!tournamentDoc.exists) {
@@ -962,9 +1024,14 @@ exports.getHeartbrokenTeams = functions.https.onRequest(async (req, res) => {
 
         // Check if requester is the director (need player IDs for notifications)
         let is_director = false;
-        if (director_pin) {
-            const tournamentDoc = await tournamentRef.get();
-            is_director = tournamentDoc.exists && tournamentDoc.data().director_pin === director_pin;
+        try {
+            await requireTournamentAccess(req, tournament_id);
+            is_director = true;
+        } catch (authError) {
+            if (director_pin) {
+                const tournamentDoc = await tournamentRef.get();
+                is_director = tournamentDoc.exists && tournamentDoc.data().director_pin === director_pin;
+            }
         }
 
         const teams = [];
@@ -1033,28 +1100,16 @@ exports.startMinglePeriod = functions.https.onRequest(async (req, res) => {
     if (req.method === 'OPTIONS') return res.status(204).send('');
 
     try {
-        const { tournament_id, director_pin } = req.body;
+        const { tournament_id } = req.body;
 
-        if (!tournament_id || !director_pin) {
+        if (!tournament_id) {
             return res.status(400).json({
                 success: false,
-                error: 'Missing required fields: tournament_id, director_pin'
+                error: 'Missing required fields: tournament_id'
             });
         }
 
-        const tournamentRef = db.collection('tournaments').doc(tournament_id);
-        const tournamentDoc = await tournamentRef.get();
-
-        if (!tournamentDoc.exists) {
-            return res.status(404).json({ success: false, error: 'Tournament not found' });
-        }
-
-        const tournament = tournamentDoc.data();
-
-        // Verify director PIN
-        if (tournament.director_pin !== director_pin) {
-            return res.status(403).json({ success: false, error: 'Invalid PIN' });
-        }
+        const { tournamentRef } = await requireTournamentAccess(req, tournament_id);
 
         // Get or create bracket document
         const bracketRef = tournamentRef.collection('bracket').doc('current');
@@ -1079,7 +1134,7 @@ exports.startMinglePeriod = functions.https.onRequest(async (req, res) => {
 
     } catch (error) {
         console.error('Start mingle period error:', error);
-        res.status(500).json({ success: false, error: error.message });
+        res.status(error.status || 500).json({ success: false, error: error.message });
     }
 });
 
@@ -1104,7 +1159,7 @@ exports.endMinglePeriod = functions.https.onRequest(async (req, res) => {
             });
         }
 
-        const tournamentRef = db.collection('tournaments').doc(tournament_id);
+        const { tournamentRef } = await requireTournamentAccess(req, tournament_id);
         const tournamentDoc = await tournamentRef.get();
 
         if (!tournamentDoc.exists) {
@@ -1139,7 +1194,7 @@ exports.endMinglePeriod = functions.https.onRequest(async (req, res) => {
 
     } catch (error) {
         console.error('End mingle period error:', error);
-        res.status(500).json({ success: false, error: error.message });
+        res.status(error.status || 500).json({ success: false, error: error.message });
     }
 });
 
@@ -1156,28 +1211,16 @@ exports.runCupidShuffle = functions.https.onRequest(async (req, res) => {
     if (req.method === 'OPTIONS') return res.status(204).send('');
 
     try {
-        const { tournament_id, director_pin } = req.body;
+        const { tournament_id } = req.body;
 
-        if (!tournament_id || !director_pin) {
+        if (!tournament_id) {
             return res.status(400).json({
                 success: false,
-                error: 'Missing required fields: tournament_id, director_pin'
+                error: 'Missing required fields: tournament_id'
             });
         }
 
-        const tournamentRef = db.collection('tournaments').doc(tournament_id);
-        const tournamentDoc = await tournamentRef.get();
-
-        if (!tournamentDoc.exists) {
-            return res.status(404).json({ success: false, error: 'Tournament not found' });
-        }
-
-        const tournament = tournamentDoc.data();
-
-        // Verify director PIN
-        if (tournament.director_pin !== director_pin) {
-            return res.status(403).json({ success: false, error: 'Invalid PIN' });
-        }
+        const { tournamentRef, tournament } = await requireTournamentAccess(req, tournament_id);
 
         // Get all breakup decisions where wants_breakup = true
         const decisionsSnap = await tournamentRef.collection('breakup_decisions')
@@ -1305,15 +1348,15 @@ exports.runCupidShuffle = functions.https.onRequest(async (req, res) => {
 
     } catch (error) {
         console.error('Cupid Shuffle error:', error);
-        res.status(500).json({ success: false, error: error.message });
+        res.status(error.status || 500).json({ success: false, error: error.message });
     }
 });
 
 /**
- * Create a Heartbreaker tournament with all preset values
- * Heartbreaker is a mixed doubles matchmaker tournament with specific game rules
+ * Create a mixed doubles matchmaker tournament with all preset values
+ * This preset is a mixed doubles matchmaker tournament with specific game rules
  */
-exports.createHeartbreakerTournament = functions.https.onRequest(async (req, res) => {
+const createMixedDoublesMatchmakerTournamentHandler = async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -1322,6 +1365,7 @@ exports.createHeartbreakerTournament = functions.https.onRequest(async (req, res
 
     try {
         const data = req.body;
+        const authPlayer = await verifyFirebaseAuth(req);
 
         // Validate required fields
         if (!data.tournament_name || !data.tournament_date || !data.email) {
@@ -1331,8 +1375,35 @@ exports.createHeartbreakerTournament = functions.https.onRequest(async (req, res
             });
         }
 
-        // Use provided PIN or generate one
-        const pin = data.director_pin || Math.floor(10000000 + Math.random() * 90000000).toString();
+        // Retain incoming director_pin if provided (legacy callers); no longer generated for new tournaments
+        const pin = data.director_pin || null;
+        const normalizeVoteOptions = (value) => {
+            const seen = new Set();
+            return (Array.isArray(value) ? value : [])
+                .map((option, index) => {
+                    const label = typeof option === 'string'
+                        ? option
+                        : (option?.label || option?.name || option?.id || '');
+                    if (!String(label || '').trim()) return null;
+                    const baseId = String(typeof option === 'object' && option?.id ? option.id : label)
+                        .trim()
+                        .toLowerCase()
+                        .replace(/[^a-z0-9]+/g, '_')
+                        .replace(/^_+|_+$/g, '')
+                        .slice(0, 48) || `option_${index + 1}`;
+                    let id = baseId;
+                    let suffix = 2;
+                    while (seen.has(id)) {
+                        id = `${baseId}_${suffix}`;
+                        suffix += 1;
+                    }
+                    seen.add(id);
+                    return { id, label: String(label).trim() };
+                })
+                .filter(Boolean);
+        };
+        const registrationVoteOptions = normalizeVoteOptions(data.registration_vote_options);
+        const registrationVotingEnabled = data.registration_voting_enabled === true && registrationVoteOptions.length > 0;
 
         const tournamentData = {
             // Basic info
@@ -1343,36 +1414,49 @@ exports.createHeartbreakerTournament = functions.https.onRequest(async (req, res
             venue_address: data.venue_address || '',
             tournament_details: data.tournament_details || '',
             image_url: data.image_url || '',
+            preset: data.preset || 'mixed_doubles_matchmaker',
+            series_mode: data.series_mode || 'single',
+            is_series: data.is_series === true || data.series_mode === 'series',
+            registration_close_time: data.registration_close_time || '',
+            registration_voting_enabled: registrationVotingEnabled,
+            registration_vote_required: registrationVotingEnabled && data.registration_vote_required !== false,
+            registration_vote_question: data.registration_vote_question || 'What should we play this week?',
+            registration_vote_options: registrationVoteOptions,
+            registration_vote_locked: data.registration_vote_locked === true,
+            registration_vote_selected_label: data.registration_vote_selected_label || '',
+            registration_vote_counts: {},
 
             // Director info
-            director_name: data.director_name || 'Unknown',
-            director_email: data.email,
+            director_name: data.director_name || authPlayer.display_name || 'Unknown',
+            director_email: authPlayer.email || data.email,
             director_phone: data.director_phone || '',
-            director_pin: pin,
-            director_player_id: data.director_player_id || null,
+            director_player_id: data.director_player_id || authPlayer.id || null,
+            director_firebase_uid: authPlayer.firebase_uid || null,
+            created_by_player_id: authPlayer.id || null,
 
-            // Heartbreaker-specific settings (PRESET VALUES)
+            // Mixed doubles matchmaker preset settings
             format: 'double_elimination',
             entry_type: 'mixed_doubles',
             matchmaker_enabled: true,
-            partner_matching: true,
-            breakup_enabled: true,
+            partner_matching: enabledUnlessFalse(data.partner_matching),
+            breakup_enabled: enabledUnlessFalse(data.breakup_enabled),
 
             // Winners bracket game settings
-            winners_game_type: 'cricket',
-            winners_best_of: 3,
+            winners_game_type: data.winners_game_type || 'cricket',
+            winners_best_of: integerOr(data.winners_best_of, 3),
 
             // Losers bracket game settings
-            losers_game_type: '501',
-            losers_best_of: 1,
+            losers_game_type: data.losers_game_type || '501',
+            losers_best_of: integerOr(data.losers_best_of, 1),
 
             // Mingle/breakup settings
-            mingle_cutoff: 'wc_r2_last_start',
-            savage_summaries_enabled: true,
-            nudge_limit: 3,
+            mingle_cutoff: data.mingle_cutoff || 'wc_r2_last_start',
+            savage_summaries_enabled: enabledUnlessFalse(data.savage_summaries_enabled),
+            nudge_limit: integerOr(data.nudge_limit, 3),
 
             // Venue settings
-            venue_board_count: data.boards_available || data.venue_board_count || 12,
+            venue_board_count: integerOr(data.boards_available || data.venue_board_count, 12),
+            unavailable_boards: Array.isArray(data.unavailable_boards) ? data.unavailable_boards : [],
 
             // Standard tournament fields
             max_players: data.max_players || 32,
@@ -1397,24 +1481,25 @@ exports.createHeartbreakerTournament = functions.https.onRequest(async (req, res
         res.json({
             success: true,
             tournament_id: tournamentRef.id,
-            pin: pin,
-            message: 'Heartbreaker tournament created successfully',
+            message: 'Mixed doubles matchmaker tournament created successfully',
             settings: {
                 format: 'double_elimination',
                 entry_type: 'mixed_doubles',
-                winners_game: 'cricket (best of 3)',
-                losers_game: '501 (best of 1)',
-                mingle_cutoff: 'wc_r2_last_start',
-                savage_summaries: true,
+                winners_game: `${tournamentData.winners_game_type} (best of ${tournamentData.winners_best_of})`,
+                losers_game: `${tournamentData.losers_game_type} (best of ${tournamentData.losers_best_of})`,
+                mingle_cutoff: tournamentData.mingle_cutoff,
+                savage_summaries: tournamentData.savage_summaries_enabled,
                 venue_board_count: tournamentData.venue_board_count
             }
         });
 
     } catch (error) {
-        console.error('Create Heartbreaker tournament error:', error);
-        res.status(500).json({ success: false, error: error.message });
+        console.error('Create mixed doubles matchmaker tournament error:', error);
+        res.status(error.status || 500).json({ success: false, error: error.message });
     }
-});
+};
+
+exports.createMixedDoublesMatchmakerTournament = functions.https.onRequest(createMixedDoublesMatchmakerTournamentHandler);
 
 /**
  * Get mingle status
@@ -1800,9 +1885,19 @@ exports.checkInPlayer = functions.https.onRequest(async (req, res) => {
 
         const tournament = tournamentDoc.data();
 
-        // Optional: Verify director PIN if provided
-        if (director_pin && tournament.director_pin !== director_pin) {
-            return res.status(403).json({ success: false, error: 'Invalid PIN' });
+        // Auth: accept a valid Firebase token (director/admin) OR a matching PIN for backward compat.
+        // requireTournamentAccess throws a 403-style error on failure; wrap it so we can fall back to PIN.
+        let tokenAuthed = false;
+        try {
+            await requireTournamentAccess(req, tournament_id);
+            tokenAuthed = true;
+        } catch (_) {
+            // Token auth failed — fall back to PIN check below
+        }
+        if (!tokenAuthed) {
+            if (!director_pin || tournament.director_pin !== director_pin) {
+                return res.status(403).json({ success: false, error: 'Director or admin access required' });
+            }
         }
 
         // Get the registration
@@ -2009,28 +2104,16 @@ exports.markNoShow = functions.https.onRequest(async (req, res) => {
     if (req.method === 'OPTIONS') return res.status(204).send('');
 
     try {
-        const { tournament_id, registration_id, director_pin, reason } = req.body;
+        const { tournament_id, registration_id, reason } = req.body;
 
-        if (!tournament_id || !registration_id || !director_pin) {
+        if (!tournament_id || !registration_id) {
             return res.status(400).json({
                 success: false,
-                error: 'Missing required fields: tournament_id, registration_id, director_pin'
+                error: 'Missing required fields: tournament_id, registration_id'
             });
         }
 
-        const tournamentRef = db.collection('tournaments').doc(tournament_id);
-        const tournamentDoc = await tournamentRef.get();
-
-        if (!tournamentDoc.exists) {
-            return res.status(404).json({ success: false, error: 'Tournament not found' });
-        }
-
-        const tournament = tournamentDoc.data();
-
-        // Verify director PIN
-        if (tournament.director_pin !== director_pin) {
-            return res.status(403).json({ success: false, error: 'Invalid PIN' });
-        }
+        const { tournamentRef } = await requireTournamentAccess(req, tournament_id);
 
         // Get the registration
         const regRef = tournamentRef.collection('registrations').doc(registration_id);
@@ -2067,7 +2150,7 @@ exports.markNoShow = functions.https.onRequest(async (req, res) => {
 
     } catch (error) {
         console.error('Mark no-show error:', error);
-        res.status(500).json({ success: false, error: error.message });
+        res.status(error.status || 500).json({ success: false, error: error.message });
     }
 });
 
@@ -2193,19 +2276,12 @@ exports.deleteMatchmakerRegistration = functions.https.onRequest(async (req, res
     if (req.method === 'OPTIONS') return res.status(204).send('');
 
     try {
-        const { tournament_id, registration_id, player_id, director_pin } = req.body;
+        const { tournament_id, registration_id, player_id } = req.body;
 
         if (!tournament_id || !registration_id) {
             return res.status(400).json({
                 success: false,
                 error: 'Missing required fields: tournament_id, registration_id'
-            });
-        }
-
-        if (!player_id && !director_pin) {
-            return res.status(400).json({
-                success: false,
-                error: 'Must provide either player_id or director_pin'
             });
         }
 
@@ -2230,11 +2306,11 @@ exports.deleteMatchmakerRegistration = functions.https.onRequest(async (req, res
         // Auth: either director PIN or player ownership
         let authorized = false;
 
-        if (director_pin) {
-            // Director-initiated delete
-            if (tournament.director_pin === director_pin) {
-                authorized = true;
-            }
+        try {
+            await requireTournamentAccess(req, tournament_id);
+            authorized = true;
+        } catch (authError) {
+            authorized = false;
         }
 
         if (!authorized && player_id) {
@@ -2314,7 +2390,7 @@ exports.deleteMatchmakerRegistration = functions.https.onRequest(async (req, res
 
     } catch (error) {
         console.error('Delete matchmaker registration error:', error);
-        res.status(500).json({ success: false, error: error.message });
+        res.status(error.status || 500).json({ success: false, error: error.message });
     }
 });
 
@@ -2330,7 +2406,7 @@ exports.assignMatchBoard = functions.https.onRequest(async (req, res) => {
     if (req.method === 'OPTIONS') return res.status(204).send('');
 
     try {
-        const { tournament_id, match_id, board_number, director_pin } = req.body;
+        const { tournament_id, match_id, board_number } = req.body;
 
         if (!tournament_id || !match_id) {
             return res.status(400).json({
@@ -2339,19 +2415,7 @@ exports.assignMatchBoard = functions.https.onRequest(async (req, res) => {
             });
         }
 
-        const tournamentRef = db.collection('tournaments').doc(tournament_id);
-        const tournamentDoc = await tournamentRef.get();
-
-        if (!tournamentDoc.exists) {
-            return res.status(404).json({ success: false, error: 'Tournament not found' });
-        }
-
-        const tournament = tournamentDoc.data();
-
-        // Verify director PIN if provided
-        if (director_pin && tournament.director_pin !== director_pin) {
-            return res.status(403).json({ success: false, error: 'Invalid PIN' });
-        }
+        const { tournamentRef, tournament } = await requireTournamentAccess(req, tournament_id);
 
         // Validate board number against venue configuration
         const venueBoardCount = tournament.venue_board_count || 0;
@@ -2405,7 +2469,7 @@ exports.assignMatchBoard = functions.https.onRequest(async (req, res) => {
 
     } catch (error) {
         console.error('Assign match board error:', error);
-        res.status(500).json({ success: false, error: error.message });
+        res.status(error.status || 500).json({ success: false, error: error.message });
     }
 });
 

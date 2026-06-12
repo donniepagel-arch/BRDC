@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rookies Darts Hub</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://firestore.googleapis.com">
+    <link rel="preconnect" href="https://us-central1-brdc-v2.cloudfunctions.net">
+    <link rel="icon" type="image/png" href="/images/favicon.png">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#fff8ed">
+
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap">
+    <link rel="stylesheet" href="/css/brdc-styles.css">
+    <link rel="stylesheet" href="/css/fb-mobile.css">
+    <link rel="stylesheet" href="/css/brdc-navigation.css?v=14">
+    <link rel="stylesheet" href="/css/messages-vnext.css?v=10">
+    <link rel="stylesheet" href="/rookies/tenant/rookies-vnext.css?v=23">
+</head>
+<body class="messages-vnext-page has-mobile-nav">
+    <main class="mv-shell">
+        <section class="mv-hero">
+            <div>
+                <p class="mv-kicker">Rookies Social</p>
+                <h1>Messages</h1>
+                <p id="authStatus">Loading your messages...</p>
+            </div>
+            <div class="mv-hero-stats">
+                <div><strong id="directCount">-</strong><span>direct</span></div>
+                <div><strong id="leagueCount">-</strong><span>league</span></div>
+                <div><strong id="teamCount">-</strong><span>team</span></div>
+                <div><strong id="eventCount">-</strong><span>events</span></div>
+            </div>
+        </section>
+
+        <section class="mv-layout">
+            <aside class="mv-rail" aria-label="Conversations">
+                <div class="mv-rail-tabs">
+                    <button class="active" type="button" data-source-tab="league">League</button>
+                    <button type="button" data-source-tab="team">Team</button>
+                    <button type="button" data-source-tab="events">Events</button>
+                    <button type="button" data-source-tab="direct">Direct</button>
+                    <button type="button" data-source-tab="challenges">Play</button>
+                    <button type="button" data-source-tab="online">Online</button>
+                </div>
+
+                <div class="mv-source-pane active" data-source-pane="league">
+                    <div class="mv-list-head">
+                        <span>League chat</span>
+                        <a href="/rookies/pages/triples-vnext.html">Trips</a>
+                    </div>
+                    <div class="mv-thread-list" id="leagueList">
+                        <div class="mv-skeleton"></div>
+                        <div class="mv-skeleton"></div>
+                    </div>
+                </div>
+
+                <div class="mv-source-pane" data-source-pane="team">
+                    <div class="mv-list-head">
+                        <span>Team chat</span>
+                        <a href="/rookies/pages/home-vnext.html">Home</a>
+                    </div>
+                    <div class="mv-thread-list" id="teamList">
+                        <div class="mv-skeleton"></div>
+                        <div class="mv-skeleton"></div>
+                    </div>
+                </div>
+
+                <div class="mv-source-pane" data-source-pane="direct">
+                    <div class="mv-list-head">
+                        <span>Direct messages</span>
+                        <button type="button" id="refreshDirectBtn">Refresh</button>
+                    </div>
+                    <div class="mv-thread-list" id="directList">
+                        <div class="mv-skeleton"></div>
+                        <div class="mv-skeleton"></div>
+                    </div>
+                </div>
+
+                <div class="mv-source-pane" data-source-pane="events">
+                    <div class="mv-list-head">
+                        <span>Event chat</span>
+                        <a href="/rookies/pages/events-vnext.html">Events</a>
+                    </div>
+                    <div class="mv-thread-list" id="eventList">
+                        <div class="mv-skeleton"></div>
+                        <div class="mv-skeleton"></div>
+                    </div>
+                </div>
+
+                <div class="mv-source-pane" data-source-pane="challenges">
+                    <div class="mv-list-head">
+                        <span>Challenge requests</span>
+                        <button type="button" id="refreshChallengesBtn">Refresh</button>
+                    </div>
+                    <div class="mv-thread-list" id="challengeList">
+                        <div class="mv-empty">Loading challenges...</div>
+                    </div>
+                </div>
+
+                <div class="mv-source-pane" data-source-pane="online">
+                    <div class="mv-list-head">
+                        <span>Online now</span>
+                        <button type="button" id="refreshOnlineBtn">Refresh</button>
+                    </div>
+                    <div class="mv-thread-list" id="onlineList">
+                        <div class="mv-empty">Checking presence...</div>
+                    </div>
+                </div>
+            </aside>
+
+            <section class="mv-chat-panel" aria-label="Selected chat">
+                <div class="mv-chat-top">
+                    <div class="mv-chat-default" id="chatDefaultHeader">
+                        <p id="activeThreadType">Pick a conversation</p>
+                        <h2 id="activeThreadName">Messages</h2>
+                        <div class="mv-chat-actions">
+                            <button type="button" id="challengeThreadBtn" disabled>Challenge</button>
+                        </div>
+                    </div>
+                    <div class="mv-match-context hidden" id="teamMatchContext"></div>
+                </div>
+
+                <div class="mv-message-list" id="messageList">
+                    <div class="mv-empty large">Choose a chat to start.</div>
+                </div>
+
+                <form class="mv-composer" id="messageForm">
+                    <input id="messageInput" maxlength="2000" autocomplete="off" placeholder="Write a message..." disabled>
+                    <button type="submit" id="sendMessageBtn" disabled>Send</button>
+                </form>
+            </section>
+        </section>
+    </main>
+
+    <div class="mv-modal" id="challengeModal" aria-hidden="true">
+        <div class="mv-modal-card" role="dialog" aria-modal="true" aria-labelledby="challengeTitle">
+            <p class="mv-kicker">Send a playable request</p>
+            <h2 id="challengeTitle">Send Challenge</h2>
+            <p id="challengeSubtitle">Pick the format. The other player gets the request in the thread and can launch the scorer from it.</p>
+
+            <div class="mv-game-grid" id="gameTypeGrid">
+                <button class="active" type="button" data-game-type="501"><strong>501</strong><span>X01</span></button>
+                <button type="button" data-game-type="301"><strong>301</strong><span>X01</span></button>
+                <button type="button" data-game-type="cricket"><strong>C</strong><span>Cricket</span></button>
+                <button type="button" data-game-type="corks_choice"><strong>Choice</strong><span>Cork wins pick</span></button>
+            </div>
+
+            <div class="mv-config-grid">
+                <label>Race to
+                    <select id="challengeRaceTo">
+                        <option value="3">3 legs</option>
+                        <option value="5">5 legs</option>
+                        <option value="7">7 legs</option>
+                        <option value="9">9 legs</option>
+                    </select>
+                </label>
+                <label>Start rule
+                    <select id="challengeStartRule">
+                        <option value="cork_every_leg">Cork every leg</option>
+                        <option value="alternate_cork_first_deciding">Alternate after first cork</option>
+                        <option value="loser_starts_cork_first_deciding">Loser starts after first cork</option>
+                        <option value="winner_starts_cork_first_deciding">Winner starts after first cork</option>
+                        <option value="home_first">You start</option>
+                        <option value="away_first">Opponent starts</option>
+                    </select>
+                </label>
+                <label>In
+                    <select id="challengeInRule">
+                        <option value="straight">Straight in</option>
+                        <option value="double">Double in</option>
+                    </select>
+                </label>
+                <label>Out
+                    <select id="challengeOutRule">
+                        <option value="double">Double out</option>
+                        <option value="straight">Straight out</option>
+                        <option value="master">Master out</option>
+                    </select>
+                </label>
+                <label class="wide">Message
+                    <input id="challengeMessage" maxlength="200" placeholder="Let's play.">
+                </label>
+            </div>
+
+            <div id="challengeStatus" class="mv-status"></div>
+            <div class="mv-modal-actions">
+                <button type="button" id="sendChallengeBtn">Send challenge</button>
+                <button type="button" id="closeChallengeBtn">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/brdc-toast.js"></script>
+    <script src="/components/brdc-navigation-init.js?v=18"></script>
+    <script>
+        initBRDCNavigation({ page: 'chat', pageTitle: 'Messages', showBreadcrumbs: false, showBackButton: true });
+    </script>
+    <script type="module" src="/js/messages-vnext.js?v=10"></script>
+    <script src="/rookies/tenant/rookies-vnext.js?v=11"></script>
+</body>
+</html>

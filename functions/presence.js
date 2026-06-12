@@ -11,7 +11,10 @@
 const functions = require('firebase-functions/v1');
 const { logger } = require('firebase-functions');
 const admin = require('firebase-admin');
-const cors = require('cors')({origin: true});
+const cors = require('cors')({
+    origin: true,
+    credentials: true
+});
 const { verifyFirebaseAuth } = require('./src/firebase-auth-helper');
 
 const db = admin.firestore();
@@ -26,6 +29,13 @@ const HEARTBEAT_INTERVAL_MS = 60 * 1000;     // Expected heartbeat interval
 
 // Valid status values
 const VALID_STATUSES = ['online', 'away', 'in_game', 'dnd', 'offline'];
+
+const ALLOWED_PRESENCE_ORIGINS = new Set([
+    'https://burningriverdarts.com',
+    'https://www.burningriverdarts.com',
+    'https://brdc-v2.web.app',
+    'https://brdc-v2.firebaseapp.com'
+]);
 
 // Activity types
 const ACTIVITY_TYPES = {
@@ -77,6 +87,18 @@ function buildActivityDescription(activity) {
         default:
             return null;
     }
+}
+
+function setPresenceCorsHeaders(req, res) {
+    const origin = req.get('origin');
+    if (origin && ALLOWED_PRESENCE_ORIGINS.has(origin)) {
+        res.set('Access-Control-Allow-Origin', origin);
+        res.set('Vary', 'Origin, Access-Control-Request-Headers');
+        res.set('Access-Control-Allow-Credentials', 'true');
+    }
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'authorization, content-type');
+    res.set('Access-Control-Max-Age', '3600');
 }
 
 // ============================================================================
@@ -285,8 +307,17 @@ exports.updateActivity = functions.https.onRequest((req, res) => {
  * Set player offline when they explicitly log out or close the page
  */
 exports.setOffline = functions.https.onRequest((req, res) => {
-    cors(req, res, async () => {
+    setPresenceCorsHeaders(req, res);
+    if (req.method === 'OPTIONS') {
+        return res.status(204).send('');
+    }
+
+    (async () => {
         try {
+            if (req.method !== 'POST') {
+                return res.status(405).json({ success: false, error: 'Method not allowed' });
+            }
+
             const player = await verifyFirebaseAuth(req);
             if (!player) {
                 return res.status(401).json({ success: false, error: 'Unauthorized' });
@@ -330,7 +361,7 @@ exports.setOffline = functions.https.onRequest((req, res) => {
             console.error('Error setting offline:', error);
             res.status(500).json({ success: false, error: error.message });
         }
-    });
+    })();
 });
 
 // ============================================================================

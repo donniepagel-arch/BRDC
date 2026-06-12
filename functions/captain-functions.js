@@ -845,9 +845,9 @@ exports.confirmFillin = functions.https.onRequest(async (req, res) => {
 // ============================================================================
 
 /**
- * Update team settings (photo, name, motto, auto-reminders)
+ * Update team settings (photo, gallery, name, motto, auto-reminders)
  * POST /updateTeamSettings
- * Body: { league_id, team_id, settings: { photo_url, team_name, motto, auto_reminders }, captain_id }
+ * Body: { league_id, team_id, settings: { photo_url, gallery_photos, team_name, motto, auto_reminders }, captain_id }
  */
 exports.updateTeamSettings = functions.https.onRequest(async (req, res) => {
     setCorsHeaders(res);
@@ -878,6 +878,11 @@ exports.updateTeamSettings = functions.https.onRequest(async (req, res) => {
 
         if (settings.photo_url !== undefined) {
             updateData.photo_url = settings.photo_url;
+        }
+        if (settings.gallery_photos !== undefined) {
+            updateData.gallery_photos = Array.isArray(settings.gallery_photos)
+                ? settings.gallery_photos.slice(0, 24)
+                : [];
         }
         if (settings.team_name !== undefined) {
             updateData.team_name = settings.team_name;

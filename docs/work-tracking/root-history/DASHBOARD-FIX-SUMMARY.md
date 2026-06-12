@@ -17,7 +17,7 @@ Deployed to: `https://us-central1-brdc-v2.cloudfunctions.net/`
 
 ## Leagues Fixed
 
-### ✅ Winter Triple Draft
+### ✅ 2026 Triples League
 - **League ID:** `aOq4Y0ETxPZ66tM1uUtP`
 - **Synced:** Yes (February 3, 2026)
 - **Affected Players:** All players including Cory Jacobs
@@ -62,5 +62,5 @@ Going forward:
 
 ## Status
 - **Code Fix:** ✅ Deployed
-- **Winter Triple Draft:** ✅ Synced
+- **2026 Triples League:** ✅ Synced
 - **Other Leagues:** ⏳ Pending identification and sync

@@ -55,7 +55,7 @@ const LiveMatch = {
      */
     async start(matchData) {
         try {
-            const scorerId = JSON.parse(localStorage.getItem('brdc_session') || '{}').player_id;
+            const _sess = JSON.parse(localStorage.getItem('brdc_session') || '{}'); const scorerId = _sess.player_id || _sess.id || _sess.player?.id;
             if (!scorerId || !matchData.match_id) {
                 return;
             }
@@ -119,7 +119,7 @@ const LiveMatch = {
         this.lastUpdate = now;
 
         try {
-            const scorerId = JSON.parse(localStorage.getItem('brdc_session') || '{}').player_id;
+            const _sess = JSON.parse(localStorage.getItem('brdc_session') || '{}'); const scorerId = _sess.player_id || _sess.id || _sess.player?.id;
             if (!scorerId) return;
             const headers = await this.getAuthHeaders();
             if (!headers) return;
@@ -160,7 +160,7 @@ const LiveMatch = {
         }
 
         try {
-            const scorerId = JSON.parse(localStorage.getItem('brdc_session') || '{}').player_id;
+            const _sess = JSON.parse(localStorage.getItem('brdc_session') || '{}'); const scorerId = _sess.player_id || _sess.id || _sess.player?.id;
             if (!scorerId) return;
             const headers = await this.getAuthHeaders();
             if (!headers) return;

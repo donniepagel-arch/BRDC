@@ -163,7 +163,7 @@ When timer expires and `auto_pick_enabled` is true:
 ## Testing
 
 ### Test League:
-- League ID: `aOq4Y0ETxPZ66tM1uUtP` (Winter Triple Draft)
+- League ID: `aOq4Y0ETxPZ66tM1uUtP` (2026 Triples League)
 
 ### Manual Test Steps:
 1. Create new draft league or update existing league to draft type

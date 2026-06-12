@@ -1090,9 +1090,11 @@ exports.setPlayerStatsFromPerformance = functions.https.onRequest(async (req, re
                     } else {
                         merged.x01_avg_checkout = existing.x01_avg_checkout || 0;
                     }
+                    merged.x01_avg_finish = merged.x01_avg_checkout || 0;
 
                     await statsRef.doc(ps.playerId).update(merged);
                 } else {
+                    statsData.x01_avg_finish = statsData.x01_avg_checkout || 0;
                     statsData.created_at = admin.firestore.FieldValue.serverTimestamp();
                     await statsRef.doc(ps.playerId).set(statsData);
                 }

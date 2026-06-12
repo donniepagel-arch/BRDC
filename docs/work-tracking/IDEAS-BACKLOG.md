@@ -18,6 +18,190 @@ When an item is completed, move it to the "Completed" section at the bottom with
 
 ## Pending Ideas
 
+### [2026-06-11] - REPO HYGIENE: last git commit is April 17 — months of shipped work uncommitted
+`git log` head is 2026-04-17; ~270 modified/untracked files carry EVERYTHING since
+(vNext port, nav, scorers, streaming stack, perf work, punch-list hardening, auto-score
+lab). It's all deployed and working, but one bad `checkout`/disk hiccup loses months.
+ACTION (needs Donnie's go): big checkpoint commit of the working tree, then return to
+small per-change commits.
+Priority: High
+
+### [2026-06-11] - Deploy-state drift bit us again: 06-09 sprint sat undeployed for 2 days
+The 06-09 punch-list sprint (submitGameResult participant auth, match-hub depth,
+contact-center dry-run, iPhone scorer fixes) + the auto-score lab existed ONLY in the
+working tree; live apex was still brdc-v81 and the lab URL fell through to the SPA
+catch-all. Caught by Fable review probe 2026-06-11; everything deployed + live-verified
+(hosting v82 apex; functions submitGameResult + sendDirectorBroadcast to brdc-v2;
+no-auth probe → 403 "Not authorized"). LESSON: after any sprint, curl-verify a marker
+on the APEX (title/?v= tag), not just local state — same gotcha as CLAUDE.md RULE 0.
+Priority: Medium (process note)
+
+### [2026-06-09] - Auto-Score v1 shipped (lab); v2 ideas
+CV dart detection live in `autoscore-lab.html` + `autoscore-engine.js` (see `AUTOSCORE-LAB-2026-06-09.md`). Verified: 125 Node tests + browser e2e (synthetic camera → T20/D16 scored correctly). PENDING: real-board calibration test by Donnie (10-min runbook in doc). V2 ideas: two-camera tip fusion (board+thrower cams already exist in the rig), auto-calibration via board circle detection, in-scorer consumption UI for autoscore_candidates (scorer currently must have its own candidate-confirm surface — verify x01-scorer listens to candidates at all), per-venue saved calibration profiles.
+UPDATE 2026-06-11 (Fable review): engine hardened to v4 — MOTION-deadlock escape (`rebaseline` event on stale baseline from AE shift/camera bump) + 2-frame dart confirmation (one-frame glints can't mint phantom darts). Suite 133/133, device self-test 8/8 on v4, DEPLOYED live (sw brdc-v82). More v2 ideas from the review: tip = mean of thin-slab extreme pixels (cut 1-2px jitter), multi-blob arbitration for dart-shadow blobs (prefer tip-confidence over area), 8-point calibration + radial term for lens distortion (treble band 8mm; phone wide-cams bend 2-3mm mid-radius).
+Priority: High (flagship feature)
+
+### [2026-06-09] - Auth follow-ups from signed-out-inconsistency root-cause (agent findings)
+(1) `tournament-director-auth-vnext.js:75` + ssdl/leda login pages call GLOBAL `auth.signOut()` on access-denied — logs the user out of the whole site (most likely cause of the recurring "session lapsed" mystery). Replace with access-denied UI, no signOut. (2) `components/brdc-navigation.js` renders identity from `brdc_session` with no Firebase-auth check (mitigated: key now purged on definitive signed-out). (3) `arena-vnext.js:777` writes a schema-divergent `brdc_session` (raw player object, `id` vs `player_id`).
+Priority: High (1), Medium (2-3)
+
+### [2026-06-09] - getLeagueGameProgress still has weak pin-only auth
+Same weak pattern submitGameResult had (fixed 2026-06-09). It's a READ path so lower risk, but should get the same participant gate eventually.
+Priority: Low-Medium
+
+### [2026-06-04] - STANDING LESSON: bump sw.js CACHE_VERSION when shipping vNext/nav/page-JS changes
+burningriverdarts.com registers a caching service worker (`public/sw.js`). It (plus the apex CDN) serves STALE html/js even with no-cache headers and even when a file's `?v=` query tag is bumped — so a new nav/page deploy can silently NOT take effect (symptom: nav v4 rendered on the preview channel — different origin, no SW — but the old nav showed on the live domain). FIX that reliably forces all clients fresh: bump `CACHE_VERSION` in `public/sw.js` (it uses skipWaiting + clients.claim + deletes old caches on activate, so the new SW takes over next load and purges stale assets). Do this on EVERY deploy that changes vNext page HTML, the nav component, or shared JS. (Bumping the per-file `?v=` tag alone is NOT sufficient on this setup.) Consider later: make vNext pages + nav component network-first in the SW so this stops recurring during active dev.
+Priority: High
+
+
+### [2026-06-03] - create-tournament builder QA (no-write) + 3 bugs fixed; date/time pickers
+Ran a full no-write builder test (fetch-intercepted createTournament/createMixedDoubles → synthetic success, ZERO real writes). Builder PASSES: all fields, conditional sections (mixed legs 501/C/CH, matchmaker panel, playoff, runtime options), validation, and function routing (createTournament vs createMixedDoublesMatchmakerTournament) work; no console errors. 3 bugs FIXED + deployed (create-tournament-vnext.js v=6):
+- #1 (med, VERIFIED live): venue address field stayed visible for online/flexible location (inline display:none lost to a `.ves-config-grid` grid rule) → used `style.setProperty('display','none','important')`. Now hides for online/flexible, shows for specific.
+- #2 (low): `registration_vote_options` sent even when voting disabled → now `votingEnabled ? options : []`.
+- #3 (low): matchmaker checkbox values (partner_matching/breakup_enabled/savage_summaries_enabled) leaked into non-matchmaker payloads → now gated on `preset === 'mixed_doubles_matchmaker'`.
+Date/time fields made obvious selectors on create-tournament + create-league: native pickers' icon inverted to be visible on dark fields + click-to-open `showPicker()` on every date/time input. CSS scoped to `.vnext-light-page`/`.scorer-setup-workflow-page`. STILL UNVERIFIED: the actual server create (intercepted in test) — needs a real submit on the user's test event.
+Priority: Medium - DONE (builder), pending real-create confirmation
+
+
+### [2026-06-03] - Legacy fb-sidebar / fb-chat-sidebar drawers showing on 3 vNext pages — RESOLVED
+Root cause: vNext desktop chrome moved to a top bar (`brdc-desktop-nav`); the legacy left `fb-sidebar` (fb-nav.js) + right `fb-chat-sidebar` (chat-drawer.js), still loaded by shared `brdc-navigation-init.js`, are pushed off-canvas + their reserved 240/280px gutters reclaimed by CSS scoped to `body.is-desktop[class*="vnext"]` (brdc-navigation.css ~852-889). But 3 vNext pages used abbreviated body classes with NO "vnext" substring — `league-team-vnext` (`ltv-page`), `match-hub-vnext` (`mhv-page`), `player-profile-vnext` (`ppv-page`) — so the rules never matched and both drawers stayed pinned (240px L + 280px R). FIX: added a page-specific `*-vnext-page` class to each body tag (no shared-file edit, no conflicting styles). VERIFIED on apex: league-team + match-hub now bodyPad 0/0, fb-sidebar off-canvas (right edge 0), fb-chat-sidebar off-canvas (left 1912). All 28 vNext pages audited — these were the only 3 stragglers; the rest already carry a "vnext" body class.
+NOTE: the drawers' JS still loads on vNext (just hidden off-canvas) — a later cleanup could skip loading fb-nav.js/chat-drawer.js on `-vnext` URLs in brdc-navigation-init.js, but that's a shared file used by ~43 legacy pages too, so it needs care + a version bump; the CSS-scoped hide is the safe fix.
+Priority: Medium - DONE
+
+
+### [2026-06-03] - Cricket high-mark stats missing on triples league Stats tab (ROOT CAUSE: field-name + pipeline gap)
+Reported: cricket stats missing on triples-vnext Stats tab. Investigation: MPR/Legs/Win% DID render; HRnd showed "-" and the High Marks breakdown (9M/8M/7M/6M/5M) was all blank. ROOT CAUSE: the league recalc `exports.recalculateLeagueStats` (functions/leagues/index.js ~5821) computes only cricket AGGREGATES — `cricket_high_marks` (best round) + `cricket_5m_plus` (count of 5+ rounds) — NOT the per-level `cricket_nine_mark_rounds`/etc. the UI expects. (A different pipeline, import-matches.js, does compute per-level, but didn't write this league's data.) The vNext display also read the wrong field for HRnd (`cricket_high_mark_round` instead of `cricket_high_marks`). This naming/pipeline mismatch affects the whole app, not just vNext (league-view/stats.js:486 has the same wrong field).
+FIX PART 1 — DONE + VERIFIED 2026-06-03 (frontend, deployed apex): triples-vnext.js `highMark` now reads `cricket_high_marks` (fallback `cricket_high_mark_round`); bumped ?v=12. HRnd now shows real best-round (e.g. 9) on the cricket Averages page.
+FIX PART 2 — CODE READY, NEEDS PROD OP: added per-level counting to recalculateLeagueStats (init + `for m of marks_per_round` → cricket_nine/eight/seven/six/five_mark_rounds; data already in marks_per_round). To activate: `firebase deploy --only functions:recalculateLeagueStats --project brdc-v2` THEN run recalculateLeagueStats for league aOq4Y0ETxPZ66tM1uUtP. CAUTION: that recompute regenerates ALL league stats docs (51) from match data, not just cricket — confirm blast radius before running. Until then, the High Marks breakdown stays blank (no per-level data yet).
+Priority: High
+FIX PART 2 — DONE + VERIFIED 2026-06-03: deployed `recalculateLeagueStats` to brdc-v2; ran recompute (92 matches / 823 games / 1955 legs / 51 players, 0 unresolved). GUARDED DIFF (4 sample players, full-doc field compare BEFORE vs AFTER): each added ONLY `cricket_{five,six,seven,eight,nine}_mark_rounds`; ZERO other fields changed or removed — no collateral stat drift. Internal consistency: per-level counts sum to `cricket_5m_plus` (e.g. 24+7+10+0+1=42) and `nine_mark_rounds`≥1 matches `cricket_high_marks=9`. Live High Marks page now populated (e.g. Danny Russano 9M=7,8M=1,7M=25,6M=30,5M=87 — was all dashes). NOTE: image screenshots couldn't be captured — the live page's persistent Firestore listeners prevent the screenshot tool from reaching document_idle (known tooling instability); used exact rendered-value before/after tables as proof instead.
+SIDE NOTES — ALL 3 RESOLVED + VERIFIED 2026-06-03:
+(1) Duplicate `exports.recalculateLeagueStats` (1342 + 5528): dead 1342 block removed; `node --check` passes; exactly 1 export remains; deployed.
+(2) Auth gap: was systemic — the weak "PIN-only-if-supplied" check appeared in 3 functions (`submitGameResult`, `recalculateLeagueStats`, `assignPlayerLevels`). Fixed `recalculateLeagueStats` + `assignPlayerLevels` to use `hasLeagueDirectorOrAdminAccess(req, league, league_id, admin_pin)` (the same helper `deleteLeague` uses — verifies authenticated director/admin via Bearer token, still accepts a PIN). VERIFIED: unauth POST → 403; authed master-admin (donniepagel) → 200/51 players. Deployed to brdc-v2. **submitGameResult deliberately NOT changed** — it's the scorer SAVE path; scorers aren't directors, so a director-only gate would break event-night scoring. See new item below.
+(3) Legacy `league-view/stats.js:486` highMark → `(cricket_high_marks ?? cricket_high_mark_round)`; deployed.
+Also: cricket frontend HRnd fix (triples-vnext.js → cricket_high_marks) deployed as v=13; HRnd now shows real values (was "-").
+Priority: High — DONE
+
+### [2026-06-03] - submitGameResult auth needs participant verification (NOT director-gate)
+The scorer save function `submitGameResult` (functions/leagues/index.js) still uses the weak `if (admin_pin && !checkLeagueAccess(...))` (only verifies a PIN if one is supplied). It must NOT be changed to a director/admin-only gate (`hasLeagueDirectorOrAdminAccess`) because regular players/scorers — not directors — submit game results on match night; a director gate would break live scoring. The RIGHT fix: verify the caller is an authenticated participant of that match (Bearer token → player → is on home/away roster or assigned scorer) before accepting a write. Design carefully and test against the scorer flow before deploying. Until then the save path accepts results without strong auth.
+Priority: Medium
+
+
+### [2026-06-03] - X01 scorer sidebar LEGS counter stays 0 during a set (display-only)
+Found in E2E no-write test. `#homeLegs`/`#awayLegs` (set by `updateUI()` from `teams[].legs`, x01-scorer-vnext.html:4968) don't reflect legs won during play, even though `team.legs++` fires on checkout (line 4539) and leg/set PROGRESSION + win conditions + saves all work correctly. Suspected cause: `nextLeg()` (line 5672) advances via page navigation / sessionStorage rebuild and the updated legs count isn't re-applied to the sidebar on the new leg (URL `home_legs`/`away_legs` read at 2465-2466 default to 0). NON-BLOCKING: scoring/saving correct; only the running set tally display is stale. DO NOT hot-patch right before live matches — fix carefully (trace mixed/casual/league nextLeg paths) with engine re-test afterward. Also confirm whether league-mode (tonight's matches) resets the same way between legs of a set.
+Priority: Medium
+RESOLVED + CONFIRMED 2026-06-03: added `updateUI();` right after the leg is decided (x01-scorer-vnext.html, after `updateInputDisplay()` in the checkout handler) so the sidebar refreshes the legs tally on both leg-win and game-win branches (the human-vs-human `nextLeg` else-branch never called updateUI). Re-tested live: `#homeLegs` shows "1" after a leg win and persists into leg 2; no scoring regression. Deployed to apex.
+
+### [2026-06-03] - X01 chooseThrowOrder can crash if throw-order picked before cork-winner state set
+Observed during re-test: `TypeError: Cannot read properties of undefined (reading 'name') at showStarterReadyPhase (x01-scorer-vnext.html:3352) ← chooseThrowOrder (:3519)` when THROW FIRST/SECOND is invoked before `pendingStarter` is set. Only reproduced via same-tick programmatic clicks (a human can't click two buttons in one JS tick), so real-world risk is low. Same bug family as the cricket cork guard. FIX (later, carefully): guard `showStarterReadyPhase`/`chooseThrowOrder` against null `pendingStarter` (early-return like the cricket addHit guard). NOT introduced by recent fixes.
+Priority: Low
+RESOLVED + CONFIRMED 2026-06-03: root-cause guard added at top of `window.chooseThrowOrder` — `if (corkOptionHolder == null) return;` (cork winner must be chosen before throw-order can resolve). Verified live: calling chooseThrowOrder before cork-winner no longer throws, does not advance to ready-phase, leaves no garbage state. Deployed to apex.
+
+### [2026-06-03] - Cricket scorer cork sequence briefing (low risk)
+If START is clicked before selecting cork-winner, `pendingStarter`/`activePlayer` stay null and dart entry crashes (`Cannot read properties of undefined (reading 'marks')`). Mitigated in practice: START is disabled (`corkCheckReady`) until a winner is chosen, and singles auto-select both players. ACTION: either harden by guarding dart-entry against null activePlayer, or brief scorers: "tap who won the cork, then START." Confirm the disabled-guard holds on all paths (doubles, corks-choice).
+Priority: Low
+RESOLVED + CONFIRMED 2026-06-03: added `if (activePlayer == null || !players[activePlayer]) return;` at the top of `window.addHit` (league-cricket-vnext.html) so darts thrown before the cork/starter is resolved are safely ignored instead of crashing. Re-tested live: pre-cork dart ignored (no crash, no `marks` error), normal scoring works after cork. Deployed to apex. (A scorer briefing is still nice-to-have but no longer required to avoid the crash.)
+
+
+### [2026-06-03] - Missing Firestore index breaks home "online matches" (PRE-EXISTING)
+home-vnext `getActiveOnlineMatches` (functions/online-play.js:261) queries `online_matches` with `status IN ['waiting','in_progress']` + `orderBy created_at desc` — needs composite index `(status ASC, created_at DESC)` which was absent. Surfaced as `FAILED_PRECONDITION: query requires an index` in console on home (project brdc-v2). NOT caused by vNext work. FIX: added the index to `firestore.indexes.json`. RESOLVED + CONFIRMED 2026-06-03 — deployed to brdc-v2 (`firebase deploy --only firestore:indexes`), non-destructive; index finished building and home console is now CLEAN (no FAILED_PRECONDITION on fresh reload of burningriverdarts.com/pages/home-vnext.html).
+Priority: Medium
+
+### [2026-06-03] - firestore.indexes.json drift (4 prod indexes not in repo file)
+Deploy output 2026-06-03: "there are 4 indexes defined in your project that are not present in your firestore indexes file." So `firestore.indexes.json` is out of sync with deployed brdc-v2 state. RECONCILE: pull the 4 live index definitions into the repo file so a future `firebase deploy --only firestore:indexes --force` doesn't accidentally delete live indexes. Do NOT run --force until reconciled.
+Priority: Medium
+RESOLVED 2026-06-03: pulled live indexes (`firebase firestore:indexes --json`), diffed ignoring the implicit `__name__` field, and merged the 4 true-drift entries into `firestore.indexes.json` (`featured_banners` active/priority; `jobs` ×2 and `service_areas` — the latter 3 appear to belong to a DIFFERENT app sharing the brdc-v2 project, so capturing them prevents a --force from nuking them). Repo now 58 == live 58, 0 drift both directions. No deploy needed (file-only reconcile); --force is now safe but still unnecessary.
+
+### [2026-06-02] - CANONICAL DEPLOY TARGET for burningriverdarts.com (CLAUDE.md RULE 0 is wrong)
+The real public apex domain **burningriverdarts.com** is served by Firebase site **`brdc-live-0428`** in project **`dashboard-ll`** (NOT brdc-v2). Deploy the live public site with:
+```
+firebase deploy --only hosting --config firebase.current-apex-hosting.json --project dashboard-ll
+```
+Verified 2026-06-02: bare `firebase deploy` / the `burningriverdarts` site (→ burningriverdarts.web.app) and `brdc-v2.web.app` are NOT the apex domain. A 200 on a missing /pages/*.html is the SPA catch-all rewrite serving index.html — confirm real content (title/marker), not just status code. Site map: burningriverdarts.com→brdc-live-0428(dashboard-ll); brdc-v2.web.app→brdc-v2; burningriverdarts.web.app→burningriverdarts(brdc-v2); fortheloveofdarts.com→fortheloveofdarts.
+RESOLVED 2026-06-02: CLAUDE.md RULE 0 + the Deployment block updated with the correct apex command, full domain→site→project map, and gotchas. (Handoff doc not yet updated — low priority.)
+Priority: High (mostly resolved)
+
+
+### [2026-06-02] - league-director-vnext: retire/redirect decision (needs user OK)
+The triples-vnext port added a director-only Manage tab (the in-page league-management workflow). Per the existing backlog item, the standalone `league-director-vnext.html` should be retired/redirected once that's proven. NOT done autonomously (structural nav change needs confirmation). Page verified still working as a fallback (0 overflow, real data "92/94 matches, 2026 Triples League"). Decision for user: (a) redirect league-director-vnext → triples-vnext#manage, (b) keep both, or (c) fully retire. Recommend keeping as fallback until the Manage tab gets a director-session QA pass.
+Context: autonomous BRDC vNext port run.
+Priority: Low
+
+### [2026-06-02] - admin-vnext auth-precheck: signed-in-non-admin still 401s + cache-bust lesson
+The admin-vnext auth-precheck fix (gate `adminGetDashboard`/`adminGetMembers` behind `auth.currentUser || waitForAuthReady`) is deployed and verified clean for the SIGNED-OUT case (no more Unauthorized console errors; admin-vnext.js bumped to ?v=2). Remaining: a SIGNED-IN-NON-ADMIN user still passes the "is there a user" gate and then trips the cloud 401. To fully silence, broaden the catch to treat any `Unauthorized` as a quiet render-unavailable (the quiet-catch currently only covers `isAuthGate`), or do a role pre-check. Low priority (UI degrades gracefully either way).
+LESSON (process): when an agent edits a JS file, the page's `?v=N` cache-bust tag MUST be bumped or browsers serve stale JS over Firebase no-cache headers. The admin fix appeared not to work until ?v=1→?v=2 was bumped. Verify version-tag bumps on every JS edit going forward.
+Context: autonomous BRDC vNext port run.
+Priority: Low
+RESOLVED 2026-06-03: broadened the final `.catch` in admin-vnext.js to treat `Unauthorized`/`permission`/`denied`/`not authorized` errors as a quiet graceful "Admin unavailable" (was only quiet on `isAuthGate`), so a signed-in non-admin no longer logs a console error. Bumped admin-vnext.js ?v=2→?v=3, deployed to apex, syntax OK. Success path (real admin) unaffected — change only touches the error branch. (True signed-in-non-admin console verification needs a non-admin test account; logic is straightforward.)
+
+### [2026-06-02] - messages-vnext: pending logged-in QA
+messages-vnext ported (6-category tabs Direct/League/Team/Events/Challenges/Online, team match context), demo-clean, syntax OK, renders graceful login gate (0 overflow). Pending: logged-in QA (real threads, send a direct message / chat / challenge — write-risk, no-send-verified only) and mobile look/test.
+Context: autonomous BRDC vNext port run.
+Priority: Medium
+
+### [2026-06-02] - wing-it-wednesdays-vnext query doesn't match real tournament schema
+The new `wing-it-wednesdays-vnext.html` renders cleanly (0 overflow) but shows "NO WEEKS FOUND" because its dynamic query looks for a `series_slug`/`series_id`/`event_series` field that real BRDC wing-it tournament docs don't appear to have (e.g. `rookies-wing-it-wednesdays-2026-06-10` exists with name "Wing It Wednesdays #3"). Fix: align the query to how wing-it events are actually identified in Firestore — likely by name match (`/wing.it.wednesday/i`) or tournament-id prefix, scanning the `tournaments` collection — instead of the assumed series field. Constants `SERIES_FIELD_CANDIDATES` / `SERIES_VALUE` at top of `wing-it-wednesdays-vnext.js`.
+Context: autonomous BRDC vNext port run, missing-page builds wave B.
+Priority: Medium
+RESOLVED + CONFIRMED 2026-06-03: `loadSeriesWeeks()` now keeps the explicit series-tag query as a primary path, then falls back to scanning `tournaments` (limit 300) and matching by `isWingItDoc()` — name OR doc-id against `/wing.?it.?wednesday/i` (mirrors the working events-vnext fetch-and-filter pattern). Added `limit` import, bumped page to ?v=2. Verified live on burningriverdarts.com: page now finds **14 weeks** (was 0/"NO WEEKS FOUND"), status "Choose a week". If the event builder later sets a real series_slug, the primary path takes over automatically.
+
+### [2026-06-02] - New event pages (league-import, wing-it, matchmaker-mingle/tv): pending live QA
+Four more previously-missing pages created from reference, demo-stripped (0 markers), syntax OK, render cleanly desktop (0 overflow; league-import director-gated, wing-it empty-state per item above, matchmaker pages read-only). Pending: real-data QA (matchmaker pages need a matchmaker-enabled tournament_id; league-import needs a director session to actually run `parseDartConnectRecap`→`importMatchData` dry-run/import — write-risk, no-import-verified only); mobile look/test for all four. matchmaker-mingle + matchmaker-tv are read-only (no writes); league-import import is guarded by a parse-first dry-run + confirm.
+Context: autonomous BRDC vNext port run, wave B.
+Priority: Medium
+
+### [2026-06-02] - New director pages built (create-league, director-home, contact-center): pending live QA
+Three previously-missing pages were created from the Rookies reference, demo-stripped, BRDC-adapted; all render cleanly desktop (0 overflow) with director-login gates / disabled send. Pending:
+- Full director-mode QA with a real director session: create-league actual submit (writes via direct `setDoc(doc(db,'leagues',slug), payload, {merge:true})` — confirm Firestore rules allow director league writes, and that the slug-id scheme is desired vs an auto-id); director-home real league/event lists; contact-center recipient loading + (carefully) a dry-run broadcast. All no-send/no-submit verified only.
+- Mobile (375px) look/test for all three.
+- NOTE: create-league agent fixed a reference bug where `cork_option` always wrote `winner_chooses` regardless of selection — verify the corrected value is what's wanted.
+- director-home `director-hero-compact`/`director-league-card` hooks are unstyled in shared CSS (same as reference — degrade gracefully); add polish later if desired.
+Context: autonomous BRDC vNext port run, missing-page builds wave A.
+Priority: Medium
+
+### [2026-06-02] - Tournament cluster vNext: pending director-mode + mobile QA
+The 4 tournament pages (create-tournament, tournament-register, tournament-runtime, tournament-view) were ported and pass desktop look/test (0 overflow, no console errors; real data on view/register via tournament `rookies-wing-it-wednesdays-2026-06-10`; graceful director gates on create/runtime). Still pending (needs a director session + willingness to do controlled writes):
+- Full director-mode QA of create-tournament (submit a real event) and tournament-runtime (all 24 runtime actions: bracket gen, check-in, board assign, draw partners, mingle, Cupid Shuffle, submit/confirm result, send reminder, delete). All are no-submit-verified only; the actual write paths are unexercised.
+- Mobile-width (375px) look/test for all 4 (desktop only so far). These are forms/management surfaces (less mobile-critical than scorers) but should get the mobile pass.
+- tournament-register actual submit (registerForTournament / matchmakerRegister + sms_opt_in) unexercised.
+Context: autonomous BRDC vNext port run, tournament cluster.
+Priority: Medium
+
+### [2026-06-02] - Cricket scorer vNext: verify cork-flow + closeout changes (from vNext port)
+During the league-cricket-vnext port, the porting agent introduced scoring-FLOW changes beyond the intended CSS/visual scope. Actions taken + follow-ups:
+- REVERTED: a winner-WRITE detection change (it had created a duplicate `const legWinner` SyntaxError that broke the whole scorer). Restored original RULE-24 "higher score wins" logic. Syntax now valid; engine verified working (3 marks closed the 20).
+- KEPT but UNVERIFIED (need live no-write play-through before trusting for real match writes): cork-starter resolution (`resolveCorkStarter`/`startResolvedLeg` honoring the `corkOption` param) and the closeout-row highlight now keyed on `turn.isWinningTurn` (display-only). Confirm correct starter selection and closeout highlighting in a real game.
+Context: autonomous BRDC vNext port run, Cricket scorer batch. Lesson: scorer ports must be strictly CSS/markup; flag any JS-logic edits.
+Priority: High
+
+### [2026-06-02] - Cricket scorer casual game shows "PLAYER 0" for unnamed players
+With no player names entered, the casual cricket scoreboard labels appear as "PLAYER 0" (both panels looked the same in a quick probe). Verify default-name fallback gives distinct, friendly placeholders (e.g., "Player 1"/"Player 2"). Likely pre-existing, not port-introduced.
+Context: vNext port Cricket QA.
+Priority: Low
+
+### [2026-06-02] - vNext graceful states for auth/missing-param (found in Batch-1 QA)
+Three minor JS issues surfaced during the BRDC vNext CSS-foundation QA sweep (not CSS bugs; defer to their proper port batches):
+- `admin-vnext.html` calls `adminGetDashboard` + `adminGetMembers` even with no admin session, logging two `Unauthorized` console errors. Should role-check before calling rather than call-and-catch. (Address in admin/director portal batch.)
+- `tournament-view-vnext.html` throws `Error: Missing tournament_id` when no param; recovers to "TOURNAMENT UNAVAILABLE" but should no-op gracefully instead of throwing. (Address in tournament-view batch.)
+- `player-profile-vnext.html` throws `Error: Missing player_id` when no param; same pattern. (Address in player-profile batch.)
+Context: BRDC vNext port, Batch-1 look/test sweep on preview channel css-foundation.
+Priority: Low
+
+### [2026-06-02] - Match-hub vNext: set-grouping (RULE 17) + leg-card badges (RULE 20) not implemented
+The vNext match hub (`match-hub-vnext.js`) renders each `games[]` entry as its own card and does NOT group legs by `set` number into SET cards with aggregated leg scores (RULE 17), nor show the leg-card display badges (cork "C", `★ OUT: 43`, `★ CLOSED (7M)`, `Left: 32`) from RULE 20. Confirmed absent in BOTH the Rookies reference and BRDC production during the Batch-4 port — so it's a never-built feature, not a port regression. The legacy `match-hub.html` (non-vNext) does implement these. Port that depth into vNext.
+Context: BRDC vNext port, match-hub port batch. Also relates to existing backlog item "Match Hub VNext Post-Match Parity" (Awards/Leaders).
+Priority: Medium
+
+### [2026-06-02] - Match-hub vNext tab buttons 38px on mobile (minor)
+The 4 match-hub tab buttons (Sets/Performance/Rosters/Context) render at 38px tall on mobile — 2px under the 40px comfort target. Acceptable but could bump to 40px for consistency with the league page's `.tv-now-links` treatment. Not fixed in Batch 4 to avoid altering the tab-strip design without sign-off.
+Context: BRDC vNext match-hub mobile audit.
+Priority: Low
+
+### [2026-06-02] - Shared nav/chat drawer touch targets under 40px (mobile)
+The shared FB-style nav + chat sidebar components (`fb-sidebar-*`, `fb-chat-sidebar-*`: close ×, search inputs, "See All Messages", "+ New") render at 30–36px tall on mobile (375px) — under the comfortable 40px tap height. These are site-wide shared chrome, surfaced during the BRDC vNext league-page mobile audit. Bump to >=40px when we do the navigation port batch (rather than per-page).
+Context: BRDC vNext port, league-page mobile responsive audit. League-page-specific `.tv-now-links` buttons already fixed (34→40px).
+Priority: Low
+
 ### [2026-02-21] - Scorer Hub → Game Setup Redirect
 The Scorer Hub page isn't functional yet. The nav link for Scorer Hub should redirect to game-setup.html instead until the hub is built out.
 Context: User noticed scorer hub isn't working during Dart Trader session
@@ -241,3 +425,121 @@ Completed: 2026-01-22
 Deploy `onChatMessageCreated` Firestore trigger for FCM push notifications
 Context: Trigger failed to deploy due to Eventarc permissions, needs retry
 Completed: 2026-01-22
+
+### [2026-05-26] - Wing It Wednesdays Summer Series
+Build recurring support for the Wednesday summer event series: flexible weekly concept, blind draw/social formats, public registration, and weekly wing-special copy.
+Context: First Wing It Wednesdays event is being set up as a blind draw for Wednesday, May 27, 2026.
+Update: As of May 30, 2026, Wing It Wednesdays should be treated as an every-Wednesday summer series at Rookies, not occasional one-offs.
+Priority: Medium
+
+### [2026-05-29] - SaaS Pivot and Pricing Model
+Refocus BRDC from operating unpaid local league logistics to selling the darts website/platform as SaaS for bars, leagues, and tournament directors.
+Context: League players expect venue-hosting money to flow like a nonprofit league, but BRDC is a one-person product/business. Current vnext work should become the reusable SaaS template, with Burning River Darts as proof-of-concept/tenant.
+Pricing model: $49/month base subscription, plus $1 per player per event and $5 per player per league season. SMS/email messaging should be treated as an add-on or cost-controlled feature.
+Potential first client: User believes there is an obvious first client; identify and capture details in follow-up.
+Priority: High
+
+### [2026-05-29] - Rookies Branded SaaS Demo
+Create a Rookies Sports Bar & Grill branded version of vnext as the first SaaS demo/client pitch. Use the 2026 Triples League handoff as a smooth transition and value-add for Rookies.
+Context: Rookies is the obvious first client because BRDC events/leagues already operate there, and the platform can be presented as a bar-owned/venue-branded darts hub rather than unpaid league overhead. Include both the 2026 Triples League handoff and the Wing It Wednesdays summer series as bundled proof/value for the demo.
+Reference: https://www.rookiessportsbar-grill.com/
+Priority: High
+
+### [2026-05-29] - Backfill Wing It Wednesdays #1 Results
+Backfill the first Wing It Wednesdays event into vnext/Rookies demo as a completed historical event.
+Context: The May 27, 2026 event was run through Challonge while playoffs were happening. Results were captured from `brdc.challonge.com_9grlepld.png`: Matt & Chris won, Patrick & Brian runner-up, semifinals were Patrick & Brian over Eric & Tony 2-1 and Matt & Chris over Dom & Melissa 2-0, final Matt & Chris over Patrick & Brian 2-1.
+Reference: `docs/wing-it-wednesdays-results.md`
+Priority: High
+
+### [2026-05-30] - VNext Matchmaker Runtime Parity
+Bring the older matchmaker-specific tournament flows into the vnext/Rookies director experience: mingle period controls, Cupid Shuffle, breakup/rematch flow, nudges, no-show handling, and matchmaker board assignment/status.
+Context: The Rookies runtime parity pass exposed the generic tournament director operations, but the specialized matchmaker/Cupid Shuffle workflows remain backend-capable and need a dedicated vnext surface before they should be sold as demo-ready.
+Priority: Medium
+
+### [2026-05-30] - Rookies vNext Visual Consistency Rule
+Apply the homepage component hierarchy to every Rookies vNext page before adding page-specific styling. Page/card tabs use the strong segmented red-active strip; nested subtabs and dense data content categories use the quiet underline style; filters use compact low-weight controls; cards keep 8px radius, 18px gaps, Rookies red accents, and muted completed states.
+Context: Trips page iteration showed that "similar" controls caused repeated nitpicking and drift from the locked homepage standard. This rule is now captured in `docs/home-vnext-design-rules.md` and `docs/home-vnext-rules.md`.
+Priority: High
+
+### [2026-05-30] - Match Hub VNext Post-Match Parity
+Port the original match hub's post-match report depth into the Rookies/vNext match hub, especially Awards and Leaders, after the pre-match scorer-launch experience is locked.
+Context: While polishing the Rookies match hub, the original site confirmed a useful split: scheduled matches use a pre-match hub, completed matches use a full report with Games, Performance, Awards, and Leaders. The vNext scheduled/pre-match hub is now closer, but Awards and Leaders still need a dedicated vNext report pass.
+Priority: High
+
+### [2026-05-31] - iPhone Scorer Usability Pass
+Update the vNext X01 and Cricket scorers for reliable iPhone match-night use before relying on them for playoffs.
+Context: While reviewing the playoff match hub, the scorer launch order was being fixed and the user noted the scorers themselves still need an iPhone-focused update before live use.
+Notes from iPhone 16 Pro Max playoff test:
+- Starter selector modal colors are hard to read.
+- Outshot suggestion deforms the calculator layout.
+- Running scores on the side are squished.
+- Current thrower should be more obvious, but that can be later polish.
+Priority: High
+
+### [2026-05-31] - Rookies Setup/Create Page Parity
+Assess the OG site's hand-curated game setup scorer, league create, and tournament create pages against the Rookies/vNext versions, then port the fuller configuration fields and clearer flows into the Rookies demo.
+Context: The OG setup/create pages were manually curated and may be more complete than the Rookies versions. The Rookies SaaS demo needs those thorough options before it is demo-ready for Brian/Rookies.
+Priority: High
+
+### [2026-05-31] - Global Contact Center for Directors
+Build the admin portal Contact action as a global communication launcher instead of a direct-message shortcut. It should let a director choose an audience, choose site message/text/email channels, compose once, preview recipients/cost risk, and send or draft from one modal/page.
+Context: While reviewing the Rookies admin portal, the current Contact link to direct messages felt too narrow. The director needs a global contact surface for league players, event registrants, captains, staff, or custom recipients.
+Update: Initial vNext contact center and `sendDirectorBroadcast` backend are wired. Remaining product work is broadcast history, delivery detail UI, resend failed, duplicate as new message, opt-in management, and tenant-level SMS/email cost controls.
+Priority: High
+
+### [2026-05-31] - Retire Standalone League Director Page
+Fold league management into a director-only Manage tab on each league page, then retire or redirect the standalone `league-director-vnext.html` page after the in-page workflow is proven stable.
+Context: While reviewing the Rookies League page, the separate league director page felt redundant beside the league hub. The first pass now links Admin Portal league Manage to `triples-vnext.html#manage`, but the old page remains as a fallback.
+Priority: Medium
+
+### [2026-05-31] - Rookies Knockout Bracket VNext Polish
+Give the copied OG knockout bracket page a full Rookies/vNext visual and workflow pass after setup parity is stable.
+Context: The Rookies scorer setup now wires knockout creation and launches a Rookies-hosted bracket page, but that bracket page is still mostly the original dark OG bracket with Rookies colors and vNext scorer links. It works as parity coverage, but should be brought up to the locked Rookies component standard before demoing as a polished SaaS feature.
+Priority: Medium
+
+### [2026-06-01] - Reconnect Quick Scorer and Event/Blind Draw Flows
+Make it obvious from the Rookies scorer setup that quick knockout is only for casual bracket play, while blind draw, Wing It Wednesdays, weekly series, matchmaker, registration, check-in, and generated event brackets live in the event/tournament builder/runtime flow.
+Context: After polishing scorer setup, the quick knockout toggle made it look like selecting knockout should generate a bracket immediately and raised concern that the older blind draw features were lost. The features are present across `create-tournament-vnext`, `wing-it-wednesdays-vnext`, tournament runtime/bracket pages, matchmaker pages/functions, and `scripts/wing-it-blind-draw.js`, but the product path is disconnected.
+Priority: High
+
+### [2026-05-31] - Rookies Demo First, BRDC VNext Second
+Use the Rookies branded demo as the polished SaaS reference implementation first, then port the successful Rookies vNext patterns back into BRDC vNext for testing before eventually replacing the current BRDC main site.
+Context: There is no immediate blind draw tonight, so event builder/runtime work should not be rushed around a live event. The goal is a complete, demo-ready Rookies product path, followed by BRDC vNext parity/testing, then main-site replacement when confirmed working.
+Priority: High
+
+### [2026-06-01] - Wing It Wednesdays Registration Voting
+Add a voting step to Wing It Wednesdays registration so players can help choose the weekly concept, format, or side-game options when they sign up.
+Context: Wing It Wednesdays is intentionally flexible: "we wing the concept each week." Letting registrants vote during signup makes that theme interactive and gives the director useful demand signals before locking the weekly format.
+Priority: Medium
+
+### [2026-06-01] - Remove Legacy PIN Assumptions
+Audit and retire remaining `brdc_player_pin` / PIN-login assumptions from legacy pages, shared components, and scorer setup paths now that player PINs are no longer a live authentication model.
+Context: The Rookies Alerts drawer still depended on `brdc_player_pin`; that path was corrected to use `brdc_session`, but repo search still shows legacy PIN references in older/non-vnext files and scorer setup.
+Priority: High
+
+### [2026-06-06] - Signed-out state inconsistency across OG vs vNext
+When the Firebase auth session lapses, vNext pages (arena/profile, Firebase-auth-gated) correctly show signed-out states, but the OG dashboard + Home snapshot keep showing cached `brdc_session` identity ("Donnie Pagel"), so the user *looks* logged in on some pages and signed-out on others — confusing.
+Also investigate WHY the Firebase session lapsed mid-use (token refresh / persistence). getAuth() uses default indexedDB persistence, so it shouldn't silently drop.
+Context: surfaced during the Arena functional walkthrough 2026-06-06; the lapsed session made Arena/Profile read signed-out while OG dashboard showed authed.
+Priority: Medium
+
+### [2026-06-07] - vNext create-league writes client-side; edit is rule-blocked
+create-league-vnext.js saves via direct client `setDoc(leagues/{slug}, {merge:true})`. OG canonically uses `callFunction('createLeague', data)` (cloud function). Result: CREATE works (rule `create: if hasValidData()`), but settings-mode EDIT = client update → `permission-denied` (`leagues` rule `update,delete: if false`, cloud-functions only). No `updateLeague` function exists.
+Existing `createLeague` fn is thinner than the vNext form (cherry-picks fields, drops blackouts/tiebreaker-order/cork-options/image; random `.add()` id not slug) — so a plain rewire regresses.
+FIX: build `saveLeague` cloud function (full vNext payload passthrough, create+update, director/owner-gated, slug id); wire create-league-vnext both modes to it. Live Triples league unaffected (function/admin-managed). 
+Found via write-path testing 2026-06-07. Priority: Medium (affects new leagues created via vNext only).
+
+### [2026-06-07] RESOLVED ↑ — saveLeague cloud function shipped
+Built `exports.saveLeague` (functions/leagues/index.js) — Admin SDK, create+update, owner/director/master-admin gated on edit (403 otherwise), full vNext payload passthrough. Wired create-league-vnext.js submit (both modes) to `callFunction('saveLeague',{league_id,payload})`. Deployed (fn → brdc-v2, hosting → apex, create-league-vnext.js?v=4). Verified create+EDIT+payload-preservation end-to-end on device, test doc cleaned up. create-tournament was a FALSE ALARM (already uses createTournament/updateTournamentSettings functions; its setDoc writes go to permissive tournament_drafts/templates).
+
+### [2026-06-07] - SECURITY: dart_trader_listings update rule too weak
+firestore.rules ~line 500: `allow update: if hasValidData() && resource.data.seller_id == request.resource.data.seller_id`. This only checks the seller_id field is UNCHANGED — it does NOT verify the editor is the seller (no `request.auth.uid`/seller match). So any authenticated user can edit anyone else's listing (price, title, etc.) as long as they keep seller_id the same. Should be `request.auth != null && resource.data.seller_id == <caller player/uid>`. NOTE: rules changes are sensitive — needs review before deploy (confirm seller_id stores uid vs player-doc-id). Found via write-path sweep 2026-06-07. Priority: Medium-High (security).
+
+### [2026-06-07] RESOLVED ↑ — dart_trader_listings update rule tightened
+firestore.rules now gates listing edits on `get(players/$(seller_id)).data.firebase_uid == request.auth.uid` (+ seller_id immutable). Sellers always have firebase_uid (login links it on listing create). Deployed to brdc-v2 (rules compiled OK). Verified owner edit still works; non-owners now blocked. Test listing cleaned up.
+
+### [2026-06-07] DECISIONS — Arena + Scorer theme (per Donnie)
+- **Arena: stays DARK** — intentional "focused competition mode." No change.
+- **Scorer: stays DARK with bright contrast on key elements.** Measured live scoring screen on device: scoreboard bg dark navy (15,23,43); score = GOLD (255,201,40) bright; score-input + names = light (255,250,242); keypad digits dark on light-cream keys — all readable. Only prior contrast bug (setup "501 SCORER" title dark-on-dark) already fixed v72 → pink. No further changes needed.
+- NOTE: scorer-vnext.css is a half-applied LIGHT reskin (its bg overrides mostly don't win vs the page's dark theme; its text-color overrides mostly get re-overridden by gold/light). Net result reads correctly dark, but the CSS is messy — a future cleanup could delete the dead light-reskin rules. Not urgent.
+- DEVICE QUIRK: `am start` on this phone keeps spawning a 2nd Chrome tab → CDP drives one tab, screencap shows the other. Measurements via CDP are reliable; scoring-screen screencaps are not. Use CDP color measurement, not screencap, for scorer verification.

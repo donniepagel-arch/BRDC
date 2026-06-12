@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LEDA — Lake Erie Darts Association</title>
+  <meta name="description" content="Lake Erie Darts Association — steel tip dart leagues, tournaments, trails, and standings for Northeast Ohio." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --navy: #0d1f3c;
+      --navy2: #152a50;
+      --navy3: #1e3566;
+      --gold: #c8a400;
+      --gold2: #e4bc00;
+      --bg: #080f1e;
+      --surface: #0f1c35;
+      --border: #1e3060;
+      --text: #e8edf4;
+      --text-muted: #7a93b8;
+      --success: #27ae60;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    /* ── Header ──────────────────────────────────────────── */
+    header {
+      background: linear-gradient(135deg, var(--navy) 0%, var(--navy3) 100%);
+      border-bottom: 3px solid var(--gold);
+      padding: 0 24px;
+    }
+    .header-inner { max-width: 1100px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; height: 68px; }
+    .logo { display: flex; align-items: center; gap: 14px; text-decoration: none; }
+    .logo-badge {
+      width: 46px; height: 46px; border-radius: 10px;
+      background: var(--gold); display: flex; align-items: center; justify-content: center;
+      font-family: 'Bebas Neue', sans-serif; font-size: 22px; color: var(--navy); font-weight: 900;
+    }
+    .logo-text { display: flex; flex-direction: column; }
+    .logo-name { font-family: 'Bebas Neue', sans-serif; font-size: 24px; color: var(--gold); letter-spacing: 1px; line-height: 1; }
+    .logo-sub { font-size: 10px; color: var(--text-muted); letter-spacing: 1px; text-transform: uppercase; }
+    nav { display: flex; gap: 6px; }
+    .nav-link { padding: 7px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; color: var(--text-muted); text-decoration: none; transition: all .15s; }
+    .nav-link:hover, .nav-link.active { color: var(--gold); background: rgba(200,164,0,.1); }
+    .btn-join { background: var(--gold); color: var(--navy); padding: 8px 18px; border-radius: 6px; font-weight: 700; font-size: 13px; text-decoration: none; transition: all .15s; }
+    .btn-join:hover { background: var(--gold2); }
+
+    /* ── Hero ────────────────────────────────────────────── */
+    .hero {
+      background: linear-gradient(160deg, var(--navy3) 0%, var(--bg) 60%);
+      padding: 64px 24px 52px;
+      text-align: center;
+      border-bottom: 1px solid var(--border);
+    }
+    .hero-eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--gold); margin-bottom: 12px; }
+    .hero-title { font-family: 'Bebas Neue', sans-serif; font-size: clamp(42px, 8vw, 72px); letter-spacing: 2px; line-height: 1; color: var(--text); margin-bottom: 10px; }
+    .hero-title span { color: var(--gold); }
+    .hero-sub { font-size: 16px; color: var(--text-muted); max-width: 480px; margin: 0 auto 28px; line-height: 1.6; }
+    .hero-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+    .btn-primary { background: var(--gold); color: var(--navy); padding: 13px 28px; border-radius: 8px; font-weight: 700; font-size: 14px; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; transition: all .15s; }
+    .btn-primary:hover { background: var(--gold2); transform: translateY(-1px); }
+    .btn-secondary { border: 1px solid var(--border); color: var(--text-muted); padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px; text-decoration: none; transition: all .15s; }
+    .btn-secondary:hover { border-color: var(--gold); color: var(--gold); }
+
+    /* ── Quick stats bar ──────────────────────────────────── */
+    .stats-bar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 20px 24px; }
+    .stats-bar-inner { max-width: 1100px; margin: 0 auto; display: flex; justify-content: center; gap: 40px; flex-wrap: wrap; }
+    .stat-item { text-align: center; }
+    .stat-num { font-family: 'Bebas Neue', sans-serif; font-size: 36px; color: var(--gold); line-height: 1; }
+    .stat-lbl { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .5px; margin-top: 2px; }
+
+    /* ── Main content ─────────────────────────────────────── */
+    .page { max-width: 1100px; margin: 0 auto; padding: 40px 24px 80px; }
+    .section { margin-bottom: 48px; }
+    .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+    .section-title { font-family: 'Bebas Neue', sans-serif; font-size: 24px; letter-spacing: .5px; }
+    .section-title::after { content: ''; display: block; width: 40px; height: 3px; background: var(--gold); margin-top: 4px; border-radius: 2px; }
+    .see-all { font-size: 13px; color: var(--text-muted); text-decoration: none; transition: color .15s; }
+    .see-all:hover { color: var(--gold); }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    @media (max-width: 768px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } nav .nav-link { display: none; } }
+
+    /* ── Cards ────────────────────────────────────────────── */
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 22px; }
+    .card-gold { border-top: 3px solid var(--gold); }
+    .card-title { font-weight: 700; font-size: 15px; margin-bottom: 4px; }
+    .card-meta { font-size: 12px; color: var(--text-muted); margin-bottom: 14px; display: flex; gap: 12px; flex-wrap: wrap; }
+    .card-meta span { display: flex; align-items: center; gap: 4px; }
+    .badge { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+    .badge-gold { background: rgba(200,164,0,.18); color: var(--gold); }
+    .badge-blue { background: rgba(30,80,160,.3); color: #7db3ff; }
+    .badge-green { background: rgba(39,174,96,.15); color: #2ecc71; }
+    .badge-gray { background: rgba(100,130,170,.15); color: var(--text-muted); }
+
+    /* ── Standings table ──────────────────────────────────── */
+    .div-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
+    .div-tab { padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1px solid var(--border); color: var(--text-muted); background: transparent; transition: all .15s; }
+    .div-tab:hover { border-color: var(--gold); color: var(--gold); }
+    .div-tab.active { background: var(--gold); color: var(--navy); border-color: var(--gold); }
+    .standings-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .standings-table th { text-align: left; padding: 9px 12px; background: var(--navy2); color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: .4px; }
+    .standings-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+    .standings-table tr:last-child td { border-bottom: none; }
+    .standings-table tr:hover td { background: rgba(200,164,0,.04); }
+    .rank-1 td:first-child { color: var(--gold); font-weight: 700; }
+    .rank-2 td:first-child { color: #c0c0c0; }
+    .rank-3 td:first-child { color: #cd7f32; }
+
+    /* ── Top Darters ──────────────────────────────────────── */
+    .darter-row { display: flex; align-items: center; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid var(--border); }
+    .darter-row:last-child { border-bottom: none; }
+    .darter-rank { width: 28px; font-family: 'Bebas Neue', sans-serif; font-size: 20px; color: var(--text-muted); }
+    .darter-name { flex: 1; font-weight: 600; font-size: 14px; }
+    .darter-div { font-size: 11px; color: var(--text-muted); margin-left: 6px; }
+    .darter-pts { font-family: 'Bebas Neue', sans-serif; font-size: 22px; color: var(--gold); }
+
+    /* ── Events ───────────────────────────────────────────── */
+    .event-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px; display: flex; gap: 16px; align-items: flex-start; }
+    .event-date-box { background: var(--navy3); border-radius: 8px; padding: 10px 14px; text-align: center; min-width: 56px; flex-shrink: 0; }
+    .event-month { font-size: 10px; text-transform: uppercase; color: var(--gold); font-weight: 700; letter-spacing: 1px; }
+    .event-day { font-family: 'Bebas Neue', sans-serif; font-size: 30px; color: var(--text); line-height: 1; }
+    .event-info { flex: 1; }
+    .event-name { font-weight: 700; font-size: 15px; margin-bottom: 4px; }
+    .event-details { font-size: 12px; color: var(--text-muted); display: flex; gap: 10px; flex-wrap: wrap; }
+    .event-actions { margin-top: 10px; }
+    .btn-prereg { background: transparent; border: 1px solid var(--gold); color: var(--gold); padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all .15s; }
+    .btn-prereg:hover { background: var(--gold); color: var(--navy); }
+
+    /* ── Trails info ──────────────────────────────────────── */
+    .trails-location { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 8px; background: var(--navy2); margin-bottom: 8px; }
+    .trails-day { font-family: 'Bebas Neue', sans-serif; font-size: 18px; color: var(--gold); width: 70px; flex-shrink: 0; }
+    .trails-venue { font-weight: 600; font-size: 14px; }
+    .trails-time { font-size: 12px; color: var(--text-muted); }
+
+    /* ── About section ────────────────────────────────────── */
+    .info-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
+    .info-item { background: var(--navy2); border-radius: 8px; padding: 16px; }
+    .info-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .4px; margin-bottom: 6px; }
+    .info-value { font-weight: 600; font-size: 14px; }
+
+    /* ── Footer ───────────────────────────────────────────── */
+    footer { background: var(--navy); border-top: 2px solid var(--gold); padding: 32px 24px; text-align: center; }
+    .footer-inner { max-width: 1100px; margin: 0 auto; }
+    .footer-name { font-family: 'Bebas Neue', sans-serif; font-size: 22px; color: var(--gold); margin-bottom: 6px; }
+    .footer-links { display: flex; justify-content: center; gap: 16px; margin-bottom: 14px; }
+    .footer-links a { font-size: 13px; color: var(--text-muted); text-decoration: none; }
+    .footer-links a:hover { color: var(--gold); }
+    .footer-copy { font-size: 12px; color: var(--text-muted); }
+    .platform-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(200,164,0,.08); border: 1px solid rgba(200,164,0,.2); border-radius: 20px; padding: 5px 12px; font-size: 11px; color: var(--text-muted); margin-top: 10px; }
+
+    /* ── Spinner ──────────────────────────────────────────── */
+    .loading { text-align: center; padding: 32px; color: var(--text-muted); }
+    .spinner { display: inline-block; width: 24px; height: 24px; border: 2px solid var(--border); border-top-color: var(--gold); border-radius: 50%; animation: spin .7s linear infinite; margin-bottom: 8px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Modal ────────────────────────────────────────────── */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.75); z-index: 1000; align-items: center; justify-content: center; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 28px; min-width: 360px; max-width: 460px; width: 100%; }
+    .modal-title { font-family: 'Bebas Neue', sans-serif; font-size: 22px; color: var(--gold); margin-bottom: 16px; }
+    .form-group { margin-bottom: 14px; }
+    .form-group label { display: block; font-size: 11px; font-weight: 600; color: var(--text-muted); margin-bottom: 5px; text-transform: uppercase; }
+    .form-group input { width: 100%; padding: 10px 12px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 14px; }
+    .form-group input:focus { outline: none; border-color: var(--gold); }
+    .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+    .btn-cancel { background: transparent; border: 1px solid var(--border); color: var(--text-muted); padding: 9px 18px; border-radius: 6px; font-size: 13px; cursor: pointer; }
+    .btn-submit { background: var(--gold); color: var(--navy); padding: 9px 20px; border-radius: 6px; font-size: 13px; font-weight: 700; border: none; cursor: pointer; }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ──────────────────────────────────────────────────── -->
+<header>
+  <div class="header-inner">
+    <a class="logo" href="/leda/">
+      <div class="logo-badge">L</div>
+      <div class="logo-text">
+        <div class="logo-name">LEDA</div>
+        <div class="logo-sub">Lake Erie Darts Association</div>
+      </div>
+    </a>
+    <nav>
+      <a class="nav-link" href="/leda/member/standings.html">Standings</a>
+      <a class="nav-link" href="/leda/member/chat.html">Chat</a>
+      <a class="nav-link" href="#top-darters">Top Darters</a>
+      <a class="nav-link" href="#events">Events</a>
+      <a class="nav-link" href="#trails">Trails</a>
+      <a class="nav-link" href="#about">About</a>
+
+    </nav>
+    <a class="btn-join" href="/leda/login.html">Members</a>
+  </div>
+</header>
+
+<!-- ── Hero ────────────────────────────────────────────────────── -->
+<div class="hero">
+  <div class="hero-eyebrow">Northeast Ohio Steel Tip Darts</div>
+  <h1 class="hero-title">Lake Erie <span>Darts</span> Association</h1>
+  <p class="hero-sub">Home of NE Ohio's premier steel tip dart league. Wednesday nights, year-round. From Mentor to Cleveland.</p>
+  <div class="hero-actions">
+    <a href="#standings" class="btn-primary">📊 View Standings</a>
+    <a href="#events" class="btn-secondary">📅 Upcoming Events</a>
+  </div>
+</div>
+
+<!-- ── Stats bar ────────────────────────────────────────────────── -->
+<div class="stats-bar">
+  <div class="stats-bar-inner">
+    <div class="stat-item"><div class="stat-num" id="stat-teams">—</div><div class="stat-lbl">Teams</div></div>
+    <div class="stat-item"><div class="stat-num" id="stat-divisions">8</div><div class="stat-lbl">Divisions</div></div>
+    <div class="stat-item"><div class="stat-num" id="stat-week">6</div><div class="stat-lbl">Current Week</div></div>
+    <div class="stat-item"><div class="stat-num">3</div><div class="stat-lbl">Seasons / Year</div></div>
+    <div class="stat-item"><div class="stat-num" id="stat-events-count">—</div><div class="stat-lbl">Events This Year</div></div>
+  </div>
+</div>
+
+<!-- ── Main ─────────────────────────────────────────────────────── -->
+<div class="page">
+
+  <!-- Standings -->
+  <div class="section" id="standings">
+    <div class="section-header">
+      <div class="section-title">2026 Triples League Standings — Week 6</div>
+    </div>
+    <div class="card card-gold">
+      <div class="div-tabs" id="div-tabs"></div>
+      <div class="loading" id="standings-loading"><div class="spinner"></div><div>Loading standings…</div></div>
+      <div style="overflow-x:auto;display:none" id="standings-wrap">
+        <table class="standings-table">
+          <thead><tr><th>#</th><th>Team</th><th>Bar</th><th>PS</th><th>SP</th><th>TP</th></tr></thead>
+          <tbody id="standings-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Top Darters + Events row -->
+  <div class="grid-2" style="margin-bottom:48px;">
+
+    <!-- Top Darters -->
+    <div id="top-darters">
+      <div class="section-header" style="margin-bottom:16px;">
+        <div class="section-title">Top Darters — Week 6</div>
+        <span class="badge badge-blue">D1 Division</span>
+      </div>
+      <div class="card">
+        <div class="loading" id="darters-loading"><div class="spinner"></div></div>
+        <div id="darters-list"></div>
+      </div>
+    </div>
+
+    <!-- Upcoming Events -->
+    <div id="events">
+      <div class="section-header" style="margin-bottom:16px;">
+        <div class="section-title">Events</div>
+      </div>
+      <div id="events-list">
+        <div class="loading"><div class="spinner"></div><div>Loading events…</div></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Trails -->
+  <div class="section" id="trails">
+    <div class="section-header">
+      <div class="section-title">Tournament Trails</div>
+      <span class="badge badge-gold">4 Locations</span>
+    </div>
+    <div class="card" style="margin-bottom:16px;">
+      <p style="color:var(--text-muted);font-size:14px;margin-bottom:18px;line-height:1.6;">
+        Weekly singles ($7) + blind draw doubles ($5). Earn points redeemable for prizes or a trip to any ADO tournament (500 pts = airfare + hotel + $50 cash). First-time players earn a 25-point bonus.
+      </p>
+      <div>
+        <div class="trails-location">
+          <div class="trails-day">TUE</div>
+          <div><div class="trails-venue">Sound Stage</div><div class="trails-time">7:00 PM</div></div>
+        </div>
+        <div class="trails-location">
+          <div class="trails-day">THU</div>
+          <div><div class="trails-venue">Tommy Boy's</div><div class="trails-time">7:00 PM</div></div>
+        </div>
+        <div class="trails-location">
+          <div class="trails-day">FRI</div>
+          <div><div class="trails-venue">At The Office</div><div class="trails-time">8:00 PM</div></div>
+        </div>
+        <div class="trails-location">
+          <div class="trails-day">SAT</div>
+          <div><div class="trails-venue">Dak's — 30322 Euclid Ave, Wickliffe</div><div class="trails-time">4:00 PM</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- About / Info -->
+  <div class="section" id="about">
+    <div class="section-header">
+      <div class="section-title">About LEDA</div>
+    </div>
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title" style="margin-bottom:12px;">League Info</div>
+        <div class="info-grid">
+          <div class="info-item"><div class="info-label">Play Night</div><div class="info-value">Wednesday 7:30 PM</div></div>
+          <div class="info-item"><div class="info-label">Season Length</div><div class="info-value">14 Weeks</div></div>
+          <div class="info-item"><div class="info-label">Membership</div><div class="info-value">$30/year full</div></div>
+          <div class="info-item"><div class="info-label">Weekly Fee</div><div class="info-value">$40 home team</div></div>
+          <div class="info-item"><div class="info-label">Formats</div><div class="info-value">501 & Cricket</div></div>
+          <div class="info-item"><div class="info-label">Area</div><div class="info-value">Perry → Cleveland</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="margin-bottom:12px;">Contact & Board</div>
+        <div style="margin-bottom:14px;">
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:2px;">Office</div>
+          <div style="font-weight:600;">7537 Mentor Ave, Suite 107</div>
+          <div style="color:var(--text-muted);font-size:13px;">Mentor, Ohio 44060</div>
+        </div>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:14px;">
+          <div><div style="font-size:12px;color:var(--text-muted);">Phone</div><div style="font-weight:600;">(440) 975-9775</div></div>
+          <div><div style="font-size:12px;color:var(--text-muted);">Email</div><div style="font-weight:600;font-size:13px;">office@lakeeriedarts.com</div></div>
+        </div>
+        <div id="board-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Payout schedule -->
+  <div class="section">
+    <div class="section-header"><div class="section-title">Fall/Winter Team Payouts</div></div>
+    <div class="card">
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;text-align:center;" id="payouts-grid">
+        <div class="info-item"><div class="info-label">1st Place</div><div class="info-value" style="color:var(--gold);font-size:20px;">$300</div></div>
+        <div class="info-item"><div class="info-label">2nd Place</div><div class="info-value" style="font-size:18px;">$200</div></div>
+        <div class="info-item"><div class="info-label">3rd Place</div><div class="info-value" style="font-size:18px;">$150</div></div>
+        <div class="info-item"><div class="info-label">4th Place</div><div class="info-value" style="font-size:18px;">$100</div></div>
+        <div class="info-item"><div class="info-label">5th Place</div><div class="info-value" style="font-size:16px;color:var(--text-muted);">$75</div></div>
+        <div class="info-item"><div class="info-label">6th Place</div><div class="info-value" style="font-size:16px;color:var(--text-muted);">$70</div></div>
+        <div class="info-item"><div class="info-label">7th Place</div><div class="info-value" style="font-size:16px;color:var(--text-muted);">$60</div></div>
+        <div class="info-item"><div class="info-label">8th Place</div><div class="info-value" style="font-size:16px;color:var(--text-muted);">$50</div></div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /page -->
+
+<!-- ── Footer ───────────────────────────────────────────────────── -->
+<footer>
+  <div class="footer-inner">
+    <div class="footer-name">LAKE ERIE DARTS ASSOCIATION</div>
+    <div class="footer-links">
+      <a href="https://www.lakeeriedarts.com" target="_blank">lakeeriedarts.com</a>
+      <a href="https://www.facebook.com/leda.darts" target="_blank">Facebook</a>
+      <a href="mailto:office@lakeeriedarts.com">Contact</a>
+      <a href="http://www.adodarts.com/ado-calendar/" target="_blank">ADO Calendar</a>
+    </div>
+    <div class="footer-copy">© 2026 Lake Erie Dart Association, Inc. — Mentor, Ohio</div>
+    <div><span class="platform-badge">⚡ Powered by Loopt Labs</span></div>
+  </div>
+</footer>
+
+<!-- ── Join Modal ────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="join-modal">
+  <div class="modal">
+    <div class="modal-title">Join LEDA</div>
+    <p style="font-size:13px;color:var(--text-muted);margin-bottom:18px;">Get notified about events, standings updates, and tournament news.</p>
+    <div class="form-group"><label>Full Name</label><input type="text" id="join-name" placeholder="First Last" /></div>
+    <div class="form-group"><label>Phone</label><input type="tel" id="join-phone" placeholder="(440) 555-0000" /></div>
+    <div class="form-group"><label>Email</label><input type="email" id="join-email" placeholder="you@email.com" /></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeJoinModal()">Cancel</button>
+      <button class="btn-submit" onclick="submitJoin()">Submit Request</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Pre-reg Modal ─────────────────────────────────────────────── -->
+<div class="modal-overlay" id="prereg-modal">
+  <div class="modal">
+    <div class="modal-title" id="prereg-event-name">Pre-Register</div>
+    <input type="hidden" id="prereg-event-id" />
+    <p style="font-size:13px;color:var(--text-muted);margin-bottom:18px;">Add your name to the pre-registration list. Showing up is still required to be counted!</p>
+    <div class="form-group"><label>Your Name</label><input type="text" id="prereg-name" placeholder="First Last" /></div>
+    <div class="form-group"><label>Phone (optional)</label><input type="tel" id="prereg-phone" placeholder="(440) 555-0000" /></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closePreregModal()">Cancel</button>
+      <button class="btn-submit" onclick="submitPrereg()">Add My Name</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Firebase ──────────────────────────────────────────────────── -->
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
+import {
+  getFirestore, doc, collection, getDoc, getDocs, updateDoc, arrayUnion,
+  query, orderBy, serverTimestamp, addDoc
+} from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+
+const FB_CONFIG = {
+  apiKey: "AIzaSyDN1aYhoVt3OX5EafsNTVB09i8VFx7QM1U",
+  authDomain: "brdc-v2.firebaseapp.com",
+  projectId: "brdc-v2",
+  storageBucket: "brdc-v2.firebasestorage.app",
+  messagingSenderId: "726670872282",
+  appId: "1:726670872282:web:913d19c8cb3b24bf919fe3"
+};
+
+const app = initializeApp(FB_CONFIG);
+const db = getFirestore(app);
+const orgRef = doc(db, 'organizations', 'leda');
+
+// ── Load all data ───────────────────────────────────────────────
+async function loadAll() {
+  await Promise.all([loadStandings(), loadTopDarters(), loadEvents(), loadBoard()]);
+}
+
+// ── Standings ──────────────────────────────────────────────────
+let standingsData = null;
+let activeDivision = null;
+
+async function loadStandings() {
+  const snap = await getDoc(doc(orgRef, 'standings', 'winter_2026_week6'));
+  if (!snap.exists()) return;
+  standingsData = snap.data();
+  document.getElementById('stat-week').textContent = standingsData.week || '—';
+  const divs = Object.keys(standingsData.divisions || {}).filter(d => d !== 'Emerald 3');
+
+  // Count total teams
+  let total = 0;
+  divs.forEach(d => { total += (standingsData.divisions[d] || []).length; });
+  document.getElementById('stat-teams').textContent = total;
+
+  // Build tabs
+  const tabs = document.getElementById('div-tabs');
+  divs.forEach((div, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'div-tab' + (i === 0 ? ' active' : '');
+    btn.textContent = div;
+    btn.onclick = () => { document.querySelectorAll('.div-tab').forEach(t => t.classList.remove('active')); btn.classList.add('active'); renderDivision(div); };
+    tabs.appendChild(btn);
+  });
+
+  document.getElementById('standings-loading').style.display = 'none';
+  document.getElementById('standings-wrap').style.display = 'block';
+  activeDivision = divs[0];
+  renderDivision(activeDivision);
+}
+
+function renderDivision(div) {
+  const teams = (standingsData.divisions[div] || []).slice().sort((a, b) => (b.tp || 0) - (a.tp || 0));
+  const tbody = document.getElementById('standings-tbody');
+  tbody.innerHTML = teams.map((t, i) => `
+    <tr class="rank-${i+1}">
+      <td>${i + 1}</td>
+      <td><strong>${t.team || '—'}</strong></td>
+      <td style="color:var(--text-muted)">${t.bar || '—'}</td>
+      <td>${t.ps ?? '—'}</td>
+      <td>${t.sp ?? '—'}</td>
+      <td style="font-weight:700;color:var(--gold)">${t.tp ?? '—'}</td>
+    </tr>
+  `).join('');
+}
+
+// ── Top Darters ────────────────────────────────────────────────
+async function loadTopDarters() {
+  const snap = await getDoc(doc(orgRef, 'stats', 'top_darters_winter2026_w6'));
+  if (!snap.exists()) return;
+  const data = snap.data();
+  document.getElementById('darters-loading').style.display = 'none';
+  const d1 = (data.players || []).filter(p => p.div === 'D1').slice(0, 12);
+  document.getElementById('darters-list').innerHTML = d1.map((p, i) => `
+    <div class="darter-row">
+      <div class="darter-rank">${i+1}</div>
+      <div class="darter-name">${p.last}, ${p.first_init}.</div>
+      <div class="darter-pts">${p.pts}</div>
+    </div>
+  `).join('');
+}
+
+// ── Events ─────────────────────────────────────────────────────
+async function loadEvents() {
+  const snap = await getDocs(collection(orgRef, 'events'));
+  const events = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  const now = new Date();
+  const upcoming = events
+    .filter(e => e.status === 'upcoming' && e.date && (e.date.toDate ? e.date.toDate() : new Date(e.date)) > now)
+    .sort((a, b) => {
+      const da = a.date.toDate ? a.date.toDate() : new Date(a.date);
+      const db2 = b.date.toDate ? b.date.toDate() : new Date(b.date);
+      return da - db2;
+    })
+    .slice(0, 4);
+  const past = events.filter(e => e.status === 'completed' && e.results?.length).slice(0, 3);
+
+  document.getElementById('stat-events-count').textContent = events.filter(e => e.type === 'tournament').length;
+
+  if (!upcoming.length && !past.length) {
+    document.getElementById('events-list').innerHTML = '<div class="card" style="color:var(--text-muted);text-align:center;padding:32px;">No upcoming events.</div>';
+    return;
+  }
+
+  let html = '';
+  if (upcoming.length) {
+    html += upcoming.map(e => {
+      const d = e.date ? (e.date.toDate ? e.date.toDate() : new Date(e.date)) : null;
+      return `<div class="event-card" style="margin-bottom:12px;">
+        ${d ? `<div class="event-date-box"><div class="event-month">${d.toLocaleDateString('en-US',{month:'short'})}</div><div class="event-day">${d.getDate()}</div></div>` : ''}
+        <div class="event-info">
+          <div class="event-name">${e.name}</div>
+          <div class="event-details">
+            ${e.venue ? `<span>📍 ${e.venue}</span>` : ''}
+            ${d ? `<span>🕐 ${d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}</span>` : ''}
+            ${e.pre_registration ? `<span class="badge badge-gold">Pre-reg open</span>` : ''}
+          </div>
+          ${e.pre_registration ? `<div class="event-actions"><button class="btn-prereg" onclick="openPreregModal('${e.id}','${e.name.replace(/'/g,"\\'")}')">+ Add My Name</button></div>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  if (past.length) {
+    html += `<div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin:16px 0 8px;">Recent Results</div>`;
+    html += past.map(e => {
+      const winners = e.results?.[0]?.placements?.find(p => p.place === 1)?.players?.join(' / ') || '—';
+      return `<div class="card" style="padding:14px 16px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;">
+        <div><div style="font-weight:600;font-size:13px;">${e.name}</div><div style="font-size:11px;color:var(--text-muted);">🏆 ${winners}</div></div>
+        <span class="badge badge-gray">Completed</span>
+      </div>`;
+    }).join('');
+  }
+
+  document.getElementById('events-list').innerHTML = html;
+}
+
+// ── Board ──────────────────────────────────────────────────────
+async function loadBoard() {
+  const snap = await getDoc(doc(orgRef, 'board', 'current'));
+  if (!snap.exists()) return;
+  const board = snap.data();
+  const key = (board.directors || []).slice(0, 4);
+  document.getElementById('board-list').innerHTML = key.map(m => `
+    <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;">
+      <span style="color:var(--text-muted)">${m.role.split(' (')[0]}</span>
+      <span style="font-weight:600">${m.name}</span>
+    </div>
+  `).join('') + `<div style="margin-top:8px;font-size:12px;color:var(--text-muted);">Board meets 2nd Monday of each month. Open to the public.</div>`;
+}
+
+loadAll();
+
+// ── Modals ─────────────────────────────────────────────────────
+window.openJoinModal = () => document.getElementById('join-modal').classList.add('open');
+window.closeJoinModal = () => document.getElementById('join-modal').classList.remove('open');
+
+window.openPreregModal = (id, name) => {
+  document.getElementById('prereg-event-id').value = id;
+  document.getElementById('prereg-event-name').textContent = 'Pre-Register: ' + name;
+  document.getElementById('prereg-name').value = '';
+  document.getElementById('prereg-phone').value = '';
+  document.getElementById('prereg-modal').classList.add('open');
+};
+window.closePreregModal = () => document.getElementById('prereg-modal').classList.remove('open');
+
+window.submitJoin = async () => {
+  const name = document.getElementById('join-name').value.trim();
+  if (!name) { alert('Please enter your name.'); return; }
+  const entry = { name, phone: document.getElementById('join-phone').value.trim(), email: document.getElementById('join-email').value.trim(), status: 'pending', created_at: serverTimestamp(), org_id: 'leda' };
+  const { addDoc } = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js');
+  await addDoc(collection(orgRef, 'players'), entry);
+  closeJoinModal();
+  alert('Your membership request has been submitted! The LEDA office will be in touch.');
+};
+
+window.submitPrereg = async () => {
+  const name = document.getElementById('prereg-name').value.trim();
+  const eventId = document.getElementById('prereg-event-id').value;
+  if (!name || !eventId) { alert('Please enter your name.'); return; }
+  const eventRef = doc(orgRef, 'events', eventId);
+  await updateDoc(eventRef, { registrations: arrayUnion({ name, phone: document.getElementById('prereg-phone').value.trim(), registered_at: new Date().toISOString() }) });
+  closePreregModal();
+  alert("You're on the list! See you there.");
+};
+
+// Close modals on overlay click
+document.querySelectorAll('.modal-overlay').forEach(o => o.addEventListener('click', e => { if (e.target === o) o.classList.remove('open'); }));
+
+// Smooth scroll for nav links
+document.querySelectorAll('a[href^="#"]').forEach(a => {
+  a.addEventListener('click', e => {
+    const id = a.getAttribute('href').slice(1);
+    const el = document.getElementById(id);
+    if (el) { e.preventDefault(); el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+  });
+});
+</script>
+    
+</body>
+</html>

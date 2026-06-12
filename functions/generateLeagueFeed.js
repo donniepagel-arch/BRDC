@@ -2,13 +2,48 @@ const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const admin = require('firebase-admin');
 const db = admin.firestore();
 
-/**
- * Generate news feed items from league match data
- * Scans matches for notable events and creates feed items
- */
-exports.generateLeagueFeed = onCall(async (request) => {
-    const { league_id } = request.data;
+function normalizeFormatToken(format) {
+    return String(format || '').trim().toLowerCase();
+}
 
+function normalizeNameToken(name) {
+    return String(name || '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '');
+}
+
+function isX01Format(format) {
+    const token = normalizeFormatToken(format);
+    if (!token) return false;
+    if (token === 'x01') return true;
+    if (/^\d+$/.test(token)) return true;
+    return /(?:^|\s)(301|501|701)(?:\s|$)/.test(token);
+}
+
+function isCricketFormat(format) {
+    return normalizeFormatToken(format).includes('cricket');
+}
+
+function getThrowPlayerName(throwData) {
+    return throwData?.player || throwData?.player_name || throwData?.name || '';
+}
+
+function getThrowScore(throwData) {
+    const score = Number(throwData?.score ?? throwData?.actualScore ?? throwData?.points);
+    return Number.isFinite(score) ? score : null;
+}
+
+function getThrowMarks(throwData) {
+    const marks = Number(throwData?.marks ?? throwData?.actualMarks);
+    return Number.isFinite(marks) ? marks : null;
+}
+
+function getThrowDarts(throwData) {
+    const darts = Number(throwData?.checkout_darts ?? throwData?.closeout_darts ?? throwData?.darts);
+    return Number.isFinite(darts) && darts > 0 ? darts : 3;
+}
+
+async function generateLeagueFeedForLeague(league_id) {
     if (!league_id) {
         throw new HttpsError('invalid-argument', 'league_id is required');
     }
@@ -70,6 +105,7 @@ exports.generateLeagueFeed = onCall(async (request) => {
 
             // Get player stats from this match
             const playerMatchStats = getPlayerMatchStats(match, playersById);
+            const playerMatchStatsIndex = buildPlayerMatchStatsIndex(playerMatchStats);
 
             // Build rosters with fill-ins
             const buildRosterWithFillins = (teamId, lineup) => {
@@ -116,7 +152,7 @@ exports.generateLeagueFeed = onCall(async (request) => {
                 return roster
                     .sort((a, b) => a.position - b.position)
                     .map(p => {
-                        const stats = playerMatchStats[p.name] || {};
+                        const stats = resolvePlayerMatchStats(p.name, playerMatchStatsIndex);
                         return {
                             name: formatPlayerName(p.name),
                             level: p.level,
@@ -297,8 +333,8 @@ exports.generateLeagueFeed = onCall(async (request) => {
                     if (!game.legs) continue;
 
                     for (const leg of game.legs) {
-                        const isX01 = leg.format === '501' || leg.format === '301' || leg.format === '701';
-                        const isCricket = leg.format === 'cricket';
+                        const isX01 = isX01Format(leg.format);
+                        const isCricket = isCricketFormat(leg.format);
 
                         // Aggregate player stats for best performances
                         if (leg.player_stats) {
@@ -642,7 +678,18 @@ exports.generateLeagueFeed = onCall(async (request) => {
         console.error('Error generating feed:', error);
         throw new HttpsError('internal', error.message);
     }
+}
+
+/**
+ * Generate news feed items from league match data
+ * Scans matches for notable events and creates feed items
+ */
+exports.generateLeagueFeed = onCall(async (request) => {
+    const { league_id } = request.data;
+    return generateLeagueFeedForLeague(league_id);
 });
+
+exports.generateLeagueFeedForLeague = generateLeagueFeedForLeague;
 
 /**
  * Format player name as "First L."
@@ -660,6 +707,42 @@ function formatPlayerName(fullName) {
     return `${firstName} ${lastInitial}.`;
 }
 
+function buildPlayerMatchStatsIndex(playerMatchStats = {}) {
+    const index = {};
+
+    Object.entries(playerMatchStats).forEach(([playerName, stats]) => {
+        const keys = new Set([
+            playerName,
+            formatPlayerName(playerName),
+            normalizeNameToken(playerName)
+        ].filter(Boolean));
+
+        keys.forEach(key => {
+            const existing = index[key] || {};
+            index[key] = {
+                avg_3da: stats.avg_3da ?? existing.avg_3da ?? null,
+                mpr: stats.mpr ?? existing.mpr ?? null
+            };
+        });
+    });
+
+    return index;
+}
+
+function resolvePlayerMatchStats(playerName, statsIndex = {}) {
+    const keys = [
+        playerName,
+        formatPlayerName(playerName),
+        normalizeNameToken(playerName)
+    ].filter(Boolean);
+
+    for (const key of keys) {
+        if (statsIndex[key]) return statsIndex[key];
+    }
+
+    return {};
+}
+
 /**
  * Get stats for all players who played in this match
  */
@@ -673,24 +756,62 @@ function getPlayerMatchStats(match, playersById) {
         if (!game.legs) continue;
 
         for (const leg of game.legs) {
-            if (!leg.player_stats) continue;
+            const legFormat = leg.format || game.format || game.game_type || '';
+            const isX01 = isX01Format(legFormat);
+            const isCricket = isCricketFormat(legFormat);
+            if (!isX01 && !isCricket) continue;
 
-            for (const [playerName, stats] of Object.entries(leg.player_stats)) {
-                if (!playerStats[playerName]) {
-                    playerStats[playerName] = {
-                        x01_darts: 0,
-                        x01_points: 0,
-                        cricket_darts: 0,
-                        cricket_marks: 0
-                    };
+            const playerStatsEntries = Object.entries(leg.player_stats || {});
+            if (playerStatsEntries.length > 0) {
+                for (const [playerName, stats] of playerStatsEntries) {
+                    if (!playerStats[playerName]) {
+                        playerStats[playerName] = {
+                            x01_darts: 0,
+                            x01_points: 0,
+                            cricket_darts: 0,
+                            cricket_marks: 0
+                        };
+                    }
+
+                    if (isX01) {
+                        playerStats[playerName].x01_darts += stats.darts || 0;
+                        playerStats[playerName].x01_points += stats.points || 0;
+                    } else if (isCricket) {
+                        playerStats[playerName].cricket_darts += stats.darts || 0;
+                        playerStats[playerName].cricket_marks += stats.marks || 0;
+                    }
                 }
+                continue;
+            }
 
-                if (leg.format === '501' || leg.format === '301' || leg.format === '701') {
-                    playerStats[playerName].x01_darts += stats.darts || 0;
-                    playerStats[playerName].x01_points += stats.points || 0;
-                } else if (leg.format === 'cricket') {
-                    playerStats[playerName].cricket_darts += stats.darts || 0;
-                    playerStats[playerName].cricket_marks += stats.marks || 0;
+            for (const turn of (leg.throws || [])) {
+                for (const side of ['home', 'away']) {
+                    const throwData = turn?.[side];
+                    const playerName = getThrowPlayerName(throwData);
+                    if (!throwData || !playerName) continue;
+
+                    if (!playerStats[playerName]) {
+                        playerStats[playerName] = {
+                            x01_darts: 0,
+                            x01_points: 0,
+                            cricket_darts: 0,
+                            cricket_marks: 0
+                        };
+                    }
+
+                    if (isX01) {
+                        const score = getThrowScore(throwData);
+                        if (score != null) {
+                            playerStats[playerName].x01_darts += getThrowDarts(throwData);
+                            playerStats[playerName].x01_points += score;
+                        }
+                    } else if (isCricket) {
+                        const marks = getThrowMarks(throwData);
+                        if (marks != null) {
+                            playerStats[playerName].cricket_darts += getThrowDarts(throwData);
+                            playerStats[playerName].cricket_marks += marks;
+                        }
+                    }
                 }
             }
         }
@@ -746,10 +867,10 @@ function getTopPerformersByLevel(match, playersById) {
                     };
                 }
 
-                if (leg.format === '501' || leg.format === '301' || leg.format === '701') {
+                if (isX01Format(leg.format)) {
                     levelStats[level][playerName].x01_darts += stats.darts || 0;
                     levelStats[level][playerName].x01_points += stats.points || 0;
-                } else if (leg.format === 'cricket') {
+                } else if (isCricketFormat(leg.format)) {
                     levelStats[level][playerName].cricket_darts += stats.darts || 0;
                     levelStats[level][playerName].cricket_marks += stats.marks || 0;
                 }
@@ -823,10 +944,10 @@ function getWeekTopPerformersByLevel(weekMatches, playersById) {
                         };
                     }
 
-                    if (leg.format === '501' || leg.format === '301' || leg.format === '701') {
+                    if (isX01Format(leg.format)) {
                         levelStats[level][playerName].x01_darts += stats.darts || 0;
                         levelStats[level][playerName].x01_points += stats.points || 0;
-                    } else if (leg.format === 'cricket') {
+                    } else if (isCricketFormat(leg.format)) {
                         levelStats[level][playerName].cricket_darts += stats.darts || 0;
                         levelStats[level][playerName].cricket_marks += stats.marks || 0;
                     }

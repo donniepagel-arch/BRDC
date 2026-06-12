@@ -1,5 +1,5 @@
 /**
- * CLEANUP LEAGUE MATCHES - Winter Triple Draft
+ * CLEANUP LEAGUE MATCHES - 2026 Triples League
  *
  * Removes all match data and resets stats while preserving:
  * - League configuration

@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Team Match Reports - BRDC</title>
+    <link rel="icon" type="image/png" href="/images/favicon.png">
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --pink: #FF469A;
+            --teal: #91D7EB;
+            --yellow: #FDD835;
+            --bg-dark: #131325;
+            --bg-panel: #18223f;
+            --bg-card: #223154;
+            --text-light: #f5f7ff;
+            --text-dim: #95a0bd;
+            --success: #22c55e;
+            --danger: #ef4444;
+            --border: rgba(255,255,255,0.14);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: radial-gradient(circle at top left, rgba(255,70,154,0.10), transparent 25%), linear-gradient(135deg, var(--bg-dark), #0d1120 70%);
+            color: var(--text-light);
+            min-height: 100vh;
+        }
+
+        .page {
+            max-width: 980px;
+            margin: 0 auto;
+            padding: 18px 14px 40px;
+        }
+
+        .hero {
+            background: linear-gradient(135deg, rgba(255,70,154,0.20), rgba(145,215,235,0.12));
+            border: 2px solid var(--border);
+            border-radius: 18px;
+            padding: 18px;
+            margin-bottom: 18px;
+        }
+
+        .eyebrow {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1.6px;
+            color: var(--teal);
+            margin-bottom: 8px;
+        }
+
+        h1 {
+            font-family: 'Bebas Neue', cursive;
+            letter-spacing: 1.5px;
+            font-size: 40px;
+            line-height: 1;
+            color: var(--yellow);
+            margin-bottom: 8px;
+        }
+
+        .subhead {
+            color: var(--text-dim);
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 14px;
+        }
+
+        .btn, .link-btn {
+            appearance: none;
+            border: none;
+            border-radius: 12px;
+            padding: 12px 14px;
+            font-weight: 800;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-primary { background: var(--yellow); color: #111; }
+        .btn-secondary { background: var(--bg-panel); color: var(--text-light); border: 1px solid var(--border); }
+        .btn-save { background: var(--teal); color: #111; }
+        .btn:disabled { opacity: 0.6; cursor: wait; }
+
+        .note {
+            background: rgba(145,215,235,0.08);
+            border: 1px solid rgba(145,215,235,0.22);
+            color: var(--text-light);
+            border-radius: 14px;
+            padding: 14px;
+            margin-bottom: 18px;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .status-bar {
+            margin-bottom: 16px;
+            min-height: 24px;
+            color: var(--text-dim);
+            font-size: 14px;
+        }
+
+        .status-bar.success { color: var(--success); }
+        .status-bar.error { color: #ff8585; }
+
+        .match-list {
+            display: grid;
+            gap: 16px;
+        }
+
+        .match-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            padding: 16px;
+            box-shadow: 0 16px 40px rgba(0,0,0,0.20);
+        }
+
+        .match-top {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            align-items: flex-start;
+            margin-bottom: 14px;
+        }
+
+        .match-week {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 24px;
+            color: var(--yellow);
+            line-height: 1;
+        }
+
+        .match-meta {
+            color: var(--text-dim);
+            font-size: 13px;
+            margin-top: 4px;
+        }
+
+        .match-opponent {
+            font-weight: 800;
+            font-size: 18px;
+        }
+
+        .match-score {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 24px;
+            color: var(--teal);
+            white-space: nowrap;
+        }
+
+        .field-grid {
+            display: grid;
+            grid-template-columns: repeat(1, minmax(0, 1fr));
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+
+        .field label {
+            display: block;
+            font-size: 12px;
+            color: var(--text-dim);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .field input {
+            width: 100%;
+            background: rgba(8,12,26,0.45);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            color: var(--text-light);
+            padding: 12px;
+            font-size: 14px;
+        }
+
+        .field input::placeholder {
+            color: #7e8aaa;
+        }
+
+        .card-footer {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .saved-note {
+            color: var(--text-dim);
+            font-size: 13px;
+        }
+
+        .saved-note strong {
+            color: var(--teal);
+        }
+
+        .empty {
+            text-align: center;
+            color: var(--text-dim);
+            padding: 32px 12px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+        }
+
+        @media (min-width: 720px) {
+            .field-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <div class="hero">
+            <div class="eyebrow">Temporary Recovery Page</div>
+            <h1 id="teamTitle">Team Match Reports</h1>
+            <div class="subhead" id="teamSubtitle">Loading team schedule...</div>
+            <div class="toolbar">
+                <a class="link-btn btn-secondary" id="backToTeam" href="/pages/dashboard.html">Back to Team</a>
+                <button class="btn btn-primary" id="copyPageLinkBtn" type="button">Copy This Team Page Link</button>
+            </div>
+        </div>
+
+        <div class="note">
+            Put up to five DartConnect match report links for each week. Only DartConnect URLs are accepted. This page is temporary and is only for recovering missing team match reports.
+        </div>
+
+        <div class="status-bar" id="statusBar"></div>
+        <div class="match-list" id="matchList">
+            <div class="empty">Loading matches...</div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { db, doc, getDoc, getDocs, collection, query, orderBy, callFunction } from '/js/firebase-config.js';
+
+        const params = new URLSearchParams(window.location.search);
+        const leagueId = params.get('league_id');
+        const teamId = params.get('team_id');
+
+        const statusBar = document.getElementById('statusBar');
+        const matchList = document.getElementById('matchList');
+        const teamTitle = document.getElementById('teamTitle');
+        const teamSubtitle = document.getElementById('teamSubtitle');
+        const backToTeam = document.getElementById('backToTeam');
+
+        function setStatus(message = '', type = '') {
+            statusBar.textContent = message;
+            statusBar.className = `status-bar ${type}`.trim();
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return 'No date';
+            const date = new Date(`${dateStr}T12:00:00`);
+            if (Number.isNaN(date.getTime())) return dateStr;
+            return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+        }
+
+        function escapeHtml(value) {
+            return String(value || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function getPrefillUrls(match) {
+            const teamSubmission = match.match_report_submissions?.[teamId];
+            if (Array.isArray(teamSubmission?.urls) && teamSubmission.urls.length) {
+                return teamSubmission.urls.slice(0, 5);
+            }
+            if (Array.isArray(match.match_report_links) && match.match_report_links.length) {
+                return match.match_report_links.slice(0, 5);
+            }
+            return [];
+        }
+
+        function renderMatchCard(match, teamName) {
+            const isHome = match.home_team_id === teamId;
+            const opponentName = isHome ? (match.away_team_name || 'TBD') : (match.home_team_name || 'TBD');
+            const locationLabel = isHome ? 'Home' : 'Away';
+            const prefillUrls = getPrefillUrls(match);
+            const savedCount = prefillUrls.filter(Boolean).length;
+
+            return `
+                <section class="match-card" data-match-id="${match.id}">
+                    <div class="match-top">
+                        <div>
+                            <div class="match-week">Week ${match.week || '?'}</div>
+                            <div class="match-meta">${escapeHtml(formatDate(match.match_date || match.date))} • ${locationLabel}</div>
+                            <div class="match-opponent">${escapeHtml(teamName)} vs ${escapeHtml(opponentName)}</div>
+                        </div>
+                        <div class="match-score">${escapeHtml(`${match.home_score ?? 0}-${match.away_score ?? 0}`)}</div>
+                    </div>
+                    <div class="field-grid">
+                        ${Array.from({ length: 5 }).map((_, index) => `
+                            <div class="field">
+                                <label for="match-${match.id}-url-${index}">Link ${index + 1}</label>
+                                <input
+                                    id="match-${match.id}-url-${index}"
+                                    data-url-index="${index}"
+                                    type="url"
+                                    inputmode="url"
+                                    placeholder="https://recap.dartconnect.com/..."
+                                    value="${escapeHtml(prefillUrls[index] || '')}"
+                                />
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="card-footer">
+                        <div class="saved-note" data-saved-note>${savedCount ? `<strong>${savedCount}</strong> saved link${savedCount === 1 ? '' : 's'}` : 'No links saved yet'}</div>
+                        <button class="btn btn-save" type="button" data-save-btn>Save Week ${match.week || ''} Links</button>
+                    </div>
+                </section>
+            `;
+        }
+
+        async function saveMatch(matchId, button) {
+            const card = button.closest('.match-card');
+            const inputs = Array.from(card.querySelectorAll('input[data-url-index]'));
+            const urls = inputs.map(input => input.value.trim()).filter(Boolean);
+
+            button.disabled = true;
+            button.textContent = 'Saving...';
+            setStatus('');
+
+            try {
+                const result = await callFunction('saveTeamMatchReportLinks', {
+                    league_id: leagueId,
+                    match_id: matchId,
+                    team_id: teamId,
+                    urls
+                });
+
+                const savedNote = card.querySelector('[data-saved-note]');
+                savedNote.innerHTML = result.saved_count
+                    ? `<strong>${result.saved_count}</strong> saved link${result.saved_count === 1 ? '' : 's'}`
+                    : 'No links saved yet';
+                setStatus(`Saved links for ${matchId}.`, 'success');
+            } catch (error) {
+                console.error('Save failed:', error);
+                setStatus(error.message || 'Failed to save links.', 'error');
+            } finally {
+                button.disabled = false;
+                button.textContent = `Save ${card.querySelector('.match-week').textContent} Links`;
+            }
+        }
+
+        async function loadPage() {
+            if (!leagueId || !teamId) {
+                matchList.innerHTML = '<div class="empty">Missing league_id or team_id.</div>';
+                return;
+            }
+
+            try {
+                const [leagueDoc, teamDoc, matchesSnap] = await Promise.all([
+                    getDoc(doc(db, 'leagues', leagueId)),
+                    getDoc(doc(db, 'leagues', leagueId, 'teams', teamId)),
+                    getDocs(query(collection(db, 'leagues', leagueId, 'matches'), orderBy('week', 'asc')))
+                ]);
+
+                if (!teamDoc.exists()) {
+                    throw new Error('Team not found');
+                }
+
+                const league = leagueDoc.exists() ? leagueDoc.data() : {};
+                const team = teamDoc.data();
+                const teamName = team.team_name || team.name || 'Team';
+                const leagueName = league.league_name || league.name || 'League';
+
+                teamTitle.textContent = `${teamName} Match Reports`;
+                teamSubtitle.textContent = `${leagueName} • add DartConnect match report links by week`;
+                backToTeam.href = `/pages/league-team.html?league_id=${leagueId}&team_id=${teamId}`;
+
+                const matches = matchesSnap.docs
+                    .map(docSnap => ({ id: docSnap.id, ...docSnap.data() }))
+                    .filter(match => match.home_team_id === teamId || match.away_team_id === teamId);
+
+                if (!matches.length) {
+                    matchList.innerHTML = '<div class="empty">No scheduled matches found for this team.</div>';
+                    return;
+                }
+
+                matchList.innerHTML = matches.map(match => renderMatchCard(match, teamName)).join('');
+                matchList.querySelectorAll('[data-save-btn]').forEach(button => {
+                    button.addEventListener('click', () => saveMatch(button.closest('.match-card').dataset.matchId, button));
+                });
+            } catch (error) {
+                console.error('Load failed:', error);
+                matchList.innerHTML = `<div class="empty">${escapeHtml(error.message || 'Failed to load page.')}</div>`;
+            }
+        }
+
+        document.getElementById('copyPageLinkBtn').addEventListener('click', async () => {
+            try {
+                await navigator.clipboard.writeText(window.location.href);
+                setStatus('Team page link copied.', 'success');
+            } catch (error) {
+                setStatus('Could not copy page link.', 'error');
+            }
+        });
+
+        loadPage();
+    </script>
+    <script src="/components/brdc-navigation-init.js?v=14"></script>
+    <script>
+        const navParams = new URLSearchParams(window.location.search);
+        const navLeagueId = navParams.get('league_id');
+        initBRDCNavigation({
+            page: 'league-team',
+            backUrl: navLeagueId ? `/pages/league-view.html?league_id=${navLeagueId}` : '/pages/dashboard.html'
+        });
+    </script>
+</body>
+</html>

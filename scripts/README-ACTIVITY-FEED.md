@@ -207,6 +207,6 @@ The script clears existing feed before generating new items, so duplicates shoul
 
 ## Reference Data
 
-- **League ID**: aOq4Y0ETxPZ66tM1uUtP (Winter Triple Draft)
+- **League ID**: aOq4Y0ETxPZ66tM1uUtP (2026 Triples League)
 - **Feed Collection**: `leagues/{leagueId}/feed`
 - **Dashboard URL**: https://brdc-v2.web.app/pages/dashboard.html

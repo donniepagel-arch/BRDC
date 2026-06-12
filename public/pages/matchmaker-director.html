@@ -1,10 +1,10 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="manifest" href="/manifest.json">
-    <title>Director Dashboard - Matchmaker</title>
+    <title>Mixed Doubles Director - BRDC</title>
     <link rel="icon" type="image/png" href="/images/favicon.png">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700;800&display=swap');
@@ -1130,7 +1130,7 @@
         .score-modal-info strong {
             color: var(--text-light);
         }
-        .heartbreaker-alert {
+        .mingle-alert {
             background: rgba(239, 68, 68, 0.15);
             border: 2px solid var(--danger);
             padding: 12px;
@@ -1141,7 +1141,7 @@
             text-align: center;
             display: none;
         }
-        .heartbreaker-alert.show { display: block; }
+        .mingle-alert.show { display: block; }
     </style>
 </head>
 <body>
@@ -1606,8 +1606,8 @@
                                 </div>
                             </div>
 
-                            <div class="heartbreaker-alert" id="heartbreakerAlert">
-                                Loser drops to Losers Bracket — Heartbreaker will trigger automatically!
+                            <div class="mingle-alert" id="mingleAlert">
+                                Loser drops to Losers Bracket and the mingle flow will trigger automatically.
                             </div>
 
                             <div class="score-modal-actions">
@@ -1620,6 +1620,15 @@
                                 <a id="launchScorerBtn" class="action-btn" style="display:none; text-decoration:none; text-align:center; width:100%; margin-top:0; padding:12px 20px; background:linear-gradient(135deg, var(--teal), #5ab8d4); color:var(--black); font-family:'Bebas Neue',cursive; font-size:16px; letter-spacing:1px; border-radius:6px; cursor:pointer;" href="#">
                                     LAUNCH FULL SCORER
                                 </a>
+                                <button class="action-btn yellow" id="editRoomBtn" onclick="editSelectedMatchRoom()" style="width: 100%; color: #000; display: none;">
+                                    EDIT ROOM
+                                </button>
+                                <button class="action-btn teal" id="openRoomBtn" onclick="openSelectedRoom('room')" style="width: 100%; color: #000; display: none;">
+                                    OPEN ROOM
+                                </button>
+                                <button class="action-btn teal" id="openStreamBtn" onclick="openSelectedRoom('stream')" style="width: 100%; color: #000; display: none;">
+                                    OPEN STREAM
+                                </button>
                                 <button class="action-btn" onclick="closeScoreModal()" style="width: 100%; background: #444; color: var(--text-dim);">
                                     CANCEL
                                 </button>
@@ -1657,7 +1666,7 @@
                             <button class="action-btn teal" onclick="setTVMode('match-call')" style="width: 100%; color: #000;">
                                 🎯 MATCH CALL
                             </button>
-                            <button class="action-btn danger" onclick="setTVMode('heartbreaker-alert')" style="width: 100%;">
+                            <button class="action-btn danger" onclick="setTVMode('mingle-alert')" style="width: 100%;">
                                 💔 MINGLE ALERT
                             </button>
                         </div>
@@ -2004,7 +2013,6 @@
                 }
 
                 localStorage.setItem('brdc_session', JSON.stringify(player));
-                localStorage.removeItem('brdc_player_pin');
                 directorPin = 'authenticated'; // Keep for legacy API calls; auth token handles actual authorization
 
                 await loadTournament();
@@ -2059,7 +2067,6 @@
                 }
 
                 localStorage.setItem('brdc_session', JSON.stringify(player));
-                localStorage.removeItem('brdc_player_pin');
                 directorPin = 'authenticated';
 
                 await loadTournament();
@@ -2225,8 +2232,7 @@
 
             try {
                 const result = await callFunction('matchmakerDrawPartners', {
-                    tournament_id: tournamentId,
-                    director_pin: directorPin
+                    tournament_id: tournamentId
                 });
 
                 if (result.success) {
@@ -2284,8 +2290,7 @@
                 const result = await callFunction('matchmakerBreakup', {
                     tournament_id: tournamentId,
                     team_id: teamId,
-                    player_id: playerId,
-                    director_pin: directorPin
+                    player_id: playerId
                 });
 
                 if (result.success) {
@@ -2303,8 +2308,7 @@
         window.rematchBreakups = async function() {
             try {
                 const result = await callFunction('matchmakerRematch', {
-                    tournament_id: tournamentId,
-                    director_pin: directorPin
+                    tournament_id: tournamentId
                 });
 
                 if (result.success) {
@@ -2348,7 +2352,7 @@
             document.getElementById('settingMaxPlayers').value = tournamentData.max_players || 32;
             document.getElementById('settingEntryFee').value = tournamentData.entry_fee || 0;
 
-            // Match format - Heartbreaker specific fields
+            // Match format - mixed doubles matchmaker specific fields
             document.getElementById('settingWinnersGameType').value = tournamentData.winners_game_type || 'cricket';
             document.getElementById('settingLosersGameType').value = tournamentData.losers_game_type || '501';
             document.getElementById('settingWinnersBestOf').value = tournamentData.winners_best_of || '3';
@@ -2399,7 +2403,6 @@
             try {
                 const result = await callFunction('updateTournamentSettings', {
                     tournament_id: tournamentId,
-                    director_pin: directorPin,
                     settings: settings
                 });
 
@@ -2637,8 +2640,7 @@
                     const result = await callFunction('checkInPlayer', {
                         tournament_id: tournamentId,
                         registration_id: regId,
-                        player_number: null,
-                        director_pin: directorPin
+                        player_number: null
                     });
                     if (result.success) {
                         successCount++;
@@ -2681,8 +2683,7 @@
                 try {
                     const result = await callFunction('deleteMatchmakerRegistration', {
                         tournament_id: tournamentId,
-                        registration_id: regId,
-                        director_pin: directorPin
+                        registration_id: regId
                     });
                     if (result.success) {
                         successCount++;
@@ -2710,8 +2711,7 @@
                 const result = await callFunction('checkInPlayer', {
                     tournament_id: tournamentId,
                     registration_id: registrationId,
-                    player_number: playerNumber,
-                    director_pin: directorPin
+                    player_number: playerNumber
                 });
 
                 hideLoader();
@@ -2744,7 +2744,6 @@
                 const result = await callFunction('markNoShow', {
                     tournament_id: tournamentId,
                     registration_id: registrationId,
-                    director_pin: directorPin,
                     reason: reason
                 });
 
@@ -2767,8 +2766,7 @@
             try {
                 // Get heartbroken teams (with director PIN to get player IDs for notifications)
                 const heartbrokenResult = await callFunction('getHeartbrokenTeams', {
-                    tournament_id: tournamentId,
-                    director_pin: directorPin
+                    tournament_id: tournamentId
                 });
 
                 // Get mingle status (includes decision counts)
@@ -2891,12 +2889,12 @@
 
                         const result = await callFunction('sendPlayerNotification', {
                             player_id: player.id,
-                            title: '💔 Heartbreaker!',
+                            title: 'Mingle decision needed',
                             body: 'Your team lost — time to decide: break up or stay together?',
                             link: mingleUrl,
-                            type: 'heartbreaker',
+                            type: 'mingle_alert',
                             data: {
-                                type: 'heartbreaker',
+                                type: 'mingle_alert',
                                 tournament_id: tournamentId,
                                 team_id: teamId
                             }
@@ -2921,8 +2919,7 @@
         window.notifyAllHeartbroken = async function() {
             try {
                 const heartbrokenResult = await callFunction('getHeartbrokenTeams', {
-                    tournament_id: tournamentId,
-                    director_pin: directorPin
+                    tournament_id: tournamentId
                 });
 
                 if (!heartbrokenResult.success || !heartbrokenResult.teams) {
@@ -2954,12 +2951,12 @@
                             const mingleUrl = `/pages/matchmaker-mingle.html?id=${tournamentId}&player_id=${player.id}&team_id=${team.id}`;
                             await callFunction('sendPlayerNotification', {
                                 player_id: player.id,
-                                title: '💔 Breakup Decision Needed!',
+                                title: 'Mingle reminder',
                                 body: 'Tap to make your anonymous breakup decision before losers bracket starts.',
                                 link: mingleUrl,
-                                type: 'heartbreaker_reminder',
+                                type: 'mingle_reminder',
                                 data: {
-                                    type: 'heartbreaker_reminder',
+                                    type: 'mingle_reminder',
                                     tournament_id: tournamentId,
                                     team_id: team.id
                                 }
@@ -2995,8 +2992,7 @@
 
             try {
                 const result = await callFunction('runCupidShuffle', {
-                    tournament_id: tournamentId,
-                    director_pin: directorPin
+                    tournament_id: tournamentId
                 });
 
                 const msgBox = document.getElementById('shuffleMessage');
@@ -3069,7 +3065,7 @@
                 'bracket': 'BRACKET VIEW',
                 'partner-reveal': 'PARTNER REVEAL',
                 'match-call': 'MATCH CALL',
-                'heartbreaker-alert': 'MINGLE ALERT'
+                'mingle-alert': 'MINGLE ALERT'
             };
 
             document.getElementById('currentTVMode').textContent = modeNames[mode] || mode.toUpperCase();
@@ -3078,7 +3074,7 @@
             updateTVDisplayLink();
 
             // If mingle alert mode, also switch to that tab's display
-            if (mode === 'heartbreaker-alert') {
+            if (mode === 'mingle-alert') {
                 // Could auto-start mingle period here if desired
                 showMessage('TV Display switched to Mingle Alert mode', 'info');
             } else {
@@ -3099,16 +3095,15 @@
         window.startMinglePeriod = async function() {
             try {
                 const result = await callFunction('startMinglePeriod', {
-                    tournament_id: tournamentId,
-                    director_pin: directorPin
+                    tournament_id: tournamentId
                 });
 
                 if (result.success) {
                     showMessage(`Mingle period started! Round ${result.mingle_round}`, 'success');
                     updateMingleUI(true, null);
 
-                    // Auto-switch TV to heartbreaker alert
-                    await setTVMode('heartbreaker-alert');
+                    // Auto-switch TV to mingle alert
+                    await setTVMode('mingle-alert');
 
                     // Refresh heartbroken stats
                     await loadHeartbrokenStats();
@@ -3179,7 +3174,7 @@
                         'bracket': 'BRACKET VIEW',
                         'partner-reveal': 'PARTNER REVEAL',
                         'match-call': 'MATCH CALL',
-                        'heartbreaker-alert': 'MINGLE ALERT'
+                        'mingle-alert': 'MINGLE ALERT'
                     };
                     const modeEl = document.getElementById('currentTVMode');
                     if (modeEl) {
@@ -3317,7 +3312,7 @@
                     <div class="match-list-item in-progress">
                         <div class="match-info">
                             <div class="match-teams-display">${match.team1_name || 'TBD'} vs ${match.team2_name || 'TBD'}</div>
-                            <div class="match-meta">Round ${match.round || '?'} | ${match.bracket || 'winners'}</div>
+                            <div class="match-meta">Round ${match.round || '?'} | ${match.bracket || 'winners'}${match.room_label ? ` | ${match.room_label}` : ''}</div>
                         </div>
                         ${boardBadge}
                         <select class="board-select" onchange="assignBoard('${match.id}', this.value)">
@@ -3348,7 +3343,7 @@
                     <div class="match-list-item ready">
                         <div class="match-info">
                             <div class="match-teams-display">${match.team1_name || 'TBD'} vs ${match.team2_name || 'TBD'}</div>
-                            <div class="match-meta">Round ${match.round || '?'} | ${match.bracket || 'winners'}</div>
+                            <div class="match-meta">Round ${match.round || '?'} | ${match.bracket || 'winners'}${match.room_label ? ` | ${match.room_label}` : ''}</div>
                         </div>
                         ${boardBadge}
                         <select class="board-select" onchange="assignBoard('${match.id}', this.value)">
@@ -3415,8 +3410,9 @@
         window.assignBoard = async function(matchId, boardNumber) {
             try {
                 const boardNum = boardNumber ? parseInt(boardNumber) : null;
-
-                await updateDoc(doc(db, 'tournaments', tournamentId, 'matches', matchId), {
+                await callFunction('updateTournamentMatchRoom', {
+                    tournament_id: tournamentId,
+                    match_id: matchId,
                     board_number: boardNum
                 });
 
@@ -3650,18 +3646,11 @@
             msgBox.classList.remove('hidden');
 
             try {
-                const response = await fetch('https://us-central1-brdc-v2.cloudfunctions.net/swapBracketPositions', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        tournament_id: tournamentId,
-                        position1: pos1,
-                        position2: pos2,
-                        director_pin: directorPin
-                    })
+                const result = await callFunction('swapBracketPositions', {
+                    tournament_id: tournamentId,
+                    position1: pos1,
+                    position2: pos2
                 });
-
-                const result = await response.json();
 
                 if (result.success) {
                     msgBox.textContent = `Swapped: ${result.swapped.position1.team} ↔ ${result.swapped.position2.team}`;
@@ -3695,16 +3684,9 @@
             showLoader('Regenerating bracket...');
 
             try {
-                const response = await fetch('https://us-central1-brdc-v2.cloudfunctions.net/regenerateBracket', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        tournament_id: tournamentId,
-                        director_pin: directorPin
-                    })
+                const result = await callFunction('regenerateBracket', {
+                    tournament_id: tournamentId
                 });
-
-                const result = await response.json();
 
                 if (result.success) {
                     msgBox.innerHTML = `Bracket regenerated!<br>New order: ${result.new_order.join(' → ')}`;
@@ -3804,17 +3786,10 @@
             showLoader('Applying seed order...');
 
             try {
-                const response = await fetch('https://us-central1-brdc-v2.cloudfunctions.net/regenerateBracket', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        tournament_id: tournamentId,
-                        director_pin: directorPin,
-                        seed_order: seedOrder.map(t => t.id)
-                    })
+                const result = await callFunction('regenerateBracket', {
+                    tournament_id: tournamentId,
+                    seed_order: seedOrder.map(t => t.id)
                 });
-
-                const result = await response.json();
 
                 if (result.success) {
                     msgBox.innerHTML = 'Seed order applied! Bracket updated.';
@@ -3846,16 +3821,9 @@
             showLoader('Shuffling bracket...');
 
             try {
-                const response = await fetch('https://us-central1-brdc-v2.cloudfunctions.net/regenerateBracket', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        tournament_id: tournamentId,
-                        director_pin: directorPin
-                    })
+                const result = await callFunction('regenerateBracket', {
+                    tournament_id: tournamentId
                 });
-
-                const result = await response.json();
 
                 if (result.success) {
                     seedOrder = []; // Reset so it picks up new order
@@ -3884,8 +3852,7 @@
 
             try {
                 const result = await callFunction('generateDoubleEliminationBracket', {
-                    tournament_id: tournamentId,
-                    director_pin: directorPin
+                    tournament_id: tournamentId
                 });
 
                 if (result.success) {
@@ -4021,6 +3988,7 @@
             const onclick = clickable ? `onclick="openScoreModal('${match.id}', '${bracketType}')"` : '';
 
             const boardInfo = match.board ? ` | Board ${match.board}` : '';
+            const roomInfo = match.room_label ? ` | ${match.room_label}` : '';
 
             return `
                 <div class="score-match-card ${statusClass}" ${onclick}>
@@ -4029,7 +3997,7 @@
                         <div class="score-match-center">${centerContent}</div>
                         <div class="score-match-team right ${team2Class}">${team2Name}</div>
                     </div>
-                    <div class="score-match-meta">${statusBadge}${boardInfo}</div>
+                    <div class="score-match-meta">${statusBadge}${boardInfo}${roomInfo}</div>
                 </div>
             `;
         }
@@ -4085,10 +4053,13 @@
             } else {
                 gameInfo = `<strong>Grand Finals</strong>${bracketType === 'grand_finals_2' ? ' (Bracket Reset)' : ''}<br>Cricket Best of 3`;
             }
+            if (match.room_label || match.room_notes || match.room_url || match.stream_url) {
+                gameInfo += `<br><span style="color: var(--text-dim);">Room:</span> ${match.room_label || 'Set'}${match.room_notes ? ` - ${match.room_notes}` : ''}`;
+            }
             document.getElementById('scoreModalInfo').innerHTML = gameInfo;
 
-            // Show heartbreaker warning for WC matches
-            const hbAlert = document.getElementById('heartbreakerAlert');
+            // Show mingle warning for WC matches
+            const hbAlert = document.getElementById('mingleAlert');
             hbAlert.classList.toggle('show', bracketType === 'winners');
 
             // Set score inputs
@@ -4104,6 +4075,12 @@
             const startBtn = document.getElementById('startMatchBtn');
             const submitBtn = document.getElementById('submitScoreBtn');
             const launchBtn = document.getElementById('launchScorerBtn');
+            const editRoomBtn = document.getElementById('editRoomBtn');
+            const openRoomBtn = document.getElementById('openRoomBtn');
+            const openStreamBtn = document.getElementById('openStreamBtn');
+            editRoomBtn.style.display = 'block';
+            openRoomBtn.style.display = match.room_url ? 'block' : 'none';
+            openStreamBtn.style.display = match.stream_url ? 'block' : 'none';
 
             if (match.status === 'completed') {
                 document.getElementById('scoreModalTitle').textContent = 'MATCH COMPLETE';
@@ -4138,6 +4115,9 @@
         window.closeScoreModal = function() {
             document.getElementById('scoreModal').classList.remove('active');
             document.getElementById('launchScorerBtn').style.display = 'none';
+            document.getElementById('editRoomBtn').style.display = 'none';
+            document.getElementById('openRoomBtn').style.display = 'none';
+            document.getElementById('openStreamBtn').style.display = 'none';
             selectedMatchId = null;
             selectedMatchBracketType = null;
             selectedMatchData = null;
@@ -4153,7 +4133,12 @@
             try {
                 const result = await callFunction('startDoubleElimMatch', {
                     tournament_id: tournamentId,
-                    match_id: selectedMatchId
+                    match_id: selectedMatchId,
+                    board_number: selectedMatchData?.board || null,
+                    room_label: selectedMatchData?.room_label || '',
+                    room_url: selectedMatchData?.room_url || '',
+                    stream_url: selectedMatchData?.stream_url || '',
+                    room_notes: selectedMatchData?.room_notes || ''
                 });
 
                 if (result.success) {
@@ -4205,16 +4190,15 @@
                     tournament_id: tournamentId,
                     match_id: selectedMatchId,
                     team1_score: team1Score,
-                    team2_score: team2Score,
-                    director_pin: directorPin
+                    team2_score: team2Score
                 });
 
                 if (result.success) {
                     let msg = 'Score submitted!';
-                    if (result.heartbreaker_triggered) {
-                        msg += ' Heartbreaker triggered for the losing team.';
-                        // Auto-trigger heartbreaker for the loser
-                        triggerHeartbreakerForLoser(result.loser_id);
+                    if (result.mingle_triggered) {
+                        msg += ' Mingle flow triggered for the losing team.';
+                        // Auto-trigger the mingle flow for the loser
+                        triggerMingleForLoser(result.loser_id);
                     }
                     if (result.team_eliminated) {
                         msg += ' Team eliminated (2nd loss).';
@@ -4236,20 +4220,20 @@
             submitBtn.textContent = 'SUBMIT RESULT';
         };
 
-        // Auto-trigger heartbreaker when a team loses in WC
-        async function triggerHeartbreakerForLoser(loserId) {
+        // Auto-trigger the mingle flow when a team loses in WC
+        async function triggerMingleForLoser(loserId) {
             if (!loserId) return;
             try {
-                const result = await callFunction('triggerHeartbreaker', {
+                const result = await callFunction('triggerMingleReentryForTeam', {
                     tournament_id: tournamentId,
                     team_id: loserId
                 });
                 if (result.success) {
                 } else {
-                    console.warn('Heartbreaker trigger failed:', result.error);
+                    console.warn('Mingle trigger failed:', result.error);
                 }
             } catch (error) {
-                console.warn('Heartbreaker trigger error:', error);
+                console.warn('Mingle trigger error:', error);
             }
         }
 
@@ -4286,6 +4270,7 @@
                 tournament_id: tournamentId,
                 tournament_match_id: match.id,
                 tournament_type: 'double',
+                matchmaker: '1',
                 bracket_type: bracket,
                 director_pin: directorPin || '',
                 return_url: window.location.href,
@@ -4306,6 +4291,49 @@
 
             return `/pages/${scorerPage}?${urlParams.toString()}`;
         }
+
+        window.editSelectedMatchRoom = async function() {
+            if (!selectedMatchId || !selectedMatchData) return;
+
+      const room_label = prompt('Room label', selectedMatchData.room_label || '') ?? (selectedMatchData.room_label || '');
+      const room_url = prompt('Room URL (Zoom/Discord/Meet)', selectedMatchData.room_url || '') ?? (selectedMatchData.room_url || '');
+      const stream_url = prompt('Stream URL (optional)', selectedMatchData.stream_url || '') ?? (selectedMatchData.stream_url || '');
+      const room_notes = prompt('Room notes (optional)', selectedMatchData.room_notes || '') ?? (selectedMatchData.room_notes || '');
+      const board_number = prompt('Board number (optional)', selectedMatchData.board || '') ?? (selectedMatchData.board || '');
+
+            try {
+                const result = await callFunction('updateTournamentMatchRoom', {
+                    tournament_id: tournamentId,
+                    match_id: selectedMatchId,
+                    room_label,
+                    room_url,
+                    stream_url,
+                    room_notes,
+                    board_number
+                });
+                if (result.success) {
+                    selectedMatchData = result.match;
+                    showMessage('Match room updated', 'success');
+                    openScoreModal(selectedMatchId, selectedMatchBracketType);
+                    refreshBoardData();
+                } else {
+                    showMessage(result.error || 'Failed to update match room', 'error');
+                }
+            } catch (error) {
+                console.error('Edit room error:', error);
+                showMessage('Failed to update match room: ' + error.message, 'error');
+            }
+        };
+
+        window.openSelectedRoom = function(type) {
+            if (!selectedMatchData) return;
+            const url = type === 'stream' ? selectedMatchData.stream_url : selectedMatchData.room_url;
+            if (!url) {
+                showMessage(type === 'stream' ? 'No stream link set' : 'No room link set', 'error');
+                return;
+            }
+            window.open(url, '_blank', 'noopener,noreferrer');
+        };
 
         // Hook into the bracket listener to also render match list
         const _origUpdateBracketUI = updateBracketUI;

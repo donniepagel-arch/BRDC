@@ -29,8 +29,12 @@ const TRIPLES_MATCH_FORMAT = [
 ];
 
 async function runLeagueStatsRebuild(leagueId) {
+    const projectId = process.env.GCLOUD_PROJECT ||
+        process.env.GCP_PROJECT ||
+        admin.app().options.projectId ||
+        'dashboard-ll';
     const response = await axios.post(
-        'https://us-central1-brdc-v2.cloudfunctions.net/recalculateLeagueStats',
+        `https://us-central1-${projectId}.cloudfunctions.net/recalculateLeagueStats`,
         { league_id: leagueId },
         {
             timeout: 600000,
@@ -49,6 +53,335 @@ async function runLeagueStatsRebuild(leagueId) {
         success: true,
         message: response.data.message || null,
         results_count: Array.isArray(response.data.results) ? response.data.results.length : null
+    };
+}
+
+function compactHomeDoc(doc) {
+    return { id: doc.id, ...doc.data() };
+}
+
+function compactPlayerForHome(doc) {
+    const player = compactHomeDoc(doc);
+    return {
+        id: player.id,
+        name: player.name || player.player_name || null,
+        email: player.email || null,
+        team_id: player.team_id || null,
+        level: player.level || player.skill_level || player.preferred_level || null,
+        skill_level: player.skill_level || player.level || null,
+        preferred_level: player.preferred_level || null,
+        position: player.position || null,
+        is_sub: player.is_sub === true,
+        is_fill_in: player.is_fill_in === true,
+        x01_three_dart_avg: player.x01_three_dart_avg || player.avg_3da || null,
+        avg_3da: player.avg_3da || player.x01_three_dart_avg || null,
+        cricket_mpr: player.cricket_mpr || player.mpr || null,
+        mpr: player.mpr || player.cricket_mpr || null
+    };
+}
+
+function compactTeamForHome(doc) {
+    const team = compactHomeDoc(doc);
+    return {
+        id: team.id,
+        name: team.name || team.team_name || null,
+        team_name: team.team_name || team.name || null,
+        wins: team.wins || 0,
+        losses: team.losses || 0,
+        ties: team.ties || 0,
+        points: team.points ?? team.games_won ?? team.set_wins ?? 0,
+        games_won: team.games_won ?? team.set_wins ?? 0,
+        games_lost: team.games_lost ?? team.set_losses ?? 0,
+        set_wins: team.set_wins ?? team.games_won ?? 0,
+        set_losses: team.set_losses ?? team.games_lost ?? 0,
+        players: Array.isArray(team.players) ? team.players.map(player => ({
+            id: player.id || player.player_id || null,
+            name: player.name || player.player_name || null,
+            level: player.level || player.skill_level || player.preferred_level || null,
+            skill_level: player.skill_level || player.level || null,
+            preferred_level: player.preferred_level || null,
+            position: player.position || null
+        })) : []
+    };
+}
+
+function compactMatchForHome(doc) {
+    const match = compactHomeDoc(doc);
+    return {
+        id: match.id,
+        week: match.week || match.match_week || null,
+        status: match.status || null,
+        match_date: match.match_date || match.scheduled_date || match.date || null,
+        scheduled_date: match.scheduled_date || match.match_date || match.date || null,
+        home_team_id: match.home_team_id || null,
+        away_team_id: match.away_team_id || null,
+        home_team_name: match.home_team_name || null,
+        away_team_name: match.away_team_name || null,
+        home_seed: match.home_seed || null,
+        away_seed: match.away_seed || null,
+        season_phase: match.season_phase || null,
+        match_type: match.match_type || null,
+        playoff_round: match.playoff_round || null,
+        playoff_target_score: match.playoff_target_score || null,
+        sets_to_win: match.sets_to_win || null,
+        match_sets_to_win: match.match_sets_to_win || null,
+        home_score: match.home_score || 0,
+        away_score: match.away_score || 0,
+        player_availability: match.player_availability || {}
+    };
+}
+
+function compactStatsForHome(doc) {
+    const stats = compactHomeDoc(doc);
+    return {
+        id: stats.id,
+        player_name: stats.player_name || stats.name || null,
+        x01_three_dart_avg: stats.x01_three_dart_avg || stats.avg_3da || 0,
+        avg_3da: stats.avg_3da || stats.x01_three_dart_avg || 0,
+        cricket_mpr: stats.cricket_mpr || stats.mpr || 0,
+        mpr: stats.mpr || stats.cricket_mpr || 0,
+        games_won: stats.games_won || 0,
+        games_lost: stats.games_lost || 0,
+        games_played: stats.games_played || 0,
+        matches_won: stats.matches_won || 0,
+        matches_lost: stats.matches_lost || 0,
+        matches_played: stats.matches_played || 0,
+        x01_high_checkout: stats.x01_high_checkout || 0,
+        x01_total_tons: stats.x01_total_tons || stats.x01_tons || 0,
+        x01_tons: stats.x01_tons || stats.x01_total_tons || 0
+    };
+}
+
+function compactFeedForHome(doc) {
+    const feed = compactHomeDoc(doc);
+    return {
+        id: feed.id,
+        type: feed.type || null,
+        title: feed.title || null,
+        message: feed.message || feed.text || null,
+        created_at: feed.created_at || feed.timestamp || null,
+        timestamp: feed.timestamp || feed.created_at || null,
+        match_id: feed.match_id || null,
+        league_id: feed.league_id || null,
+        data: feed.data ? {
+            week: feed.data.week || null,
+            teams: feed.data.teams || null,
+            notables: feed.data.notables || null
+        } : null
+    };
+}
+
+function compactEventForHome(doc) {
+    const event = compactHomeDoc(doc);
+    return {
+        id: event.id,
+        name: event.name || event.title || null,
+        title: event.title || event.name || null,
+        status: event.status || null,
+        demo_mode: event.demo_mode === true,
+        demo_tenant: event.demo_tenant || null,
+        series_name: event.series_name || null,
+        series_occurrence: event.series_occurrence || null,
+        summer_series: event.summer_series === true,
+        date: event.date || event.start_date || event.event_date || null,
+        start_date: event.start_date || event.date || null,
+        event_date: event.event_date || event.date || null,
+        is_online: event.is_online === true,
+        venue_name: event.venue_name || null,
+        location_mode: event.location_mode || null
+    };
+}
+
+async function refreshVNextHomeCache(leagueId) {
+    const leagueRef = db.collection('leagues').doc(leagueId);
+    const [teamsSnap, matchesSnap, playersSnap, statsSnap, feedSnap, tournamentsSnap] = await Promise.all([
+        leagueRef.collection('teams').get(),
+        leagueRef.collection('matches').get(),
+        leagueRef.collection('players').get(),
+        leagueRef.collection('stats').get().catch(() => ({ docs: [] })),
+        leagueRef.collection('feed').orderBy('created_at', 'desc').limit(5).get().catch(() => ({ docs: [] })),
+        db.collection('tournaments').limit(50).get().catch(() => ({ docs: [] }))
+    ]);
+
+    const summary = {
+        updated_at: admin.firestore.FieldValue.serverTimestamp(),
+        triples: {
+            teams: teamsSnap.docs.map(compactTeamForHome),
+            matches: matchesSnap.docs.map(compactMatchForHome),
+            leaguePlayers: playersSnap.docs.map(compactPlayerForHome),
+            statsById: Object.fromEntries(statsSnap.docs.map(doc => [doc.id, compactStatsForHome(doc)])),
+            feed: feedSnap.docs.map(compactFeedForHome)
+        },
+        events: tournamentsSnap.docs
+            .map(compactEventForHome)
+            .filter(event => !['deleted', 'archived'].includes(String(event.status || '').toLowerCase()))
+    };
+
+    await leagueRef.collection('public_cache').doc('home_vnext').set(summary, { merge: false });
+    return {
+        success: true,
+        teams: summary.triples.teams.length,
+        matches: summary.triples.matches.length,
+        players: summary.triples.leaguePlayers.length,
+        stats: Object.keys(summary.triples.statsById).length,
+        events: summary.events.length
+    };
+}
+
+function normalizeTeamKey(value) {
+    return String(value || '')
+        .toLowerCase()
+        .replace(/&/g, 'and')
+        .replace(/[^a-z0-9]+/g, ' ')
+        .trim()
+        .replace(/\s+/g, ' ');
+}
+
+function numericValue(...values) {
+    for (const value of values) {
+        const num = Number(value);
+        if (Number.isFinite(num)) return num;
+    }
+    return 0;
+}
+
+function getMatchLegTotals(match) {
+    const directHomeLegs = numericValue(match.home_legs, match.home_legs_won, match.homeLegs);
+    const directAwayLegs = numericValue(match.away_legs, match.away_legs_won, match.awayLegs);
+    if (directHomeLegs || directAwayLegs) {
+        return { homeLegs: directHomeLegs, awayLegs: directAwayLegs };
+    }
+
+    return (Array.isArray(match.games) ? match.games : []).reduce((totals, game) => {
+        totals.homeLegs += numericValue(game.home_legs_won, game.home_legs, game.homeLegs);
+        totals.awayLegs += numericValue(game.away_legs_won, game.away_legs, game.awayLegs);
+        return totals;
+    }, { homeLegs: 0, awayLegs: 0 });
+}
+
+function emptyTeamStanding(teamDoc) {
+    const team = teamDoc.data() || {};
+    return {
+        ref: teamDoc.ref,
+        name: team.name || team.team_name || teamDoc.id,
+        matches_played: 0,
+        wins: 0,
+        losses: 0,
+        ties: 0,
+        games_won: 0,
+        games_lost: 0,
+        set_wins: 0,
+        set_losses: 0,
+        points: 0,
+        legs_won: 0,
+        legs_lost: 0
+    };
+}
+
+function applyMatchToTeamStandings(stats, isHome, match) {
+    const homeScore = numericValue(match.home_score, match.home_sets_won, match.homeScore);
+    const awayScore = numericValue(match.away_score, match.away_sets_won, match.awayScore);
+    const { homeLegs, awayLegs } = getMatchLegTotals(match);
+    const ownScore = isHome ? homeScore : awayScore;
+    const oppScore = isHome ? awayScore : homeScore;
+    const ownLegs = isHome ? homeLegs : awayLegs;
+    const oppLegs = isHome ? awayLegs : homeLegs;
+
+    stats.matches_played += 1;
+    stats.games_won += ownScore;
+    stats.games_lost += oppScore;
+    stats.set_wins += ownScore;
+    stats.set_losses += oppScore;
+    stats.points += ownScore;
+    stats.legs_won += ownLegs;
+    stats.legs_lost += oppLegs;
+
+    if (ownScore > oppScore) stats.wins += 1;
+    else if (ownScore < oppScore) stats.losses += 1;
+    else stats.ties += 1;
+}
+
+async function rebuildLeagueTeamStandings(leagueId) {
+    const leagueRef = db.collection('leagues').doc(leagueId);
+    const [teamsSnap, matchesSnap] = await Promise.all([
+        leagueRef.collection('teams').get(),
+        leagueRef.collection('matches').where('status', '==', 'completed').get()
+    ]);
+
+    const standingsById = new Map();
+    const standingsByName = new Map();
+    teamsSnap.docs.forEach(teamDoc => {
+        const stats = emptyTeamStanding(teamDoc);
+        standingsById.set(teamDoc.id, stats);
+        standingsByName.set(normalizeTeamKey(stats.name), stats);
+    });
+
+    let completedMatches = 0;
+    let skippedMatches = 0;
+
+    matchesSnap.docs.forEach(matchDoc => {
+        const match = matchDoc.data() || {};
+        const homeStats =
+            standingsById.get(match.home_team_id) ||
+            standingsByName.get(normalizeTeamKey(match.home_team_name));
+        const awayStats =
+            standingsById.get(match.away_team_id) ||
+            standingsByName.get(normalizeTeamKey(match.away_team_name));
+
+        if (!homeStats || !awayStats) {
+            skippedMatches += 1;
+            console.warn('Skipping standings rebuild match with unresolved team', {
+                leagueId,
+                matchId: matchDoc.id,
+                home_team_id: match.home_team_id || null,
+                away_team_id: match.away_team_id || null,
+                home_team_name: match.home_team_name || null,
+                away_team_name: match.away_team_name || null
+            });
+            return;
+        }
+
+        applyMatchToTeamStandings(homeStats, true, match);
+        applyMatchToTeamStandings(awayStats, false, match);
+        completedMatches += 1;
+    });
+
+    const batch = db.batch();
+    standingsById.forEach(stats => {
+        const winPercentage = stats.matches_played
+            ? Number(((stats.wins / stats.matches_played) * 100).toFixed(1))
+            : 0;
+        const totalGames = stats.games_won + stats.games_lost;
+        const gamePercentage = totalGames
+            ? Number(((stats.games_won / totalGames) * 100).toFixed(1))
+            : 0;
+
+        batch.update(stats.ref, {
+            matches_played: stats.matches_played,
+            wins: stats.wins,
+            losses: stats.losses,
+            ties: stats.ties,
+            games_won: stats.games_won,
+            games_lost: stats.games_lost,
+            set_wins: stats.set_wins,
+            set_losses: stats.set_losses,
+            points: stats.points,
+            legs_won: stats.legs_won,
+            legs_lost: stats.legs_lost,
+            win_percentage: winPercentage,
+            game_percentage: gamePercentage,
+            standings_rebuilt_at: admin.firestore.FieldValue.serverTimestamp(),
+            standings_source: 'completed_match_reports'
+        });
+    });
+
+    if (!teamsSnap.empty) await batch.commit();
+
+    return {
+        success: true,
+        completedMatches,
+        skippedMatches,
+        teamsUpdated: standingsById.size
     };
 }
 
@@ -76,6 +409,8 @@ function buildOrderedTriplesRoster(team) {
 function buildCanonicalTriplesScheduledGames(match, homeTeam, awayTeam) {
     const homeRoster = buildOrderedTriplesRoster(homeTeam);
     const awayRoster = buildOrderedTriplesRoster(awayTeam);
+    const homeAliases = buildNameAliasSet(homeRoster);
+    const awayAliases = buildNameAliasSet(awayRoster);
     const existingGames = Array.isArray(match?.games) ? match.games : [];
     const existingByNumber = new Map(existingGames.map((game, idx) => [parseInt(game?.game_number || game?.game || idx + 1, 10), game]));
 
@@ -85,13 +420,24 @@ function buildCanonicalTriplesScheduledGames(match, homeTeam, awayTeam) {
         const existingAwayPlayers = (existing?.away_players || []).map(player => typeof player === 'string' ? player : player?.name).filter(Boolean);
         const canonicalHomePlayers = format.homePositions.map(pos => homeRoster[pos - 1]).filter(Boolean);
         const canonicalAwayPlayers = format.awayPositions.map(pos => awayRoster[pos - 1]).filter(Boolean);
+        const directExistingMatches =
+            countNameAliasMatches(existingHomePlayers, homeAliases) +
+            countNameAliasMatches(existingAwayPlayers, awayAliases);
+        const swappedExistingMatches =
+            countNameAliasMatches(existingHomePlayers, awayAliases) +
+            countNameAliasMatches(existingAwayPlayers, homeAliases);
+        const existingLooksScheduled =
+            existing &&
+            (existingHomePlayers.length || existingAwayPlayers.length) &&
+            directExistingMatches >= swappedExistingMatches &&
+            directExistingMatches > 0;
 
         return {
             game_number: format.game,
             type: existing?.type || format.type,
             format: existing?.format || format.format,
-            home_players: existingHomePlayers.length ? existingHomePlayers : canonicalHomePlayers,
-            away_players: existingAwayPlayers.length ? existingAwayPlayers : canonicalAwayPlayers
+            home_players: existingLooksScheduled && existingHomePlayers.length ? existingHomePlayers : canonicalHomePlayers,
+            away_players: existingLooksScheduled && existingAwayPlayers.length ? existingAwayPlayers : canonicalAwayPlayers
         };
     });
 }
@@ -401,6 +747,22 @@ function chooseSideRosterNames(sidePlayerNames, rosterNames, fallback) {
     if (cleanSideNames.length) return cleanSideNames;
     if (rosterNames.length) return rosterNames;
     return [fallback];
+}
+
+function resolveSidePlayerNames(sidePlayerNames, scheduledContext) {
+    const resolved = [];
+    (sidePlayerNames || []).forEach((name) => {
+        const cleanName = normalizeRecapLabel(name, '');
+        if (!cleanName || /^home$|^away$/i.test(cleanName)) return;
+        const scheduledPlayer = scheduledContext?.resolveImportedPlayer
+            ? scheduledContext.resolveImportedPlayer(cleanName)
+            : null;
+        const canonicalName = scheduledPlayer?.name || cleanName;
+        if (!resolved.includes(canonicalName)) {
+            resolved.push(canonicalName);
+        }
+    });
+    return resolved;
 }
 
 function extractTurnPlayerNames(turns, side) {
@@ -791,6 +1153,15 @@ function countRosterMatches(names, aliasSet) {
     return (names || []).reduce((count, name) => count + (nameAliasSetHasMatch(name, aliasSet) ? 1 : 0), 0);
 }
 
+function countResolvedTeamMatches(names, scheduledContext, teamId) {
+    if (!scheduledContext?.resolveImportedPlayer || !teamId) return 0;
+
+    return (names || []).reduce((count, name) => {
+        const resolved = scheduledContext.resolveImportedPlayer(name);
+        return count + (resolved?.team_id === teamId ? 1 : 0);
+    }, 0);
+}
+
 function swapMappedGameSides(game) {
     return {
         ...game,
@@ -812,12 +1183,104 @@ function orientGameToSchedule(game, scheduledContext) {
     const awayMatchesHome = countRosterMatches(game.away_players, scheduledContext.homeAliasSet);
     const awayMatchesAway = countRosterMatches(game.away_players, scheduledContext.awayAliasSet);
 
-    const shouldSwap =
-        homeMatchesAway > homeMatchesHome &&
-        awayMatchesHome > awayMatchesAway;
+    const directResolvedMatches =
+        countResolvedTeamMatches(game.home_players, scheduledContext, scheduledContext.homeTeamId) +
+        countResolvedTeamMatches(game.away_players, scheduledContext, scheduledContext.awayTeamId);
+    const swappedResolvedMatches =
+        countResolvedTeamMatches(game.home_players, scheduledContext, scheduledContext.awayTeamId) +
+        countResolvedTeamMatches(game.away_players, scheduledContext, scheduledContext.homeTeamId);
+
+    const directMatches = homeMatchesHome + awayMatchesAway + directResolvedMatches;
+    const swappedMatches = homeMatchesAway + awayMatchesHome + swappedResolvedMatches;
+    const shouldSwap = swappedMatches > directMatches;
 
     if (!shouldSwap) return game;
     return swapMappedGameSides(game);
+}
+
+function getDartConnectReportId(url) {
+    const match = String(url || '').match(/\/(?:matches|games)\/([A-Za-z0-9]+)/);
+    return match ? match[1] : null;
+}
+
+function swapThrowMetricsKeepScheduledPlayers(round) {
+    const homeIdentity = {
+        imported_player_label: round?.home?.imported_player_label,
+        player: round?.home?.player,
+        player_name: round?.home?.player_name,
+        player_id: round?.home?.player_id
+    };
+    const awayIdentity = {
+        imported_player_label: round?.away?.imported_player_label,
+        player: round?.away?.player,
+        player_name: round?.away?.player_name,
+        player_id: round?.away?.player_id
+    };
+
+    return {
+        ...round,
+        home: {
+            ...(round?.away || {}),
+            ...homeIdentity
+        },
+        away: {
+            ...(round?.home || {}),
+            ...awayIdentity
+        }
+    };
+}
+
+function recomputeMatchScoreFromGames(matchData) {
+    let homeWins = 0;
+    let awayWins = 0;
+    let homeLegsTotal = 0;
+    let awayLegsTotal = 0;
+
+    (matchData.games || []).forEach((game) => {
+        const homeLegsWon = (game.legs || []).filter(leg => leg.winner === 'home').length;
+        const awayLegsWon = (game.legs || []).filter(leg => leg.winner === 'away').length;
+        homeLegsTotal += homeLegsWon;
+        awayLegsTotal += awayLegsWon;
+        game.result = {
+            home_legs: homeLegsWon,
+            away_legs: awayLegsWon
+        };
+        game.home_legs_won = homeLegsWon;
+        game.away_legs_won = awayLegsWon;
+        game.winner = homeLegsWon > awayLegsWon ? 'home' : awayLegsWon > homeLegsWon ? 'away' : null;
+        if (game.winner === 'home') homeWins += 1;
+        if (game.winner === 'away') awayWins += 1;
+    });
+
+    matchData.final_score = {
+        home: homeWins,
+        away: awayWins
+    };
+    matchData.home_legs_won = homeLegsTotal;
+    matchData.away_legs_won = awayLegsTotal;
+    matchData.total_legs = homeLegsTotal + awayLegsTotal;
+}
+
+function applyKnownDartConnectCorrections(matchData, sourceUrl) {
+    const reportId = getDartConnectReportId(sourceUrl);
+
+    // DartConnect saved this game-detail report with Set 1 Leg 1 side metrics inverted.
+    // Scheduled player sides are correct; only scores/remainings/stats need to be swapped.
+    if (reportId === '697aa841485ef109bc323297') {
+        const firstGame = (matchData.games || []).find(game => Number(game.game_number || game.set || 0) === 1);
+        const firstLeg = firstGame?.legs?.[0];
+        if (firstLeg) {
+            firstLeg.winner = 'away';
+            const originalHomeStats = firstLeg.home_stats;
+            firstLeg.home_stats = firstLeg.away_stats;
+            firstLeg.away_stats = originalHomeStats;
+            firstLeg.throws = (firstLeg.throws || []).map(swapThrowMetricsKeepScheduledPlayers);
+            firstLeg.repair_note = 'DartConnect report 697aa841485ef109bc323297 Set 1 Leg 1 had inverted side metrics; corrected from player-confirmed match report note.';
+            recomputeMatchScoreFromGames(matchData);
+        }
+    }
+
+    return matchData;
 }
 
 function collectPlaceholderThrowPlayers(matchData) {
@@ -887,6 +1350,8 @@ function buildScheduledMatchContextFromData(matchId, match, league, teamsById, a
         away_team: match.away_team_name,
         match_date: match.match_date || match.scheduled_date || null,
         week: match.week || null,
+        homeTeamId: match.home_team_id,
+        awayTeamId: match.away_team_id,
         homeRoster,
         awayRoster,
         homeAliasSet: buildRosterAliasSet(homeRoster),
@@ -1001,6 +1466,7 @@ async function verifyTeamMemberImportAccess(req, leagueId, match, actorId, teamI
 
 function scoreScheduledContextForPayload(context, payload, recapDate) {
     const props = payload?.props || {};
+    const matchInfo = props.matchInfo || {};
     const segments = props.segments || {};
     const groupedSets = [];
     Object.keys(segments).forEach((segmentKey) => {
@@ -1010,13 +1476,62 @@ function scoreScheduledContextForPayload(context, payload, recapDate) {
         });
     });
 
+    const recapPlayerNames = Array.from(new Set(
+        groupedSets.flatMap((setGroup) => [
+            ...collectRecapGroupSideNames(setGroup, 'home'),
+            ...collectRecapGroupSideNames(setGroup, 'away')
+        ])
+    ));
+
     const trimmed = trimLeadingPlaceholderGroups(groupedSets);
     const selected = selectScheduledRecapGroups(trimmed.groups, context.scheduledGames);
     const dateScore = recapDate && normalizeDateOnly(context.match_date) === recapDate ? 250 : 0;
     const shapeScore = selected.selectedCount === context.scheduledGames.length ? 100 : -100;
+    const allRosterAliases = new Set([
+        ...(context.homeAliasSet ? Array.from(context.homeAliasSet) : []),
+        ...(context.awayAliasSet ? Array.from(context.awayAliasSet) : [])
+    ]);
+    const rosterPlayerMatches = countNameAliasMatches(recapPlayerNames, allRosterAliases);
+    const playerCoverage = recapPlayerNames.length > 0 ? rosterPlayerMatches / recapPlayerNames.length : 0;
+    const rosterScore = (rosterPlayerMatches * 90) + Math.round(playerCoverage * 120);
+    const recapHomeLabel = normalizeRecapLabel(matchInfo.home_label, '');
+    const recapAwayLabel = normalizeRecapLabel(matchInfo.away_label, '');
+    const directHomeMatch = recapHomeLabel && teamsMatch(recapHomeLabel, context.home_team);
+    const directAwayMatch = recapAwayLabel && teamsMatch(recapAwayLabel, context.away_team);
+    const swappedHomeMatch = recapHomeLabel && teamsMatch(recapHomeLabel, context.away_team);
+    const swappedAwayMatch = recapAwayLabel && teamsMatch(recapAwayLabel, context.home_team);
+    const directTeamMatches = Number(Boolean(directHomeMatch)) + Number(Boolean(directAwayMatch));
+    const swappedTeamMatches = Number(Boolean(swappedHomeMatch)) + Number(Boolean(swappedAwayMatch));
+
+    let teamLabelScore = 0;
+    let teamLabelAlignment = 'missing';
+    if (!recapHomeLabel || !recapAwayLabel) {
+        teamLabelScore = -160;
+    } else if (directTeamMatches === 2) {
+        teamLabelScore = 220;
+        teamLabelAlignment = 'direct';
+    } else if (swappedTeamMatches === 2) {
+        teamLabelScore = 180;
+        teamLabelAlignment = 'swapped';
+    } else if (Math.max(directTeamMatches, swappedTeamMatches) === 1) {
+        teamLabelScore = -140;
+        teamLabelAlignment = directTeamMatches > swappedTeamMatches ? 'partial_direct' : 'partial_swapped';
+    } else {
+        teamLabelScore = -280;
+        teamLabelAlignment = 'mismatch';
+    }
+
     return {
-        score: (selected.score || 0) + dateScore + shapeScore,
-        selected
+        score: (selected.score || 0) + dateScore + shapeScore + teamLabelScore + rosterScore,
+        selected,
+        teamLabelAlignment,
+        recapHomeLabel: recapHomeLabel || null,
+        recapAwayLabel: recapAwayLabel || null,
+        directTeamMatches,
+        swappedTeamMatches,
+        rosterPlayerMatches,
+        recapPlayerCount: recapPlayerNames.length,
+        playerCoverage
     };
 }
 
@@ -1042,6 +1557,14 @@ async function resolveScheduledMatchContextFromPayload(leagueId, payload) {
                 context,
                 score: score.score,
                 selected: score.selected,
+                teamLabelAlignment: score.teamLabelAlignment,
+                recapHomeLabel: score.recapHomeLabel,
+                recapAwayLabel: score.recapAwayLabel,
+                directTeamMatches: score.directTeamMatches,
+                swappedTeamMatches: score.swappedTeamMatches,
+                rosterPlayerMatches: score.rosterPlayerMatches,
+                recapPlayerCount: score.recapPlayerCount,
+                playerCoverage: score.playerCoverage,
                 match: data
             };
         })
@@ -1062,6 +1585,28 @@ async function resolveScheduledMatchContextFromPayload(leagueId, payload) {
         throw new Error(`Unable to match DartConnect recap to the schedule. Best candidate was too weak: ${bestLabel}; next: ${secondLabel}.`);
     }
 
+    const hasReliableTeamLabels = best.teamLabelAlignment === 'direct' || best.teamLabelAlignment === 'swapped';
+    const bestSelectedScore = Number(best.selected?.score) || 0;
+    const secondSelectedScore = Number(second?.selected?.score) || 0;
+    const selectedScoreGap = second ? bestSelectedScore - secondSelectedScore : bestSelectedScore;
+    const bestPlayerMatches = Number(best.rosterPlayerMatches) || 0;
+    const secondPlayerMatches = Number(second?.rosterPlayerMatches) || 0;
+    const playerMatchGap = second ? bestPlayerMatches - secondPlayerMatches : bestPlayerMatches;
+    const hasStrongPlayerEvidence = second
+        ? bestPlayerMatches >= 4 && playerMatchGap >= 2
+        : bestPlayerMatches >= 4;
+
+    if (!hasReliableTeamLabels && !hasStrongPlayerEvidence) {
+        const bestLabel = `${best.match.home_team_name || 'Home'} vs ${best.match.away_team_name || 'Away'} (${best.context.matchId})`;
+        const secondLabel = second
+            ? `${second.match.home_team_name || 'Home'} vs ${second.match.away_team_name || 'Away'} (${second.context.matchId})`
+            : 'none';
+        throw new Error(
+            `Unable to confidently match DartConnect recap to the schedule because the recap team labels do not align with BRDC teams. ` +
+            `Best candidate: ${bestLabel}; next: ${secondLabel}. Select the match manually.`
+        );
+    }
+
     const confidenceGap = second ? best.score - second.score : null;
     return {
         context: best.context,
@@ -1073,6 +1618,16 @@ async function resolveScheduledMatchContextFromPayload(leagueId, payload) {
             low_confidence: second ? confidenceGap < 80 : false,
             candidate_count: candidates.length,
             date: recapDate,
+            recap_home_label: best.recapHomeLabel,
+            recap_away_label: best.recapAwayLabel,
+            team_label_alignment: best.teamLabelAlignment,
+            selected_group_score: bestSelectedScore,
+            selected_group_gap: selectedScoreGap,
+            player_match_confident: hasStrongPlayerEvidence,
+            roster_player_matches: bestPlayerMatches,
+            roster_player_gap: playerMatchGap,
+            recap_player_count: best.recapPlayerCount || 0,
+            player_coverage: best.playerCoverage || 0,
             home_team: best.context.home_team,
             away_team: best.context.away_team,
             week: best.match.week || null
@@ -1173,13 +1728,22 @@ function buildMatchDataFromRecapPayload(payload, recapUrl, gamesUrl, scheduledCo
 
         const orientedLegs = recapNeedsSwap ? legs.map(swapLegData) : legs;
 
+        const orientedSetHomePlayers = resolveSidePlayerNames(
+            recapNeedsSwap ? setAwayPlayers : setHomePlayers,
+            scheduledContext
+        );
+        const orientedSetAwayPlayers = resolveSidePlayerNames(
+            recapNeedsSwap ? setHomePlayers : setAwayPlayers,
+            scheduledContext
+        );
+
         const homePlayers = chooseSideRosterNames(
-            setHomePlayers,
+            orientedSetHomePlayers,
             scheduledGame?.home_players?.length ? scheduledGame.home_players : homeRoster,
             'Home'
         );
         const awayPlayers = chooseSideRosterNames(
-            setAwayPlayers,
+            orientedSetAwayPlayers,
             scheduledGame?.away_players?.length ? scheduledGame.away_players : awayRoster,
             'Away'
         );
@@ -1214,8 +1778,7 @@ function buildMatchDataFromRecapPayload(payload, recapUrl, gamesUrl, scheduledCo
     const matchTotalDarts = totalDarts;
     const teamLabelsMissing = !scheduledContext && (!matchInfo.home_label || !matchInfo.away_label);
 
-    return {
-        matchData: {
+    const matchData = {
             home_team: homeTeam,
             away_team: awayTeam,
             final_score: {
@@ -1228,7 +1791,14 @@ function buildMatchDataFromRecapPayload(payload, recapUrl, gamesUrl, scheduledCo
             start_time: null,
             end_time: null,
             games
-        },
+        };
+    // orientGameToSchedule can flip individual sets after the initial running score
+    // is calculated. Recompute from oriented legs so final score follows BRDC sides.
+    recomputeMatchScoreFromGames(matchData);
+    applyKnownDartConnectCorrections(matchData, recapUrl || gamesUrl);
+
+    return {
+        matchData,
         parseSummary: {
             recap_url: recapUrl,
             games_url: gamesUrl,
@@ -1505,6 +2075,10 @@ exports.importMatchData = functions.https.onRequest(async (req, res) => {
                     set: game.set,
                     type: game.type,
                     format: game.format,
+                    home_team_id: existingMatch.home_team_id || null,
+                    home_team_name: existingMatch.home_team_name || null,
+                    away_team_id: existingMatch.away_team_id || null,
+                    away_team_name: existingMatch.away_team_name || null,
                     home_players: game.away_players,
                     away_players: game.home_players,
                     home_legs_won: game.result.away_legs,
@@ -1519,6 +2093,10 @@ exports.importMatchData = functions.https.onRequest(async (req, res) => {
                     set: game.set,
                     type: game.type,
                     format: game.format,
+                    home_team_id: existingMatch.home_team_id || null,
+                    home_team_name: existingMatch.home_team_name || null,
+                    away_team_id: existingMatch.away_team_id || null,
+                    away_team_name: existingMatch.away_team_name || null,
                     home_players: game.home_players,
                     away_players: game.away_players,
                     home_legs_won: game.result.home_legs,
@@ -1603,6 +2181,28 @@ exports.importMatchData = functions.https.onRequest(async (req, res) => {
             };
         }
 
+        let standingsRebuild = null;
+        try {
+            standingsRebuild = await rebuildLeagueTeamStandings(leagueId);
+        } catch (standingsError) {
+            console.error('Post-import standings rebuild failed:', standingsError);
+            standingsRebuild = {
+                success: false,
+                error: standingsError.message
+            };
+        }
+
+        let homeCacheRefresh = null;
+        try {
+            homeCacheRefresh = await refreshVNextHomeCache(leagueId);
+        } catch (cacheError) {
+            console.error('Post-import vnext home cache refresh failed:', cacheError);
+            homeCacheRefresh = {
+                success: false,
+                error: cacheError.message
+            };
+        }
+
         res.json({
             success: true,
             matchId,
@@ -1614,7 +2214,9 @@ exports.importMatchData = functions.https.onRequest(async (req, res) => {
             finalScore: { home: homeScore, away: awayScore },
             validation,
             importParseSummary: updateData.import_parse_summary || null,
-            statsRebuild
+            statsRebuild,
+            standingsRebuild,
+            homeCacheRefresh
         });
 
     } catch (error) {
@@ -1914,6 +2516,88 @@ function createEmptyMatchStats(playerId, playerName, CANONICAL_NAMES) {
             };
 }
 
+async function buildLeagueStatMappings(leagueId) {
+    const playersSnapshot = await db.collection('leagues').doc(leagueId)
+        .collection('players').get();
+
+    const players = playersSnapshot.docs.map((doc) => {
+        const data = doc.data() || {};
+        return {
+            id: doc.id,
+            ...data,
+            name: data.name || data.player_name || data.display_name || null
+        };
+    }).filter((player) => player.id && player.name);
+
+    const playerIds = {};
+    const canonicalNames = {};
+    const idSet = new Set(players.map((player) => player.id));
+    const normalizedNameToId = new Map();
+
+    const setAlias = (alias, playerId) => {
+        if (!alias || !playerId) return;
+        playerIds[alias] = playerId;
+    };
+
+    players.forEach((player) => {
+        canonicalNames[player.id] = player.name;
+        normalizedNameToId.set(normalizeIdentityName(player.name), player.id);
+
+        buildIdentityAliases(player.name).forEach((alias) => setAlias(alias, player.id));
+
+        const extraAliasLists = [
+            player.aliases,
+            player.alt_names,
+            player.alternate_names,
+            player.nicknames
+        ];
+
+        extraAliasLists.forEach((aliases) => {
+            if (!Array.isArray(aliases)) return;
+            aliases.forEach((alias) => {
+                buildIdentityAliases(alias).forEach((builtAlias) => setAlias(builtAlias, player.id));
+            });
+        });
+    });
+
+    Object.entries(DEFAULT_PLAYER_IDS).forEach(([alias, defaultId]) => {
+        let resolvedId = null;
+        if (idSet.has(defaultId)) {
+            resolvedId = defaultId;
+        } else {
+            const defaultCanonical = DEFAULT_CANONICAL_NAMES[defaultId];
+            const normalizedDefaultCanonical = normalizeIdentityName(defaultCanonical || alias);
+            resolvedId = normalizedNameToId.get(normalizedDefaultCanonical) || null;
+        }
+
+        if (!resolvedId) return;
+        setAlias(alias, resolvedId);
+        if (!canonicalNames[resolvedId]) {
+            canonicalNames[resolvedId] = DEFAULT_CANONICAL_NAMES[defaultId] || alias;
+        }
+    });
+
+    return {
+        playerIds,
+        canonicalNames,
+        players
+    };
+}
+
+function normalizeLegFormat(format) {
+    return String(format || '').trim().toLowerCase();
+}
+
+function isX01LegFormat(format) {
+    const normalized = normalizeLegFormat(format);
+    return normalized.startsWith('501') ||
+        normalized.startsWith('301') ||
+        normalized.startsWith('701') ||
+        normalized.includes(' 501') ||
+        normalized.includes(' 301') ||
+        normalized.includes(' 701');
+}
+
 // Helper: process X01 leg throws using two-pass approach
 // Pass 1: compute actual scores from side-level remaining differences
 // Pass 2: group by player and accumulate stats
@@ -2007,7 +2691,7 @@ function processX01LegThrows(leg, statsUpdates, getPlayerId, detailedOnly = fals
         let first9Points = 0;
 
         pThrows.forEach((throwInfo, idx) => {
-            const actualScore = throwInfo.actualScore;
+            const actualScore = throwInfo.actualScore ?? throwInfo.score ?? throwInfo.points ?? null;
             const remaining = throwInfo.remaining;
             const isCheckout = (remaining === 0);
             const checkoutDarts = throwInfo.checkout_darts || 3;
@@ -2183,7 +2867,7 @@ function processCricketLegThrows(leg, statsUpdates, getPlayerId, detailedOnly = 
 // This is the shared processing logic used by both updateImportedMatchStats and recalculateAllLeagueStats
 function processMatchGamesForStats(games, PLAYER_IDS, CANONICAL_NAMES) {
     const statsUpdates = {};
-    const getPlayerId = (name) => PLAYER_IDS[name] || null;
+    const getPlayerId = (name) => PLAYER_IDS[name] || PLAYER_IDS[normalizeIdentityName(name)] || null;
     const getThrowPlayerId = (throwInfo) => throwInfo?.player_id || getPlayerId(throwInfo?.player);
 
     for (const game of games) {
@@ -2191,7 +2875,7 @@ function processMatchGamesForStats(games, PLAYER_IDS, CANONICAL_NAMES) {
         const awayPlayerNames = (game.away_players || []).map(p => typeof p === 'string' ? p : p.name);
         // Ensure all players in this game have stat entries
         [...homePlayerNames, ...awayPlayerNames].forEach(playerName => {
-            const playerId = PLAYER_IDS[playerName];
+            const playerId = getPlayerId(playerName);
             if (playerId && !statsUpdates[playerId]) {
                 statsUpdates[playerId] = createEmptyMatchStats(playerId, playerName, CANONICAL_NAMES);
             }
@@ -2203,7 +2887,7 @@ function processMatchGamesForStats(games, PLAYER_IDS, CANONICAL_NAMES) {
         for (const leg of (game.legs || [])) {
             // Use leg-level format first, fall back to game-level (mixed format sets have cricket legs in 501 games)
             const legFormat = leg.format || game.format || '';
-            const isX01 = legFormat === '501' || legFormat === '301' || legFormat === '701';
+            const isX01 = isX01LegFormat(legFormat);
             const hasThrows = (leg.throws || []).length > 0;
             const playerStats = leg.player_stats || {};
             const hasPlayerStats = Object.keys(playerStats).length > 0;
@@ -2220,7 +2904,7 @@ function processMatchGamesForStats(games, PLAYER_IDS, CANONICAL_NAMES) {
 
             if (!hasThrows && hasPlayerStats) {
                 for (const [playerName, pStats] of Object.entries(playerStats)) {
-                    const playerId = PLAYER_IDS[playerName];
+                    const playerId = getPlayerId(playerName);
                     if (!playerId || !statsUpdates[playerId]) continue;
 
                     const ps = statsUpdates[playerId];
@@ -2258,14 +2942,14 @@ function processMatchGamesForStats(games, PLAYER_IDS, CANONICAL_NAMES) {
         // Update games played/won
         const gameWinner = game.winner;
         for (const playerName of homePlayerNames) {
-            const playerId = PLAYER_IDS[playerName];
+            const playerId = getPlayerId(playerName);
             if (playerId && statsUpdates[playerId]) {
                 statsUpdates[playerId].games_played++;
                 if (gameWinner === 'home') statsUpdates[playerId].games_won++;
             }
         }
         for (const playerName of awayPlayerNames) {
-            const playerId = PLAYER_IDS[playerName];
+            const playerId = getPlayerId(playerName);
             if (playerId && statsUpdates[playerId]) {
                 statsUpdates[playerId].games_played++;
                 if (gameWinner === 'away') statsUpdates[playerId].games_won++;
@@ -2314,9 +2998,9 @@ exports.updateImportedMatchStats = functions.https.onRequest(async (req, res) =>
         const match = matchDoc.data();
         const games = match.games || [];
 
-        // Use provided mapping or default
-        const PLAYER_IDS = playerMapping || DEFAULT_PLAYER_IDS;
-        const CANONICAL_NAMES = DEFAULT_CANONICAL_NAMES;
+        const leagueMappings = await buildLeagueStatMappings(leagueId);
+        const PLAYER_IDS = playerMapping || leagueMappings.playerIds;
+        const CANONICAL_NAMES = leagueMappings.canonicalNames;
 
         // Process match games
         const statsUpdates = processMatchGamesForStats(games, PLAYER_IDS, CANONICAL_NAMES);
@@ -2346,8 +3030,10 @@ exports.updateImportedMatchStats = functions.https.onRequest(async (req, res) =>
             if (stats.x01_total_darts > 0) {
                 stats.x01_three_dart_avg = parseFloat(((stats.x01_total_points / stats.x01_total_darts) * 3).toFixed(2));
             }
-            if (stats.cricket_total_darts > 0) {
+            if (stats.cricket_total_darts > 0 && stats.cricket_total_marks > 0) {
                 stats.cricket_mpr = parseFloat(((stats.cricket_total_marks / (stats.cricket_total_darts / 3))).toFixed(2));
+            } else {
+                stats.cricket_mpr = 0;
             }
 
             if (existingDoc.exists) {
@@ -2417,13 +3103,27 @@ exports.updateImportedMatchStats = functions.https.onRequest(async (req, res) =>
                 if (merged.x01_total_darts > 0) {
                     merged.x01_three_dart_avg = parseFloat(((merged.x01_total_points / merged.x01_total_darts) * 3).toFixed(2));
                 }
-                if (merged.cricket_total_darts > 0) {
+                if (merged.cricket_total_darts > 0 && merged.cricket_total_marks > 0) {
                     merged.cricket_mpr = parseFloat((merged.cricket_total_marks / (merged.cricket_total_darts / 3)).toFixed(2));
+                } else {
+                    merged.cricket_mpr = 0;
+                }
+                if (merged.x01_checkouts_hit > 0 && merged.x01_total_checkout_points > 0) {
+                    merged.x01_avg_checkout = parseFloat((merged.x01_total_checkout_points / merged.x01_checkouts_hit).toFixed(2));
+                    merged.x01_avg_finish = merged.x01_avg_checkout;
+                    merged.x01_checkout_totals = merged.x01_total_checkout_points;
+                    merged.x01_checkouts = merged.x01_checkouts_hit;
                 }
 
                 await statsRef.doc(playerId).update(merged);
             } else {
                 // Create new
+                if (stats.x01_checkouts_hit > 0 && stats.x01_total_checkout_points > 0) {
+                    stats.x01_avg_checkout = parseFloat((stats.x01_total_checkout_points / stats.x01_checkouts_hit).toFixed(2));
+                    stats.x01_avg_finish = stats.x01_avg_checkout;
+                    stats.x01_checkout_totals = stats.x01_total_checkout_points;
+                    stats.x01_checkouts = stats.x01_checkouts_hit;
+                }
                 stats.matches_played = 1;
                 stats.created_at = admin.firestore.FieldValue.serverTimestamp();
                 stats.updated_at = admin.firestore.FieldValue.serverTimestamp();
@@ -2491,7 +3191,9 @@ exports.clearLeagueStats = importMatchesAdmin.clearLeagueStats;
  * Clears all existing stats, then processes every completed match.
  * This is idempotent - safe to run multiple times.
  */
-exports.recalculateAllLeagueStats = functions.https.onRequest(async (req, res) => {
+exports.recalculateAllLeagueStats = functions
+    .runWith({ memory: '512MB', timeoutSeconds: 540 })
+    .https.onRequest(async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
     if (req.method === 'OPTIONS') {
         res.set('Access-Control-Allow-Methods', 'POST');
@@ -2512,8 +3214,9 @@ exports.recalculateAllLeagueStats = functions.https.onRequest(async (req, res) =
             return;
         }
 
-        const PLAYER_IDS = DEFAULT_PLAYER_IDS;
-        const CANONICAL_NAMES = DEFAULT_CANONICAL_NAMES;
+        const leagueMappings = await buildLeagueStatMappings(leagueId);
+        const PLAYER_IDS = leagueMappings.playerIds;
+        const CANONICAL_NAMES = leagueMappings.canonicalNames;
 
         // Step 1: Clear all existing stats
         const statsRef = db.collection('leagues').doc(leagueId).collection('stats');
@@ -2596,9 +3299,13 @@ exports.recalculateAllLeagueStats = functions.https.onRequest(async (req, res) =
             if (stats.x01_total_darts > 0) {
                 stats.x01_three_dart_avg = parseFloat(((stats.x01_total_points / stats.x01_total_darts) * 3).toFixed(2));
             }
-            if (stats.cricket_total_darts > 0) {
+            if (stats.cricket_total_darts > 0 && stats.cricket_total_marks > 0) {
                 stats.cricket_mpr = parseFloat((stats.cricket_total_marks / (stats.cricket_total_darts / 3)).toFixed(2));
+            } else {
+                stats.cricket_mpr = 0;
             }
+            if (!Number.isFinite(stats.cricket_mpr)) stats.cricket_mpr = 0;
+            if (!Number.isFinite(stats.x01_three_dart_avg)) stats.x01_three_dart_avg = 0;
 
             stats.created_at = admin.firestore.FieldValue.serverTimestamp();
             stats.updated_at = admin.firestore.FieldValue.serverTimestamp();
@@ -2613,11 +3320,35 @@ exports.recalculateAllLeagueStats = functions.https.onRequest(async (req, res) =
             });
         }
 
+        let standingsRebuild = null;
+        try {
+            standingsRebuild = await rebuildLeagueTeamStandings(leagueId);
+        } catch (standingsError) {
+            console.error('Recalculate all league standings error:', standingsError);
+            standingsRebuild = {
+                success: false,
+                error: standingsError.message
+            };
+        }
+
+        let homeCacheRefresh = null;
+        try {
+            homeCacheRefresh = await refreshVNextHomeCache(leagueId);
+        } catch (cacheError) {
+            console.error('Recalculate all league vnext home cache refresh failed:', cacheError);
+            homeCacheRefresh = {
+                success: false,
+                error: cacheError.message
+            };
+        }
+
         res.json({
             success: true,
             matchesProcessed,
             playersUpdated: results.length,
-            stats: results
+            stats: results,
+            standingsRebuild,
+            homeCacheRefresh
         });
 
     } catch (error) {

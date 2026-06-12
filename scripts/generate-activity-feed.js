@@ -17,7 +17,7 @@
 
 const https = require('https');
 
-const LEAGUE_ID = 'aOq4Y0ETxPZ66tM1uUtP';  // Winter Triple Draft
+const LEAGUE_ID = 'aOq4Y0ETxPZ66tM1uUtP';  // 2026 Triples League
 
 // Call v2 callable function
 function callCloudFunction(functionName, data) {
@@ -63,7 +63,7 @@ function callCloudFunction(functionName, data) {
 
 async function main() {
     console.log('=== BRDC Activity Feed Generator ===\n');
-    console.log(`League: ${LEAGUE_ID} (Winter Triple Draft)\n`);
+    console.log(`League: ${LEAGUE_ID} (2026 Triples League)\n`);
     console.log('Calling generateLeagueFeed cloud function...\n');
 
     try {

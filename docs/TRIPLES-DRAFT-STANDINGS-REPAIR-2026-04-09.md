@@ -1,11 +1,11 @@
-# Triples Draft Standings Repair
+# 2026 Triples League Standings Repair
 
 Date: 2026-04-09
-League: `aOq4Y0ETxPZ66tM1uUtP` (`Triples Draft`)
+League: `aOq4Y0ETxPZ66tM1uUtP` (`2026 Triples League`)
 
 ## Scope
 
-This repair rebuilt team standings for Triples Draft from completed match records only.
+This repair rebuilt team standings for 2026 Triples League from completed match records only.
 
 It did **not**:
 - modify raw match history
@@ -74,6 +74,6 @@ Read back from Firestore after the repair:
 
 ## Status
 
-Triples Draft team standings are now aligned to completed matches.
+2026 Triples League team standings are now aligned to completed matches.
 
 Player stats remain a separate cleanup task.

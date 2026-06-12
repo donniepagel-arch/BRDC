@@ -646,6 +646,86 @@
             letter-spacing: 3px;
         }
 
+        .autoscore-assist {
+            display: none;
+            margin-top: 10px;
+            padding: 12px 14px;
+            border-radius: 12px;
+            border: 1px solid rgba(145,215,235,0.28);
+            background: linear-gradient(180deg, rgba(18,18,42,0.94) 0%, rgba(9,9,24,0.98) 100%);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+        }
+
+        .autoscore-assist.active {
+            display: block;
+        }
+
+        .autoscore-assist-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 6px;
+        }
+
+        .autoscore-assist-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 18px;
+            letter-spacing: 2px;
+            color: var(--teal);
+        }
+
+        .autoscore-assist-score {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 16px;
+            color: var(--yellow);
+            text-align: right;
+        }
+
+        .autoscore-assist-meta {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--text-muted);
+            letter-spacing: 0.8px;
+        }
+
+        .autoscore-assist-actions {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .autoscore-assist .mini-btn {
+            border: none;
+            border-radius: 8px;
+            padding: 10px 8px;
+            font-family: 'Bebas Neue', cursive;
+            font-size: 13px;
+            letter-spacing: 1px;
+            cursor: pointer;
+            background: rgba(255,255,255,0.08);
+            color: #fff;
+        }
+
+        .autoscore-assist .mini-btn.apply {
+            background: linear-gradient(180deg, var(--teal) 0%, var(--teal-dark) 100%);
+            color: #08111f;
+        }
+        .autoscore-assist-log {
+            display: grid;
+            gap: 4px;
+            margin-top: 10px;
+        }
+        .autoscore-assist-log:empty {
+            display: none;
+        }
+        .autoscore-assist-log-item {
+            font-size: 11px;
+            color: var(--text-muted);
+            line-height: 1.3;
+        }
+
         /* Exit Button */
         .exit-btn {
             position: absolute;
@@ -1076,6 +1156,35 @@
         }
 
         /* Mobile Responsiveness */
+        @media (max-width: 900px) and (orientation: portrait) {
+            .container {
+                max-width: 100%;
+            }
+
+            .scoreboard {
+                grid-template-columns: minmax(0, 1fr) 76px minmax(0, 1fr);
+            }
+
+            .team-panel {
+                padding: 14px 6px 12px;
+            }
+
+            .team-name {
+                font-size: clamp(12px, 3.5vw, 18px);
+                letter-spacing: 1px;
+            }
+
+            .team-score {
+                font-size: clamp(28px, 9vw, 48px);
+            }
+
+            .cricket-board {
+                width: 100%;
+                max-width: 100%;
+                overflow: hidden;
+            }
+        }
+
         @media (max-width: 480px) {
             /* Cricket row - adjust grid for narrow screens */
             .cricket-row {
@@ -1132,6 +1241,11 @@
                 min-height: 44px;
             }
 
+            .dart-display {
+                width: 100%;
+                max-width: 100%;
+            }
+
             /* Action buttons */
             .action-btn {
                 padding: 14px 4px;
@@ -1154,6 +1268,10 @@
 
             .scoreboard {
                 grid-template-columns: minmax(0, 1fr) 56px minmax(0, 1fr);
+            }
+
+            .team-panel {
+                padding: 10px 4px 10px;
             }
 
             .team-score {
@@ -1304,6 +1422,19 @@
             <button class="action-btn clear" onclick="clearTurn()" aria-label="Clear current turn">CLEAR</button>
             <button class="action-btn next" onclick="nextPlayer()" aria-label="Submit turn and switch player">NEXT</button>
         </div>
+        <div class="autoscore-assist" id="autoscoreAssist">
+            <div class="autoscore-assist-header">
+                <div class="autoscore-assist-title">Score Assist</div>
+                <div class="autoscore-assist-score" id="autoscoreAssistScore">-</div>
+            </div>
+            <div class="autoscore-assist-meta" id="autoscoreAssistMeta">Waiting for board phone suggestions.</div>
+            <div class="autoscore-assist-actions">
+                <button type="button" class="mini-btn apply" onclick="applyAutoscoreCandidate()">Apply Turn</button>
+                <button type="button" class="mini-btn" onclick="fillAutoscoreCandidate()">Fill Only</button>
+                <button type="button" class="mini-btn" onclick="dismissAutoscoreCandidate()">Dismiss</button>
+            </div>
+            <div class="autoscore-assist-log" id="autoscoreAssistLog"></div>
+        </div>
     </div>
 
     <!-- Leg Complete Modal -->
@@ -1349,6 +1480,13 @@
                 <div style="margin-bottom: 20px;">
                     <div id="corkOptionLabel" style="font-size: 14px; color: #fff; letter-spacing: 2px; margin-bottom: 6px; text-transform: uppercase;">Option on the Bull</div>
                     <div id="corkOptionNames" style="font-size: 26px; font-family: 'Bebas Neue', cursive; color: var(--yellow); letter-spacing: 2px;"></div>
+                </div>
+
+                <!-- Section: Select first thrower -->
+                <div style="font-size: 14px; color: #fff; letter-spacing: 2px; margin-bottom: 10px; text-transform: uppercase;">Select First Thrower</div>
+                <div id="corkPlayerColumns" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px;">
+                    <div id="corkHomePlayers" style="display: flex; flex-direction: column; gap: 8px;"></div>
+                    <div id="corkAwayPlayers" style="display: flex; flex-direction: column; gap: 8px;"></div>
                 </div>
 
                 <!-- Section: Who won the cork -->
@@ -1461,7 +1599,7 @@
     </div>
 
 <script type="module">
-import { callFunction, showLoading, hideLoading } from '/js/firebase-config.js';
+import { auth, db, callFunction, showLoading, hideLoading, collection, query, orderBy, limit, onSnapshot, addDoc, serverTimestamp } from '/js/firebase-config.js';
 import { callWithQueue, setupOfflineQueue } from '/js/offline-storage.js';
 
 // Setup offline queue for automatic retry
@@ -1474,6 +1612,7 @@ const matchId = params.get('match_id');
 const tournamentId = params.get('tournament_id'); // Tournament support
 const tournamentMatchId = params.get('tournament_match_id'); // Tournament match ID
 const tournamentType = params.get('tournament_type') || 'single'; // 'single' or 'double'
+const isMatchmakerTournament = params.get('matchmaker') === 'true' || params.get('matchmaker') === '1';
 const bracketType = params.get('bracket_type') || ''; // 'winners', 'losers', 'grand_finals_1', 'grand_finals_2'
 const returnUrl = params.get('return_url') || ''; // Where to navigate back after scoring
 const eventId = params.get('event_id') || ''; // For regular tournament events
@@ -1483,6 +1622,7 @@ const gameNumber = parseInt(params.get('game_number') || '1'); // Display number
 const adminPin = params.get('admin_pin') || '';
 const fromMatch = params.get('from_match') === 'true';
 let isCasual = params.get('casual') === 'true';
+let pickupDraftId = params.get('pickup_draft_id') || sessionStorage.getItem('brdcPickupDraftId') || null;
 const totalGames = parseInt(params.get('total_games') || '0');
 const homeTeamName = decodeURIComponent(params.get('home_team_name') || 'Home');
 const awayTeamName = decodeURIComponent(params.get('away_team_name') || 'Away');
@@ -1500,14 +1640,36 @@ const isMixedGame = params.get('mixed') === 'true';
 const mixedLegIndex = parseInt(params.get('mixed_leg') || '0');
 const useCork = params.get('cork') !== 'false';
 const corkRule = params.get('cork_rule') || 'alternate_cork_first_deciding';
-const corkOrder = params.get('cork_order') || 'random';
+const corkOption = params.get('cork_option') || params.get('cork_order') || 'random';
+const corkOrder = corkOption;
 const isVerificationMode = params.get('verification_mode') === 'true';
+const starterParam = params.get('starter') || '';
+let autoscoreSessionId = null;
+let autoscoreCandidate = null;
+let autoscoreDismissedIds = new Set();
+let autoscoreUnsubscribe = null;
+let autoscoreHistory = [];
 
 // Cork's Choice fields (when redirected from doubles choice game)
 const corkChoice = params.get('cork_choice') || null;
 const corkWinnerSide = params.get('cork_winner') || null;
-let lastLegWinner = null;
-let lastLegStarter = null;
+function parseSideIndexParam(value) {
+    if (value === 'home' || value === '0') return 0;
+    if (value === 'away' || value === '1') return 1;
+    return null;
+}
+let lastLegWinner = parseSideIndexParam(params.get('last_leg_winner'));
+let lastLegStarter = parseSideIndexParam(params.get('last_leg_starter'));
+
+function shouldCorkThisLeg(legNum) {
+    if (!useCork) return false;
+    if (corkRule === 'home_first' || corkRule === 'away_first' || corkRule === 'choose_no_cork') return false;
+    if (corkRule === 'cork_every_leg') return true;
+
+    const isFirstLeg = legNum === 1;
+    const isDecidingLeg = players?.[0]?.legs === LEGS_TO_WIN - 1 && players?.[1]?.legs === LEGS_TO_WIN - 1;
+    return isFirstLeg || isDecidingLeg;
+}
 
 // Fallback bot config for bots without cricket_skills (legacy support)
 const BOT_CONFIG_FALLBACK = {
@@ -1665,6 +1827,59 @@ let legFirstThrow = []; // Who threw first in each leg (0=home, 1=away)
 let currentLegTurns = []; // All turns in current leg
 let currentLegFirstThrow = null; // Who threw first in current leg
 let activePlayerIndex = [0, 0]; // Rotates players within doubles/combined-team cricket
+
+function getMixedGameConfig() {
+    if (!isMixedGame) return null;
+
+    try {
+        const mixedLegsParam = params.get('mixed_legs');
+        if (mixedLegsParam) {
+            return { legs: JSON.parse(mixedLegsParam) };
+        }
+    } catch (e) {
+        console.warn('Failed to parse mixed_legs param:', e);
+    }
+
+    try {
+        const stored = JSON.parse(sessionStorage.getItem('mixedGameConfig') || '{}');
+        return Array.isArray(stored.legs) ? stored : null;
+    } catch (e) {
+        console.warn('Failed to parse mixedGameConfig from sessionStorage:', e);
+    }
+
+    return null;
+}
+
+function getCurrentMixedLegConfig() {
+    const mixedConfig = getMixedGameConfig();
+    return mixedConfig?.legs?.[mixedLegIndex] || null;
+}
+
+function getDisplayLegNumber() {
+    return isMixedGame ? mixedLegIndex + 1 : leg;
+}
+
+function getDisplayLegTotal() {
+    const mixedConfig = getMixedGameConfig();
+    return isMixedGame && mixedConfig?.legs?.length
+        ? mixedConfig.legs.length
+        : (LEGS_TO_WIN * 2 - 1);
+}
+
+function parseStarterParam(value) {
+    if (value === 'home' || value === '0') return 0;
+    if (value === 'away' || value === '1') return 1;
+    return null;
+}
+
+if (isMixedGame) {
+    leg = mixedLegIndex + 1;
+}
+
+function toNumber(value, fallback = 0) {
+    const num = Number(value);
+    return Number.isFinite(num) ? num : fallback;
+}
 
 let currentLegStats = [
     {
@@ -1842,7 +2057,9 @@ if (isMixedGame) {
     }
 }
 
-function init() {
+async function init() {
+    hideSetupScreen();
+
     // Show verification mode banner if in verification mode
     if (isVerificationMode) {
         document.getElementById('verificationBanner').classList.add('active');
@@ -1852,15 +2069,19 @@ function init() {
     document.getElementById('awayName').textContent = (awayPlayers[0]?.name || players[1].name).split(' ')[0];
     renderBoard();
     updateDisplay();
+    initTournamentAutoscoreAssist();
 
-    // Auto-start double-elim tournament matches
-    if (tournamentId && tournamentMatchId && tournamentType === 'double') {
+    // Auto-start tournament matches
+    if (tournamentId && tournamentMatchId) {
         (async () => {
             try {
-                await callFunction('startDoubleElimMatch', {
-                    tournament_id: tournamentId,
-                    match_id: tournamentMatchId
-                });
+                await callFunction(
+                    tournamentType === 'double' ? 'startDoubleElimMatch' : 'startTournamentMatch',
+                    {
+                        tournament_id: tournamentId,
+                        match_id: tournamentMatchId
+                    }
+                );
             } catch (e) {
                 console.warn('Could not auto-start match (may already be in progress):', e.message);
             }
@@ -1871,6 +2092,13 @@ function init() {
     const playAgainBtn = document.getElementById('playAgainBtn');
     if (playAgainBtn && !isCasual) {
         playAgainBtn.style.display = 'none';
+    }
+
+    const hasServerCheckpoint = await checkForServerCheckpointCricket();
+    if (hasServerCheckpoint) {
+        const needsCork = shouldCorkThisLeg(leg);
+        setTimeout(() => showStarterModal(needsCork), 300);
+        return;
     }
 
     const homeIsBot = isHomeBot();
@@ -1897,8 +2125,13 @@ function init() {
             setTimeout(() => {
                 showStarterModal(false); // No cork needed - winner already determined
             }, 300);
+        } else if (parseStarterParam(starterParam) !== null) {
+            pendingStarter = parseStarterParam(starterParam);
+            setTimeout(() => {
+                showStarterModal(false);
+            }, 300);
         } else {
-            const needsCork = useCork && (corkRule === 'cork_every_leg' || corkRule === 'alternate_cork_first_deciding' || corkRule === 'cork_first_leg') && corkRule !== 'home_first' && corkRule !== 'away_first';
+            const needsCork = shouldCorkThisLeg(leg);
             setTimeout(() => showStarterModal(needsCork), 300);
         }
     }
@@ -2504,6 +2737,157 @@ function updateDisplay() {
     document.getElementById('turnMarks').textContent = turnMarks;
 }
 
+function buildStreamingSessionCode(seed) {
+    let hash = 0;
+    for (let i = 0; i < seed.length; i++) {
+        hash = ((hash << 5) - hash) + seed.charCodeAt(i);
+        hash |= 0;
+    }
+    return Math.abs(hash).toString(36).toUpperCase().padStart(6, '0').slice(0, 6);
+}
+
+function formatCricketCandidate(candidate) {
+    if (!Array.isArray(candidate?.darts)) return '-';
+    return candidate.darts.map((dart) => {
+        if (!dart || !dart.target || Number(dart.mult) <= 0) {
+            return 'MISS';
+        }
+        if (dart.label) return dart.label;
+        if (dart.target === 'BULL') {
+            return Number(dart.mult) >= 2 ? 'DB' : 'SB';
+        }
+        return `${Number(dart.mult) === 3 ? 'T' : Number(dart.mult) === 2 ? 'D' : 'S'}${dart.target}`;
+    }).join(' | ');
+}
+
+function renderAutoscoreAssist() {
+    const root = document.getElementById('autoscoreAssist');
+    if (!root) return;
+    if (!autoscoreCandidate) {
+        root.classList.remove('active');
+        return;
+    }
+
+    const source = autoscoreCandidate.source || 'board phone';
+    const confidence = autoscoreCandidate.confidence ?? autoscoreCandidate.quality_score ?? autoscoreCandidate.quality ?? null;
+    document.getElementById('autoscoreAssistScore').textContent = formatCricketCandidate(autoscoreCandidate);
+    document.getElementById('autoscoreAssistMeta').textContent =
+        `${source}${confidence !== null ? ` | Confidence ${confidence}` : ''}`;
+    root.classList.add('active');
+    renderAutoscoreHistory();
+}
+
+function renderAutoscoreHistory() {
+    const log = document.getElementById('autoscoreAssistLog');
+    if (!log) return;
+    log.innerHTML = autoscoreHistory.map((entry) =>
+        `<div class="autoscore-assist-log-item">${entry}</div>`
+    ).join('');
+}
+
+function pushAutoscoreHistory(action, candidate, detail) {
+    const scoreLabel = formatCricketCandidate(candidate);
+    autoscoreHistory.unshift(`${action}: ${scoreLabel}${detail ? ` (${detail})` : ''}`);
+    autoscoreHistory = autoscoreHistory.slice(0, 4);
+    renderAutoscoreHistory();
+}
+
+async function recordAutoscoreDecision(action, candidate, extras = {}) {
+    if (!autoscoreSessionId || !candidate?.id) return;
+    await addDoc(collection(db, 'streaming_sessions', autoscoreSessionId, 'autoscore_reviews'), {
+        candidate_id: candidate.id,
+        action,
+        source: 'league-cricket-scorer',
+        darts: candidate.darts ?? null,
+        reviewed_at: serverTimestamp(),
+        ...extras
+    }).catch(() => {});
+}
+
+function applyCricketCandidateToBoard(candidate, finalizeTurn) {
+    if (!Array.isArray(candidate?.darts) || !candidate.darts.length) {
+        toastWarning('No cricket darts were provided.');
+        return;
+    }
+    if (currentDarts.length > 0) {
+        toastWarning('Clear or submit the current turn before applying score assist.');
+        return;
+    }
+
+    for (const dart of candidate.darts) {
+        if (!dart || !dart.target || Number(dart.mult) <= 0) {
+            window.addMiss();
+        } else {
+            window.addHit(String(dart.target), Number(dart.mult));
+        }
+        if (pendingWin) break;
+    }
+
+    if (finalizeTurn && !pendingWin && currentDarts.length > 0) {
+        window.nextPlayer();
+    }
+}
+
+window.applyAutoscoreCandidate = function() {
+    if (!autoscoreCandidate) return;
+    autoscoreDismissedIds.add(autoscoreCandidate.id);
+    const candidate = autoscoreCandidate;
+    autoscoreCandidate = null;
+    renderAutoscoreAssist();
+    pushAutoscoreHistory('Applied', candidate, 'turn');
+    recordAutoscoreDecision('apply', candidate, { mode: 'turn' });
+    applyCricketCandidateToBoard(candidate, true);
+};
+
+window.fillAutoscoreCandidate = function() {
+    if (!autoscoreCandidate) return;
+    pushAutoscoreHistory('Filled', autoscoreCandidate, 'board only');
+    recordAutoscoreDecision('fill_only', autoscoreCandidate, { mode: 'board_only' });
+    applyCricketCandidateToBoard(autoscoreCandidate, false);
+};
+
+window.dismissAutoscoreCandidate = function() {
+    if (!autoscoreCandidate?.id) return;
+    pushAutoscoreHistory('Dismissed', autoscoreCandidate);
+    recordAutoscoreDecision('dismiss', autoscoreCandidate);
+    autoscoreDismissedIds.add(autoscoreCandidate.id);
+    autoscoreCandidate = null;
+    renderAutoscoreAssist();
+};
+
+function initTournamentAutoscoreAssist() {
+    if (!tournamentId || !tournamentMatchId) return;
+    autoscoreSessionId = buildStreamingSessionCode(`tournament:${tournamentId}:${tournamentMatchId}`);
+    autoscoreUnsubscribe?.();
+    autoscoreUnsubscribe = onSnapshot(
+        query(
+            collection(db, 'streaming_sessions', autoscoreSessionId, 'autoscore_candidates'),
+            orderBy('timestamp', 'desc'),
+            limit(1)
+        ),
+        (snapshot) => {
+            if (snapshot.empty) {
+                autoscoreCandidate = null;
+                renderAutoscoreAssist();
+                return;
+            }
+            const docSnap = snapshot.docs[0];
+            const candidate = { id: docSnap.id, ...docSnap.data() };
+            if (String(candidate.game || '').toLowerCase() !== 'cricket') {
+                autoscoreCandidate = null;
+                renderAutoscoreAssist();
+                return;
+            }
+            if (autoscoreDismissedIds.has(candidate.id) || candidate.review_status === 'reject' || candidate.review_status === 'rejected') {
+                return;
+            }
+            autoscoreCandidate = candidate;
+            renderAutoscoreAssist();
+        },
+        () => {}
+    );
+}
+
 function buildCricketThrowsTable(turns) {
     if (!turns || turns.length === 0) return '';
 
@@ -2553,33 +2937,551 @@ function buildCricketThrowsTable(turns) {
     return html;
 }
 
-// Save completed leg to Firestore for crash recovery (fire-and-forget)
-function saveLegToFirestore() {
-    if (!leagueId || !matchId) return;
-
-    const legData = [];
+function buildLegData() {
+    const legs = [];
     const numLegs = Math.max(legStats[0].length, legStats[1].length);
+
+    const homePlayerName = players[0]?.name || 'Home';
+    const awayPlayerName = players[1]?.name || 'Away';
+
     for (let i = 0; i < numLegs; i++) {
         const homeLeg = legStats[0][i] || {};
         const awayLeg = legStats[1][i] || {};
-        legData.push({
-            leg_number: i + 1,
+        const legWinner = homeLeg.score > (awayLeg.score || 0) ? 'home' : 'away';
+
+        const legTurns = legTurnsHistory[i] || [];
+        const firstThrow = legFirstThrow[i] !== undefined ? (legFirstThrow[i] === 0 ? 'home' : 'away') : 'home';
+        const throws = [];
+
+        const homeTurns = legTurns.filter(t => t.player === 0);
+        const awayTurns = legTurns.filter(t => t.player === 1);
+        const maxRounds = Math.max(homeTurns.length, awayTurns.length);
+
+        for (let r = 0; r < maxRounds; r++) {
+            const homeT = homeTurns[r];
+            const awayT = awayTurns[r];
+            const roundData = { round: r + 1 };
+
+            if (homeT) {
+                roundData.home = {
+                    player: homeT.playerName || homePlayerName,
+                    marks: homeT.totalMarks,
+                    points: homeT.totalPoints,
+                    score: homeT.totalMarks + 'M',
+                    hit: Array.isArray(homeT.darts) ? homeT.darts.map(d => d.label || 'Miss').join(', ') : '',
+                    darts: homeT.darts,
+                    isWinningTurn: homeT.isWinningTurn || false
+                };
+                if (homeT.isWinningTurn) {
+                    roundData.home.closed_out = true;
+                    roundData.home.closeout_darts = Array.isArray(homeT.darts) ? homeT.darts.length : 3;
+                }
+                if (homeT.totalMarks >= 9) roundData.home.notable = '9M';
+                else if (homeT.totalMarks >= 8) roundData.home.notable = '8M';
+                else if (homeT.totalMarks >= 7) roundData.home.notable = '7M';
+                else if (homeT.totalMarks >= 6) roundData.home.notable = '6M';
+                else if (homeT.totalMarks >= 5) roundData.home.notable = '5M';
+            }
+
+            if (awayT) {
+                roundData.away = {
+                    player: awayT.playerName || awayPlayerName,
+                    marks: awayT.totalMarks,
+                    points: awayT.totalPoints,
+                    score: awayT.totalMarks + 'M',
+                    hit: Array.isArray(awayT.darts) ? awayT.darts.map(d => d.label || 'Miss').join(', ') : '',
+                    darts: awayT.darts,
+                    isWinningTurn: awayT.isWinningTurn || false
+                };
+                if (awayT.isWinningTurn) {
+                    roundData.away.closed_out = true;
+                    roundData.away.closeout_darts = Array.isArray(awayT.darts) ? awayT.darts.length : 3;
+                }
+                if (awayT.totalMarks >= 9) roundData.away.notable = '9M';
+                else if (awayT.totalMarks >= 8) roundData.away.notable = '8M';
+                else if (awayT.totalMarks >= 7) roundData.away.notable = '7M';
+                else if (awayT.totalMarks >= 6) roundData.away.notable = '6M';
+                else if (awayT.totalMarks >= 5) roundData.away.notable = '5M';
+            }
+
+            throws.push(roundData);
+        }
+
+        const buildPlayerStatsForSide = (side, roster, teamLeg) => {
+            const statsByName = {};
+            roster.forEach((p) => {
+                if (!p?.name) return;
+                statsByName[p.name] = {
+                    rounds: 0,
+                    marks: 0,
+                    mpr: 0,
+                    score: teamLeg.score || 0,
+                    darts_thrown: 0,
+                    missed_darts: 0,
+                    triple_bull_darts: 0,
+                    five_mark_rounds: 0,
+                    six_mark_rounds: 0,
+                    seven_mark_rounds: 0,
+                    eight_mark_rounds: 0,
+                    nine_mark_rounds: 0,
+                    high_mark_round: 0,
+                    three_bulls: 0,
+                    four_bulls: 0,
+                    five_bulls: 0,
+                    six_bulls: 0,
+                    hat_tricks: 0,
+                    threw_first: teamLeg.threw_first
+                };
+            });
+
+            legTurns
+                .filter(t => t.player === side)
+                .forEach((turn) => {
+                    const name = turn.playerName || roster[0]?.name;
+                    if (!name) return;
+                    if (!statsByName[name]) {
+                        statsByName[name] = {
+                            rounds: 0, marks: 0, mpr: 0, score: teamLeg.score || 0,
+                            darts_thrown: 0, missed_darts: 0, triple_bull_darts: 0,
+                            five_mark_rounds: 0, six_mark_rounds: 0, seven_mark_rounds: 0,
+                            eight_mark_rounds: 0, nine_mark_rounds: 0, high_mark_round: 0,
+                            three_bulls: 0, four_bulls: 0, five_bulls: 0, six_bulls: 0,
+                            hat_tricks: 0, threw_first: teamLeg.threw_first
+                        };
+                    }
+                    const darts = Array.isArray(turn.darts) ? turn.darts : [];
+                    const marks = turn.totalMarks || 0;
+                    const missed = darts.filter(d => !d.marksAdded && !d.pointsAdded).length;
+                    const tripleBull = darts.filter(d => d.mult === 3 || (d.target === 'BULL' && d.mult >= 2)).length;
+                    const bullMarks = darts.filter(d => d.target === 'BULL').reduce((sum, d) => sum + (d.marksAdded || 0), 0);
+                    const triples = darts.filter(d => d.mult === 3 && d.target !== 'BULL').map(d => d.target);
+                    const uniqueTriples = new Set(triples);
+                    const targetCounts = {};
+                    darts.forEach(d => {
+                        if (d.target && d.mult === 3) targetCounts[d.target] = (targetCounts[d.target] || 0) + 1;
+                    });
+
+                    const s = statsByName[name];
+                    s.rounds += 1;
+                    s.marks += marks;
+                    s.darts_thrown += darts.length || 3;
+                    s.missed_darts += missed;
+                    s.triple_bull_darts += tripleBull;
+                    if (marks >= 9) s.nine_mark_rounds += 1;
+                    else if (marks >= 8) s.eight_mark_rounds += 1;
+                    else if (marks >= 7) s.seven_mark_rounds += 1;
+                    else if (marks >= 6) s.six_mark_rounds += 1;
+                    else if (marks >= 5) s.five_mark_rounds += 1;
+                    if (marks > s.high_mark_round) s.high_mark_round = marks;
+                    if (bullMarks >= 6) s.six_bulls += 1;
+                    else if (bullMarks >= 5) s.five_bulls += 1;
+                    else if (bullMarks >= 4) s.four_bulls += 1;
+                    else if (bullMarks >= 3) s.three_bulls += 1;
+                    if (uniqueTriples.size >= 3 || Object.values(targetCounts).some(count => count >= 3)) {
+                        s.hat_tricks += 1;
+                    }
+                });
+
+            Object.values(statsByName).forEach((s) => {
+                s.mpr = s.rounds > 0 ? parseFloat((s.marks / s.rounds).toFixed(2)) : 0;
+            });
+            return statsByName;
+        };
+
+        const player_stats = {};
+        Object.assign(player_stats, buildPlayerStatsForSide(0, homePlayers, homeLeg));
+        Object.assign(player_stats, buildPlayerStatsForSide(1, awayPlayers, awayLeg));
+
+        const winnerLeg = legWinner === 'home' ? homeLeg : awayLeg;
+        const closeoutDarts = winnerLeg.finalDarts || 3;
+
+        legs.push({
+            leg_number: isMixedGame ? mixedLegIndex + 1 : i + 1,
             format: 'cricket',
-            winner: (homeLeg.score || 0) > (awayLeg.score || 0) ? 'home' : 'away',
-            home_stats: { marks: homeLeg.marks || 0, rounds: homeLeg.rounds || 0, score: homeLeg.score || 0 },
-            away_stats: { marks: awayLeg.marks || 0, rounds: awayLeg.rounds || 0, score: awayLeg.score || 0 }
+            winner: legWinner,
+            first_throw: firstThrow,
+            closeout_darts: closeoutDarts,
+            home_stats: {
+                rounds: homeLeg.rounds || 0,
+                marks: homeLeg.marks || 0,
+                darts_thrown: homeLeg.darts_thrown || 0,
+                missed_darts: homeLeg.missed_darts || 0,
+                triple_bull_darts: homeLeg.triple_bull_darts || 0,
+                five_mark_rounds: homeLeg.five_mark_rounds || 0,
+                six_mark_rounds: homeLeg.six_mark_rounds || 0,
+                seven_mark_rounds: homeLeg.seven_mark_rounds || 0,
+                eight_mark_rounds: homeLeg.eight_mark_rounds || 0,
+                nine_mark_rounds: homeLeg.nine_mark_rounds || 0,
+                three_bulls: homeLeg.three_bulls || 0,
+                four_bulls: homeLeg.four_bulls || 0,
+                five_bulls: homeLeg.five_bulls || 0,
+                six_bulls: homeLeg.six_bulls || 0,
+                hat_tricks: homeLeg.hat_tricks || 0,
+                high_mark_round: homeLeg.high_mark_round || 0,
+                threw_first: homeLeg.threw_first,
+                closeout_darts: legWinner === 'home' ? closeoutDarts : undefined
+            },
+            away_stats: {
+                rounds: awayLeg.rounds || 0,
+                marks: awayLeg.marks || 0,
+                darts_thrown: awayLeg.darts_thrown || 0,
+                missed_darts: awayLeg.missed_darts || 0,
+                triple_bull_darts: awayLeg.triple_bull_darts || 0,
+                five_mark_rounds: awayLeg.five_mark_rounds || 0,
+                six_mark_rounds: awayLeg.six_mark_rounds || 0,
+                seven_mark_rounds: awayLeg.seven_mark_rounds || 0,
+                eight_mark_rounds: awayLeg.eight_mark_rounds || 0,
+                nine_mark_rounds: awayLeg.nine_mark_rounds || 0,
+                three_bulls: awayLeg.three_bulls || 0,
+                four_bulls: awayLeg.four_bulls || 0,
+                five_bulls: awayLeg.five_bulls || 0,
+                six_bulls: awayLeg.six_bulls || 0,
+                hat_tricks: awayLeg.hat_tricks || 0,
+                high_mark_round: awayLeg.high_mark_round || 0,
+                threw_first: awayLeg.threw_first,
+                closeout_darts: legWinner === 'away' ? closeoutDarts : undefined
+            },
+            player_stats,
+            throws
         });
     }
 
-    callWithQueue(callFunction, 'submitGameResult', {
-        league_id: leagueId, match_id: matchId, game_number: gameNumber,
-        status: 'in_progress',
-        home_legs_won: players[0].legs, away_legs_won: players[1].legs,
-        admin_pin: adminPin,
-        game_stats: { game_type: 'cricket', legs: legData }
-    }).catch(e => {
-        if (e.message !== 'QUEUED_OFFLINE') console.warn('Leg progress save failed (non-critical):', e.message);
+    return legs;
+}
+
+// Save completed leg to Firestore for crash recovery (fire-and-forget)
+function saveLegToFirestore() {
+    const legData = buildLegData();
+
+    if (leagueId && matchId) {
+        callWithQueue(callFunction, 'submitGameResult', {
+            league_id: leagueId, match_id: matchId, game_number: gameNumber,
+            status: 'in_progress',
+            home_legs_won: players[0].legs, away_legs_won: players[1].legs,
+            admin_pin: adminPin,
+            game_stats: { game_type: 'cricket', legs: legData }
+        }).catch(e => {
+            if (e.message !== 'QUEUED_OFFLINE') console.warn('Leg progress save failed (non-critical):', e.message);
+        });
+        return;
+    }
+
+    if (tournamentId && tournamentMatchId) {
+        const payload = {
+            scorer_type: 'cricket',
+            game_number: gameNumber,
+            game_stats: { game_type: 'cricket', legs: legData },
+            saved_from: 'scorer_checkpoint'
+        };
+        if (tournamentType === 'double') {
+            payload.team1_legs_won = players[0].legs || 0;
+            payload.team2_legs_won = players[1].legs || 0;
+        } else {
+            payload.player1_legs_won = players[0].legs || 0;
+            payload.player2_legs_won = players[1].legs || 0;
+        }
+
+        callWithQueue(callFunction, 'saveTournamentMatchProgress', {
+            tournament_id: tournamentId,
+            match_id: tournamentMatchId,
+            ...payload
+        }).catch(e => {
+            if (e.message !== 'QUEUED_OFFLINE') console.warn('Tournament progress save failed (non-critical):', e.message);
+        });
+        return;
+    }
+
+    if (isCasual && matchId && String(matchId).startsWith('casual_')) {
+        callWithQueue(callFunction, 'saveCasualChallengeProgress', {
+            match_id: matchId,
+            game_type: 'cricket',
+            players: [
+                {
+                    id: homePlayers[0]?.id || null,
+                    name: homePlayers[0]?.name || players[0]?.name || 'Player 1',
+                    is_bot: isHomeBot()
+                },
+                {
+                    id: awayPlayers[0]?.id || null,
+                    name: awayPlayers[0]?.name || players[1]?.name || 'Player 2',
+                    is_bot: isAwayBot()
+                }
+            ],
+            legs: legData,
+            match_config: {
+                bestOfLegs: LEGS_TO_WIN * 2 - 1,
+                bestOfSets: 1
+            },
+            progress: {
+                scorer_type: 'cricket',
+                game_number: gameNumber,
+                home_legs_won: players[0].legs || 0,
+                away_legs_won: players[1].legs || 0
+            }
+        }).catch(e => {
+            if (e.message !== 'QUEUED_OFFLINE') console.warn('Challenge progress save failed (non-critical):', e.message);
+        });
+        return;
+    }
+
+    if (isCasual) {
+        const statPlayerId = params.get('stat_player_id');
+        const player1IsBot = isHomeBot();
+        const player2IsBot = isAwayBot();
+        const player1BotId = player1IsBot ? (homePlayers[0]?.registeredBotId || null) : null;
+        const player2BotId = player2IsBot ? (awayPlayers[0]?.registeredBotId || null) : null;
+
+        callWithQueue(callFunction, 'savePickupGameProgress', {
+            draft_id: pickupDraftId,
+            game_type: 'cricket',
+            players: [
+                {
+                    id: statPlayerId || player1BotId || null,
+                    name: homePlayers[0]?.name || players[0]?.name || 'Player 1',
+                    is_bot: player1IsBot
+                },
+                {
+                    id: player2BotId || null,
+                    name: awayPlayers[0]?.name || players[1]?.name || 'Player 2',
+                    is_bot: player2IsBot
+                }
+            ],
+            legs: legData,
+            match_config: {
+                bestOfLegs: LEGS_TO_WIN * 2 - 1,
+                bestOfSets: 1
+            },
+            progress: {
+                scorer_type: 'cricket',
+                game_number: gameNumber,
+                home_legs_won: players[0].legs || 0,
+                away_legs_won: players[1].legs || 0
+            }
+        }).then(result => {
+            if (result?.draft_id) {
+                pickupDraftId = result.draft_id;
+                sessionStorage.setItem('brdcPickupDraftId', pickupDraftId);
+            }
+        }).catch(e => {
+            if (e.message !== 'QUEUED_OFFLINE') console.warn('Pickup progress save failed (non-critical):', e.message);
+        });
+    }
+}
+
+function rebuildCricketTotalsFromLegs() {
+    const freshPlayers = [0, 1].map(() => ({
+        score: 0,
+        marks: { 20: 0, 19: 0, 18: 0, 17: 0, 16: 0, 15: 0, BULL: 0 },
+        totalMarks: 0,
+        totalRounds: 0,
+        totalDarts: 0,
+        missedDarts: 0,
+        tripleBullDarts: 0,
+        fiveMarkRounds: 0,
+        sixMarkRounds: 0,
+        sevenMarkRounds: 0,
+        eightMarkRounds: 0,
+        nineMarkRounds: 0,
+        threeBulls: 0,
+        fourBulls: 0,
+        fiveBulls: 0,
+        sixBulls: 0,
+        hatTricks: 0
+    }));
+
+    allTimeStats = [
+        { bestMPR: 0, fewestRounds: 999, whiteHorses: 0, threeInBeds: 0 },
+        { bestMPR: 0, fewestRounds: 999, whiteHorses: 0, threeInBeds: 0 }
+    ];
+
+    for (let i = 0; i < Math.max(legStats[0].length, legStats[1].length); i++) {
+        [0, 1].forEach(side => {
+            const legData = legStats[side][i] || {};
+            const player = freshPlayers[side];
+            player.totalMarks += toNumber(legData.marks);
+            player.totalRounds += toNumber(legData.rounds);
+            player.totalDarts += toNumber(legData.darts_thrown);
+            player.score += toNumber(legData.score);
+            player.missedDarts += toNumber(legData.missed_darts);
+            player.tripleBullDarts += toNumber(legData.triple_bull_darts);
+            player.fiveMarkRounds += toNumber(legData.five_mark_rounds);
+            player.sixMarkRounds += toNumber(legData.six_mark_rounds);
+            player.sevenMarkRounds += toNumber(legData.seven_mark_rounds);
+            player.eightMarkRounds += toNumber(legData.eight_mark_rounds);
+            player.nineMarkRounds += toNumber(legData.nine_mark_rounds);
+            player.threeBulls += toNumber(legData.three_bulls);
+            player.fourBulls += toNumber(legData.four_bulls);
+            player.fiveBulls += toNumber(legData.five_bulls);
+            player.sixBulls += toNumber(legData.six_bulls);
+            player.hatTricks += toNumber(legData.hat_tricks);
+
+            const mpr = toNumber(legData.rounds) > 0 ? toNumber(legData.marks) / toNumber(legData.rounds) : 0;
+            if (mpr > allTimeStats[side].bestMPR) allTimeStats[side].bestMPR = mpr;
+            if (toNumber(legData.rounds) > 0) allTimeStats[side].fewestRounds = Math.min(allTimeStats[side].fewestRounds, toNumber(legData.rounds));
+        });
+    }
+
+    [0, 1].forEach(side => {
+        Object.assign(players[side], freshPlayers[side]);
+        players[side].marks = { 20: 0, 19: 0, 18: 0, 17: 0, 16: 0, 15: 0, BULL: 0 };
+        players[side].score = 0;
     });
+}
+
+function applyServerCheckpointToCricket(progressPayload, overrideLegs = null) {
+    const legs = Array.isArray(overrideLegs)
+        ? overrideLegs
+        : (Array.isArray(progressPayload?.game_stats?.legs) ? progressPayload.game_stats.legs : []);
+    if (!legs.length) return false;
+
+    legStats = [[], []];
+    legTurnsHistory = [];
+    legFirstThrow = [];
+    currentLegTurns = [];
+    turnHistory = [];
+    activePlayerIndex = [0, 0];
+
+    legs.forEach((savedLeg, index) => {
+        const home = savedLeg?.home_stats || {};
+        const away = savedLeg?.away_stats || {};
+
+        legStats[0].push({
+            rounds: toNumber(home.rounds),
+            marks: toNumber(home.marks),
+            score: toNumber(home.score),
+            darts_thrown: toNumber(home.darts_thrown),
+            missed_darts: toNumber(home.missed_darts),
+            triple_bull_darts: toNumber(home.triple_bull_darts),
+            five_mark_rounds: toNumber(home.five_mark_rounds),
+            six_mark_rounds: toNumber(home.six_mark_rounds),
+            seven_mark_rounds: toNumber(home.seven_mark_rounds),
+            eight_mark_rounds: toNumber(home.eight_mark_rounds),
+            nine_mark_rounds: toNumber(home.nine_mark_rounds),
+            three_bulls: toNumber(home.three_bulls),
+            four_bulls: toNumber(home.four_bulls),
+            five_bulls: toNumber(home.five_bulls),
+            six_bulls: toNumber(home.six_bulls),
+            hat_tricks: toNumber(home.hat_tricks),
+            high_mark_round: toNumber(home.high_mark_round),
+            threw_first: home.threw_first ?? null,
+            finalDarts: toNumber(home.closeout_darts)
+        });
+        legStats[1].push({
+            rounds: toNumber(away.rounds),
+            marks: toNumber(away.marks),
+            score: toNumber(away.score),
+            darts_thrown: toNumber(away.darts_thrown),
+            missed_darts: toNumber(away.missed_darts),
+            triple_bull_darts: toNumber(away.triple_bull_darts),
+            five_mark_rounds: toNumber(away.five_mark_rounds),
+            six_mark_rounds: toNumber(away.six_mark_rounds),
+            seven_mark_rounds: toNumber(away.seven_mark_rounds),
+            eight_mark_rounds: toNumber(away.eight_mark_rounds),
+            nine_mark_rounds: toNumber(away.nine_mark_rounds),
+            three_bulls: toNumber(away.three_bulls),
+            four_bulls: toNumber(away.four_bulls),
+            five_bulls: toNumber(away.five_bulls),
+            six_bulls: toNumber(away.six_bulls),
+            hat_tricks: toNumber(away.hat_tricks),
+            high_mark_round: toNumber(away.high_mark_round),
+            threw_first: away.threw_first ?? null,
+            finalDarts: toNumber(away.closeout_darts)
+        });
+
+        legFirstThrow.push(savedLeg?.first_throw === 'away' ? 1 : 0);
+        const turns = [];
+        (savedLeg?.throws || []).forEach(round => {
+            if (round?.home) {
+                turns.push({
+                    player: 0,
+                    playerName: round.home.player || homePlayers[0]?.name || players[0].name,
+                    totalMarks: toNumber(round.home.marks),
+                    totalPoints: toNumber(round.home.points),
+                    darts: Array.isArray(round.home.darts) ? round.home.darts : [],
+                    isWinningTurn: !!round.home.isWinningTurn
+                });
+            }
+            if (round?.away) {
+                turns.push({
+                    player: 1,
+                    playerName: round.away.player || awayPlayers[0]?.name || players[1].name,
+                    totalMarks: toNumber(round.away.marks),
+                    totalPoints: toNumber(round.away.points),
+                    darts: Array.isArray(round.away.darts) ? round.away.darts : [],
+                    isWinningTurn: !!round.away.isWinningTurn
+                });
+            }
+        });
+        legTurnsHistory[index] = turns;
+    });
+
+    players[0].legs = toNumber(progressPayload?.home_legs_won ?? progressPayload?.team1_legs_won, legs.filter(l => l?.winner === 'home').length);
+    players[1].legs = toNumber(progressPayload?.away_legs_won ?? progressPayload?.team2_legs_won, legs.filter(l => l?.winner === 'away').length);
+    rebuildCricketTotalsFromLegs();
+    resetCurrentLegStats();
+    leg = Math.min(legs.length + 1, LEGS_TO_WIN * 2 - 1);
+    currentLegFirstThrow = null;
+    activePlayer = 0;
+    updateDisplay();
+    renderBoard();
+    return true;
+}
+
+async function checkForServerCheckpointCricket() {
+    try {
+        let result = null;
+        let progress = null;
+        let legs = null;
+
+        if (leagueId && matchId) {
+            result = await callFunction('getLeagueGameProgress', {
+                league_id: leagueId,
+                match_id: matchId,
+                game_number: gameNumber,
+                admin_pin: adminPin
+            });
+            progress = result?.progress || null;
+        } else if (tournamentId && tournamentMatchId) {
+            result = await callFunction('getTournamentMatchProgress', {
+                tournament_id: tournamentId,
+                match_id: tournamentMatchId,
+                director_pin: tDirectorPin
+            });
+            progress = result?.progress || null;
+        } else if (isCasual && matchId && String(matchId).startsWith('casual_') && auth.currentUser) {
+            result = await callFunction('getCasualChallengeProgress', {
+                match_id: matchId
+            });
+            progress = result?.progress || null;
+            legs = result?.legs || [];
+        } else if (isCasual && pickupDraftId) {
+            result = await callFunction('getPickupGameProgress', {
+                draft_id: pickupDraftId
+            });
+            progress = result?.progress || null;
+            legs = result?.legs || [];
+        } else {
+            return false;
+        }
+
+        const savedLegs = legs || progress?.game_stats?.legs || [];
+        if (!Array.isArray(savedLegs) || !savedLegs.length) return false;
+
+        const homeLegs = toNumber(progress?.home_legs_won ?? progress?.team1_legs_won, 0);
+        const awayLegs = toNumber(progress?.away_legs_won ?? progress?.team2_legs_won, 0);
+        if (!confirm(`Resume server checkpoint?\n\n${players[0].name}: ${homeLegs} legs\n${players[1].name}: ${awayLegs} legs\n\nThis restores the last saved completed leg and starts the next leg.`)) {
+            return false;
+        }
+
+        return applyServerCheckpointToCricket({
+            ...progress,
+            home_legs_won: homeLegs,
+            away_legs_won: awayLegs
+        }, savedLegs);
+    } catch (e) {
+        console.warn('Error checking cricket server checkpoint:', e);
+        return false;
+    }
 }
 
 function showLegModal() {
@@ -2669,8 +3571,8 @@ function showLegModal() {
 
     document.getElementById('legModal').classList.add('active');
 
-    // Only save in-progress if set is NOT yet decided (avoid race with completed save)
-    if (players[winnerIdx].legs < LEGS_TO_WIN) {
+    // Save a backend checkpoint after each leg. Final league submit is still handled separately.
+    if ((leagueId && matchId && players[winnerIdx].legs < LEGS_TO_WIN) || tournamentId || isCasual) {
         saveLegToFirestore();
     }
 }
@@ -2734,29 +3636,11 @@ window.nextLeg = function() {
                 // Suppress beforeunload warning - intentional navigation
                 gameSaving = true;
 
-                const newParams = new URLSearchParams();
-                // Preserve league/match context for return navigation
-                if (leagueId) newParams.set('league_id', leagueId);
-                if (matchId) newParams.set('match_id', matchId);
-                if (fromMatch) newParams.set('from_match', 'true');
-                newParams.set('home_players', JSON.stringify(homePlayers));
-                newParams.set('away_players', JSON.stringify(awayPlayers));
-                newParams.set('casual', isCasual ? 'true' : 'false');
-                newParams.set('mixed', 'true');
-                newParams.set('mixed_leg', nextLegIndex.toString());
-                newParams.set('legs_to_win', LEGS_TO_WIN.toString());
-                newParams.set('home_legs', players[0].legs.toString());
-                newParams.set('away_legs', players[1].legs.toString());
-
-                if (useCork) {
-                    newParams.set('cork', 'true');
-                    newParams.set('cork_rule', corkRule);
-                    newParams.set('cork_order', corkOrder);
-                }
+                const newParams = buildScorerNavigationParams(nextLegIndex);
 
                 if (nextLeg.type === 'cricket') {
                     window.location.href = `/pages/league-cricket.html?${newParams.toString()}`;
-                } else if (nextLeg.type === 'corks_choice') {
+                } else if (nextLeg.type === 'corks_choice' || nextLeg.type === 'choice') {
                     // Cork's Choice - cork winner picks 501 or cricket
                     newParams.set('format', 'choice');
                     newParams.set('starting_score', '501');
@@ -2815,8 +3699,7 @@ window.nextLeg = function() {
         turnHistory = [];
         renderBoard();
 
-        const isDecidingLeg = players[0].legs === LEGS_TO_WIN - 1 && players[1].legs === LEGS_TO_WIN - 1;
-        const needsCork = useCork && (corkRule === 'cork_every_leg' || ((corkRule === 'alternate_cork_first_deciding' || corkRule === 'cork_first_leg') && isDecidingLeg)) && corkRule !== 'home_first' && corkRule !== 'away_first';
+        const needsCork = shouldCorkThisLeg(leg);
         setTimeout(() => showStarterModal(needsCork), 300);
     }
 };
@@ -3041,7 +3924,7 @@ window.saveAndExit = async function() {
     const mpr1 = players[1].totalRounds > 0 ? parseFloat((players[1].totalMarks / players[1].totalRounds).toFixed(2)) : 0;
 
     // Build comprehensive DartConnect-compatible leg data for cricket with throws
-    const buildLegData = () => {
+    function buildLegData() {
         const legs = [];
         const numLegs = Math.max(legStats[0].length, legStats[1].length);
 
@@ -3259,7 +4142,7 @@ window.saveAndExit = async function() {
             });
         }
         return legs;
-    };
+    }
 
     // Build comprehensive game stats
     const comprehensiveGameStats = {
@@ -3392,8 +4275,8 @@ window.saveAndExit = async function() {
         const isFinalGame = totalGames > 0 && gameNumber >= totalGames;
 
         if (isFinalGame) {
-            // Auto-finalize match: set status to completed, update standings
-            if (leagueId && matchId) {
+            // submitGameResult already auto-finalizes the match on the last saved game
+            if (false && leagueId && matchId) {
                 try {
                     showLoading('Finalizing match...');
                     await callWithQueue(callFunction, 'finalizeMatch', {
@@ -3436,13 +4319,12 @@ window.saveAndExit = async function() {
             }
         } else if (tournamentId && tournamentMatchId) {
             if (tournamentType === 'double') {
-                // Double elimination (Matchmaker/Heartbreaker) submission
+                // Double elimination mixed doubles matchmaker submission
                 await callWithQueue(callFunction, 'submitDoubleElimMatchResult', {
                     tournament_id: tournamentId,
                     match_id: tournamentMatchId,
                     team1_score: players[0].legs,
                     team2_score: players[1].legs,
-                    director_pin: tDirectorPin,
                     game_stats: comprehensiveGameStats
                 });
             } else {
@@ -3647,6 +4529,38 @@ async function handleCricketVerificationComplete(gameStats) {
 
 // Save casual/pickup cricket game with stats
 async function saveCasualCricketGame(gameStats) {
+    const isChallengeMatch = isCasual && !!matchId && String(matchId).startsWith('casual_');
+
+    if (isChallengeMatch) {
+        showLoading('Saving match...');
+
+        try {
+            const winnerIndex = players[0].legs >= LEGS_TO_WIN ? 0 : 1;
+            const winnerId = winnerIndex === 0 ? homePlayers[0]?.id : awayPlayers[0]?.id;
+            const payload = {
+                match_id: matchId,
+                winner_id: winnerId,
+                home_score: players[0].legs,
+                away_score: players[1].legs,
+                game_stats: gameStats
+            };
+
+            const result = await callFunction('completeCasualChallengeMatch', payload);
+            hideLoading();
+
+            if (result.success) {
+                showCasualCricketSummary(gameStats, 'Challenge match saved. Result posted to chat.');
+            } else {
+                showCasualCricketSummary(gameStats, 'Could not save challenge match: ' + (result.error || 'Unknown error'));
+            }
+        } catch (error) {
+            hideLoading();
+            console.error('Error saving challenge cricket match:', error);
+            showCasualCricketSummary(gameStats, 'Error saving challenge match: ' + error.message);
+        }
+        return;
+    }
+
     const statPlayerId = params.get('stat_player_id');
     const statPlayerName = params.get('stat_player_name');
 
@@ -3654,7 +4568,7 @@ async function saveCasualCricketGame(gameStats) {
     const player1IsBot = isHomeBot();
     const player2IsBot = isAwayBot();
 
-    let player1Pin = statPlayerId ? null : (localStorage.getItem('brdc_player_pin') || null);
+    let player1Pin = null;
     let player2Pin = null;
 
     const player1Name = players[0]?.name || 'Player 1';
@@ -3673,7 +4587,6 @@ async function saveCasualCricketGame(gameStats) {
     // Get PINs for human players who want to track stats
     if (!statPlayerId && !player1IsBot) {
         player1Pin = prompt(`Enter PIN for ${player1Name} to track stats (or leave blank for guest):`);
-        if (player1Pin) localStorage.setItem('brdc_player_pin', player1Pin.toUpperCase());
     }
 
     if (!player2IsBot) {
@@ -3735,6 +4648,7 @@ async function saveCasualCricketGame(gameStats) {
         const player2BotId = player2IsBot ? (awayPlayers[0]?.registeredBotId || null) : null;
 
         const payload = {
+            draft_id: pickupDraftId,
             game_type: 'cricket',
             players: [
                 {
@@ -3762,6 +4676,8 @@ async function saveCasualCricketGame(gameStats) {
         hideLoading();
 
         if (result.success) {
+            pickupDraftId = null;
+            sessionStorage.removeItem('brdcPickupDraftId');
             showCasualCricketSummary(gameStats, 'Game saved! Stats updated.');
         } else {
             showCasualCricketSummary(gameStats, 'Could not save: ' + (result.error || 'Unknown error'));
@@ -3966,7 +4882,7 @@ function navigateAway() {
         window.location.href = returnUrl;
     } else if (tournamentId && eventId) {
         window.location.href = `/pages/event-view.html?tournament_id=${tournamentId}&event_id=${eventId}`;
-    } else if (tournamentId && tournamentType === 'double') {
+    } else if (tournamentId && isMatchmakerTournament) {
         window.location.href = `/pages/matchmaker-bracket.html?tournament_id=${tournamentId}`;
     } else if (tournamentId) {
         window.location.href = `/pages/tournament-bracket.html?tournament_id=${tournamentId}`;
@@ -4024,7 +4940,7 @@ let pendingStarter = null;
 
 function showStarterModal(needsCork) {
     // Update leg info
-    document.getElementById('starterLegInfo').textContent = `LEG ${leg}`;
+    document.getElementById('starterLegInfo').textContent = `LEG ${getDisplayLegNumber()} of ${getDisplayLegTotal()}`;
     document.getElementById('preLegGame').textContent = 'CRICKET';
 
     // Hide all phases first
@@ -4048,11 +4964,46 @@ function showStarterModal(needsCork) {
         // Update option label (home team always has option in cricket singles)
         document.getElementById('corkOptionNames').textContent = homeFirstNames;
 
+        const homeCol = document.getElementById('corkHomePlayers');
+        const awayCol = document.getElementById('corkAwayPlayers');
+        let homeHtml = '';
+        let awayHtml = '';
+
+        homePlayers.forEach((p, i) => {
+            if (!p?.name) return;
+            homeHtml += `<button class="modal-btn cork-player-btn" data-team="0" data-idx="${i}" onclick="corkTogglePlayer(this, 0, ${i})" style="background: rgba(255,70,154,0.2); border: 2px solid var(--pink); color: #fff; font-size: 20px; padding: 18px 10px; line-height: 1.2; width: 100%; margin: 0; box-shadow: none;">${p.name.split(' ')[0]}</button>`;
+        });
+        awayPlayers.forEach((p, i) => {
+            if (!p?.name) return;
+            awayHtml += `<button class="modal-btn cork-player-btn" data-team="1" data-idx="${i}" onclick="corkTogglePlayer(this, 1, ${i})" style="background: rgba(145,215,235,0.2); border: 2px solid var(--teal); color: #fff; font-size: 20px; padding: 18px 10px; line-height: 1.2; width: 100%; margin: 0; box-shadow: none;">${p.name.split(' ')[0]}</button>`;
+        });
+        homeCol.innerHTML = homeHtml;
+        awayCol.innerHTML = awayHtml;
+
         // Reset winner button styles
         document.querySelectorAll('.cork-winner-btn').forEach(b => {
             b.style.background = b.dataset.team === '0' ? 'rgba(255,70,154,0.2)' : 'rgba(145,215,235,0.2)';
             b.style.color = '#fff';
         });
+
+        const validHome = homePlayers.filter(p => p?.name);
+        const validAway = awayPlayers.filter(p => p?.name);
+        if (validHome.length === 1) {
+            corkSelectedPlayer[0] = 0;
+            const homeBtn = document.querySelector('.cork-player-btn[data-team="0"][data-idx="0"]');
+            if (homeBtn) {
+                homeBtn.style.background = 'var(--pink)';
+                homeBtn.style.color = '#fff';
+            }
+        }
+        if (validAway.length === 1) {
+            corkSelectedPlayer[1] = 0;
+            const awayBtn = document.querySelector('.cork-player-btn[data-team="1"][data-idx="0"]');
+            if (awayBtn) {
+                awayBtn.style.background = 'var(--teal)';
+                awayBtn.style.color = '#fff';
+            }
+        }
 
         // Show cork phase
         document.getElementById('whoGotItPhase').style.display = 'block';
@@ -4105,7 +5056,7 @@ async function ensureLiveMatchStarted() {
 
 function corkCheckReady() {
     const startBtn = document.getElementById('corkStartBtn');
-    if (corkSelectedWinner !== null) {
+    if (corkSelectedPlayer[0] !== null && corkSelectedPlayer[1] !== null && corkSelectedWinner !== null) {
         startBtn.disabled = false;
         startBtn.style.opacity = '1';
     } else {
@@ -4151,7 +5102,10 @@ window.corkSetWinner = function(teamIdx) {
 };
 
 window.corkStart = async function() {
-    if (corkSelectedWinner === null) return;
+    if (corkSelectedPlayer[0] === null || corkSelectedPlayer[1] === null || corkSelectedWinner === null) return;
+
+    activePlayerIndex[0] = corkSelectedPlayer[0];
+    activePlayerIndex[1] = corkSelectedPlayer[1];
 
     // Cork winner's team starts
     pendingStarter = corkSelectedWinner;
@@ -4187,12 +5141,54 @@ window.confirmStarter = async function() {
 function getGameLabel(leg) {
     if (!leg) return 'CRICKET';
     if (leg.type === 'cricket') return 'CRICKET';
-    if (leg.type === 'corks_choice') return "CORK'S CHOICE";
+    if (leg.type === 'corks_choice' || leg.type === 'choice') return "CORK'S CHOICE";
     const score = leg.score || (leg.type === '301' ? 301 : 501);
     let label = score.toString();
     if (leg.inRule === 'double') label += ' DI';
     if (leg.outRule === 'double') label += ' DO';
     return label;
+}
+
+function buildScorerNavigationParams(legIndex = mixedLegIndex) {
+    const params = new URLSearchParams();
+
+    if (leagueId) params.set('league_id', leagueId);
+    if (matchId) params.set('match_id', matchId);
+    if (typeof gameIndex !== 'undefined' && gameIndex !== null) params.set('game_index', String(gameIndex));
+    if (typeof gameNumber !== 'undefined' && gameNumber !== null) params.set('game_number', String(gameNumber));
+    if (fromMatch) params.set('from_match', 'true');
+    if (typeof totalGames !== 'undefined' && totalGames) params.set('total_games', String(totalGames));
+    if (homeTeamName) params.set('home_team_name', homeTeamName);
+    if (awayTeamName) params.set('away_team_name', awayTeamName);
+    if (adminPin) params.set('admin_pin', adminPin);
+    if (pickupDraftId) params.set('pickup_draft_id', pickupDraftId);
+
+    params.set('home_players', JSON.stringify(homePlayers));
+    params.set('away_players', JSON.stringify(awayPlayers));
+    params.set('casual', isCasual ? 'true' : 'false');
+    params.set('legs_to_win', String(LEGS_TO_WIN));
+    params.set('home_legs', String(players[0].legs || 0));
+    params.set('away_legs', String(players[1].legs || 0));
+    if (lastLegWinner !== null) params.set('last_leg_winner', lastLegWinner === 0 ? 'home' : 'away');
+    if (lastLegStarter !== null) params.set('last_leg_starter', lastLegStarter === 0 ? 'home' : 'away');
+
+    if (isMixedGame) {
+        params.set('mixed', 'true');
+        params.set('mixed_leg', String(legIndex));
+        const mixedConfig = JSON.parse(sessionStorage.getItem('mixedGameConfig') || '{}');
+        if (Array.isArray(mixedConfig.legs) && mixedConfig.legs.length) {
+            params.set('mixed_legs', JSON.stringify(mixedConfig.legs));
+        }
+    }
+
+    if (useCork) {
+        params.set('cork', 'true');
+        if (corkRule) params.set('cork_rule', corkRule);
+        if (corkOrder) params.set('cork_order', corkOrder);
+        if (corkOption) params.set('cork_option', corkOption);
+    }
+
+    return params;
 }
 
 let gameSelectorMode = 'next';
@@ -4249,18 +5245,8 @@ function applyGameSelection(type, score, inRule, outRule) {
 }
 
 function navigateToGame(type, score, inRule, outRule, legIndex) {
-    const params = new URLSearchParams();
-    params.set('home_players', JSON.stringify(homePlayers));
-    params.set('away_players', JSON.stringify(awayPlayers));
-    params.set('casual', 'true');
-    params.set('legs_to_win', LEGS_TO_WIN);
-    params.set('home_legs', players[0].legs);
-    params.set('away_legs', players[1].legs);
-
-    if (isMixedGame) {
-        params.set('mixed', 'true');
-        params.set('mixed_leg', legIndex);
-    }
+    gameSaving = true; // Suppress beforeunload warning during intentional mixed-leg navigation
+    const params = buildScorerNavigationParams(legIndex);
 
     if (type === 'cricket') {
         window.location.href = `/pages/league-cricket.html?${params.toString()}`;

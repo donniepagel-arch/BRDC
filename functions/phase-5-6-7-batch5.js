@@ -16,10 +16,6 @@ exports.createLeague = functions.https.onRequest((req, res) => {
         const endDate = new Date(startDate);
         endDate.setDate(endDate.getDate() + (weeks * 7));
 
-        // Generate admin PIN (8 digits)
-        const adminPin = String(Math.floor(10000000 + Math.random() * 90000000));
-        const directorPin = data.director_pin || adminPin; // Use provided player PIN or same as admin
-
         const league = {
             league_name: data.league_name,
             image_url: data.image_url || '',
@@ -39,10 +35,6 @@ exports.createLeague = functions.https.onRequest((req, res) => {
             director_player_id: data.director_player_id || '',
             manager_email: data.manager_email || '',
             manager_phone: data.manager_phone || '',
-
-            // PINs
-            admin_pin: adminPin,
-            director_pin: directorPin,
 
             // Match settings
             match_format: data.match_format || [],
@@ -100,9 +92,7 @@ exports.createLeague = functions.https.onRequest((req, res) => {
         res.json({
             success: true,
             league_id: leagueRef.id,
-            admin_pin: adminPin,
-            director_pin: directorPin,
-            message: 'League created successfully. Your admin PIN is: ' + adminPin
+            message: 'League created successfully.'
         });
 
     } catch (error) {

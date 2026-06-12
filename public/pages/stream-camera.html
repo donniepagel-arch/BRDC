@@ -386,6 +386,61 @@
             background: rgba(255,255,255,0.3);
         }
 
+        .score-assist-panel {
+            position: absolute;
+            left: 20px;
+            right: 20px;
+            bottom: 96px;
+            z-index: 12;
+            display: none;
+            grid-template-columns: 1fr 86px 120px;
+            gap: 10px;
+            background: rgba(0,0,0,0.82);
+            border: 2px solid rgba(253,216,53,0.45);
+            border-radius: 12px;
+            padding: 12px;
+            backdrop-filter: blur(8px);
+        }
+
+        .score-assist-panel.visible {
+            display: grid;
+        }
+
+        .score-assist-input,
+        .score-assist-select {
+            width: 100%;
+            min-height: 44px;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.24);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 18px;
+            font-weight: 800;
+            padding: 8px 10px;
+        }
+
+        .score-assist-input {
+            font-family: monospace;
+            color: var(--yellow);
+        }
+
+        .score-assist-btn {
+            border: none;
+            border-radius: 8px;
+            background: var(--yellow);
+            color: #121212;
+            font-weight: 900;
+            text-transform: uppercase;
+            cursor: pointer;
+        }
+
+        .score-assist-hint {
+            grid-column: 1 / -1;
+            color: var(--text-dim);
+            font-size: 11px;
+            line-height: 1.35;
+        }
+
         /* Loading spinner */
         .spinner {
             border: 4px solid rgba(255,255,255,0.1);
@@ -435,6 +490,16 @@
 
             .role-btn {
                 padding: 14px;
+            }
+
+            .score-assist-panel {
+                grid-template-columns: 1fr 76px;
+                bottom: 104px;
+            }
+
+            .score-assist-btn {
+                grid-column: 1 / -1;
+                min-height: 44px;
             }
         }
     </style>
@@ -520,6 +585,39 @@
                 Connecting...
             </div>
 
+            <div class="score-assist-panel" id="scoreAssistPanel">
+                <div id="x01AssistFields" style="display: contents;">
+                    <input id="scoreAssistScore" class="score-assist-input" inputmode="numeric" pattern="[0-9]*" placeholder="Score" min="0" max="180">
+                    <select id="scoreAssistDarts" class="score-assist-select">
+                        <option value="3">3 darts</option>
+                        <option value="2">2 darts</option>
+                        <option value="1">1 dart</option>
+                    </select>
+                </div>
+                <div id="cricketAssistFields" style="display: none; grid-column: 1 / -1;">
+                    <div style="display:grid; gap:8px;">
+                        <div style="display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap:8px;">
+                            <select id="cricketTarget1" class="score-assist-select"></select>
+                            <select id="cricketMult1" class="score-assist-select"></select>
+                            <input id="cricketLabel1" class="score-assist-input" placeholder="Label (optional)">
+                        </div>
+                        <div style="display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap:8px;">
+                            <select id="cricketTarget2" class="score-assist-select"></select>
+                            <select id="cricketMult2" class="score-assist-select"></select>
+                            <input id="cricketLabel2" class="score-assist-input" placeholder="Label (optional)">
+                        </div>
+                        <div style="display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap:8px;">
+                            <select id="cricketTarget3" class="score-assist-select"></select>
+                            <select id="cricketMult3" class="score-assist-select"></select>
+                            <input id="cricketLabel3" class="score-assist-input" placeholder="Label (optional)">
+                        </div>
+                    </div>
+                </div>
+                <button type="button" class="score-assist-btn" onclick="sendScoreCandidate()">Send</button>
+                <div class="score-assist-hint">Board-phone score assist. The scorer must confirm before applying.</div>
+                <a id="autoscoreLabLink" href="/pages/autoscore-lab.html" style="grid-column: 1 / -1; text-align:center; color:#91D7EB; font-size:12px; text-decoration:none; padding-top:4px;">🎯 Try Auto-Score (beta) — camera scores the darts for you</a>
+            </div>
+
             <div class="streaming-controls">
                 <button class="btn btn-switch-camera" onclick="toggleCamera()">🔄</button>
                 <button class="btn btn-primary btn-stop" onclick="stopStreaming()">STOP STREAMING</button>
@@ -535,15 +633,15 @@
 
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
-        import { getFirestore, doc, setDoc, getDoc, onSnapshot, collection, serverTimestamp, deleteDoc } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+        import { getFirestore, doc, setDoc, getDoc, onSnapshot, collection, addDoc, serverTimestamp, deleteDoc } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
 
         const firebaseConfig = {
-            apiKey: "AIzaSyDLpaN65tYFNPJQ1TjMWS_36qFeNxJ0AZ4",
+            apiKey: "AIzaSyDN1aYhoVt3OX5EafsNTVB09i8VFx7QM1U",
             authDomain: "brdc-v2.firebaseapp.com",
             projectId: "brdc-v2",
             storageBucket: "brdc-v2.firebasestorage.app",
-            messagingSenderId: "586498498498",
-            appId: "1:586498498498:web:4b76c0b5e4b94baf0e3b5f"
+            messagingSenderId: "726670872282",
+            appId: "1:726670872282:web:913d19c8cb3b24bf919fe3"
         };
 
         const app = initializeApp(firebaseConfig);
@@ -565,6 +663,24 @@
         let keepAliveInterval = null;
         let answerUnsubscribe = null;
         let iceCandidatesUnsubscribe = null;
+        const initialParams = new URLSearchParams(window.location.search);
+        let sessionGameType = 'x01';
+        const CRICKET_TARGET_OPTIONS = [
+            { value: 'MISS', label: 'Miss' },
+            { value: '20', label: '20' },
+            { value: '19', label: '19' },
+            { value: '18', label: '18' },
+            { value: '17', label: '17' },
+            { value: '16', label: '16' },
+            { value: '15', label: '15' },
+            { value: 'BULL', label: 'Bull' }
+        ];
+        const CRICKET_MULT_OPTIONS = [
+            { value: '0', label: '-' },
+            { value: '1', label: 'Single' },
+            { value: '2', label: 'Double' },
+            { value: '3', label: 'Triple' }
+        ];
 
         // Screen management
         function showScreen(screenId) {
@@ -581,6 +697,92 @@
             document.getElementById('loadingOverlay').style.display = 'none';
         }
 
+        function normalizeGameType(value) {
+            const normalized = String(value || 'x01').toLowerCase();
+            return normalized === 'cricket' ? 'cricket' : 'x01';
+        }
+
+        function populateCricketAssistFields() {
+            for (let i = 1; i <= 3; i++) {
+                const targetSelect = document.getElementById(`cricketTarget${i}`);
+                const multSelect = document.getElementById(`cricketMult${i}`);
+                if (targetSelect && !targetSelect.options.length) {
+                    targetSelect.innerHTML = CRICKET_TARGET_OPTIONS.map((option) =>
+                        `<option value="${option.value}">${option.label}</option>`
+                    ).join('');
+                }
+                if (multSelect && !multSelect.options.length) {
+                    multSelect.innerHTML = CRICKET_MULT_OPTIONS.map((option) =>
+                        `<option value="${option.value}">${option.label}</option>`
+                    ).join('');
+                }
+                targetSelect?.addEventListener('change', () => syncCricketMultiplierOptions(i));
+                syncCricketMultiplierOptions(i);
+            }
+        }
+
+        function syncCricketMultiplierOptions(index) {
+            const targetSelect = document.getElementById(`cricketTarget${index}`);
+            const multSelect = document.getElementById(`cricketMult${index}`);
+            const labelInput = document.getElementById(`cricketLabel${index}`);
+            if (!targetSelect || !multSelect || !labelInput) return;
+
+            const target = targetSelect.value;
+            const allowTriple = target !== 'BULL' && target !== 'MISS';
+            const shouldDisableMult = target === 'MISS';
+            const previousValue = multSelect.value;
+
+            multSelect.innerHTML = CRICKET_MULT_OPTIONS
+                .filter((option) => option.value !== '3' || allowTriple)
+                .map((option) => `<option value="${option.value}">${option.label}</option>`)
+                .join('');
+
+            if (shouldDisableMult) {
+                multSelect.value = '0';
+                multSelect.disabled = true;
+            } else {
+                multSelect.disabled = false;
+                multSelect.value = Array.from(multSelect.options).some((option) => option.value === previousValue)
+                    ? previousValue
+                    : '1';
+            }
+
+            if (!labelInput.value.trim()) {
+                labelInput.placeholder = target === 'MISS'
+                    ? 'MISS'
+                    : `${multSelect.options[multSelect.selectedIndex]?.text || 'Single'} ${target}`;
+            }
+        }
+
+        function buildCricketCandidateDarts() {
+            const darts = [];
+            for (let i = 1; i <= 3; i++) {
+                const target = document.getElementById(`cricketTarget${i}`)?.value || 'MISS';
+                const mult = Number(document.getElementById(`cricketMult${i}`)?.value || 0);
+                const labelInput = document.getElementById(`cricketLabel${i}`);
+
+                if (target === 'MISS' || mult <= 0) {
+                    darts.push({
+                        target: null,
+                        mult: 0,
+                        label: labelInput?.value?.trim() || 'MISS'
+                    });
+                    continue;
+                }
+
+                const fallbackLabel = target === 'BULL'
+                    ? (mult >= 2 ? 'DB' : 'SB')
+                    : `${mult === 3 ? 'T' : mult === 2 ? 'D' : 'S'}${target}`;
+
+                darts.push({
+                    target,
+                    mult,
+                    label: labelInput?.value?.trim() || fallbackLabel
+                });
+            }
+            return darts;
+        }
+
         function showError(message) {
             const errorEl = document.getElementById('joinError');
             errorEl.textContent = message;
@@ -593,6 +795,7 @@
             document.querySelectorAll('.role-btn').forEach(btn => {
                 btn.classList.toggle('active', btn.dataset.role === role);
             });
+            updateScoreAssistVisibility();
         };
 
         // Join session
@@ -621,6 +824,7 @@
                 // Update UI
                 document.getElementById('sessionBadge').textContent = sessionId;
                 document.getElementById('roleBadge').textContent = cameraRole === 'board' ? 'Board Camera' : 'Thrower Camera';
+                updateScoreAssistVisibility();
 
                 // Request camera access
                 showLoading('Requesting camera access...');
@@ -860,6 +1064,7 @@
                 // Show streaming screen
                 document.getElementById('streamingVideo').srcObject = localStream;
                 showScreen('streamingScreen');
+                updateScoreAssistVisibility();
                 hideLoading();
 
                 // Start keep-alive
@@ -916,6 +1121,82 @@
             }, 5000); // Every 5 seconds
         }
 
+        function updateScoreAssistVisibility() {
+            const panel = document.getElementById('scoreAssistPanel');
+            if (!panel) return;
+            const isVisible = cameraRole === 'board' && !!sessionId;
+            const isCricket = sessionGameType === 'cricket';
+            panel.classList.toggle('visible', isVisible);
+            document.getElementById('x01AssistFields').style.display = isVisible && !isCricket ? 'contents' : 'none';
+            document.getElementById('cricketAssistFields').style.display = isVisible && isCricket ? 'grid' : 'none';
+            const labLink = document.getElementById('autoscoreLabLink');
+            if (labLink) {
+                labLink.href = '/pages/autoscore-lab.html' + (sessionId ? ('?session=' + encodeURIComponent(sessionId)) : '');
+            }
+        }
+
+        window.sendScoreCandidate = async function() {
+            if (!sessionId || cameraRole !== 'board') return;
+            try {
+                if (sessionGameType === 'cricket') {
+                    const darts = buildCricketCandidateDarts();
+                    const realHits = darts.filter((dart) => dart.target && dart.mult > 0);
+                    if (!realHits.length) {
+                        toastWarning('Add at least one cricket dart before sending.');
+                        return;
+                    }
+
+                    await addDoc(collection(db, 'streaming_sessions', sessionId, 'autoscore_candidates'), {
+                        game: 'cricket',
+                        darts,
+                        role: cameraRole,
+                        source: 'board phone',
+                        status: 'candidate',
+                        timestamp: serverTimestamp()
+                    });
+
+                    for (let i = 1; i <= 3; i++) {
+                        const targetSelect = document.getElementById(`cricketTarget${i}`);
+                        const multSelect = document.getElementById(`cricketMult${i}`);
+                        const labelInput = document.getElementById(`cricketLabel${i}`);
+                        if (targetSelect) targetSelect.value = 'MISS';
+                        if (multSelect) multSelect.value = '0';
+                        if (labelInput) labelInput.value = '';
+                        syncCricketMultiplierOptions(i);
+                    }
+                } else {
+                    const scoreInput = document.getElementById('scoreAssistScore');
+                    const dartsInput = document.getElementById('scoreAssistDarts');
+                    const score = Number(scoreInput.value);
+                    const darts = Number(dartsInput.value || 3);
+
+                    if (!Number.isFinite(score) || score < 0 || score > 180) {
+                        toastWarning('Enter a score from 0 to 180');
+                        return;
+                    }
+                    if (![1, 2, 3].includes(darts)) {
+                        toastWarning('Choose 1, 2, or 3 darts');
+                        return;
+                    }
+
+                    await addDoc(collection(db, 'streaming_sessions', sessionId, 'autoscore_candidates'), {
+                        game: 'x01',
+                        score,
+                        darts,
+                        role: cameraRole,
+                        source: 'board phone',
+                        status: 'candidate',
+                        timestamp: serverTimestamp()
+                    });
+                    scoreInput.value = '';
+                }
+                toastSuccess('Score candidate sent');
+            } catch (error) {
+                console.error('Score candidate error:', error);
+                toastError('Could not send score candidate');
+            }
+        };
+
         // Stop streaming
         window.stopStreaming = async function() {
             // Stop keep-alive
@@ -955,6 +1236,7 @@
 
             // Return to join screen
             sessionId = null;
+            updateScoreAssistVisibility();
             showScreen('joinScreen');
             document.getElementById('sessionCode').value = '';
             document.getElementById('joinError').classList.remove('visible');
@@ -976,6 +1258,19 @@
                     toastWarning('Reconnecting...');
                     startStreaming();
                 }
+            }
+        });
+
+        window.addEventListener('DOMContentLoaded', () => {
+            const sessionParam = (initialParams.get('session') || '').trim().toUpperCase();
+            const roleParam = (initialParams.get('role') || '').trim().toLowerCase();
+            sessionGameType = normalizeGameType(initialParams.get('game'));
+            populateCricketAssistFields();
+            if (sessionParam) {
+                document.getElementById('sessionCode').value = sessionParam.slice(0, 6);
+            }
+            if (roleParam === 'board' || roleParam === 'thrower') {
+                window.selectRole(roleParam);
             }
         });
     </script>

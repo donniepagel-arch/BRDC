@@ -1,5 +1,5 @@
 /**
- * Fix team names in the 2026 Winter Triple Draft league
+ * Fix team names in the 2026 Triples League
  * Updates team names to match the schedule format (captain initials/name)
  */
 

@@ -1590,11 +1590,10 @@
     </div>
 
     <script type="module">
-        import { db, collection, query, orderBy, where, onSnapshot, doc, getDoc, getDocs, limit, startAfter, callFunction } from '/js/firebase-config.js';
+        import { db, auth, waitForAuthReady, collection, query, orderBy, where, onSnapshot, doc, getDoc, getDocs, limit, startAfter, callFunction } from '/js/firebase-config.js';
 
         // State
         let roomId = null;
-        let playerPin = null;
         let currentPlayerId = null;
         let currentPlayerName = null;
         let roomData = null;
@@ -1625,6 +1624,60 @@
         let showPinned = false;
         let emojiPickerOpen = false;
 
+        function parseStoredSession() {
+            try {
+                return JSON.parse(localStorage.getItem('brdc_session') || '{}');
+            } catch (e) {
+                return {};
+            }
+        }
+
+        async function ensureChatSession(forceRefresh = false) {
+            let session = parseStoredSession();
+            if (!forceRefresh && session.player_id) {
+                currentPlayerId = session.player_id;
+                currentPlayerName = session.player?.name || session.player_name || currentPlayerName;
+                return session;
+            }
+
+            const activeUser = auth.currentUser || await waitForAuthReady(5000);
+            if (!activeUser) {
+                return session;
+            }
+
+            try {
+                const result = await callFunction('getPlayerSession', {});
+                if (result?.success && result.player?.id) {
+                    session = {
+                        ...session,
+                        player_id: result.player.id,
+                        player: result.player,
+                        name: result.player.name,
+                        player_name: result.player.name,
+                        source_type: 'global',
+                        league_id: result.player.league_id || null,
+                        team_id: result.player.team_id || null,
+                        involvements: result.player.involvements || {}
+                    };
+                    localStorage.setItem('brdc_session', JSON.stringify(session));
+                    currentPlayerId = result.player.id;
+                    currentPlayerName = result.player.name || currentPlayerName;
+                }
+            } catch (error) {
+                console.warn('Chat room session restore failed:', error?.message || error);
+            }
+
+            return session;
+        }
+
+        function updateCurrentUserDisplay() {
+            const displayName = currentPlayerName || 'Player';
+            const nameEl = document.getElementById('currentUserName');
+            const initialsEl = document.getElementById('currentUserInitials');
+            if (nameEl) nameEl.textContent = displayName;
+            if (initialsEl) initialsEl.textContent = getInitials(displayName);
+        }
+
         // Emoji categories
         const emojis = {
             smileys: ['&#128512;', '&#128513;', '&#128514;', '&#128515;', '&#128516;', '&#128517;', '&#128518;', '&#128519;', '&#128520;', '&#128521;', '&#128522;', '&#128523;', '&#128524;', '&#128525;', '&#128526;', '&#128527;', '&#128528;', '&#128529;', '&#128530;', '&#128531;', '&#128532;', '&#128533;', '&#128534;', '&#128535;', '&#128536;', '&#128537;', '&#128538;', '&#128539;', '&#128540;', '&#128541;', '&#128542;', '&#128543;'],
@@ -1640,26 +1693,17 @@
 
         // Initialize
         window.addEventListener('DOMContentLoaded', async () => {
-            playerPin = localStorage.getItem('brdc_player_pin');
-
-            if (!playerPin) {
-                try {
-                    const savedSession = localStorage.getItem('brdc_session');
-                    if (savedSession) {
-                        const session = JSON.parse(savedSession);
-                        if (session && session.pin) {
-                            playerPin = session.pin.toUpperCase();
-                            localStorage.setItem('brdc_player_pin', playerPin);
-                        }
-                    }
-                } catch (e) {
-                    console.warn('Session fallback failed:', e);
+            const session = await ensureChatSession();
+            currentPlayerName = currentPlayerName || session.player?.name || session.player_name || 'Player';
+            updateCurrentUserDisplay();
+            if (!session?.player_id && !auth.currentUser) {
+                await waitForAuthReady(5000);
+                if (!auth.currentUser) {
+                    window.location.href = '/pages/messages.html';
+                    return;
                 }
-            }
-
-            if (!playerPin) {
-                window.location.href = '/pages/messages.html';
-                return;
+                await ensureChatSession(true);
+                updateCurrentUserDisplay();
             }
 
             // Start presence heartbeat
@@ -1742,16 +1786,13 @@
 
         async function loadAllRooms() {
             try {
-                const result = await callFunction('getPlayerChatRooms', { player_pin: playerPin });
+                const result = await callFunction('getPlayerChatRooms', {});
 
                 if (result.success) {
                     allRooms = result.rooms;
-                    currentPlayerId = result.player_id;
-                    currentPlayerName = result.player_name || 'Player';
-
-                    // Update current user display
-                    document.getElementById('currentUserName').textContent = currentPlayerName;
-                    document.getElementById('currentUserInitials').textContent = getInitials(currentPlayerName);
+                    currentPlayerId = result.player_id || currentPlayerId;
+                    currentPlayerName = result.player_name || currentPlayerName || 'Player';
+                    updateCurrentUserDisplay();
 
                     renderChannelList();
                     setupRoomListener();
@@ -1886,7 +1927,6 @@
             try {
                 const result = await callFunction('getChatRoomMessages', {
                     room_id: roomId,
-                    player_pin: playerPin,
                     limit: 50
                 });
 
@@ -2007,8 +2047,7 @@
                 if (markReadTimeout) clearTimeout(markReadTimeout);
                 markReadTimeout = setTimeout(() => {
                     callFunction('markChatRoomRead', {
-                        room_id: roomId,
-                        player_pin: playerPin
+                        room_id: roomId
                     }).catch(console.error);
                 }, 1000);
             });
@@ -2149,8 +2188,7 @@
         async function loadParticipants() {
             try {
                 const result = await callFunction('getChatRoomParticipants', {
-                    room_id: roomId,
-                    player_pin: playerPin
+                    room_id: roomId
                 });
 
                 if (result.success) {
@@ -2340,7 +2378,6 @@
             try {
                 const payload = {
                     room_id: roomId,
-                    sender_pin: playerPin,
                     text: text
                 };
 
@@ -2396,7 +2433,6 @@
             try {
                 await callFunction('setTypingStatus', {
                     room_id: roomId,
-                    player_pin: playerPin,
                     is_typing: isTyping
                 });
             } catch (error) {
@@ -2625,7 +2661,6 @@
                 await callFunction('addMessageReaction', {
                     room_id: roomId,
                     message_id: messageId,
-                    player_pin: playerPin,
                     emoji: emoji
                 });
             } catch (error) {
@@ -2638,7 +2673,6 @@
                 await callFunction('addMessageReaction', {
                     room_id: roomId,
                     message_id: messageId,
-                    player_pin: playerPin,
                     emoji: emoji
                 });
             } catch (error) {
@@ -2706,7 +2740,6 @@
                 const result = await callFunction('editChatMessage', {
                     room_id: roomId,
                     message_id: editingMessageId,
-                    player_pin: playerPin,
                     new_text: newText
                 });
 
@@ -2723,8 +2756,7 @@
             try {
                 await callFunction('deleteChatMessage', {
                     room_id: roomId,
-                    message_id: messageId,
-                    player_pin: playerPin
+                    message_id: messageId
                 });
             } catch (error) {
                 console.error('Error deleting message:', error);
@@ -2757,7 +2789,6 @@
             try {
                 const result = await callFunction('toggleChatRoomMute', {
                     room_id: roomId,
-                    player_pin: playerPin,
                     muted: !isMuted
                 });
 
@@ -2775,8 +2806,7 @@
         async function loadPinnedMessages() {
             try {
                 const result = await callFunction('getPinnedMessages', {
-                    room_id: roomId,
-                    player_pin: playerPin
+                    room_id: roomId
                 });
 
                 if (result.success && result.pinned_messages.length > 0) {

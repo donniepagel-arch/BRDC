@@ -28,6 +28,78 @@ function authPlayerReferencesLeague(authPlayer, leagueId) {
     return [...directing, ...leagues].some(ref => ref && (ref.id === leagueId || ref.league_id === leagueId));
 }
 
+function normalizeText(value) {
+    return String(value || '')
+        .trim()
+        .replace(/\s+/g, ' ')
+        .toLowerCase();
+}
+
+function normalizeNotificationPreference(notificationPreference, smsOptIn) {
+    const preference = String(notificationPreference || '').trim().toLowerCase();
+    if (['sms', 'email', 'both'].includes(preference)) return preference;
+    return smsOptIn === false ? 'email' : 'both';
+}
+
+function formatX01Average(stats = {}) {
+    if (stats.x01_three_dart_avg > 0) return Number(stats.x01_three_dart_avg).toFixed(1);
+    if (stats.avg_3da > 0) return Number(stats.avg_3da).toFixed(1);
+    if (stats.x01_total_darts > 0) return ((stats.x01_total_points / stats.x01_total_darts) * 3).toFixed(1);
+    if (stats.x01?.three_dart_avg > 0) return Number(stats.x01.three_dart_avg).toFixed(1);
+    if (stats.x01?.total_darts > 0) return ((stats.x01.total_points / stats.x01.total_darts) * 3).toFixed(1);
+    return '-';
+}
+
+function formatCricketMpr(stats = {}) {
+    if (stats.cricket_mpr > 0) return Number(stats.cricket_mpr).toFixed(2);
+    if (stats.mpr > 0) return Number(stats.mpr).toFixed(2);
+    if (stats.cricket_total_rounds > 0) return (stats.cricket_total_marks / stats.cricket_total_rounds).toFixed(2);
+    if (stats.cricket_total_darts > 0) return ((stats.cricket_total_marks / stats.cricket_total_darts) * 3).toFixed(2);
+    if (stats.cricket?.mpr > 0) return Number(stats.cricket.mpr).toFixed(2);
+    if (stats.cricket?.total_rounds > 0) return (stats.cricket.total_marks / stats.cricket.total_rounds).toFixed(2);
+    if (stats.cricket?.total_darts > 0) return ((stats.cricket.total_marks / stats.cricket.total_darts) * 3).toFixed(2);
+    return '-';
+}
+
+async function resolveTournamentRegistrant({ full_name, email, member_pin }) {
+    if (member_pin) {
+        const pinSnap = await admin.firestore()
+            .collection('players')
+            .where('pin', '==', member_pin)
+            .limit(1)
+            .get();
+        if (!pinSnap.empty) {
+            return { id: pinSnap.docs[0].id, ...pinSnap.docs[0].data() };
+        }
+    }
+
+    const emailNorm = normalizeText(email);
+    if (emailNorm) {
+        const emailSnap = await admin.firestore()
+            .collection('players')
+            .where('email', '==', emailNorm)
+            .limit(1)
+            .get();
+        if (!emailSnap.empty) {
+            return { id: emailSnap.docs[0].id, ...emailSnap.docs[0].data() };
+        }
+    }
+
+    const nameNorm = normalizeText(full_name);
+    if (nameNorm) {
+        const nameSnap = await admin.firestore()
+            .collection('players')
+            .where('name', '==', full_name)
+            .limit(2)
+            .get();
+        if (nameSnap.size === 1) {
+            return { id: nameSnap.docs[0].id, ...nameSnap.docs[0].data() };
+        }
+    }
+
+    return null;
+}
+
 async function hasLeagueDirectorOrAdminAccess(req, leagueId, league, providedPin) {
     if (providedPin && (providedPin === league.admin_pin || providedPin === league.director_pin)) {
         return true;
@@ -164,20 +236,14 @@ async function generateUniquePin() {
     while (attempts < maxAttempts) {
         pin = Math.floor(10000000 + Math.random() * 90000000).toString();
 
-        // Check if PIN exists in any player collection
-        const existingPlayer = await admin.firestore()
-            .collectionGroup('players')
-            .where('pin', '==', pin)
-            .limit(1)
-            .get();
+        // Keep this index-free. Collection-group PIN queries require composite
+        // indexes that are not guaranteed in every deployed project.
+        const [existingRootPlayer, existingGlobalPlayer] = await Promise.all([
+            admin.firestore().collection('players').where('pin', '==', pin).limit(1).get(),
+            admin.firestore().collection('global_players').where('pin', '==', pin).limit(1).get()
+        ]);
 
-        const existingReg = await admin.firestore()
-            .collectionGroup('registrations')
-            .where('pin', '==', pin)
-            .limit(1)
-            .get();
-
-        if (existingPlayer.empty && existingReg.empty) {
+        if (existingRootPlayer.empty && existingGlobalPlayer.empty) {
             return pin;
         }
         attempts++;
@@ -405,9 +471,9 @@ exports.registerTeam = functions.https.onRequest(async (req, res) => {
                 const e164Phone = formattedPhone.startsWith('1') ? `+${formattedPhone}` : `+1${formattedPhone}`;
                 let msg;
                 if (reg.is_captain) {
-                    msg = `BRDC: You're registered as captain of "${team_name}" for ${leagueName}! Your PIN: ${reg.pin || 'check your email'}. Login at brdc-v2.web.app`;
+                    msg = `BRDC: You're registered as captain of "${team_name}" for ${leagueName}! Login at burningriverdarts.com`;
                 } else if (reg.needs_registration) {
-                    msg = `BRDC: You've been added to team "${team_name}" for ${leagueName}. Your PIN: ${reg.pin}. Login at brdc-v2.web.app`;
+                    msg = `BRDC: You've been added to team "${team_name}" for ${leagueName}. Login at burningriverdarts.com`;
                 } else {
                     msg = `BRDC: You've been added to team "${team_name}" for ${leagueName}. Login at brdc-v2.web.app`;
                 }
@@ -547,7 +613,7 @@ exports.registerFreeAgent = functions.https.onRequest(async (req, res) => {
             try {
                 const formattedPhone = phone.replace(/\D/g, '');
                 const e164Phone = formattedPhone.startsWith('1') ? `+${formattedPhone}` : `+1${formattedPhone}`;
-                const msg = `BRDC: You're registered as a free agent for ${leagueName}. Teams can now invite you! Your PIN: ${playerPin || 'check your account'}. Login at brdc-v2.web.app`;
+                const msg = `BRDC: You're registered as a free agent for ${leagueName}. Teams can now invite you! Login at burningriverdarts.com`;
 
                 try {
                     const smsResult = await sendManagedSms(e164Phone, msg);
@@ -1221,11 +1287,19 @@ exports.registerFillin = functions.https.onRequest(async (req, res) => {
             return res.status(400).json({ success: false, error: 'League has ended' });
         }
 
+        const normalizedEmail = String(email || '').trim().toLowerCase();
+        const normalizedName = String(full_name || '').trim();
+        const normalizedPhone = String(phone || '').trim();
+
+        if (!normalizedName || !normalizedEmail || !normalizedPhone) {
+            return res.status(400).json({ success: false, error: 'Name, email, and phone are required' });
+        }
+
         // Check if already signed up as fill-in
         const existingFillin = await admin.firestore()
             .collection('leagues').doc(league_id)
             .collection('fillins')
-            .where('email', '==', email)
+            .where('email', '==', normalizedEmail)
             .get();
 
         if (!existingFillin.empty) {
@@ -1250,7 +1324,7 @@ exports.registerFillin = functions.https.onRequest(async (req, res) => {
         if (!existingMember) {
             // Check by email
             const memberByEmail = await admin.firestore().collection('players')
-                .where('email', '==', email).get();
+                .where('email', '==', normalizedEmail).get();
             if (!memberByEmail.empty) {
                 existingMember = { id: memberByEmail.docs[0].id, ...memberByEmail.docs[0].data() };
                 playerPin = existingMember.pin;
@@ -1263,34 +1337,43 @@ exports.registerFillin = functions.https.onRequest(async (req, res) => {
             isNewMember = true;
 
             const memberData = {
-                name: full_name,
-                email: email,
-                phone: phone || '',
+                name: normalizedName,
+                email: normalizedEmail,
+                phone: normalizedPhone,
                 pin: playerPin,
                 preferred_level: preferred_level || null,
                 avg_501: avg_501 || null,
                 avg_cricket: avg_cricket || null,
-                sms_opt_in: true, // Default to true for subs
+                sms_opt_in: sms_opt_in !== false,
                 created_at: admin.firestore.FieldValue.serverTimestamp(),
                 source: 'sub_signup'
             };
 
-            await admin.firestore().collection('players').add(memberData);
+            const memberRef = await admin.firestore().collection('players').add(memberData);
+            existingMember = { id: memberRef.id, ...memberData };
         } else if (!existingMember) {
             // Generate PIN even if not creating full member record
             playerPin = await generateUniquePin();
         }
 
+        const leaguePlayerRef = existingMember?.id
+            ? admin.firestore().collection('leagues').doc(league_id).collection('players').doc(existingMember.id)
+            : admin.firestore().collection('leagues').doc(league_id).collection('players').doc();
+        const leaguePlayerId = leaguePlayerRef.id;
+
         // Create fill-in registration
         const fillinData = {
-            full_name,
-            name: full_name,
-            email,
-            phone: phone || '',
+            player_id: leaguePlayerId,
+            global_player_id: existingMember?.id || null,
+            full_name: normalizedName,
+            name: normalizedName,
+            email: normalizedEmail,
+            phone: normalizedPhone,
             preferred_level: preferred_level || null,
+            level: preferred_level || null,
             avg_501: avg_501 || null,
             avg_cricket: avg_cricket || null,
-            sms_opt_in: true, // Always opt in for subs
+            sms_opt_in: sms_opt_in !== false,
             pin: playerPin,
             status: 'available',
             times_filled_in: 0,
@@ -1303,10 +1386,42 @@ exports.registerFillin = functions.https.onRequest(async (req, res) => {
             .collection('fillins')
             .add(fillinData);
 
+        await leaguePlayerRef.set({
+            id: leaguePlayerId,
+            player_id: leaguePlayerId,
+            global_player_id: existingMember?.id || null,
+            fillin_id: fillinRef.id,
+            name: normalizedName,
+            full_name: normalizedName,
+            email: normalizedEmail,
+            phone: normalizedPhone,
+            pin: playerPin || null,
+            preferred_level: preferred_level || null,
+            level: preferred_level || null,
+            avg_501: avg_501 || null,
+            avg_cricket: avg_cricket || null,
+            photo_url: photo_url || null,
+            team_id: 'fill_in',
+            is_sub: true,
+            is_fill_in: true,
+            status: 'available',
+            sms_opt_in: sms_opt_in !== false,
+            source: 'fillin_signup',
+            created_at: admin.firestore.FieldValue.serverTimestamp(),
+            updated_at: admin.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+
+        await fillinRef.set({
+            player_id: leaguePlayerId,
+            league_player_id: leaguePlayerId,
+            global_player_id: existingMember?.id || null,
+            updated_at: admin.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+
         // Send welcome SMS if requested and this is a new signup
-        if (send_welcome_sms && phone) {
+        if (send_welcome_sms && normalizedPhone) {
             try {
-                const formattedPhone = phone.replace(/\D/g, '');
+                const formattedPhone = normalizedPhone.replace(/\D/g, '');
                 const e164Phone = formattedPhone.startsWith('1') ? `+${formattedPhone}` : `+1${formattedPhone}`;
 
                 await sendManagedSms(
@@ -1322,6 +1437,7 @@ exports.registerFillin = functions.https.onRequest(async (req, res) => {
         res.json({
             success: true,
             fillin_id: fillinRef.id,
+            player_id: leaguePlayerId,
             player_pin: isNewMember ? playerPin : (existingMember ? null : playerPin), // Only return PIN for new members
             is_new_member: isNewMember,
             message: 'Fill-in signup successful'
@@ -1664,19 +1780,60 @@ exports.registerForTournament = functions.https.onRequest(async (req, res) => {
     if (req.method === 'OPTIONS') return res.status(204).send('');
 
     try {
-        const { tournament_id, full_name, email, phone, event_ids, sms_opt_in, payment_method, total_amount, member_pin } = req.body;
+        const { tournament_id, full_name, email, phone, event_ids, sms_opt_in, notification_preference, payment_method, total_amount, member_pin, registration_vote } = req.body;
+
+        if (!tournament_id) {
+            return res.status(400).json({ success: false, error: 'Tournament not found' });
+        }
+
+        if (!full_name || !email || !phone) {
+            return res.status(400).json({ success: false, error: 'full_name, email, and phone are required' });
+        }
+
+        const normalizedEmail = normalizeText(email);
+        const normalizedPhone = String(phone || '').trim();
+        const notificationPreference = normalizeNotificationPreference(notification_preference, sms_opt_in);
+        const smsOptIn = notificationPreference === 'sms' || notificationPreference === 'both';
+        const emailOptIn = notificationPreference === 'email' || notificationPreference === 'both';
+        const selectedEventIds = [...new Set((Array.isArray(event_ids) ? event_ids : []).filter(Boolean))];
+        if (selectedEventIds.length === 0) {
+            return res.status(400).json({ success: false, error: 'Please select at least one event' });
+        }
+
+        const existingPlayer = await resolveTournamentRegistrant({ full_name, email, member_pin });
 
         // Check if tournament exists
-        const tournamentDoc = await admin.firestore().collection('tournaments').doc(tournament_id).get();
+        const tournamentRef = admin.firestore().collection('tournaments').doc(tournament_id);
+        const tournamentDoc = await tournamentRef.get();
         if (!tournamentDoc.exists) {
             return res.status(404).json({ success: false, error: 'Tournament not found' });
         }
 
         const tournament = tournamentDoc.data();
-
-        if (!event_ids || event_ids.length === 0) {
-            return res.status(400).json({ success: false, error: 'Please select at least one event' });
+        const normalizeVoteOptionId = (value) => String(value || '')
+            .trim()
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '_')
+            .replace(/^_+|_+$/g, '')
+            .slice(0, 64);
+        const registrationVote = registration_vote && registration_vote.option_id
+            ? {
+                question: String(registration_vote.question || tournament.registration_vote_question || 'What should we play this week?').trim(),
+                option_id: normalizeVoteOptionId(registration_vote.option_id),
+                label: String(registration_vote.label || registration_vote.option_id).trim(),
+                suggestion: String(registration_vote.suggestion || '').trim().slice(0, 500)
+            }
+            : null;
+        if (tournament.registration_voting_enabled === true
+            && tournament.registration_vote_required !== false
+            && tournament.registration_vote_locked !== true
+            && !registrationVote) {
+            return res.status(400).json({ success: false, error: 'Please choose your event vote before registering' });
         }
+        const venueLabel = `${tournament.venue_name || tournament.venue || ''}`;
+        const isOnlineTournament = tournament.is_online === true
+            || /online|virtual|remote/i.test(venueLabel)
+            || tournament.allow_remote_play === true;
 
         // Generate PIN for new players
         let playerPin = member_pin || await generateUniquePin();
@@ -1693,53 +1850,124 @@ exports.registerForTournament = functions.https.onRequest(async (req, res) => {
         const registrationData = {
             full_name,
             name: full_name,
-            email,
-            phone: phone || '',
-            sms_opt_in: sms_opt_in || false,
+            email: normalizedEmail,
+            phone: normalizedPhone,
+            notification_preference: notificationPreference,
+            sms_opt_in: smsOptIn,
+            email_opt_in: emailOptIn,
             pin: playerPin,
-            event_ids: event_ids,
+            player_id: existingPlayer?.id || null,
+            event_ids: selectedEventIds,
             payment_method: payment_method || 'event',
             payment_status: paymentStatus,
             total_amount: total_amount || 0,
+            ...(registrationVote ? { registration_vote: registrationVote } : {}),
             status: 'active',
+            checked_in: isOnlineTournament,
             created_at: admin.firestore.FieldValue.serverTimestamp()
         };
 
         // Add to tournament registrations
-        const regRef = await admin.firestore()
-            .collection('tournaments').doc(tournament_id)
+        const regRef = await tournamentRef
             .collection('registrations')
             .add(registrationData);
 
-        // Also add to each event's registrations subcollection
+        // Also add to each event's registrations subcollection and sync tournament player records.
         const batch = admin.firestore().batch();
-        for (const eventId of event_ids) {
-            const eventRegRef = admin.firestore()
-                .collection('tournaments').doc(tournament_id)
+        for (const eventId of selectedEventIds) {
+            const eventRegRef = tournamentRef
                 .collection('events').doc(eventId)
                 .collection('registrations').doc(regRef.id);
 
             batch.set(eventRegRef, {
                 registration_id: regRef.id,
                 full_name,
-                email,
+                email: normalizedEmail,
+                phone: normalizedPhone,
+                notification_preference: notificationPreference,
+                sms_opt_in: smsOptIn,
+                email_opt_in: emailOptIn,
                 pin: playerPin,
+                player_id: existingPlayer?.id || null,
                 payment_status: paymentStatus,
+                ...(registrationVote ? { registration_vote: registrationVote } : {}),
+                checked_in: isOnlineTournament,
                 created_at: admin.firestore.FieldValue.serverTimestamp()
             });
         }
+
+        if (existingPlayer?.id) {
+            const tournamentPlayerData = {
+                player_id: existingPlayer.id,
+                id: existingPlayer.id,
+                name: existingPlayer.name || full_name,
+                email: normalizedEmail,
+                phone: normalizedPhone,
+                notification_preference: notificationPreference,
+                sms_opt_in: smsOptIn,
+                email_opt_in: emailOptIn,
+                firebase_uid: existingPlayer.firebase_uid || null,
+                checkedIn: isOnlineTournament,
+                checked_in: isOnlineTournament,
+                registration_id: regRef.id,
+                event_ids: selectedEventIds,
+                status: 'active',
+                registered_at: admin.firestore.FieldValue.serverTimestamp(),
+                updated_at: admin.firestore.FieldValue.serverTimestamp()
+            };
+
+            batch.set(
+                tournamentRef.collection('players').doc(existingPlayer.id),
+                tournamentPlayerData,
+                { merge: true }
+            );
+
+            batch.set(tournamentRef, {
+                players: {
+                    [existingPlayer.id]: {
+                        id: existingPlayer.id,
+                        player_id: existingPlayer.id,
+                        name: existingPlayer.name || full_name,
+                        email: normalizedEmail,
+                        phone: normalizedPhone,
+                        notification_preference: notificationPreference,
+                        sms_opt_in: smsOptIn,
+                        email_opt_in: emailOptIn,
+                        firebase_uid: existingPlayer.firebase_uid || null,
+                        checkedIn: isOnlineTournament,
+                        checked_in: isOnlineTournament,
+                        registration_id: regRef.id,
+                        event_ids: selectedEventIds,
+                        status: 'active'
+                    }
+                }
+            }, { merge: true });
+        }
+
+        batch.set(tournamentRef, {
+            registered_count: admin.firestore.FieldValue.increment(1),
+            ...(registrationVote?.option_id ? { [`registration_vote_counts.${registrationVote.option_id}`]: admin.firestore.FieldValue.increment(1) } : {}),
+            updated_at: admin.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+
+        for (const eventId of selectedEventIds) {
+            batch.set(
+                tournamentRef.collection('events').doc(eventId),
+                {
+                    registered_count: admin.firestore.FieldValue.increment(1),
+                    updated_at: admin.firestore.FieldValue.serverTimestamp()
+                },
+                { merge: true }
+            );
+        }
+
         await batch.commit();
+
         // Send confirmation email/SMS
         try {
-            // Get event names for the confirmation
-            const eventNames = [];
-            if (tournament.events && Array.isArray(tournament.events)) {
-                for (const eid of event_ids) {
-                    const evt = tournament.events.find(e => e.id === eid);
-                    if (evt) eventNames.push(evt.name || evt.event_name || "Event");
-                }
-            }
-            if (eventNames.length === 0) eventNames.push(`${event_ids.length} events`);
+            const eventNames = selectedEventIds.length === 1
+                ? ['1 event']
+                : [`${selectedEventIds.length} events`];
             await sendTournamentRegistrationConfirmation(registrationData, tournament, eventNames);
         } catch (notifyErr) {
             console.error("Notification error:", notifyErr);
@@ -1749,8 +1977,10 @@ exports.registerForTournament = functions.https.onRequest(async (req, res) => {
             success: true,
             registration_id: regRef.id,
             player_pin: playerPin,
-            events_registered: event_ids.length,
+            events_registered: selectedEventIds.length,
             payment_status: paymentStatus,
+            checked_in: isOnlineTournament,
+            player_id: existingPlayer?.id || null,
             message: 'Registration successful'
         });
 
@@ -2500,7 +2730,7 @@ exports.sendCustomLeagueMessage = functions.https.onRequest(async (req, res) => 
                 .replace(/\[first_name\]/gi, firstName)
                 .replace(/\[last_name\]/gi, lastName)
                 .replace(/\[full_name\]/gi, fullName)
-                .replace(/\[pin\]/gi, player.pin || 'N/A')
+                .replace(/\[pin\]/gi, '')
                 .replace(/\[team_name\]/gi, teamName)
                 .replace(/\[dashboard_link\]/gi, dashboardUrl)
                 .replace(/\[league_name\]/gi, league.league_name || 'League')
@@ -2704,12 +2934,8 @@ exports.getTeamScheduleEnhanced = functions.https.onRequest(async (req, res) => 
 
             return playerIds.map((pid, idx) => {
                 const stats = statsMap[pid] || {};
-                const x01Avg = stats.x01_total_darts > 0
-                    ? (stats.x01_total_points / stats.x01_total_darts * 3).toFixed(1)
-                    : '-';
-                const mpr = stats.cricket_total_rounds > 0
-                    ? (stats.cricket_total_marks / stats.cricket_total_rounds).toFixed(2)
-                    : '-';
+                const x01Avg = formatX01Average(stats);
+                const mpr = formatCricketMpr(stats);
 
                 return {
                     id: pid,
@@ -2845,10 +3071,37 @@ exports.updatePlayerAvailability = functions.https.onRequest(async (req, res) =>
             return res.status(400).json({ success: false, error: 'All fields required' });
         }
 
+        if (!['available', 'unavailable'].includes(status)) {
+            return res.status(400).json({ success: false, error: 'Invalid availability status' });
+        }
+
         const db = admin.firestore();
 
-        // Update match with player availability
         const matchRef = db.collection('leagues').doc(league_id).collection('matches').doc(match_id);
+        const matchDoc = await matchRef.get();
+        if (!matchDoc.exists) {
+            return res.status(404).json({ success: false, error: 'Match not found' });
+        }
+        const matchData = matchDoc.data();
+
+        const leaguePlayerDoc = await db.collection('leagues').doc(league_id)
+            .collection('players').doc(player_id).get();
+        const rootPlayerDoc = leaguePlayerDoc.exists
+            ? null
+            : await db.collection('players').doc(player_id).get();
+        const globalPlayerDoc = leaguePlayerDoc.exists || (rootPlayerDoc && rootPlayerDoc.exists)
+            ? null
+            : await db.collection('global_players').doc(player_id).get();
+        const playerData = leaguePlayerDoc.exists
+            ? leaguePlayerDoc.data()
+            : (rootPlayerDoc && rootPlayerDoc.exists)
+                ? rootPlayerDoc.data()
+                : (globalPlayerDoc && globalPlayerDoc.exists)
+                    ? globalPlayerDoc.data()
+                    : {};
+        const playerName = playerData.name || playerData.full_name || 'A player';
+
+        // Update match with player availability
         await matchRef.update({
             [`player_availability.${player_id}`]: status,
             updated_at: admin.firestore.FieldValue.serverTimestamp()
@@ -2856,22 +3109,28 @@ exports.updatePlayerAvailability = functions.https.onRequest(async (req, res) =>
 
         // If player is unavailable, notify captain
         if (status === 'unavailable') {
-            // Get player info
-            const playerDoc = await db.collection('global_players').doc(player_id).get();
-            const playerName = playerDoc.exists ? playerDoc.data().name : 'A player';
-
-            // Get match info to find the team
-            const matchDoc = await matchRef.get();
-            const matchData = matchDoc.data();
-
             // Find which team this player is on
-            let teamId = null;
-            const homeTeamSnap = await db.collection('leagues').doc(league_id).collection('teams').doc(matchData.home_team_id).get();
-            const homeTeam = homeTeamSnap.data();
-            if (homeTeam && homeTeam.player_ids && homeTeam.player_ids.includes(player_id)) {
-                teamId = matchData.home_team_id;
-            } else {
-                teamId = matchData.away_team_id;
+            let teamId = playerData.team_id || null;
+            if (!teamId || ![matchData.home_team_id, matchData.away_team_id].includes(teamId)) {
+                const homeTeamSnap = await db.collection('leagues').doc(league_id).collection('teams').doc(matchData.home_team_id).get();
+                const awayTeamSnap = await db.collection('leagues').doc(league_id).collection('teams').doc(matchData.away_team_id).get();
+                const homeTeam = homeTeamSnap.data() || {};
+                const awayTeam = awayTeamSnap.data() || {};
+                const nameKeys = [playerData.name, playerData.full_name].filter(Boolean).map((name) => String(name).toLowerCase());
+                const homeNames = [
+                    ...(homeTeam.player_names || []),
+                    ...(homeTeam.players || []).map((p) => p.name || p.full_name)
+                ].filter(Boolean).map((name) => String(name).toLowerCase());
+                const awayNames = [
+                    ...(awayTeam.player_names || []),
+                    ...(awayTeam.players || []).map((p) => p.name || p.full_name)
+                ].filter(Boolean).map((name) => String(name).toLowerCase());
+
+                if ((homeTeam.player_ids || []).includes(player_id) || nameKeys.some((name) => homeNames.includes(name))) {
+                    teamId = matchData.home_team_id;
+                } else if ((awayTeam.player_ids || []).includes(player_id) || nameKeys.some((name) => awayNames.includes(name))) {
+                    teamId = matchData.away_team_id;
+                }
             }
 
             // Get captain
@@ -2881,16 +3140,25 @@ exports.updatePlayerAvailability = functions.https.onRequest(async (req, res) =>
                 const captainId = team?.captain_id;
 
                 if (captainId) {
-                    // Get captain's phone
-                    const captainSnap = await db.collection('leagues').doc(league_id).collection('registrations')
-                        .where('player_id', '==', captainId).limit(1).get();
-
                     let captainPhone = null;
                     let captainName = 'Captain';
-                    if (!captainSnap.empty) {
-                        const captainData = captainSnap.docs[0].data();
+                    const captainPlayerDoc = await db.collection('leagues').doc(league_id)
+                        .collection('players').doc(captainId).get();
+                    if (captainPlayerDoc.exists) {
+                        const captainData = captainPlayerDoc.data();
                         captainPhone = captainData.phone;
-                        captainName = captainData.name || captainData.full_name;
+                        captainName = captainData.name || captainData.full_name || captainName;
+                    }
+
+                    if (!captainPhone) {
+                        const captainSnap = await db.collection('leagues').doc(league_id).collection('registrations')
+                            .where('player_id', '==', captainId).limit(1).get();
+
+                        if (!captainSnap.empty) {
+                            const captainData = captainSnap.docs[0].data();
+                            captainPhone = captainData.phone;
+                            captainName = captainData.name || captainData.full_name || captainName;
+                        }
                     }
 
                     // Send SMS notification to captain
@@ -3033,20 +3301,8 @@ exports.getCaptainTeamData = functions.https.onRequest(async (req, res) => {
         // Helper to calculate stats from stats collection or embedded data
         const getPlayerStats = (playerId, embeddedStats) => {
             const stats = rosterStatsMap[playerId] || embeddedStats || {};
-            let x01Avg = '-';
-            let mpr = '-';
-
-            if (stats.x01_total_darts > 0) {
-                x01Avg = ((stats.x01_total_points / stats.x01_total_darts) * 3).toFixed(1);
-            } else if (stats.x01?.total_darts > 0) {
-                x01Avg = ((stats.x01.total_points / stats.x01.total_darts) * 3).toFixed(1);
-            }
-
-            if (stats.cricket_total_rounds > 0) {
-                mpr = (stats.cricket_total_marks / stats.cricket_total_rounds).toFixed(2);
-            } else if (stats.cricket?.total_rounds > 0) {
-                mpr = (stats.cricket.total_marks / stats.cricket.total_rounds).toFixed(2);
-            }
+            const x01Avg = formatX01Average(stats);
+            const mpr = formatCricketMpr(stats);
 
             return {
                 x01_three_dart_avg: x01Avg,
@@ -3200,21 +3456,8 @@ exports.getCaptainTeamData = functions.https.onRequest(async (req, res) => {
             if (tid) {
                 if (!playersByTeam[tid]) playersByTeam[tid] = [];
 
-                // Calculate X01 average
-                let x01Avg = '-';
-                if (playerStats.x01_total_darts > 0) {
-                    x01Avg = ((playerStats.x01_total_points / playerStats.x01_total_darts) * 3).toFixed(1);
-                } else if (playerStats.x01?.total_darts > 0) {
-                    x01Avg = ((playerStats.x01.total_points / playerStats.x01.total_darts) * 3).toFixed(1);
-                }
-
-                // Calculate MPR
-                let mpr = '-';
-                if (playerStats.cricket_total_rounds > 0) {
-                    mpr = (playerStats.cricket_total_marks / playerStats.cricket_total_rounds).toFixed(2);
-                } else if (playerStats.cricket?.total_rounds > 0) {
-                    mpr = (playerStats.cricket.total_marks / playerStats.cricket.total_rounds).toFixed(2);
-                }
+                const x01Avg = formatX01Average(playerStats);
+                const mpr = formatCricketMpr(playerStats);
 
                 playersByTeam[tid].push({
                     id: playerId,

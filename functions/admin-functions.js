@@ -6,7 +6,7 @@
 const functions = require('firebase-functions/v1');
 const admin = require('firebase-admin');
 const { verifyFirebaseAuth } = require('./src/firebase-auth-helper');
-const { sendManagedSms } = require('./src/messaging-config');
+// sendManagedSms import removed — PIN SMS functions retired
 
 /**
  * Clear all data except bots
@@ -254,7 +254,6 @@ exports.adminGetPlayers = functions.https.onRequest(async (req, res) => {
                 name: data.name || `${data.first_name || ''} ${data.last_name || ''}`.trim(),
                 email: data.email,
                 phone: data.phone,
-                pin: data.pin,
                 games_played: data.games_played || 0,
                 created_at: data.created_at,
                 is_bot: data.isBot === true,
@@ -311,7 +310,6 @@ exports.adminUpdatePlayer = functions.https.onRequest(async (req, res) => {
         if (updates.name) updateData.name = updates.name.trim();
         if (updates.email !== undefined) updateData.email = updates.email.trim();
         if (updates.phone !== undefined) updateData.phone = updates.phone.trim();
-        if (updates.player_pin) updateData.pin = updates.player_pin.trim();
 
         // Role fields
         if (updates.is_master_admin !== undefined) updateData.is_master_admin = updates.is_master_admin;
@@ -377,127 +375,7 @@ exports.adminDeletePlayer = functions.https.onRequest(async (req, res) => {
     }
 });
 
-/**
- * Fix a player's PIN to be phone-based and notify them via SMS
- */
-exports.adminFixPlayerPin = functions.https.onRequest(async (req, res) => {
-    res.set('Access-Control-Allow-Origin', '*');
-    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-
-    if (req.method === 'OPTIONS') return res.status(204).send('');
-
-    try {
-        const { player_name, send_sms } = req.body;
-
-        const authPlayer = await verifyFirebaseAuth(req);
-        if (!authPlayer) {
-            return res.status(401).json({ success: false, error: 'Unauthorized' });
-        }
-        if (!authPlayer.is_admin && !authPlayer.is_master_admin) {
-            return res.status(403).json({ success: false, error: 'Admin access required' });
-        }
-
-        if (!player_name) {
-            return res.status(400).json({ success: false, error: 'player_name required' });
-        }
-
-        const db = admin.firestore();
-
-        // Find player by name (case-insensitive search)
-        const playersSnap = await db.collection('players').get();
-        let playerDoc = null;
-        let playerData = null;
-
-        for (const doc of playersSnap.docs) {
-            const data = doc.data();
-            const fullName = data.name || `${data.first_name || ''} ${data.last_name || ''}`.trim();
-            if (fullName.toLowerCase().includes(player_name.toLowerCase())) {
-                playerDoc = doc;
-                playerData = data;
-                break;
-            }
-        }
-
-        if (!playerDoc) {
-            return res.status(404).json({ success: false, error: 'Player not found' });
-        }
-
-        // Get phone number
-        const phone = playerData.phone;
-        if (!phone) {
-            return res.status(400).json({ success: false, error: 'Player has no phone number' });
-        }
-
-        // Generate new PIN: last 4 of phone + 4 random digits
-        const cleanPhone = phone.replace(/\D/g, '');
-        const phoneLast4 = cleanPhone.slice(-4);
-        const randomPart = String(Math.floor(1000 + Math.random() * 9000));
-        const newPin = phoneLast4 + randomPart;
-
-        // Check PIN is unique
-        const existingPlayer = await db.collection('players').where('pin', '==', newPin).limit(1).get();
-        const existingBot = await db.collection('bots').where('pin', '==', newPin).limit(1).get();
-
-        if (!existingPlayer.empty || !existingBot.empty) {
-            // Try again with different random
-            const randomPart2 = String(Math.floor(1000 + Math.random() * 9000));
-            const newPin2 = phoneLast4 + randomPart2;
-            await playerDoc.ref.update({ pin: newPin2, pin_updated_at: admin.firestore.FieldValue.serverTimestamp() });
-
-            // Send SMS if requested
-            if (send_sms !== false) {
-                await sendPinUpdateSMS(phone, playerData.name || playerData.first_name, newPin2);
-            }
-
-            return res.json({
-                success: true,
-                player_id: playerDoc.id,
-                player_name: playerData.name || `${playerData.first_name} ${playerData.last_name}`,
-                old_pin: playerData.pin,
-                new_pin: newPin2,
-                sms_sent: send_sms !== false
-            });
-        }
-
-        // Update PIN
-        await playerDoc.ref.update({ pin: newPin, pin_updated_at: admin.firestore.FieldValue.serverTimestamp() });
-
-        // Send SMS if requested
-        if (send_sms !== false) {
-            await sendPinUpdateSMS(phone, playerData.name || playerData.first_name, newPin);
-        }
-
-        res.json({
-            success: true,
-            player_id: playerDoc.id,
-            player_name: playerData.name || `${playerData.first_name} ${playerData.last_name}`,
-            old_pin: playerData.pin,
-            new_pin: newPin,
-            sms_sent: send_sms !== false
-        });
-
-    } catch (error) {
-        console.error('Admin fix player PIN error:', error);
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
-
-// Helper function to send PIN update SMS
-async function sendPinUpdateSMS(phone, name, newPin) {
-    try {
-        const message = `BRDC: Hey ${name}! Your player PIN has been updated to ${newPin}. Use this PIN to log in and track your stats. See you at the boards!`;
-        const result = await sendManagedSms(
-            phone.startsWith('+') ? phone : '+1' + phone.replace(/\D/g, ''),
-            message
-        );
-        console.log('PIN update SMS processed:', result.sid || result.source || 'unknown');
-        return result;
-    } catch (err) {
-        console.error('PIN update SMS error:', err);
-        return { success: false, error: err.message };
-    }
-}
+// NOTE: exports.adminFixPlayerPin has been removed — PIN login is retired.
 
 /**
  * Get admin dashboard data
@@ -565,7 +443,6 @@ exports.adminGetDashboard = functions.https.onRequest(async (req, res) => {
                 date: data.tournament_date || data.date,
                 director_name: data.director_name || data.director_email || 'Unknown',
                 director_pin: data.director_pin,
-                director_player_pin: data.director_player_pin,
                 venue_name: data.venue_name,
                 created_at: data.created_at
             };
@@ -770,7 +647,7 @@ exports.adminUpdateTournament = functions.https.onRequest(async (req, res) => {
         }
 
         // Only allow updating certain fields
-        const allowedFields = ['director_pin', 'director_player_pin', 'director_name', 'status'];
+        const allowedFields = ['director_pin', 'director_name', 'status'];
         const safeUpdates = {};
         for (const key of Object.keys(updates || {})) {
             if (allowedFields.includes(key)) {
@@ -830,7 +707,6 @@ exports.adminGetMembers = functions.https.onRequest(async (req, res) => {
                 name: data.name || 'Unknown',
                 email: data.email || '',
                 phone: data.phone || '',
-                pin: data.pin,
                 isAdmin: data.isAdmin || false,
                 created_at: data.created_at,
                 permissions: data.isAdmin ? {
@@ -1389,23 +1265,10 @@ exports.adminCreateBotFromPlayer = functions.https.onRequest(async (req, res) =>
         cricketSkills.pct_7_mark_plus = clamp(cricketSkills.pct_7_mark_plus, 0, 100);
         cricketSkills.pct_9_mark_plus = clamp(cricketSkills.pct_9_mark_plus, 0, 100);
 
-        // Generate bot PIN (0000 + 4 random digits)
-        const randomPart = String(Math.floor(1000 + Math.random() * 9000));
-        const botPin = '0000' + randomPart;
-
-        // Check PIN uniqueness
-        const existingBot = await db.collection('bots').where('pin', '==', botPin).limit(1).get();
-        if (!existingBot.empty) {
-            // Try again with different random
-            const randomPart2 = String(Math.floor(1000 + Math.random() * 9000));
-            const botPin2 = '0000' + randomPart2;
-        }
-
         // Create the bot
         const finalBotName = playerName ? `Bot ${playerName}` : `Bot ${player_id.slice(0, 6)}`;
         const botData = {
             name: bot_name || finalBotName,
-            pin: botPin,
             isBot: true,
             cloned_from_player: player_id,
             cloned_from_league: league_id || null,
@@ -1426,7 +1289,6 @@ exports.adminCreateBotFromPlayer = functions.https.onRequest(async (req, res) =>
             success: true,
             message: `Bot "${botData.name}" created from player stats`,
             bot_id: botRef.id,
-            bot_pin: botPin,
             x01_skills: x01Skills,
             cricket_skills: cricketSkills,
             source_player: playerName,

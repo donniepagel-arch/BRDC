@@ -17,108 +17,8 @@ function setCorsHeaders(res) {
 // ============================================================================
 // PLAYER AUTHENTICATION
 // ============================================================================
-
-/**
- * Player login with PIN (5-digit legacy or 8-digit global)
- * First checks global players collection, then searches league-specific players
- */
-exports.playerLogin = functions.https.onRequest(async (req, res) => {
-    setCorsHeaders(res);
-    if (req.method === 'OPTIONS') return res.status(204).send('');
-
-    try {
-        const { pin } = req.body;
-
-        if (!pin || (pin.length !== 5 && pin.length !== 8)) {
-            return res.status(400).json({ success: false, error: 'PIN required (5 or 8 digits)' });
-        }
-
-        let foundPlayer = null;
-        let foundLeagueId = null;
-
-        // For 8-digit PINs, check global players collection first
-        if (pin.length === 8) {
-            const globalPlayerSnapshot = await db.collection('players')
-                .where('pin', '==', pin)
-                .limit(1)
-                .get();
-
-            if (!globalPlayerSnapshot.empty) {
-                const playerDoc = globalPlayerSnapshot.docs[0];
-                const playerData = playerDoc.data();
-                foundPlayer = {
-                    id: playerDoc.id,
-                    player_id: playerDoc.id,
-                    name: playerData.name,
-                    first_name: playerData.name ? playerData.name.split(' ')[0] : '',
-                    last_name: playerData.name ? playerData.name.split(' ').slice(1).join(' ') : '',
-                    email: playerData.email,
-                    phone: playerData.phone,
-                    phone_last4: playerData.phone_last4,
-                    photo_url: playerData.photo_url,
-                    isBot: playerData.isBot,
-                    isAdmin: playerData.isAdmin,
-                    stats: playerData.stats,
-                    involvements: playerData.involvements
-                };
-            }
-        }
-
-        // If not found in global, search league-specific players
-        if (!foundPlayer) {
-            const leaguesSnapshot = await db.collection('leagues').get();
-
-            for (const leagueDoc of leaguesSnapshot.docs) {
-                const playersSnapshot = await db.collection('leagues').doc(leagueDoc.id)
-                    .collection('players')
-                    .where('pin', '==', pin)
-                    .get();
-
-                if (!playersSnapshot.empty) {
-                    foundPlayer = { id: playersSnapshot.docs[0].id, ...playersSnapshot.docs[0].data() };
-                    foundLeagueId = leagueDoc.id;
-                    break;
-                }
-            }
-        }
-
-        if (!foundPlayer) {
-            return res.status(404).json({ success: false, error: 'Invalid PIN' });
-        }
-
-        // Don't send PIN back to client
-        delete foundPlayer.pin;
-
-        // Check if player is captain by looking at their team
-        if (foundLeagueId && foundPlayer.team_id) {
-            try {
-                const teamDoc = await db.collection('leagues').doc(foundLeagueId)
-                    .collection('teams').doc(foundPlayer.team_id).get();
-
-                if (teamDoc.exists) {
-                    const team = teamDoc.data();
-                    // Player is captain if they match captain_id OR they are level A (for triples leagues)
-                    const isCaptainById = team.captain_id === foundPlayer.id;
-                    const isLevelA = (foundPlayer.skill_level === 'A' || foundPlayer.preferred_level === 'A');
-                    foundPlayer.is_captain = isCaptainById || isLevelA;
-                    foundPlayer.team_name = team.team_name || team.name;
-                }
-            } catch (teamErr) {
-                console.error('Error checking team for captain status:', teamErr);
-            }
-        }
-
-        res.json({
-            success: true,
-            player: foundPlayer,
-            league_id: foundLeagueId
-        });
-
-    } catch (error) {
-        console.error('Player login error:', error);
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
+// NOTE: exports.playerLogin (PIN-based) has been removed. Use Firebase Auth
+// (getPlayerSession) for all new login flows.
 
 /**
  * Reset/recover player PIN by email
@@ -623,14 +523,31 @@ exports.getCaptainDashboard = functions.https.onRequest(async (req, res) => {
         // Wave 1: All independent queries in parallel (fetch ALL league players for opponent data)
         const [leagueDoc, matchesSnapshot, allPlayersSnap, allTeamsSnap, fillinRequestsSnapshot] = await Promise.all([
             leagueRef.get(),
-            leagueRef.collection('matches').orderBy('week', 'asc').get(),
+            leagueRef.collection('matches')
+                .select(
+                    'week',
+                    'match_week',
+                    'match_date',
+                    'date',
+                    'status',
+                    'winner',
+                    'home_team_id',
+                    'away_team_id',
+                    'home_team_name',
+                    'away_team_name',
+                    'home_score',
+                    'away_score',
+                    'player_availability'
+                )
+                .orderBy('week', 'asc')
+                .get(),
             leagueRef.collection('players').get(),
-            leagueRef.collection('teams').get(),
+            leagueRef.collection('teams')
+                .select('team_name', 'name', 'captain_id', 'max_roster')
+                .get(),
             leagueRef.collection('fillin_requests')
                 .where('team_id', '==', team_id)
                 .where('status', '==', 'pending')
-                .orderBy('created_at', 'desc')
-                .limit(5)
                 .get()
         ]);
 
@@ -642,7 +559,21 @@ exports.getCaptainDashboard = functions.https.onRequest(async (req, res) => {
         matchesSnapshot.forEach(doc => {
             const match = doc.data();
             if (match.home_team_id === team_id || match.away_team_id === team_id) {
-                matches.push({ id: doc.id, ...match, is_home: match.home_team_id === team_id, availability: match.player_availability || {} });
+                matches.push({
+                    id: doc.id,
+                    week: match.week || match.match_week || null,
+                    match_date: match.match_date || match.date || null,
+                    status: match.status || 'scheduled',
+                    winner: match.winner || null,
+                    home_team_id: match.home_team_id || null,
+                    away_team_id: match.away_team_id || null,
+                    home_team_name: match.home_team_name || null,
+                    away_team_name: match.away_team_name || null,
+                    home_score: Number(match.home_score || 0),
+                    away_score: Number(match.away_score || 0),
+                    is_home: match.home_team_id === team_id,
+                    availability: match.player_availability || {}
+                });
             }
         });
 
@@ -650,13 +581,37 @@ exports.getCaptainDashboard = functions.https.onRequest(async (req, res) => {
         const allLeaguePlayers = [];
         allPlayersSnap.forEach(doc => { allLeaguePlayers.push({ id: doc.id, ...doc.data() }); });
 
+        const rosterLevel = (player) => String(player?.skill_level || player?.level || player?.preferred_level || '').toUpperCase();
+        const rosterSort = (a, b) => {
+            const order = { A: 1, B: 2, C: 3 };
+            const aLevel = order[rosterLevel(a)] || Number(a?.position || 99);
+            const bLevel = order[rosterLevel(b)] || Number(b?.position || 99);
+            if (aLevel !== bLevel) return aLevel - bLevel;
+            return String(a?.name || '').localeCompare(String(b?.name || ''));
+        };
+        const normalizeRosterPlayer = (player) => {
+            const level = rosterLevel(player);
+            const position = ({ A: 1, B: 2, C: 3 })[level] || Number(player?.position || 99);
+            return {
+                ...player,
+                level: level || player.level,
+                skill_level: level || player.skill_level,
+                preferred_level: level || player.preferred_level,
+                position
+            };
+        };
+
         // Team players (roster, exclude subs/fill-ins)
-        const teamPlayers = allLeaguePlayers.filter(p => p.team_id === team_id && !p.is_sub && !p.is_fillin)
-            .sort((a, b) => (a.position || 99) - (b.position || 99));
+        const teamPlayers = allLeaguePlayers
+            .filter(p => p.team_id === team_id && !p.is_sub && !p.is_fillin)
+            .map(normalizeRosterPlayer)
+            .sort(rosterSort);
         team.players = teamPlayers;
 
         // All roster players (for batch stats fetch)
-        const allRosterPlayers = allLeaguePlayers.filter(p => p.team_id && !p.is_sub && !p.is_fillin);
+        const allRosterPlayers = allLeaguePlayers
+            .filter(p => p.team_id && !p.is_sub && !p.is_fillin)
+            .map(normalizeRosterPlayer);
 
         // Group by team for opponent lookups
         const playersByTeam = {};
@@ -669,16 +624,37 @@ exports.getCaptainDashboard = functions.https.onRequest(async (req, res) => {
         const allTeams = [];
         allTeamsSnap.forEach(doc => { allTeams.push({ id: doc.id, ...doc.data() }); });
 
-        // Subs
+        // Subs / fill-ins
+        // Older records used is_sub; newer league fill-ins may be tracked by
+        // team_id="fill_in" or is_fillin. Captain dashboard should show all.
         const subs = [];
-        allLeaguePlayers.forEach(p => { if (p.is_sub) { const sub = { ...p }; delete sub.pin; subs.push(sub); } });
+        allLeaguePlayers.forEach(p => {
+            const isSub = p.is_sub === true ||
+                p.is_fillin === true ||
+                p.is_fill_in === true ||
+                p.team_id === 'fill_in' ||
+                p.team_id === 'fill-in' ||
+                p.team_id === 'fillin';
+            if (isSub) {
+                const sub = { ...p };
+                delete sub.pin;
+                subs.push(sub);
+            }
+        });
+        subs.sort((a, b) => {
+            const levelA = String(a.skill_level || a.level || a.preferred_level || 'Z');
+            const levelB = String(b.skill_level || b.level || b.preferred_level || 'Z');
+            if (levelA !== levelB) return levelA.localeCompare(levelB);
+            return String(a.name || '').localeCompare(String(b.name || ''));
+        });
 
         // Wave 2: ALL player stats + notifications + free agents (parallel)
-        const statsRefs = allRosterPlayers.map(p => leagueRef.collection('stats').doc(p.id));
+        const statsPlayers = [...allRosterPlayers, ...subs];
+        const statsRefs = statsPlayers.map(p => leagueRef.collection('stats').doc(p.id));
         const wave2Promises = [
             statsRefs.length > 0 ? db.getAll(...statsRefs) : Promise.resolve([]),
             team.captain_id
-                ? leagueRef.collection('notifications').where('recipient_id', '==', team.captain_id).orderBy('created_at', 'desc').limit(10).get()
+                ? leagueRef.collection('notifications').where('recipient_id', '==', team.captain_id).get()
                 : Promise.resolve(null),
             league.allow_free_agents !== false
                 ? leagueRef.collection('registrations').where('status', '==', 'free_agent').get()
@@ -687,7 +663,7 @@ exports.getCaptainDashboard = functions.https.onRequest(async (req, res) => {
 
         const [statsDocs, notificationsSnap, freeAgentSnap] = await Promise.all(wave2Promises);
 
-        // Build stats map for ALL roster players
+        // Build stats map for ALL roster and fill-in players
         const calcStats = (stats) => {
             stats.x01_three_dart_avg = stats.x01_three_dart_avg ||
                 (stats.x01_total_darts > 0 ? parseFloat((stats.x01_total_points / stats.x01_total_darts * 3).toFixed(2)) : 0);
@@ -696,10 +672,20 @@ exports.getCaptainDashboard = functions.https.onRequest(async (req, res) => {
             return stats;
         };
         const allStatsMap = {};
-        allRosterPlayers.forEach((player, i) => {
+        statsPlayers.forEach((player, i) => {
             if (statsDocs[i] && statsDocs[i].exists) {
                 allStatsMap[player.id] = calcStats(statsDocs[i].data());
             }
+        });
+
+        subs.forEach(sub => {
+            const stats = allStatsMap[sub.id] || {};
+            sub.x01_three_dart_avg = Number(stats.x01_three_dart_avg || sub.x01_three_dart_avg || sub.avg_3da || 0);
+            sub.cricket_mpr = Number(stats.cricket_mpr || sub.cricket_mpr || sub.mpr || 0);
+            sub.x01_legs_played = Number(stats.x01_legs_played || 0);
+            sub.x01_legs_won = Number(stats.x01_legs_won || 0);
+            sub.cricket_legs_played = Number(stats.cricket_legs_played || 0);
+            sub.cricket_legs_won = Number(stats.cricket_legs_won || 0);
         });
 
         // Build team player stats array
@@ -713,6 +699,12 @@ exports.getCaptainDashboard = functions.https.onRequest(async (req, res) => {
         if (notificationsSnap && notificationsSnap.forEach) {
             notificationsSnap.forEach(doc => { notifications.push({ id: doc.id, ...doc.data() }); });
         }
+        notifications.sort((a, b) => {
+            const aTime = a.created_at?.toMillis ? a.created_at.toMillis() : (new Date(a.created_at || 0).getTime() || 0);
+            const bTime = b.created_at?.toMillis ? b.created_at.toMillis() : (new Date(b.created_at || 0).getTime() || 0);
+            return bTime - aTime;
+        });
+        if (notifications.length > 10) notifications.length = 10;
 
         // Build free agents
         const freeAgents = [];
@@ -749,6 +741,14 @@ exports.getCaptainDashboard = functions.https.onRequest(async (req, res) => {
             }
             pendingFillinRequests.push({ request_id: doc.id, match_id: request.match_id, match_week: request.match_week, status: request.status, interested, declined, pending });
         });
+        pendingFillinRequests.sort((a, b) => {
+            const aReq = fillinRequestsSnapshot.docs.find(doc => doc.id === a.request_id)?.data() || {};
+            const bReq = fillinRequestsSnapshot.docs.find(doc => doc.id === b.request_id)?.data() || {};
+            const aTime = aReq.created_at?.toMillis ? aReq.created_at.toMillis() : (new Date(aReq.created_at || 0).getTime() || 0);
+            const bTime = bReq.created_at?.toMillis ? bReq.created_at.toMillis() : (new Date(bReq.created_at || 0).getTime() || 0);
+            return bTime - aTime;
+        });
+        if (pendingFillinRequests.length > 5) pendingFillinRequests.length = 5;
 
         // ============================================================================
         // CALCULATE TEAM STANDINGS (from already-loaded data, no extra queries)
@@ -798,6 +798,7 @@ exports.getCaptainDashboard = functions.https.onRequest(async (req, res) => {
         team.losses = myRecord.losses;
         team.set_wins = myRecord.set_wins;
         team.set_losses = myRecord.set_losses;
+        team.roster_count = teamPlayers.length;
 
         // ============================================================================
         // OPPONENT DATA — build for ALL opponent teams (from already-loaded data)
@@ -821,6 +822,8 @@ exports.getCaptainDashboard = functions.https.onRequest(async (req, res) => {
                 }
             });
 
+            const sortedOppPlayers = [...oppPlayers].map(normalizeRosterPlayer).sort(rosterSort);
+
             all_opponents[oppTeamId] = {
                 team: {
                     id: oppTeamId,
@@ -832,7 +835,7 @@ exports.getCaptainDashboard = functions.https.onRequest(async (req, res) => {
                     team_3da: countOpp3DA > 0 ? parseFloat((totalOpp3DA / countOpp3DA).toFixed(2)) : 0,
                     team_mpr: countOppMPR > 0 ? parseFloat((totalOppMPR / countOppMPR).toFixed(2)) : 0
                 },
-                players: oppPlayers.map(p => ({
+                players: sortedOppPlayers.map(p => ({
                     id: p.id, name: p.name, position: p.position,
                     level: p.level || p.skill_level || p.preferred_level,
                     stats: {
@@ -843,7 +846,7 @@ exports.getCaptainDashboard = functions.https.onRequest(async (req, res) => {
                         cricket_legs_won: allStatsMap[p.id]?.cricket_legs_won || 0,
                         cricket_legs_played: allStatsMap[p.id]?.cricket_legs_played || 0
                     }
-                })).sort((a, b) => (a.position || 99) - (b.position || 99))
+                }))
             };
         }
 
@@ -855,9 +858,27 @@ exports.getCaptainDashboard = functions.https.onRequest(async (req, res) => {
             ...all_opponents[nextOppTeamId]
         } : null;
 
+        const responseTeam = {
+            id: team.id,
+            team_name: team.team_name || team.name || '',
+            name: team.name || team.team_name || '',
+            captain_id: team.captain_id || null,
+            standing: team.standing,
+            wins: team.wins,
+            losses: team.losses,
+            ties: team.ties || 0,
+            set_wins: team.set_wins,
+            set_losses: team.set_losses,
+            team_3da: team.team_3da,
+            team_mpr: team.team_mpr,
+            roster_count: team.roster_count,
+            max_roster: team.max_roster || 4,
+            players: team.players
+        };
+
         res.json({
             success: true,
-            team,
+            team: responseTeam,
             league: { id: league_id, ...league },
             matches,
             player_stats: playerStats,

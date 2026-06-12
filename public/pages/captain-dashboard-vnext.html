@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Captain Dashboard VNext - BRDC</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://firestore.googleapis.com">
+    <link rel="preconnect" href="https://us-central1-brdc-v2.cloudfunctions.net">
+    <link rel="icon" type="image/png" href="/images/favicon.png">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#fff8ed">
+
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap">
+    <link rel="stylesheet" href="/css/brdc-styles.css">
+    <link rel="stylesheet" href="/css/fb-mobile.css">
+    <link rel="stylesheet" href="/css/brdc-navigation.css?v=15">
+    <link rel="stylesheet" href="/css/captain-dashboard-vnext.css?v=3">
+</head>
+<body class="captain-vnext-page has-mobile-nav">
+    <main class="cv-shell">
+        <section class="cv-hero">
+            <div>
+                <p class="cv-kicker">Captain board</p>
+                <h1 id="teamName">Loading team</h1>
+                <p id="captainStatus">Checking captain access...</p>
+            </div>
+            <div class="cv-score-strip">
+                <div><strong id="teamRank">-</strong><span>rank</span></div>
+                <div><strong id="teamRecord">-</strong><span>record</span></div>
+                <div><strong id="team3da">-</strong><span>3DA</span></div>
+                <div><strong id="teamMpr">-</strong><span>MPR</span></div>
+            </div>
+        </section>
+
+        <section class="cv-match-night" id="matchNightCard">
+            <div class="cv-skeleton tall"></div>
+        </section>
+
+        <section class="cv-grid">
+            <article class="cv-card cv-roster-card">
+                <div class="cv-card-head">
+                    <div>
+                        <p class="cv-kicker">Roster</p>
+                        <h2>Availability</h2>
+                    </div>
+                    <a id="messageTeamLink" href="/pages/messages-vnext.html">Team chat</a>
+                </div>
+                <div id="rosterList" class="cv-roster-list">
+                    <div class="cv-skeleton"></div>
+                    <div class="cv-skeleton"></div>
+                </div>
+            </article>
+
+            <article class="cv-card cv-subs-card">
+                <div class="cv-card-head">
+                    <div>
+                        <p class="cv-kicker">Fill-ins</p>
+                        <h2>Find help</h2>
+                    </div>
+                    <button type="button" id="openFillinBtn">Request</button>
+                </div>
+                <div class="cv-filter-row" id="subFilters">
+                    <button class="active" type="button" data-sub-filter="ALL">All</button>
+                    <button type="button" data-sub-filter="A">A</button>
+                    <button type="button" data-sub-filter="B">B</button>
+                    <button type="button" data-sub-filter="C">C</button>
+                </div>
+                <div id="subsList" class="cv-subs-list">
+                    <div class="cv-skeleton"></div>
+                </div>
+            </article>
+
+            <article class="cv-card cv-schedule-card">
+                <div class="cv-card-head">
+                    <div>
+                        <p class="cv-kicker">Schedule</p>
+                        <h2>All weeks</h2>
+                    </div>
+                    <a id="classicCaptainLink" href="/pages/captain-dashboard.html">Import reports</a>
+                </div>
+                <div id="scheduleList" class="cv-schedule-list">
+                    <div class="cv-skeleton"></div>
+                    <div class="cv-skeleton"></div>
+                </div>
+            </article>
+
+            <article class="cv-card cv-requests-card">
+                <div class="cv-card-head">
+                    <div>
+                        <p class="cv-kicker">Requests</p>
+                        <h2>Fill-in status</h2>
+                    </div>
+                </div>
+                <div id="requestsList" class="cv-request-list">
+                    <div class="cv-empty">No pending fill-in requests loaded yet.</div>
+                </div>
+            </article>
+
+            <article class="cv-card cv-profile-card">
+                <div class="cv-card-head">
+                    <div>
+                        <p class="cv-kicker">Team profile</p>
+                        <h2>Identity</h2>
+                    </div>
+                    <button type="button" id="saveTeamProfileBtn">Save</button>
+                </div>
+                <div class="cv-profile-editor">
+                    <div class="cv-team-photo" id="teamPhotoPreview"></div>
+                    <div class="cv-profile-fields">
+                        <label>Team name<input id="teamNameInput" autocomplete="off"></label>
+                        <label>Motto<textarea id="teamMottoInput" rows="2" placeholder="Short team motto or note."></textarea></label>
+                        <label>Team photo<input id="teamPhotoInput" type="file" accept="image/*"></label>
+                        <div class="cv-status" id="teamProfileStatus"></div>
+                    </div>
+                </div>
+            </article>
+        </section>
+    </main>
+
+    <div class="cv-modal" id="fillinModal" aria-hidden="true">
+        <div class="cv-modal-card" role="dialog" aria-modal="true" aria-labelledby="fillinTitle">
+            <p class="cv-kicker">Fill-in request</p>
+            <h2 id="fillinTitle">Ask for help</h2>
+            <label>Match
+                <select id="fillinMatch"></select>
+            </label>
+            <label>Needed level
+                <select id="fillinLevel">
+                    <option value="A">A</option>
+                    <option value="B">B</option>
+                    <option value="C">C</option>
+                </select>
+            </label>
+            <div class="cv-modal-sub-list" id="fillinSubList"></div>
+            <label>Message
+                <textarea id="fillinMessage" rows="3" placeholder="Optional note for the fill-ins."></textarea>
+            </label>
+            <div id="fillinStatus" class="cv-status"></div>
+            <div class="cv-modal-actions">
+                <button type="button" id="sendFillinBtn">Send requests</button>
+                <button type="button" id="closeFillinBtn">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/brdc-toast.js"></script>
+    <script src="/components/brdc-navigation-init.js?v=18"></script>
+    <script type="module" src="/js/captain-dashboard-vnext.js?v=6"></script>
+    <script>
+        initBRDCNavigation({
+            page: 'captain',
+            pageTitle: 'Captain Dashboard',
+            showBreadcrumbs: false,
+            showBackButton: true
+        });
+    </script>
+</body>
+</html>

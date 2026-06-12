@@ -5,7 +5,11 @@ const cors = require('cors')({
         'https://brdc-v2.web.app',
         'https://brdc-v2.firebaseapp.com',
         'https://burningriverdarts.com',
-        'https://www.burningriverdarts.com'
+        'https://www.burningriverdarts.com',
+        'https://brdc-live-0428.web.app',
+        'https://brdc-live-0428.firebaseapp.com',
+        'https://brdc-static-emergency-926983508505.us-central1.run.app',
+        'https://brdc-static-emergency-skentzsu5a-uc.a.run.app'
     ]
 });
 
@@ -377,18 +381,15 @@ exports.listLeagueMatches = functions.https.onRequest(async (req, res) => {
     }
 });
 
-exports.getPlayerStatsFiltered = functions.https.onRequest((req, res) => {
-    cors(req, res, async () => {
-        try {
-            const { player_id, source } = req.method === 'POST' ? req.body : req.query;
-
+async function computeFilteredStats(player_id, source) {
+    try {
             if (!player_id) {
-                return res.status(400).json({ success: false, error: 'player_id required' });
+                return { success: false, error: 'player_id required', code: 400 };
             }
 
             const playerDoc = await db.collection('players').doc(player_id).get();
             if (!playerDoc.exists) {
-                return res.status(404).json({ success: false, error: 'Player not found' });
+                return { success: false, error: 'Player not found', code: 404 };
             }
 
             const player = playerDoc.data();
@@ -628,15 +629,26 @@ exports.getPlayerStatsFiltered = functions.https.onRequest((req, res) => {
                 }
             }
 
-            res.json({
+            return {
                 success: true,
                 player_id,
                 player_name: player.name || `${player.first_name || ''} ${player.last_name || ''}`.trim(),
                 stats
-            });
+            };
         } catch (error) {
             console.error('Error getting filtered stats:', error);
-            res.status(500).json({ success: false, error: error.message });
+            return { success: false, error: error.message, code: 500 };
         }
+}
+
+exports.computeFilteredStats = computeFilteredStats;
+
+exports.getPlayerStatsFiltered = functions.https.onRequest((req, res) => {
+    cors(req, res, async () => {
+        const { player_id, source } = req.method === 'POST' ? req.body : req.query;
+        const result = await computeFilteredStats(player_id, source);
+        const status = result.success ? 200 : (result.code || 400);
+        const { code, ...body } = result;
+        return res.status(status).json(body);
     });
 });

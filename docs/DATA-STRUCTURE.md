@@ -189,8 +189,8 @@ If any of those cannot be resolved cleanly, the system should surface a warning 
 ```javascript
 {
   // Identity
-  league_name: "2026 Winter Triples",
-  season: "Winter 2026",
+  league_name: "2026 Triples League",
+  season: "2026",
   league_type: "triples_draft",
 
   // Schedule

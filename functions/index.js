@@ -14,8 +14,8 @@ db.settings({ ignoreUndefinedProperties: true });
 
 // Tournament Functions
 const { createTournament, addBotToTournament, updateTournamentSettings, deleteTournament } = require('./tournaments/create');
-const { generateBracket, generateDoubleEliminationBracket, swapBracketPositions, regenerateBracket } = require('./tournaments/brackets');
-const { submitMatchResult, recalculateTournamentStats, submitDoubleElimMatchResult, startDoubleElimMatch } = require('./tournaments/matches');
+const { generateBracket, generateDoubleEliminationBracket, generateBlindDrawBracket, swapBracketPositions, regenerateBracket, lockBracket } = require('./tournaments/brackets');
+const { submitMatchResult, recalculateTournamentStats, submitDoubleElimMatchResult, startDoubleElimMatch, startTournamentMatch, updateTournamentMatchRoom, setTournamentMatchRoomLifecycle, saveTournamentMatchProgress, getTournamentMatchProgress, getTournamentPlayerRuntime, setTournamentPlayerCheckIn, setTournamentParticipantAvailability, setTournamentMatchReady, respondTournamentMatchResult, sendTournamentRuntimeReminder, runTournamentRuntimeReminders } = require('./tournaments/matches');
 
 // Export tournament functions
 exports.createTournament = createTournament;
@@ -24,14 +24,28 @@ exports.updateTournamentSettings = updateTournamentSettings;
 exports.deleteTournament = deleteTournament;
 exports.generateBracket = generateBracket;
 exports.generateDoubleEliminationBracket = generateDoubleEliminationBracket;
+exports.generateBlindDrawBracket = generateBlindDrawBracket;
 exports.swapBracketPositions = swapBracketPositions;
 exports.regenerateBracket = regenerateBracket;
+exports.lockBracket = lockBracket;
 exports.submitMatchResult = submitMatchResult;
 exports.recalculateTournamentStats = recalculateTournamentStats;
 exports.submitDoubleElimMatchResult = submitDoubleElimMatchResult;
 exports.startDoubleElimMatch = startDoubleElimMatch;
+exports.startTournamentMatch = startTournamentMatch;
+exports.updateTournamentMatchRoom = updateTournamentMatchRoom;
+exports.setTournamentMatchRoomLifecycle = setTournamentMatchRoomLifecycle;
+exports.saveTournamentMatchProgress = saveTournamentMatchProgress;
+exports.getTournamentMatchProgress = getTournamentMatchProgress;
+exports.getTournamentPlayerRuntime = getTournamentPlayerRuntime;
+exports.setTournamentPlayerCheckIn = setTournamentPlayerCheckIn;
+exports.setTournamentParticipantAvailability = setTournamentParticipantAvailability;
+exports.setTournamentMatchReady = setTournamentMatchReady;
+exports.respondTournamentMatchResult = respondTournamentMatchResult;
+exports.sendTournamentRuntimeReminder = sendTournamentRuntimeReminder;
+exports.runTournamentRuntimeReminders = runTournamentRuntimeReminders;
 
-// League Functions (NEW - Triples Draft League System)
+// League Functions (NEW - 2026 Triples League System)
 const leagueFunctions = require('./leagues/index');
 Object.assign(exports, leagueFunctions);
 
@@ -60,6 +74,10 @@ exports.cleanupExpiredSessions = secureAuth.cleanupExpiredSessions;
 
 // Global Player Authentication & Registration
 const globalAuthFunctions = require('./global-auth');
+// registerNewPlayerV2 is deployed from the v2canary codebase. Do not export it
+// from the default v1 bundle, or any default deploy collides with the live gen2
+// function and blocks unrelated deploys such as importMatchData.
+delete globalAuthFunctions.registerNewPlayerV2;
 Object.assign(exports, globalAuthFunctions);
 
 // Notification Functions (scheduled reminders, SMS/email)
@@ -82,6 +100,10 @@ Object.assign(exports, adminFunctions);
 // Messaging System (Phase 1 Social Platform)
 const messagingFunctions = require('./messaging');
 Object.assign(exports, messagingFunctions);
+
+// Director Contact Center
+const directorContactFunctions = require('./director-contact');
+Object.assign(exports, directorContactFunctions);
 
 // Chat Rooms (Phase 1 Social Platform)
 const chatRoomFunctions = require('./chat-rooms');
@@ -204,7 +226,7 @@ Object.assign(exports, chatSystemFunctions);
 // const populateMezlakFunctions = require('./populate-mezlak-match');
 // Object.assign(exports, populateMezlakFunctions);
 
-// Matchmaker Tournaments (partner matching, mixed doubles, breakup mechanics, heartbreaker)
+// Matchmaker tournaments (partner matching, mixed doubles, breakup mechanics, mingle flow)
 const matchmakerFunctions = require('./matchmaker');
 Object.assign(exports, matchmakerFunctions);
 
@@ -223,6 +245,10 @@ Object.assign(exports, statsVerificationFunctions);
 // Social Feed Posts (posts, reactions, comments, feed aggregation)
 const postsFunctions = require('./posts');
 Object.assign(exports, postsFunctions);
+
+// Organization microsites (SSDL / LEDA)
+const orgFunctions = require('./org-functions');
+Object.assign(exports, orgFunctions);
 
 // Push Notifications (tiered: FCM > SMS > Email)
 // TEMPORARILY DISABLED - uses firebase-functions v2 scheduler not compatible with v4

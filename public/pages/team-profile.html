@@ -73,6 +73,28 @@
     let statsByPlayerId = {};  // playerId -> stats doc
     let selectedLevel = 'all';
 
+    function isFillInPlayer(player) {
+        return player?.is_fill_in === true ||
+            player?.is_fillin === true ||
+            player?.fill_in === true ||
+            ['fill_in', 'fill-in', 'fillin'].includes(String(player?.team_id || '').toLowerCase()) ||
+            String(player?.team_name || '').toLowerCase() === 'fill-in';
+    }
+
+    function getPlayerLevel(player) {
+        if (isFillInPlayer(player)) return 'F';
+        const raw = String(player?.skill_level || player?.level || player?.preferred_level || '').toUpperCase();
+        return ['A', 'B', 'C'].includes(raw) ? raw : '';
+    }
+
+    function sortPlayersByLevel(a, b) {
+        const order = { A: 0, B: 1, C: 2, F: 3, '': 9 };
+        const aOrder = order[getPlayerLevel(a)] ?? 9;
+        const bOrder = order[getPlayerLevel(b)] ?? 9;
+        if (aOrder !== bOrder) return aOrder - bOrder;
+        return String(a?.name || '').localeCompare(String(b?.name || ''));
+    }
+
     // ===== UTILITY =====
     function getOrdinal(n) {
         if (!n || n <= 0) return '';
@@ -91,6 +113,25 @@
     function formatLeagueName(name) {
         if (!name) return 'League';
         return name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    }
+
+    function escapeHtml(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function getTeamInitials(name) {
+        return String(name || 'Team')
+            .split(/\s+/)
+            .filter(Boolean)
+            .slice(0, 2)
+            .map(part => part[0])
+            .join('')
+            .toUpperCase() || 'T';
     }
 
     // ===== DATA LOADING =====
@@ -132,12 +173,7 @@
                     ...p,
                     is_captain: teamData.captain_id === p.id
                 }))
-                .sort((a, b) => {
-                    // Captain first within position, then by position
-                    if (a.is_captain && !b.is_captain) return -1;
-                    if (b.is_captain && !a.is_captain) return 1;
-                    return (a.position || 99) - (b.position || 99);
-                });
+                .sort(sortPlayersByLevel);
 
             // All matches
             allMatches = matchesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -180,13 +216,14 @@
             records[m.away_team_id].setsLost += hs;
         });
 
-        // Sort: wins desc -> setsWon desc
+        // Sort by the same standings rule as league view: night wins first,
+        // then sets/points as the first tiebreaker.
         return allTeams
             .map(t => ({ ...t, ...(records[t.id] || {}) }))
             .sort((a, b) => {
                 if (b.wins !== a.wins) return b.wins - a.wins;
-                if (a.losses !== b.losses) return a.losses - b.losses;
-                return (b.setsWon || 0) - (a.setsWon || 0);
+                if ((b.setsWon || 0) !== (a.setsWon || 0)) return (b.setsWon || 0) - (a.setsWon || 0);
+                return (a.losses || 0) - (b.losses || 0);
             });
     }
 
@@ -211,7 +248,7 @@
     function calculateTeamStats(levelFilter) {
         const filtered = levelFilter === 'all'
             ? teamPlayers
-            : teamPlayers.filter(p => p.level === levelFilter);
+            : teamPlayers.filter(p => getPlayerLevel(p) === levelFilter);
 
         let total3DA = 0, count3DA = 0;
         let totalMPR = 0, countMPR = 0;
@@ -266,16 +303,23 @@
 
         const leagueName = formatLeagueName(leagueData.name || leagueData.league_name || '');
         const teamName = teamData.name || teamData.team_name || 'Unknown Team';
+        const teamPhoto = teamData.photo_url || '';
+        const teamMotto = teamData.motto || '';
 
         document.getElementById('mainContent').innerHTML = `
             <div class="team-header-card">
                 <div class="team-header-top">
-                    <div class="team-icon">&#127919;</div>
+                    <div class="team-icon ${teamPhoto ? 'has-photo' : ''}">
+                        ${teamPhoto
+                            ? `<img src="${escapeHtml(teamPhoto)}" alt="${escapeHtml(teamName)} team photo">`
+                            : `<span>${escapeHtml(getTeamInitials(teamName))}</span>`}
+                    </div>
                     <div class="team-info">
-                        <div class="team-name">${teamName}</div>
+                        <div class="team-name">${escapeHtml(teamName)}</div>
                         <div class="team-meta">
-                            <a href="/pages/league-view.html?league_id=${leagueId}">${leagueName}</a>
+                            <a href="/pages/league-view.html?league_id=${leagueId}">${escapeHtml(leagueName)}</a>
                         </div>
+                        ${teamMotto ? `<div class="team-motto">${escapeHtml(teamMotto)}</div>` : ''}
                     </div>
                     <div class="team-badges">
                         ${teamRank > 0 ? `<span class="team-standing-badge">${getOrdinal(teamRank)} Place</span>` : ''}
@@ -323,6 +367,7 @@
                 <button type="button" class="tab active" role="tab" aria-selected="true" onclick="switchTab('roster')">ROSTER</button>
                 <button type="button" class="tab" role="tab" aria-selected="false" onclick="switchTab('stats')">STATS</button>
                 <button type="button" class="tab" role="tab" aria-selected="false" onclick="switchTab('matches')">MATCHES</button>
+                <button type="button" class="tab" role="tab" aria-selected="false" onclick="switchTab('photos')">PHOTOS</button>
                 <button type="button" class="tab" role="tab" aria-selected="false" onclick="switchTab('standings')">STANDINGS</button>
             </div>
 
@@ -335,12 +380,40 @@
             <div id="matchesTab" class="tab-content">
                 ${renderMatches(standings)}
             </div>
+            <div id="photosTab" class="tab-content">
+                ${renderPhotos()}
+            </div>
             <div id="standingsTab" class="tab-content">
                 ${renderStandings(standings)}
             </div>
         `;
 
         if (window.A11y) A11y.initTabs('.tabs', { tabSelector: '.tab', label: 'Team sections' });
+    }
+
+    function renderPhotos() {
+        const photos = Array.isArray(teamData.gallery_photos) ? teamData.gallery_photos : [];
+        const teamName = teamData.name || teamData.team_name || 'Team';
+        const mainPhoto = teamData.photo_url || '';
+        const hero = mainPhoto
+            ? `<div class="team-photo-hero"><img src="${escapeHtml(mainPhoto)}" alt="${escapeHtml(teamName)} team photo"></div>`
+            : `<div class="team-photo-empty">No team photo yet</div>`;
+        const gallery = photos.length
+            ? `<div class="team-photo-grid">${photos.map((url, idx) => `
+                <a class="team-photo-card" href="${escapeHtml(url)}" target="_blank" rel="noopener">
+                    <img src="${escapeHtml(url)}" alt="${escapeHtml(teamName)} gallery photo ${idx + 1}">
+                </a>
+            `).join('')}</div>`
+            : '<div class="empty-state">No gallery photos yet</div>';
+
+        return `
+            <section class="team-photos-panel">
+                <h2 class="section-title">TEAM PHOTO</h2>
+                ${hero}
+                <h2 class="section-title" style="margin-top:18px;">GALLERY</h2>
+                ${gallery}
+            </section>
+        `;
     }
 
     // ===== RENDER ROSTER =====
@@ -358,22 +431,13 @@
             const winPct = totalPlayed > 0 ? ((totalWon / totalPlayed) * 100).toFixed(0) + '%' : '-';
             const legStr = totalPlayed > 0 ? `${totalWon}/${totalPlayed}` : '-';
 
-            const pos = p.position;
-            let posBadge;
-            if (pos === 1) posBadge = '<span class="roster-pos-badge p1">P1</span>';
-            else if (pos === 2) posBadge = '<span class="roster-pos-badge p2">P2</span>';
-            else if (pos === 3) posBadge = '<span class="roster-pos-badge p3">P3</span>';
-            else posBadge = '<span class="roster-pos-badge none">&#8212;</span>';
-
             return `
                 <tr class="${p.is_captain ? 'captain-row' : ''}">
-                    <td>${posBadge}</td>
                     <td>
                         <a class="roster-player-link" href="/pages/player-profile.html?player_id=${p.id}&league_id=${leagueId}">
                             <span class="roster-player-name">${p.name || 'Unknown'}</span>
                         </a>
-                        ${p.level ? `<span class="roster-level-badge ${p.level}">${p.level}</span>` : ''}
-                        ${p.is_captain ? '<span class="roster-captain-badge">C</span>' : ''}
+                        ${getPlayerLevel(p) ? `<span class="roster-level-badge ${getPlayerLevel(p)}">${getPlayerLevel(p)}</span>` : ''}
                     </td>
                     <td class="numeric">${avg > 0 ? avg.toFixed(1) : '-'}</td>
                     <td class="numeric">${mpr > 0 ? mpr.toFixed(2) : '-'}</td>
@@ -388,7 +452,6 @@
                 <table class="roster-table">
                     <thead>
                         <tr>
-                            <th>POS</th>
                             <th>PLAYER</th>
                             <th class="numeric">3DA</th>
                             <th class="numeric">MPR</th>
@@ -404,9 +467,9 @@
 
     // ===== RENDER STATS =====
     function renderStats(teamStats) {
-        const hasA = teamPlayers.some(p => p.level === 'A');
-        const hasB = teamPlayers.some(p => p.level === 'B');
-        const hasC = teamPlayers.some(p => p.level === 'C');
+        const hasA = teamPlayers.some(p => getPlayerLevel(p) === 'A');
+        const hasB = teamPlayers.some(p => getPlayerLevel(p) === 'B');
+        const hasC = teamPlayers.some(p => getPlayerLevel(p) === 'C');
 
         const filtered = teamStats.filteredPlayers;
 
@@ -589,12 +652,13 @@
         const homeWon = isCompleted && hs > as;
         const awayWon = isCompleted && as > hs;
         const weWon = (isHome && homeWon) || (!isHome && awayWon);
-
         // Resolve team names via teamsById Map
         const homeTeamObj = teamsById.get(match.home_team_id) || {};
         const awayTeamObj = teamsById.get(match.away_team_id) || {};
         const homeTeamName = homeTeamObj.name || homeTeamObj.team_name || 'Unknown Team';
         const awayTeamName = awayTeamObj.name || awayTeamObj.team_name || 'Unknown Team';
+        const ourTeamName = isHome ? homeTeamName : awayTeamName;
+        const opponentTeamName = isHome ? awayTeamName : homeTeamName;
 
         // Records from standings
         const homeStanding = standings.find(t => t.id === match.home_team_id) || {};
@@ -603,53 +667,61 @@
         const awayRank = standings.findIndex(t => t.id === match.away_team_id) + 1;
         const homeRecord = `${homeStanding.wins || 0}-${homeStanding.losses || 0}`;
         const awayRecord = `${awayStanding.wins || 0}-${awayStanding.losses || 0}`;
+        const ourRecord = isHome ? homeRecord : awayRecord;
+        const opponentRecord = isHome ? awayRecord : homeRecord;
+        const ourRank = isHome ? homeRank : awayRank;
+        const opponentRank = isHome ? awayRank : homeRank;
 
         // Team averages
         const homeAvgStats = computeTeamAvgStats(match.home_team_id, allPlayers);
         const awayAvgStats = computeTeamAvgStats(match.away_team_id, allPlayers);
         const homeAvgStr = homeAvgStats.avg3DA > 0 ? `${homeAvgStats.avg3DA.toFixed(1)} / ${homeAvgStats.avgMPR.toFixed(2)}` : '';
         const awayAvgStr = awayAvgStats.avg3DA > 0 ? `${awayAvgStats.avg3DA.toFixed(1)} / ${awayAvgStats.avgMPR.toFixed(2)}` : '';
+        const ourAvgStr = isHome ? homeAvgStr : awayAvgStr;
+        const opponentAvgStr = isHome ? awayAvgStr : homeAvgStr;
+        const ourScore = isHome ? hs : as;
+        const opponentScore = isHome ? as : hs;
+        const ourWon = isCompleted && ourScore > opponentScore;
+        const opponentWon = isCompleted && opponentScore > ourScore;
 
         const cardClass = !isCompleted ? 'upcoming' : weWon ? 'win' : 'loss';
-        const homeIsUs = match.home_team_id === teamId;
-        const awayIsUs = match.away_team_id === teamId;
 
         return `
             <div class="match-card ${cardClass}">
                 <div class="match-card-header ${isCompleted ? 'completed' : ''}">
                     <div class="winner-star-slot">
-                        ${isCompleted && homeWon ? '<span class="winner-star">&#9733;</span>' : ''}
+                        ${isCompleted && ourWon ? '<span class="winner-star">&#9733;</span>' : ''}
                     </div>
 
                     <div class="match-team-side left">
                         <div class="match-team-meta">
-                            <span class="match-team-record">(${homeRecord})</span>
-                            ${homeRank > 0 ? `<span class="match-team-standing">${getOrdinal(homeRank)}</span>` : ''}
+                            <span class="match-team-record">(${ourRecord})</span>
+                            ${ourRank > 0 ? `<span class="match-team-standing">${getOrdinal(ourRank)}</span>` : ''}
                         </div>
-                        <div class="match-team-name ${homeWon ? 'winner' : ''} ${homeIsUs ? 'our-team' : ''}">${homeTeamName}</div>
-                        ${homeAvgStr ? `<div class="match-team-avgs">${homeAvgStr}</div>` : ''}
+                        <div class="match-team-name ${ourWon ? 'winner' : ''} our-team">${ourTeamName}</div>
+                        ${ourAvgStr ? `<div class="match-team-avgs">${ourAvgStr}</div>` : ''}
                     </div>
 
-                    ${isCompleted ? `<div class="match-header-score ${homeWon ? 'winner' : ''}">${hs}</div>` : ''}
+                    ${isCompleted ? `<div class="match-header-score ${ourWon ? 'winner' : ''}">${ourScore}</div>` : ''}
 
                     <div class="match-header-center">
                         <div class="match-week">WEEK ${match.week || '?'}${leagueData.num_weeks ? '/' + leagueData.num_weeks : ''}</div>
-                        <div class="match-status ${isCompleted ? 'final' : ''}">${isCompleted ? 'FINAL' : (isHome ? 'VS' : '@')}</div>
+                        <div class="match-status ${isCompleted ? 'final' : ''}">${isCompleted ? 'FINAL' : (isHome ? 'HOME' : 'AWAY')}</div>
                     </div>
 
-                    ${isCompleted ? `<div class="match-header-score ${awayWon ? 'winner' : ''}">${as}</div>` : ''}
+                    ${isCompleted ? `<div class="match-header-score ${opponentWon ? 'winner' : ''}">${opponentScore}</div>` : ''}
 
                     <div class="match-team-side right">
                         <div class="match-team-meta">
-                            ${awayRank > 0 ? `<span class="match-team-standing">${getOrdinal(awayRank)}</span>` : ''}
-                            <span class="match-team-record">(${awayRecord})</span>
+                            ${opponentRank > 0 ? `<span class="match-team-standing">${getOrdinal(opponentRank)}</span>` : ''}
+                            <span class="match-team-record">(${opponentRecord})</span>
                         </div>
-                        <div class="match-team-name ${awayWon ? 'winner' : ''} ${awayIsUs ? 'our-team' : ''}">${awayTeamName}</div>
-                        ${awayAvgStr ? `<div class="match-team-avgs">${awayAvgStr}</div>` : ''}
+                        <div class="match-team-name ${opponentWon ? 'winner' : ''}">${opponentTeamName}</div>
+                        ${opponentAvgStr ? `<div class="match-team-avgs">${opponentAvgStr}</div>` : ''}
                     </div>
 
                     <div class="winner-star-slot">
-                        ${isCompleted && awayWon ? '<span class="winner-star">&#9733;</span>' : ''}
+                        ${isCompleted && opponentWon ? '<span class="winner-star">&#9733;</span>' : ''}
                     </div>
                 </div>
 

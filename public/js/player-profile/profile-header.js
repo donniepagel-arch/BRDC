@@ -295,7 +295,6 @@ window.login = async function() {
             state.currentLeagueId = result.player?.league_id || null;
 
             localStorage.setItem('brdc_session', JSON.stringify(result.player));
-            localStorage.removeItem('brdc_player_pin');
 
             await showProfile(state);
         } else {
@@ -371,7 +370,6 @@ window.loginWithGoogle = async function() {
             state.currentLeagueId = result.player?.league_id || null;
 
             localStorage.setItem('brdc_session', JSON.stringify(result.player));
-            localStorage.removeItem('brdc_player_pin');
 
             await showProfile(state);
         } else {

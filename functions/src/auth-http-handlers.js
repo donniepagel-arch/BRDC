@@ -205,19 +205,6 @@ function createAuthHandlers({ admin, db, getMessagingServices }) {
                     phoneLast4 = phoneClean.slice(-4);
                 }
 
-                if (phoneClean.length >= 10) {
-                    const existingByPhone = await db.collection('players')
-                        .where('phone', '==', phoneClean)
-                        .limit(1)
-                        .get();
-
-                    if (!existingByPhone.empty) {
-                        return res.status(400).json({
-                            success: false,
-                            error: 'An account with this phone number already exists. Use your PIN to login.'
-                        });
-                    }
-                }
             }
 
             const pin = phoneLast4
@@ -303,18 +290,6 @@ function createAuthHandlers({ admin, db, getMessagingServices }) {
 
             const fullName = `${first_name.trim()} ${last_name.trim()}`;
             const emailLower = email ? email.toLowerCase().trim() : null;
-
-            const existingPlayer = await db.collection('players')
-                .where('phone', '==', phoneClean)
-                .limit(1)
-                .get();
-
-            if (!existingPlayer.empty) {
-                return res.status(400).json({
-                    success: false,
-                    error: 'An account with this phone number already exists. Use your PIN to login.'
-                });
-            }
 
             const phoneLast4 = phoneClean.slice(-4);
             const pin = await generateUniquePinWithPhone(phoneLast4);

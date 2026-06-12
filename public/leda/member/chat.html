@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LEDA - Chat</title>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #1a3a5c;
+            --secondary: #2e7db5;
+            --accent: #7ec8c8;
+            --bg-dark: #0d1f33;
+            --bg-panel: #0f2744;
+            --bg-card: #142d50;
+            --text-light: #f0f0f0;
+            --text-dim: #8a9ab5;
+            --success: #22c55e;
+            --danger: #ef4444;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            background-color: var(--bg-dark);
+            color: var(--text-light);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        h1, h2, h3, h4, h5, h6 {
+            font-family: 'Bebas Neue', sans-serif;
+            color: var(--text-light);
+        }
+
+        .top-nav {
+            background-color: var(--bg-panel);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+
+        .nav-logo {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 2em;
+            color: var(--accent);
+        }
+
+        .nav-links a, .top-nav button {
+            color: var(--text-dim);
+            text-decoration: none;
+            padding: 8px 15px;
+            margin-left: 15px;
+            border-radius: 5px;
+            transition: background-color 0.2s, color 0.2s;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1em;
+        }
+
+        .nav-links a:hover, .top-nav button:hover {
+            background-color: var(--bg-card);
+            color: var(--text-light);
+        }
+
+        .nav-links a.active {
+            background-color: var(--primary);
+            color: var(--text-light);
+        }
+
+        .chat-container {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            max-width: 800px;
+            margin: 0 auto;
+            width: 100%;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .chat-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: var(--bg-panel);
+            padding: 15px;
+            border-radius: 8px 8px 0 0;
+            margin-bottom: 10px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+
+        .chat-header h2 {
+            margin: 0;
+            color: var(--text-light);
+            font-size: 1.8em;
+        }
+
+        .online-count {
+            color: var(--accent);
+            font-size: 1.1em;
+            font-weight: 500;
+        }
+
+        .messages-area {
+            flex-grow: 1;
+            background-color: var(--bg-panel);
+            border-radius: 8px;
+            padding: 15px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 10px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+
+        .message-bubble {
+            display: flex;
+            flex-direction: column;
+            max-width: 70%;
+            padding: 10px 15px;
+            border-radius: 15px;
+            word-wrap: break-word;
+        }
+
+        .message-bubble.mine {
+            align-self: flex-end;
+            background-color: var(--accent);
+            color: var(--bg-dark);
+            border-bottom-right-radius: 2px;
+        }
+
+        .message-bubble.other {
+            align-self: flex-start;
+            background-color: var(--bg-card);
+            color: var(--text-light);
+            border-bottom-left-radius: 2px;
+        }
+
+        .message-author {
+            font-size: 0.8em;
+            color: var(--text-dim);
+            margin-bottom: 3px;
+            align-self: flex-start;
+        }
+        .message-bubble.mine .message-author {
+            align-self: flex-end;
+        }
+
+        .message-content {
+            font-size: 1em;
+            line-height: 1.4;
+        }
+
+        .message-timestamp {
+            font-size: 0.7em;
+            color: var(--text-dim);
+            margin-top: 5px;
+            align-self: flex-end;
+        }
+        .message-bubble.mine .message-timestamp {
+            color: rgba(0, 0, 0, 0.6);
+        }
+
+        .chat-input-area {
+            display: flex;
+            background-color: var(--bg-panel);
+            padding: 15px;
+            border-radius: 0 0 8px 8px;
+            box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.2);
+        }
+
+        .chat-input-area textarea {
+            flex-grow: 1;
+            background-color: var(--bg-card);
+            border: 1px solid var(--primary);
+            border-radius: 5px;
+            padding: 10px;
+            color: var(--text-light);
+            font-family: 'Inter', sans-serif;
+            font-size: 1em;
+            resize: none;
+            max-height: 100px;
+            overflow-y: auto;
+        }
+
+        .chat-input-area textarea:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .chat-input-area button {
+            background-color: var(--secondary);
+            color: var(--text-light);
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            margin-left: 10px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background-color 0.2s;
+        }
+
+        .chat-input-area button:hover {
+            background-color: #266b96;
+        }
+
+        .empty-state {
+            text-align: center;
+            color: var(--text-dim);
+            font-size: 1.2em;
+            margin-top: 50px;
+        }
+        footer {
+            text-align: center;
+            padding: 20px;
+            color: rgba(255,255,255,0.25);
+            font-size: 11px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+        footer a {
+            color: rgba(255,255,255,0.35);
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <nav class="top-nav">
+        <span class="nav-logo">LEDA</span>
+        <div id="org-switcher-container"></div>
+        <div class="nav-links">
+            <a href="/leda/member/home.html">Home</a>
+            <a href="/leda/member/events.html">Events</a>
+            <a href="/leda/member/standings.html">Standings</a>
+            <a href="/leda/member/chat.html" class="active">Chat</a>
+            <a href="/leda/member/profile.html">Profile</a>
+            <button onclick="logout()">Logout</button>
+        </div>
+    </nav>
+
+    <div class="chat-container">
+        <div class="chat-header">
+            <h2>General Chat</h2>
+            <span class="online-count" id="online-members-count">0 Online</span>
+        </div>
+        <div class="messages-area" id="messages-area">
+            <p id="empty-chat-state" class="empty-state">No messages yet. Say hello! 👋</p>
+        </div>
+        <div class="chat-input-area">
+            <textarea id="message-input" placeholder="Type your message..." rows="1"></textarea>
+            <button id="send-button">Send</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { detectUserOrgs, renderOrgSwitcher } from '/leda/js/org-switcher.js';
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getFirestore, collection, query, orderBy, limit, onSnapshot, addDoc, doc, getDoc, setDoc, updateDoc, serverTimestamp, getDocs, where } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDN1aYhoVt3OX5EafsNTVB09i8VFx7QM1U",
+            authDomain: "brdc-v2.firebaseapp.com",
+            projectId: "brdc-v2",
+            storageBucket: "brdc-v2.firebasestorage.app",
+            messagingSenderId: "726670872282",
+            appId: "1:726670872282:web:913d19c8cb3b24bf919fe3"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        const orgId = 'leda';
+        let currentUser = null;
+        let memberProfile = null;
+        let lastAuthorId = null;
+
+        const messagesArea = document.getElementById('messages-area');
+        const messageInput = document.getElementById('message-input');
+        const sendButton = document.getElementById('send-button');
+        const onlineMembersCount = document.getElementById('online-members-count');
+        const emptyChatState = document.getElementById('empty-chat-state');
+
+        async function checkAuthAndLoadData() {
+            onAuthStateChanged(auth, async (user) => {
+                if (!user) {
+                    window.location.href = '/leda/login.html';
+                    return;
+                }
+                currentUser = user;
+                const userRole = sessionStorage.getItem('userRole');
+                if (sessionStorage.getItem('orgId') !== orgId || userRole !== 'member') {
+                    alert('Unauthorized access.');
+                    window.location.href = '/leda/login.html';
+                    return;
+                }
+
+                await loadMemberProfile(user.uid);
+                setupChatListener();
+                setupPresence();
+                const orgs = await detectUserOrgs(user.uid);
+                renderOrgSwitcher(orgs, 'leda', document.getElementById('org-switcher-container'));
+            });
+        }
+
+        async function loadMemberProfile(uid) {
+            try {
+                const playerDocRef = doc(db, `organizations/${orgId}/players`, uid);
+                const playerSnap = await getDoc(playerDocRef);
+                if (playerSnap.exists()) {
+                    memberProfile = { id: playerSnap.id, ...playerSnap.data() };
+                } else {
+                    console.warn("Member profile not found for UID:", uid);
+                    memberProfile = { name: "Member", email: currentUser.email }; // Fallback
+                }
+            } catch (error) {
+                console.error("Error loading member profile: ", error);
+                memberProfile = { name: "Member", email: currentUser.email }; // Fallback
+            }
+        }
+
+        function setupChatListener() {
+            const messagesColRef = collection(db, `organizations/${orgId}/chat/general/messages`);
+            const q = query(messagesColRef, orderBy('timestamp', 'desc'), limit(50)); // Load last 50 messages
+
+            onSnapshot(q, (snapshot) => {
+                emptyChatState.style.display = snapshot.empty ? 'block' : 'none';
+                const newMessages = [];
+                snapshot.docChanges().forEach(change => {
+                    if (change.type === "added") {
+                        newMessages.push({ id: change.doc.id, ...change.doc.data() });
+                    }
+                });
+                newMessages.sort((a, b) => a.timestamp - b.timestamp); // Ensure ascending order
+
+                newMessages.forEach(message => {
+                    addMessageToChat(message);
+                });
+                messagesArea.scrollTop = messagesArea.scrollHeight; // Scroll to bottom
+            }, (error) => {
+                console.error("Error listening to messages: ", error);
+            });
+        }
+
+        function addMessageToChat(message) {
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('message-bubble');
+            
+            const isMine = currentUser && message.author_id === currentUser.uid;
+            messageDiv.classList.add(isMine ? 'mine' : 'other');
+
+            let authorHtml = '';
+            if (message.author_id !== lastAuthorId) {
+                authorHtml = `<div class="message-author">${message.author_name}</div>`;
+            }
+            lastAuthorId = message.author_id;
+
+            const timestamp = message.timestamp ? new Date(message.timestamp.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+
+            messageDiv.innerHTML = `
+                ${authorHtml}
+                <div class="message-content">${escapeHTML(message.text)}</div>
+                <div class="message-timestamp">${timestamp}</div>
+            `;
+            messagesArea.appendChild(messageDiv);
+        }
+
+        sendButton.addEventListener('click', sendMessage);
+        messageInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        async function sendMessage() {
+            const text = messageInput.value.trim();
+            if (!text || !currentUser || !memberProfile) return;
+
+            try {
+                const messagesColRef = collection(db, `organizations/${orgId}/chat/general/messages`);
+                await addDoc(messagesColRef, {
+                    text: text,
+                    author_name: memberProfile.name,
+                    author_id: currentUser.uid,
+                    timestamp: serverTimestamp(),
+                    type: 'text'
+                });
+                messageInput.value = '';
+                messageInput.style.height = 'auto'; // Reset textarea height
+            } catch (error) {
+                console.error("Error sending message: ", error);
+                alert("Failed to send message.");
+            }
+        }
+
+        // Auto-resize textarea
+        messageInput.addEventListener('input', () => {
+            messageInput.style.height = 'auto';
+            messageInput.style.height = messageInput.scrollHeight + 'px';
+        });
+
+        // Presence system
+        async function updatePresence() {
+            if (currentUser && memberProfile) {
+                const presenceRef = doc(db, `organizations/${orgId}/presence`, currentUser.uid);
+                await setDoc(presenceRef, {
+                    name: memberProfile.name,
+                    last_seen: serverTimestamp()
+                }, { merge: true });
+            }
+            countOnlineMembers();
+        }
+
+        async function countOnlineMembers() {
+            const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
+            const presenceColRef = collection(db, `organizations/${orgId}/presence`);
+            const q = query(presenceColRef, where('last_seen', '>=', twoMinutesAgo));
+            const snapshot = await getDocs(q);
+            onlineMembersCount.textContent = `${snapshot.size} Online`;
+        }
+
+        function setupPresence() {
+            if (currentUser && memberProfile) {
+                updatePresence(); // Initial update
+                setInterval(updatePresence, 60000); // Update every 60 seconds
+            }
+        }
+
+
+        // Helper to escape HTML to prevent XSS
+        function escapeHTML(str) {
+            const div = document.createElement('div');
+            div.appendChild(document.createTextNode(str));
+            return div.innerHTML;
+        }
+
+        // Logout function
+        window.logout = async function() {
+            try {
+                await signOut(auth);
+                sessionStorage.clear();
+                window.location.href = '/leda/login.html';
+            } catch (error) {
+                console.error("Error signing out: ", error);
+                alert("Failed to log out.");
+            }
+        }
+
+        checkAuthAndLoadData();
+    </script>
+    <footer>Powered by <a href="https://looptlabs.com" style="color:rgba(255,255,255,0.35);text-decoration:none;">Loopt Labs</a></footer>
+</body>
+</html>

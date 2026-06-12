@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arena - BRDC</title>
+    <link rel="icon" type="image/png" href="/images/favicon.png">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#fff8ed">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap">
+    <link rel="stylesheet" href="/css/brdc-styles.css">
+    <link rel="stylesheet" href="/css/fb-mobile.css">
+    <link rel="stylesheet" href="/css/brdc-navigation.css?v=20">
+
+    <style>
+        /* ── Arena Page Layout ── */
+        .arena-shell {
+            padding: 0 0 120px;
+            max-width: 640px;
+            margin: 0 auto;
+        }
+
+        /* ── Section headers ── */
+        .arena-section-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 18px 16px 6px;
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 11px;
+            letter-spacing: 2px;
+            color: var(--text-dim, #888);
+            text-transform: uppercase;
+        }
+        .arena-section-label::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: rgba(255,255,255,0.08);
+        }
+
+        .arena-divider-label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 16px 14px;
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 13px;
+            letter-spacing: 2.5px;
+            color: var(--yellow, #FFD700);
+            text-transform: uppercase;
+        }
+        .arena-divider-label::before,
+        .arena-divider-label::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: rgba(255, 215, 0, 0.25);
+        }
+
+        /* ── In-person cards (top zone) ── */
+        .arena-inperson-zone {
+            padding: 12px 16px 0;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .arena-card {
+            background: var(--bg-card, #1a1a1a);
+            border: 1.5px solid rgba(255,255,255,0.08);
+            border-radius: 12px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: border-color 0.15s, transform 0.1s;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .arena-card:active { transform: scale(0.985); }
+
+        /* League match card — prominent */
+        .arena-league-card {
+            border-color: var(--teal, #26C6DA);
+            background: linear-gradient(135deg, rgba(38,198,218,0.08) 0%, var(--bg-card, #1a1a1a) 60%);
+        }
+        .arena-league-card .arena-card-body {
+            padding: 16px;
+        }
+        .arena-league-kicker {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--teal, #26C6DA);
+            margin-bottom: 4px;
+        }
+        .arena-league-vs {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 24px;
+            color: #fff;
+            margin: 2px 0 6px;
+            line-height: 1.1;
+        }
+        .arena-league-meta {
+            font-size: 13px;
+            color: var(--text-dim, #888);
+            margin-bottom: 12px;
+        }
+        .arena-league-cta {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--teal, #26C6DA);
+            color: #000;
+            font-size: 13px;
+            font-weight: 700;
+            padding: 8px 16px;
+            border-radius: 8px;
+            text-decoration: none;
+            border: none;
+            cursor: pointer;
+        }
+
+        /* Score a game here card */
+        .arena-casual-card {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 14px 16px;
+        }
+        .arena-casual-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.07);
+            display: grid;
+            place-items: center;
+            font-size: 22px;
+            flex-shrink: 0;
+        }
+        .arena-casual-text {
+            flex: 1;
+        }
+        .arena-casual-text strong {
+            display: block;
+            font-size: 15px;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 2px;
+        }
+        .arena-casual-text span {
+            font-size: 12px;
+            color: var(--text-dim, #888);
+        }
+        .arena-chevron {
+            color: var(--text-dim, #888);
+            font-size: 18px;
+            line-height: 1;
+        }
+
+        /* ── Online lobby zone ── */
+        .arena-lobby-zone {
+            padding: 0 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        /* Presence / Online now */
+        .arena-presence-card {
+            background: var(--bg-card, #1a1a1a);
+            border: 1.5px solid rgba(255,255,255,0.08);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .arena-presence-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 16px 10px;
+        }
+        .arena-presence-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            font-weight: 700;
+            color: #fff;
+        }
+        .arena-online-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #4caf50;
+            box-shadow: 0 0 6px rgba(76,175,80,0.6);
+            animation: pulse-green 2s infinite;
+            flex-shrink: 0;
+        }
+        @keyframes pulse-green {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .arena-online-count {
+            font-size: 12px;
+            color: var(--text-dim, #888);
+            background: rgba(255,255,255,0.06);
+            padding: 2px 8px;
+            border-radius: 20px;
+        }
+        .arena-presence-list {
+            padding: 0 16px 12px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            min-height: 40px;
+        }
+        .arena-presence-chip {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(255,255,255,0.06);
+            border-radius: 20px;
+            padding: 4px 10px 4px 6px;
+            font-size: 12px;
+            color: #fff;
+        }
+        .arena-presence-avatar {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: var(--pink, #e91e63);
+            display: grid;
+            place-items: center;
+            font-size: 9px;
+            font-weight: 700;
+            color: #fff;
+            flex-shrink: 0;
+        }
+        .arena-presence-empty {
+            padding: 0 16px 16px;
+            font-size: 13px;
+            color: var(--text-dim, #888);
+        }
+        .arena-lobby-actions {
+            display: flex;
+            gap: 8px;
+            padding: 0 16px 14px;
+        }
+        .arena-btn {
+            flex: 1;
+            padding: 9px 8px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 700;
+            border: none;
+            cursor: pointer;
+            transition: opacity 0.15s;
+        }
+        .arena-btn:active { opacity: 0.75; }
+        .arena-btn-primary {
+            background: var(--yellow, #FFD700);
+            color: #000;
+        }
+        .arena-btn-secondary {
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+        }
+
+        /* ── Challenges ── */
+        .arena-challenges-card {
+            background: var(--bg-card, #1a1a1a);
+            border: 1.5px solid rgba(255,255,255,0.08);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .arena-challenges-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 16px 10px;
+        }
+        .arena-challenges-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #fff;
+        }
+        .arena-challenge-badge {
+            background: var(--pink, #e91e63);
+            color: #fff;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 2px 7px;
+            border-radius: 20px;
+            display: none;
+        }
+        .arena-challenge-list {
+            padding: 0 16px;
+        }
+        .arena-challenge-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 0;
+            border-top: 1px solid rgba(255,255,255,0.06);
+        }
+        .arena-challenge-item:first-child { border-top: none; }
+        .arena-challenge-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.1);
+            display: grid;
+            place-items: center;
+            font-size: 13px;
+            font-weight: 700;
+            color: #fff;
+            flex-shrink: 0;
+        }
+        .arena-challenge-info {
+            flex: 1;
+            min-width: 0;
+        }
+        .arena-challenge-name {
+            font-size: 13px;
+            font-weight: 600;
+            color: #fff;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .arena-challenge-meta {
+            font-size: 11px;
+            color: var(--text-dim, #888);
+            margin-top: 1px;
+        }
+        .arena-challenge-actions {
+            display: flex;
+            gap: 6px;
+        }
+        .arena-challenge-btn {
+            padding: 5px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 700;
+            border: none;
+            cursor: pointer;
+        }
+        .arena-challenge-btn.accept {
+            background: #4caf50;
+            color: #fff;
+        }
+        .arena-challenge-btn.decline {
+            background: rgba(255,255,255,0.1);
+            color: var(--text-dim, #888);
+        }
+        .arena-challenge-btn.cancel {
+            background: rgba(255,255,255,0.06);
+            color: var(--text-dim, #888);
+        }
+
+        /* Send challenge row */
+        .arena-send-challenge-row {
+            padding: 12px 16px 14px;
+            border-top: 1px solid rgba(255,255,255,0.06);
+        }
+        .arena-send-challenge-row label {
+            display: block;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: var(--text-dim, #888);
+            margin-bottom: 8px;
+        }
+        .arena-send-challenge-input {
+            display: flex;
+            gap: 8px;
+        }
+        .arena-player-select {
+            flex: 1;
+            background: rgba(255,255,255,0.06);
+            border: 1.5px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            padding: 8px 12px;
+            color: #fff;
+            font-size: 13px;
+            font-family: 'Inter', sans-serif;
+            appearance: none;
+        }
+        .arena-player-select option { background: #1a1a1a; }
+        .arena-player-select:focus {
+            outline: none;
+            border-color: var(--yellow, #FFD700);
+        }
+        .arena-challenge-game-select {
+            width: 90px;
+            background: rgba(255,255,255,0.06);
+            border: 1.5px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            padding: 8px 10px;
+            color: #fff;
+            font-size: 13px;
+            font-family: 'Inter', sans-serif;
+            appearance: none;
+        }
+        .arena-challenge-game-select option { background: #1a1a1a; }
+
+        /* ── Mini Tournaments ── */
+        .arena-tournaments-card {
+            background: var(--bg-card, #1a1a1a);
+            border: 1.5px solid rgba(255,255,255,0.08);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .arena-tournaments-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 16px 10px;
+        }
+        .arena-tournaments-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #fff;
+        }
+        .arena-tournament-list {
+            padding: 0 16px;
+        }
+        .arena-tournament-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 0;
+            border-top: 1px solid rgba(255,255,255,0.06);
+        }
+        .arena-tournament-item:first-child { border-top: none; }
+        .arena-tournament-icon {
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+        .arena-tournament-info {
+            flex: 1;
+            min-width: 0;
+        }
+        .arena-tournament-name {
+            font-size: 13px;
+            font-weight: 600;
+            color: #fff;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .arena-tournament-meta {
+            font-size: 11px;
+            color: var(--text-dim, #888);
+            margin-top: 1px;
+        }
+        .arena-tournament-join-btn {
+            padding: 5px 12px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 700;
+            background: var(--yellow, #FFD700);
+            color: #000;
+            border: none;
+            cursor: pointer;
+        }
+        .arena-create-tournament-row {
+            padding: 10px 16px 14px;
+            border-top: 1px solid rgba(255,255,255,0.06);
+        }
+        .arena-create-tournament-btn {
+            width: 100%;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 700;
+            background: rgba(255,255,255,0.06);
+            color: #fff;
+            border: 1.5px dashed rgba(255,255,255,0.15);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        /* ── Watch live ── */
+        .arena-watch-card {
+            background: var(--bg-card, #1a1a1a);
+            border: 1.5px solid rgba(255,255,255,0.08);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .arena-watch-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 14px 16px 10px;
+        }
+        .arena-watch-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #fff;
+        }
+        .arena-live-badge {
+            font-size: 9px;
+            font-weight: 800;
+            letter-spacing: 1px;
+            background: #e53935;
+            color: #fff;
+            padding: 2px 6px;
+            border-radius: 3px;
+            text-transform: uppercase;
+        }
+        .arena-watch-list {
+            padding: 0 16px;
+        }
+        .arena-watch-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 0;
+            border-top: 1px solid rgba(255,255,255,0.06);
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .arena-watch-item:first-child { border-top: none; }
+        .arena-watch-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #e53935;
+            animation: pulse-red 1.5s infinite;
+            flex-shrink: 0;
+        }
+        @keyframes pulse-red {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(0.8); }
+        }
+        .arena-watch-match-name {
+            flex: 1;
+            font-size: 13px;
+            color: #fff;
+        }
+        .arena-watch-meta {
+            font-size: 11px;
+            color: var(--text-dim, #888);
+        }
+
+        /* ── Empty states ── */
+        .arena-empty {
+            padding: 14px 16px;
+            font-size: 13px;
+            color: var(--text-dim, #888);
+            font-style: italic;
+        }
+
+        /* ── Loading skeleton ── */
+        .arena-skeleton {
+            height: 18px;
+            border-radius: 6px;
+            background: rgba(255,255,255,0.06);
+            animation: shimmer 1.5s infinite;
+        }
+        @keyframes shimmer {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+
+        /* ── Quick-match modal ── */
+        .arena-modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.75);
+            z-index: 200;
+            display: flex;
+            align-items: flex-end;
+            padding: 0;
+        }
+        .arena-modal-overlay[hidden] { display: none; }
+        .arena-modal {
+            background: var(--bg-panel, #121212);
+            border-radius: 18px 18px 0 0;
+            padding: 20px 16px 40px;
+            width: 100%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .arena-modal-title {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 22px;
+            color: #fff;
+            margin-bottom: 16px;
+        }
+        .arena-modal-field {
+            margin-bottom: 12px;
+        }
+        .arena-modal-field label {
+            display: block;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: var(--text-dim, #888);
+            margin-bottom: 6px;
+        }
+        .arena-modal-field select,
+        .arena-modal-field input {
+            width: 100%;
+            background: rgba(255,255,255,0.06);
+            border: 1.5px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            padding: 10px 12px;
+            color: #fff;
+            font-size: 14px;
+            font-family: 'Inter', sans-serif;
+            box-sizing: border-box;
+            appearance: none;
+        }
+        .arena-modal-field select option { background: #1a1a1a; }
+        .arena-modal-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 16px;
+        }
+        .arena-modal-actions button {
+            flex: 1;
+            padding: 12px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 700;
+            border: none;
+            cursor: pointer;
+        }
+        .arena-modal-cancel {
+            background: rgba(255,255,255,0.1);
+            color: var(--text-dim, #888);
+        }
+        .arena-modal-confirm {
+            background: var(--yellow, #FFD700);
+            color: #000;
+        }
+
+        /* ── Spinner ── */
+        .arena-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255,255,255,0.2);
+            border-top-color: var(--yellow, #FFD700);
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            vertical-align: middle;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="vnext-light-page has-mobile-nav">
+
+    <main class="arena-shell" id="mainContent">
+
+        <!-- ─────────────────────────────────────
+             IN-PERSON ZONE (pinned at top)
+             ───────────────────────────────────── -->
+        <div class="arena-section-label">In-person play</div>
+        <div class="arena-inperson-zone">
+
+            <!-- League match card (shown only if player has an upcoming/active match) -->
+            <div id="arenaLeagueMatchCard" class="arena-card arena-league-card" style="display:none;" role="button" tabindex="0" aria-label="Your league match">
+                <div class="arena-card-body">
+                    <div class="arena-league-kicker" id="arenaLeagueKicker">Your League Match</div>
+                    <div class="arena-league-vs" id="arenaLeagueVs">Loading…</div>
+                    <div class="arena-league-meta" id="arenaLeagueMeta"></div>
+                    <a class="arena-league-cta" id="arenaLeagueScorerLink" href="#">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                        Go to match
+                    </a>
+                </div>
+            </div>
+
+            <!-- Score a game here — always visible -->
+            <a class="arena-card" href="/pages/scorer-setup-vnext.html" aria-label="Score a game here">
+                <div class="arena-casual-card">
+                    <div class="arena-casual-icon">🎯</div>
+                    <div class="arena-casual-text">
+                        <strong>Score a game here</strong>
+                        <span>In-person casual board — pick players, start now</span>
+                    </div>
+                    <div class="arena-chevron">›</div>
+                </div>
+            </a>
+
+        </div>
+
+        <!-- ─────────────────────────────────────
+             LOBBY DIVIDER
+             ───────────────────────────────────── -->
+        <div class="arena-divider-label">Online lobby</div>
+
+        <div class="arena-lobby-zone">
+
+            <!-- Online Now -->
+            <div class="arena-presence-card" id="arenaOnlineCard">
+                <div class="arena-presence-header">
+                    <div class="arena-presence-title">
+                        <span class="arena-online-dot"></span>
+                        Online now
+                    </div>
+                    <span class="arena-online-count" id="arenaOnlineCount">0 online</span>
+                </div>
+                <div class="arena-presence-list" id="arenaPresenceList">
+                    <span class="arena-skeleton" style="width:90px; height:28px; border-radius:20px;"></span>
+                    <span class="arena-skeleton" style="width:80px; height:28px; border-radius:20px;"></span>
+                </div>
+                <div class="arena-lobby-actions" id="arenaLobbyActions">
+                    <button class="arena-btn arena-btn-primary" id="arenaQuickMatchBtn">Quick match</button>
+                    <button class="arena-btn arena-btn-secondary" id="arenaHostBoardBtn">Host a board</button>
+                    <button class="arena-btn arena-btn-secondary" id="arenaJoinBoardBtn">Join</button>
+                </div>
+            </div>
+
+            <!-- Challenges -->
+            <div class="arena-challenges-card" id="arenaChallengesCard">
+                <div class="arena-challenges-header">
+                    <div class="arena-challenges-title">Challenges</div>
+                    <span class="arena-challenge-badge" id="arenaChallengeBadge" aria-live="polite">0</span>
+                </div>
+                <div class="arena-challenge-list" id="arenaIncomingChallenges">
+                    <!-- incoming challenges injected here -->
+                </div>
+                <div class="arena-challenge-list" id="arenaOutgoingChallenges">
+                    <!-- outgoing challenges injected here -->
+                </div>
+                <div class="arena-send-challenge-row">
+                    <label>Send a challenge</label>
+                    <div class="arena-send-challenge-input">
+                        <select class="arena-player-select" id="arenaChallengePlayerSelect">
+                            <option value="">Pick a player…</option>
+                        </select>
+                        <select class="arena-challenge-game-select" id="arenaChallengeGameType">
+                            <option value="501">501</option>
+                            <option value="cricket">Cricket</option>
+                            <option value="301">301</option>
+                            <option value="701">701</option>
+                            <option value="corks_choice">Cork's</option>
+                        </select>
+                        <button class="arena-btn arena-btn-primary" id="arenaSendChallengeBtn" style="flex:0 0 auto; padding:9px 14px;">Send</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mini Tournaments -->
+            <div class="arena-tournaments-card" id="arenaMiniTournamentsCard">
+                <div class="arena-tournaments-header">
+                    <div class="arena-tournaments-title">Mini-tournaments</div>
+                </div>
+                <div class="arena-tournament-list" id="arenaTournamentList">
+                    <div class="arena-skeleton" style="height:50px; margin-bottom:8px;"></div>
+                </div>
+                <div class="arena-create-tournament-row">
+                    <button class="arena-create-tournament-btn" id="arenaCreateTournamentBtn">
+                        <span>＋</span> Create a quick bracket
+                    </button>
+                </div>
+            </div>
+
+            <!-- Watch live -->
+            <div class="arena-watch-card" id="arenaWatchCard">
+                <div class="arena-watch-header">
+                    <div class="arena-watch-title">Watch live</div>
+                    <span class="arena-live-badge">live</span>
+                </div>
+                <div class="arena-watch-list" id="arenaWatchList">
+                    <div class="arena-skeleton" style="height:40px; margin: 0 0 8px;"></div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Quick Match Modal -->
+    <div class="arena-modal-overlay" id="arenaQuickMatchModal" hidden role="dialog" aria-modal="true" aria-labelledby="arenaQuickMatchTitle">
+        <div class="arena-modal">
+            <div class="arena-modal-title" id="arenaQuickMatchTitle">Quick Match</div>
+            <div class="arena-modal-field">
+                <label>Game type</label>
+                <select id="arenaQmGameType">
+                    <option value="501">501</option>
+                    <option value="cricket">Cricket</option>
+                    <option value="301">301</option>
+                    <option value="701">701</option>
+                    <option value="corks_choice">Cork's Choice</option>
+                </select>
+            </div>
+            <div class="arena-modal-field">
+                <label>Race to</label>
+                <select id="arenaQmRaceTo">
+                    <option value="3">Best of 3</option>
+                    <option value="5">Best of 5</option>
+                    <option value="7">Best of 7</option>
+                </select>
+            </div>
+            <div class="arena-modal-field">
+                <label>Opponent</label>
+                <select id="arenaQmOpponent">
+                    <option value="">Any available player</option>
+                </select>
+            </div>
+            <div class="arena-modal-actions">
+                <button class="arena-modal-cancel" id="arenaQmCancel">Cancel</button>
+                <button class="arena-modal-confirm" id="arenaQmConfirm">Send challenge</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Host Board Modal -->
+    <div class="arena-modal-overlay" id="arenaHostBoardModal" hidden role="dialog" aria-modal="true" aria-labelledby="arenaHostBoardTitle">
+        <div class="arena-modal">
+            <div class="arena-modal-title" id="arenaHostBoardTitle">Host a board</div>
+            <div class="arena-modal-field">
+                <label>Game type</label>
+                <select id="arenaHostGameType">
+                    <option value="501">501</option>
+                    <option value="cricket">Cricket</option>
+                    <option value="301">301</option>
+                    <option value="701">701</option>
+                    <option value="corks_choice">Cork's Choice</option>
+                </select>
+            </div>
+            <div class="arena-modal-field">
+                <label>Race to</label>
+                <select id="arenaHostRaceTo">
+                    <option value="3">Best of 3</option>
+                    <option value="5">Best of 5</option>
+                </select>
+            </div>
+            <div class="arena-modal-field">
+                <label>Message (optional)</label>
+                <input type="text" id="arenaHostMessage" placeholder="e.g. anyone up for a game?" maxlength="80">
+            </div>
+            <div class="arena-modal-actions">
+                <button class="arena-modal-cancel" id="arenaHostCancel">Cancel</button>
+                <button class="arena-modal-confirm" id="arenaHostConfirm">Host</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Join Board Modal (list of waiting online matches) -->
+    <div class="arena-modal-overlay" id="arenaJoinBoardModal" hidden role="dialog" aria-modal="true" aria-labelledby="arenaJoinBoardTitle">
+        <div class="arena-modal">
+            <div class="arena-modal-title" id="arenaJoinBoardTitle">Join a board</div>
+            <div id="arenaJoinBoardList" style="min-height:60px;">
+                <div class="arena-empty">Loading open boards…</div>
+            </div>
+            <div class="arena-modal-actions" style="margin-top:8px;">
+                <button class="arena-modal-cancel" id="arenaJoinCancel" style="flex:none; padding:10px 24px;">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Mini Tournament Modal -->
+    <div class="arena-modal-overlay" id="arenaCreateTournamentModal" hidden role="dialog" aria-modal="true" aria-labelledby="arenaCreateTournamentTitle">
+        <div class="arena-modal">
+            <div class="arena-modal-title" id="arenaCreateTournamentTitle">Quick Bracket</div>
+            <div class="arena-modal-field">
+                <label>Name (optional)</label>
+                <input type="text" id="arenaTournamentName" placeholder="Friday Night Bracket">
+            </div>
+            <div class="arena-modal-field">
+                <label>Game type</label>
+                <select id="arenaTournamentGameType">
+                    <option value="501">501</option>
+                    <option value="cricket">Cricket</option>
+                    <option value="301">301</option>
+                </select>
+            </div>
+            <div class="arena-modal-field">
+                <label>Players (2–8, one per line)</label>
+                <textarea id="arenaTournamentPlayers" rows="5"
+                    style="width:100%; background:rgba(255,255,255,0.06); border:1.5px solid rgba(255,255,255,0.1); border-radius:8px; padding:10px 12px; color:#fff; font-size:13px; font-family:'Inter',sans-serif; resize:vertical; box-sizing:border-box;"
+                    placeholder="Player One&#10;Player Two&#10;Player Three"></textarea>
+            </div>
+            <div class="arena-modal-actions">
+                <button class="arena-modal-cancel" id="arenaTournamentCancel">Cancel</button>
+                <button class="arena-modal-confirm" id="arenaTournamentConfirm">Create bracket</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/components/brdc-navigation-init.js?v=20"></script>
+    <script>
+        initBRDCNavigation({ page: 'play', pageTitle: 'Arena' });
+    </script>
+    <script type="module" src="/js/arena-vnext.js"></script>
+</body>
+</html>

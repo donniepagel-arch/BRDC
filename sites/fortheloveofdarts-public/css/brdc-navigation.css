@@ -1,0 +1,898 @@
+/**
+ * BRDC Navigation Styles v3.0
+ * Mobile/Tablet: unified top header + bottom nav | Desktop: header bar
+ */
+
+:root {
+    --nav-bg: rgba(10, 10, 26, 0.95);
+    --nav-border: rgba(255, 255, 255, 0.1);
+    --nav-text: #8a8aa3;
+    --nav-active: #FF469A;
+    --nav-hover: rgba(255, 70, 154, 0.1);
+    --nav-teal: #91D7EB;
+    --nav-shadow: 0 -4px 20px var(--bg-overlay);
+}
+
+/* ===== MOBILE BOTTOM NAVIGATION ===== */
+.brdc-mobile-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--nav-bg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-top: 2px solid var(--nav-border);
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding: 8px 0 max(8px, env(safe-area-inset-bottom));
+    z-index: 1000;
+    box-shadow: var(--nav-shadow);
+}
+
+.mobile-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    color: var(--nav-text);
+    padding: 6px 4px;
+    border-radius: 12px;
+    transition: all 0.2s ease;
+    flex: 1;
+    max-width: none;
+    /* remove max-width to allow equal spacing */
+    position: relative;
+    -webkit-tap-highlight-color: transparent;
+    /* reset button element defaults */
+    background: none;
+    border: none;
+    cursor: pointer;
+}
+
+.mobile-nav-item:active {
+    transform: scale(0.95);
+}
+
+.mobile-nav-item.active {
+    color: var(--nav-active);
+    background: transparent;
+    /* remove background for cleaner look on 5 items */
+}
+
+/* Badge Styling */
+.fb-footer-tab-badge {
+    position: relative;
+}
+
+.fb-footer-tab-badge::after {
+    content: attr(data-count);
+    position: absolute;
+    top: -4px;
+    right: -6px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    background: var(--nav-active);
+    border-radius: 8px;
+    font-size: 10px;
+    font-weight: 700;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid var(--nav-bg);
+}
+
+.fb-footer-tab-badge[data-count="0"]::after {
+    display: none;
+}
+
+.mobile-nav-item.play-btn .mobile-nav-icon {
+    font-size: 28px;
+    margin-bottom: 0;
+}
+
+.mobile-nav-icon {
+    font-size: 22px;
+    margin-bottom: 2px;
+    filter: grayscale(100%);
+    opacity: 0.7;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mobile-nav-icon svg {
+    width: 22px;
+    height: 22px;
+    stroke: currentColor;
+    fill: none;
+}
+
+.mobile-nav-item.active .mobile-nav-icon {
+    filter: grayscale(0%);
+    opacity: 1;
+    animation: navPulse 0.3s ease;
+}
+
+@keyframes navPulse {
+
+    0%,
+    100% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.15);
+    }
+}
+
+.mobile-nav-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+}
+
+/* Hide mobile nav on desktop only */
+@media (min-width: 1024px) {
+    .brdc-mobile-nav {
+        display: none;
+    }
+}
+
+/* Add bottom padding to body when mobile nav is present */
+body.has-mobile-nav {
+    padding-bottom: calc(90px + env(safe-area-inset-bottom));
+}
+
+/* ===== MOBILE/TABLET UNIFIED TOP HEADER ===== */
+.brdc-mobile-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--nav-bg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 3px solid var(--nav-active);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    box-shadow: 0 4px 20px var(--bg-overlay-heavy);
+}
+
+/* Hide on desktop */
+@media (min-width: 1024px) {
+    .brdc-mobile-header {
+        display: none !important;
+    }
+}
+
+.brdc-mh-back {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.08);
+    color: #f0f0f0;
+    font-size: 18px;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all 0.2s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.brdc-mh-back:hover {
+    border-color: var(--nav-active);
+    color: var(--nav-active);
+    background: rgba(255, 70, 154, 0.1);
+}
+
+.brdc-mh-back:active {
+    transform: scale(0.95);
+}
+
+.brdc-mh-logo {
+    width: 36px;
+    height: 36px;
+    object-fit: contain;
+    flex-shrink: 0;
+}
+
+.brdc-mh-title {
+    font-family: 'Bebas Neue', cursive;
+    font-size: 22px;
+    letter-spacing: 2px;
+    color: var(--nav-active);
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.brdc-mh-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+/* Ensure moved action buttons inherit proper styling in mobile header */
+.brdc-mh-actions .header-btn,
+.brdc-mh-actions .fb-header-btn {
+    background: rgba(255, 255, 255, 0.08);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #f0f0f0;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.brdc-mh-actions .header-btn:hover,
+.brdc-mh-actions .fb-header-btn:hover {
+    border-color: var(--nav-active);
+    color: var(--nav-active);
+}
+
+/* Compact text buttons moved into mobile header (e.g. DIRECTOR LOGIN, PRINT) */
+.brdc-mh-actions .director-login-btn,
+.brdc-mh-actions .print-btn,
+.brdc-mh-actions .sell-btn,
+.brdc-mh-actions .create-btn {
+    font-size: 11px;
+    padding: 6px 10px;
+    border-radius: 16px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+    border: 2px solid var(--nav-active);
+    background: rgba(255, 70, 154, 0.15);
+    color: var(--nav-active);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+}
+
+.brdc-mh-actions .director-login-btn:hover,
+.brdc-mh-actions .print-btn:hover,
+.brdc-mh-actions .sell-btn:hover,
+.brdc-mh-actions .create-btn:hover {
+    background: rgba(255, 70, 154, 0.3);
+}
+
+/* Small screen: reduce header padding */
+@media (max-width: 375px) {
+    .brdc-mobile-header {
+        padding: 10px 12px;
+        gap: 8px;
+    }
+
+    .brdc-mh-title {
+        font-size: 18px;
+    }
+
+    .brdc-mh-back,
+    .brdc-mh-logo {
+        width: 32px;
+        height: 32px;
+    }
+}
+
+/* Landscape: compact header */
+@media (max-width: 768px) and (orientation: landscape) {
+    .brdc-mobile-header {
+        padding: 8px 16px;
+    }
+
+    .brdc-mh-title {
+        font-size: 18px;
+    }
+}
+
+/* Auto-hide per-page static headers when nav component is active on mobile/tablet */
+/* The unified nav creates its own fb-header, so hide any inline static headers */
+body.has-brdc-nav:not(.is-desktop) .header-bar,
+body.has-brdc-nav:not(.is-desktop) .header:not(.fb-header),
+body.has-brdc-nav:not(.is-desktop) .page-header,
+body.has-brdc-nav:not(.is-desktop) [data-hidden-by-nav="true"] {
+    display: none !important;
+}
+
+/* Push body content below the fixed fb-header on pages without .fb-main wrapper */
+body.has-brdc-nav:not(.is-desktop) {
+    padding-top: calc(56px + env(safe-area-inset-top, 0px));
+}
+/* Pages with .fb-main already handle their own padding, so reset body padding */
+body.has-brdc-nav:not(.is-desktop):has(.fb-main) {
+    padding-top: 0;
+}
+
+/* Print: show original static header, hide mobile header */
+@media print {
+    .brdc-mobile-header,
+    .brdc-mobile-nav {
+        display: none !important;
+    }
+
+    .header-bar[data-hidden-by-nav],
+    .header[data-hidden-by-nav],
+    .page-header[data-hidden-by-nav],
+    .fb-header[data-hidden-by-nav] {
+        display: flex !important;
+    }
+}
+
+/* ===== DESKTOP HEADER NAVIGATION ===== */
+.brdc-desktop-nav {
+    display: none;
+    justify-content: center;
+    align-items: center;
+    padding: 0 24px;
+    height: 64px;
+    margin-top: 12px;
+    background: var(--nav-bg);
+    border-top: 2px solid var(--nav-border);
+    border-bottom: 2px solid var(--nav-border);
+    position: sticky;
+    top: 0;
+    z-index: 300;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+@media (min-width: 1024px) {
+    .brdc-desktop-nav {
+        display: flex;
+    }
+}
+
+.desktop-nav-logo {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    z-index: 1;
+}
+
+.desktop-nav-logo img {
+    height: 76px;
+    width: auto;
+    margin: -10px 0;
+    filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.6));
+}
+
+.desktop-nav-links {
+    display: flex;
+    align-items: center;
+}
+
+.desktop-nav-links-left {
+    justify-content: space-evenly;
+    flex: 1;
+    margin-right: 16px;
+    min-width: 0;
+}
+
+.desktop-nav-links-right {
+    justify-content: space-evenly;
+    flex: 1;
+    margin-left: 16px;
+    min-width: 0;
+}
+
+.desktop-nav-link {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #ffffff;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transition: all 0.2s ease;
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    position: relative;
+    white-space: nowrap;
+}
+
+.desktop-nav-link:hover {
+    color: var(--nav-active);
+    background: var(--nav-hover);
+}
+
+.desktop-nav-link.active {
+    color: var(--nav-active);
+    background: var(--nav-hover);
+}
+
+.desktop-nav-link-icon {
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    line-height: 1;
+}
+
+.desktop-nav-link-icon svg {
+    width: 18px;
+    height: 18px;
+    stroke: currentColor;
+    fill: none;
+}
+
+/* At narrower desktop widths, hide link labels and show icons only */
+@media (min-width: 1024px) and (max-width: 1279px) {
+    .desktop-nav-link span:not(.desktop-nav-link-icon):not(.fb-footer-tab-badge) {
+        display: none;
+    }
+
+    .desktop-nav-link {
+        padding: 8px 10px;
+    }
+
+    .desktop-nav-links-left {
+        margin-right: 12px;
+    }
+
+    .desktop-nav-links-right {
+        margin-left: 12px;
+    }
+}
+
+.desktop-nav-user-name {
+    color: #f0f0f0;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.desktop-nav-user-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--nav-active) 0%, var(--nav-teal) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 700;
+    color: white;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.dropdown-arrow {
+    font-size: 10px;
+    color: var(--nav-text);
+    transition: transform 0.2s ease;
+}
+
+.desktop-user-dropdown {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 8px;
+    background: var(--nav-bg);
+    border: 2px solid var(--nav-border);
+    border-radius: 12px;
+    min-width: 180px;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    transition: all 0.2s ease;
+    box-shadow: 0 8px 32px var(--bg-overlay-heavy);
+}
+
+.desktop-user-dropdown.open {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.dropdown-item {
+    display: block;
+    padding: 12px 16px;
+    color: var(--nav-text);
+    text-decoration: none;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+.dropdown-item:first-child {
+    border-radius: 10px 10px 0 0;
+}
+
+.dropdown-item:last-child {
+    border-radius: 0 0 10px 10px;
+}
+
+.dropdown-item:hover {
+    background: var(--nav-hover);
+    color: var(--nav-active);
+}
+
+.dropdown-divider {
+    height: 1px;
+    background: var(--nav-border);
+    margin: 4px 0;
+}
+
+/* Body adjustment for desktop nav */
+body.has-desktop-nav {
+    padding-top: 0;
+    /* Header is sticky, no need for padding */
+}
+
+/* ===== ROLE BADGES ===== */
+.brdc-role-badges {
+    display: none;
+    gap: 8px;
+    padding: 8px 16px;
+    background: linear-gradient(90deg, rgba(255, 70, 154, 0.05) 0%, rgba(145, 215, 235, 0.05) 100%);
+    border-bottom: 1px solid var(--nav-border);
+    flex-wrap: wrap;
+}
+
+.role-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border: 2px solid;
+}
+
+.role-badge.director {
+    background: rgba(145, 215, 235, 0.15);
+    border-color: var(--nav-teal);
+    color: var(--nav-teal);
+}
+
+
+.role-badge.admin {
+    background: rgba(253, 216, 53, 0.15);
+    border-color: #FDD835;
+    color: #FDD835;
+}
+
+/* ===== UTILITY CLASSES ===== */
+.nav-hidden {
+    display: none !important;
+}
+
+.nav-visible {
+    display: flex !important;
+}
+
+/* Responsive body classes */
+body.is-mobile .desktop-only,
+body.is-tablet .desktop-only {
+    display: none !important;
+}
+
+body.is-desktop .mobile-only,
+body.is-tablet .mobile-only {
+    display: none !important;
+}
+
+/* ===== NOTIFICATIONS PANEL ===== */
+.fb-notifications-panel {
+    position: fixed;
+    bottom: 70px;
+    left: 10px;
+    right: 10px;
+    max-width: 400px;
+    max-height: 450px;
+    background: var(--nav-bg);
+    border: 1px solid var(--nav-border);
+    border-radius: 12px;
+    box-shadow: 0 -4px 20px var(--bg-overlay-heavy);
+    z-index: 10002;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(10px);
+    transition: opacity 0.2s, visibility 0.2s, transform 0.2s;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    margin: 0 auto;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+}
+
+.fb-notifications-panel.open {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.fb-notifications-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--nav-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.fb-notifications-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--nav-teal);
+    text-transform: uppercase;
+}
+
+.fb-notifications-action {
+    font-size: 12px;
+    color: var(--nav-active);
+    cursor: pointer;
+}
+
+.fb-notifications-action:hover {
+    text-decoration: underline;
+}
+
+.fb-notifications-list {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y; /* Prevent double-tap zoom on notification scroll */
+}
+
+.fb-notification-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 16px;
+    cursor: pointer;
+    transition: background 0.15s;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.fb-notification-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.fb-notification-item.unread {
+    background: rgba(255, 70, 154, 0.1);
+}
+
+.fb-notification-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+}
+
+.fb-notification-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.fb-notification-text {
+    font-size: 14px;
+    color: #f0f0f0;
+    line-height: 1.4;
+}
+
+.fb-notification-time {
+    font-size: 11px;
+    color: var(--nav-text);
+    margin-top: 4px;
+}
+
+.fb-notification-dot {
+    width: 8px;
+    height: 8px;
+    background: var(--nav-active);
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-top: 6px;
+}
+
+.fb-notifications-empty {
+    padding: 30px 20px;
+    text-align: center;
+    color: var(--nav-text);
+    font-size: 14px;
+}
+
+/* Hide on desktop if using header dropdown instead */
+@media (min-width: 1024px) {
+    .fb-notifications-panel {
+        bottom: auto;
+        top: 70px;
+        right: 20px;
+        left: auto;
+        width: 360px;
+    }
+}
+
+/* ===== BACK BUTTON ===== */
+.brdc-back-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    color: #f0f0f0;
+    cursor: pointer;
+    transition: opacity 0.2s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.brdc-back-btn:hover {
+    opacity: 0.7;
+}
+
+.brdc-back-btn:active {
+    opacity: 0.5;
+}
+
+/* ===== DESKTOP SIDEBAR LAYOUT ===== */
+/*
+ * On desktop (≥1024px), the left nav sidebar and right chat sidebar are
+ * permanently pinned to the sides. No top bar. Page content is inset between them.
+ * Mobile sidebars (fb-sidebar from fb-nav.js, fb-chat-sidebar from chat-drawer.js)
+ * become the permanent desktop panels via CSS transform override.
+ */
+
+@media (min-width: 1024px) {
+
+    /* === LEFT NAV SIDEBAR — permanently pinned === */
+    body.is-desktop .fb-sidebar {
+        transform: translateX(0) !important;
+        width: 240px;
+        max-width: 240px;
+        z-index: 200;
+        border-right: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow: 2px 0 16px rgba(0, 0, 0, 0.4);
+        transition: none;
+    }
+
+    body.is-desktop .fb-sidebar-overlay {
+        display: none !important;
+    }
+
+    body.is-desktop .fb-sidebar .fb-sidebar-close {
+        display: none !important;
+    }
+
+    /* === RIGHT CHAT SIDEBAR — permanently pinned === */
+    body.is-desktop .fb-chat-sidebar {
+        transform: translateX(0) !important;
+        width: 280px;
+        max-width: 280px;
+        z-index: 200;
+        border-left: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow: -2px 0 16px rgba(0, 0, 0, 0.4);
+        transition: none;
+    }
+
+    body.is-desktop .fb-chat-sidebar-overlay {
+        display: none !important;
+    }
+
+    body.is-desktop .fb-chat-sidebar .fb-chat-sidebar-close {
+        display: none !important;
+    }
+
+    /* === PAGE CONTENT — pushed between the two sidebars === */
+    body.is-desktop {
+        padding-left: 240px !important;
+        padding-right: 280px !important;
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
+    }
+
+    /* Never lock scroll on desktop (chat open() adds this class — block it) */
+    body.is-desktop.chat-drawer-no-scroll {
+        overflow: auto !important;
+        position: static !important;
+        width: auto !important;
+    }
+
+    /* === HIDE MOBILE ELEMENTS ON DESKTOP === */
+    body.is-desktop .brdc-mobile-nav,
+    body.is-desktop .fb-footer {
+        display: none !important;
+    }
+
+    body.is-desktop .fb-header,
+    body.is-desktop #brdcMobileHeader {
+        display: none !important;
+    }
+
+    /* Hide old per-page static headers on desktop too (sidebars replace them) */
+    body.is-desktop.has-brdc-nav .header-bar,
+    body.is-desktop.has-brdc-nav .header:not(.fb-header),
+    body.is-desktop.has-brdc-nav .page-header {
+        display: none !important;
+    }
+
+    /* Notifications panel — reposition away from left sidebar */
+    body.is-desktop .fb-notifications-panel {
+        left: 250px !important;
+        right: auto !important;
+        top: 20px;
+        bottom: auto;
+    }
+}
+
+/*
+ * VNext pages use the cleaner top navigation as their desktop chrome. Keep the
+ * shared legacy sidebars off-canvas on desktop; stale `.open` state from the
+ * legacy shell must not pin rails around the light vnext interfaces.
+ */
+@media (min-width: 1024px) {
+    body.is-desktop[class*="vnext"] {
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+    }
+
+    body.is-desktop[class*="vnext"] .fb-sidebar {
+        transform: translateX(-100%) !important;
+        z-index: 10002;
+        width: 300px;
+        max-width: min(300px, 88vw);
+        transition: transform 0.24s ease;
+        box-shadow: 6px 0 24px rgba(0, 0, 0, 0.28);
+    }
+
+    body.is-desktop[class*="vnext"] .fb-chat-sidebar {
+        transform: translateX(100%) !important;
+        z-index: 10002;
+        width: 340px;
+        max-width: min(340px, 88vw);
+        transition: transform 0.24s ease;
+        box-shadow: -6px 0 24px rgba(0, 0, 0, 0.28);
+    }
+
+    body.is-desktop[class*="vnext"] .fb-sidebar.open {
+        transform: translateX(-100%) !important;
+    }
+
+    body.is-desktop[class*="vnext"] .fb-chat-sidebar.open {
+        transform: translateX(100%) !important;
+    }
+
+    body.is-desktop[class*="vnext"] .fb-sidebar-overlay,
+    body.is-desktop[class*="vnext"] .fb-sidebar-overlay.open,
+    body.is-desktop[class*="vnext"] .fb-chat-sidebar-overlay,
+    body.is-desktop[class*="vnext"] .fb-chat-sidebar-overlay.open {
+        display: none !important;
+        opacity: 0 !important;
+        visibility: hidden !important;
+    }
+
+    body.is-desktop[class*="vnext"] .fb-notifications-panel {
+        left: auto !important;
+        right: 20px !important;
+        top: 82px;
+    }
+}
