@@ -18,6 +18,12 @@ When an item is completed, move it to the "Completed" section at the bottom with
 
 ## Pending Ideas
 
+### [2026-06-12] - BUG: Google signup orphans the auth user when profile step doesn't complete (catch-22)
+Repro: a user signs in with Google → Firebase Auth user is created → but the profile-creation step (`registerPlayerSimpleV2`, which writes the `players` doc + links `firebase_uid`) never completes (user bails / closes / doesn't finish the form). Result: an **orphan auth user with no `players` doc**. The app then wedges them: **signup says "account exists"** (Google credential already registered) and **login says "doesn't exist — create one"** (no profile), and the "create one" button kicks off a *fresh signup* that **collides** with the existing auth user. No way back in from the UI.
+Hit live by gcfrphoto@gmail.com 2026-06-12 (auth created 07:29, never profiled). RESOLVED for that account by deleting the orphan (admin SDK, guarded) so they can re-signup clean.
+**FIX (do before real members onboard)**: when an *already-authenticated* Firebase user has no `players` doc, route them to a **profile-completion** step that calls `registerPlayerSimpleV2` with the CURRENT session (sets `firebase_uid = auth.currentUser.uid`) — do NOT send them to a fresh signup that re-creates the auth user. Also make profile-creation **atomic/retryable** post-OAuth (auto-create a minimal profile on first authenticated load if none exists, or block with a "finish your profile" gate that can't be skipped). Diagnosis pattern (admin SDK from functions/ dir, projectId brdc-v2): `auth().getUserByEmail` + `players where firebase_uid == uid` — if auth exists but players empty = orphan.
+Priority: High (blocks/poisons new-member onboarding; silent until someone gets stuck)
+
 ### [2026-06-12] - Auto-score from board cam: classical engine + ONNX flywheel (Option B)
 Camera-scores-the-darts, built in two in-browser layers (no server/API, WebGPU).
 **L1 classical CV** (`public/js/autoscore-engine.js?v=6`, 133 tests): **auto-calibration** (red/green ring mask → ellipse fit → wedge-crossing labels → ONE tap on the 20 → homography) + **snap-to-edges refine** (Sobel wireframe, HDR-align style, drift-guarded) + frame-diff dart detection. Lab `autoscore-lab.html` (auto-cal + manual 4-tap + camera picker + per-cam saved cal). Real BRDC board verified: ~4-5mm cal, edge-snap +13-23%.
