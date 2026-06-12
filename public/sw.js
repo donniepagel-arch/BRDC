@@ -39,9 +39,13 @@
  * v87 - Trainers: Checkout Trainer (reuses the verified outshot engine — live
  *        re-planning + per-out stats) + Cricket Strategy teacher (correct embedded
  *        advisor + 5 lessons + sandbox). Both wired into scorer-setup game types.
+ * v88 - BUGFIX (found via interactive test): aim sweeper range was 60..H-60, which
+ *        can't reach the outer doubles at the cardinal extremes (D20 top, D3 bottom,
+ *        D11/D6 sides) — making those checkouts impossible. Widened sweep to span the
+ *        full board (CX±R_DOUBLE_OUT) in BOTH aim-darts and checkout-trainer.
  */
 
-const CACHE_VERSION = 'brdc-v87';
+const CACHE_VERSION = 'brdc-v88';
 const CACHE_NAME = `brdc-cache-${CACHE_VERSION}`;
 
 // Critical pages - scorer pages prioritized for offline use

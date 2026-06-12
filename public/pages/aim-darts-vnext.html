@@ -107,6 +107,8 @@
   // ── Board geometry + scoring (from the loop's build — proven correct) ───────
   const R_DOUBLE_OUT=232,R_DOUBLE_IN=214,R_TRIPLE_OUT=146,R_TRIPLE_IN=129,R_BULL_OUTER=21,R_BULL_INNER=9;
   const SEGMENTS=[20,1,18,4,13,6,10,15,2,17,3,19,7,16,8,11,14,9,12,5];
+  // aim sweep spans the whole board so every double (incl. D20 top / D3 bottom) is reachable
+  const AX0=CX-R_DOUBLE_OUT-4,AX1=CX+R_DOUBLE_OUT+4,AY0=CY-R_DOUBLE_OUT-4,AY1=CY+R_DOUBLE_OUT+4;
   const radiusOf=(x,y)=>Math.hypot(x-CX,y-CY);
   function angleOf(x,y){let a=Math.atan2(y-CY,x-CX)+Math.PI/2;if(a<0)a+=Math.PI*2;return a;}
   function segmentAt(a){return SEGMENTS[Math.floor(((a+Math.PI/20)%(Math.PI*2))/(Math.PI/10))%20];}
@@ -175,9 +177,9 @@
     if(checkoutVal)st.checkout=checkoutVal;
   }
 
-  function lockX(){state.aimX=60+state.sweepX*(W-120);state.phase='aim_y';setMsg('Side locked. Now lock up-down.','');}
+  function lockX(){state.aimX=AX0+state.sweepX*(AX1-AX0);state.phase='aim_y';setMsg('Side locked. Now lock up-down.','');}
   function lockY(){
-    state.aimY=60+state.sweepY*(H-120);
+    state.aimY=AY0+state.sweepY*(AY1-AY0);
     const wob=8,fx=state.aimX+(Math.random()-.5)*wob,fy=state.aimY+(Math.random()-.5)*wob;
     const res=scoreDart(fx,fy);
     const dart={x:fx,y:fy,score:res.score,label:res.label,ring:res.ring};
@@ -324,12 +326,12 @@
   }
   function drawSweepers(){
     if(state.phase==='aim_x'){
-      const x=60+state.sweepX*(W-120);
+      const x=AX0+state.sweepX*(AX1-AX0);
       ctx.strokeStyle='#FDD835';ctx.shadowColor='#FDD835';ctx.shadowBlur=12;ctx.lineWidth=2;
       ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();ctx.shadowBlur=0;
     }else if(state.phase==='aim_y'){
       ctx.strokeStyle='rgba(253,216,53,.4)';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(state.aimX,0);ctx.lineTo(state.aimX,H);ctx.stroke();
-      const y=60+state.sweepY*(H-120);
+      const y=AY0+state.sweepY*(AY1-AY0);
       ctx.strokeStyle='#FDD835';ctx.shadowColor='#FDD835';ctx.shadowBlur=12;ctx.lineWidth=2;
       ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();ctx.shadowBlur=0;
     }
