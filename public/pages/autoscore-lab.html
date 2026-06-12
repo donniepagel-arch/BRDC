@@ -128,6 +128,7 @@
         <div class="guide hidden" id="guideBox"></div>
         <div class="btn-row" id="cameraBtns">
             <button class="lab-btn primary" id="btnStartCam">Start camera</button>
+            <select class="lab-btn hidden" id="camSelect" title="Choose camera"></select>
             <button class="lab-btn" id="btnCalibrate" disabled>Calibrate (4 taps)</button>
             <button class="lab-btn gold hidden" id="btnDetect">Start detecting</button>
             <button class="lab-btn hidden" id="btnNewTurn">New turn</button>
@@ -222,26 +223,76 @@ document.querySelectorAll('.mode-tab').forEach(btn => btn.addEventListener('clic
 }));
 
 // ── Camera ──────────────────────────────────────────────────────────────────
+// Works with phone cams AND desktop webcams: facingMode:'environment' is a soft
+// preference (desktop Chrome falls back to the default webcam), and once running
+// a picker appears when more than one camera is available.
+let currentCamId = null;
+const CAM_KEY = 'brdc:autoscore:cam:v1';
+
+async function startCamera(deviceId, { restoreCal = true } = {}) {
+    if (video.srcObject) video.srcObject.getTracks().forEach(t => t.stop());
+    const videoCfg = deviceId
+        ? { deviceId: { exact: deviceId }, width: { ideal: 1280 }, height: { ideal: 720 } }
+        : { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } };
+    const stream = await navigator.mediaDevices.getUserMedia({ video: videoCfg, audio: false });
+    video.srcObject = stream;
+    await video.play();
+    stage.width = video.videoWidth || 1280;
+    stage.height = video.videoHeight || 720;
+    currentCamId = stream.getVideoTracks()[0]?.getSettings?.().deviceId || deviceId || null;
+    try { localStorage.setItem(CAM_KEY, currentCamId || ''); } catch {}
+    camRunning = true;
+    $('btnCalibrate').disabled = false;
+    log(`camera ${stage.width}x${stage.height}`, 'info');
+    const saved = restoreCal ? loadCal() : null;
+    if (saved) {
+        cal = saved.cal; calPoints = saved.points;
+        log('restored saved calibration — recalibrate if the camera moved', 'info');
+        $('btnDetect').classList.remove('hidden');
+    } else {
+        cal = null; calPoints = [];
+        $('btnDetect').classList.add('hidden');
+        if (!restoreCal) log('camera switched — calibrate for this camera', 'info');
+    }
+    await populateCamPicker();
+    requestAnimationFrame(renderLoop);
+}
+
+async function populateCamPicker() {
+    try {
+        const cams = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput');
+        const sel = $('camSelect');
+        if (cams.length < 2) { sel.classList.add('hidden'); return; }
+        sel.innerHTML = '';
+        cams.forEach((c, i) => {
+            const o = document.createElement('option');
+            o.value = c.deviceId;
+            o.textContent = c.label || `Camera ${i + 1}`;
+            sel.appendChild(o);
+        });
+        if (currentCamId) sel.value = currentCamId;
+        sel.classList.remove('hidden');
+    } catch { /* picker is a convenience — camera already runs without it */ }
+}
+
+$('camSelect').addEventListener('change', async (e) => {
+    if (detecting) $('btnDetect').click(); // stop detection before switching feeds
+    try {
+        await startCamera(e.target.value, { restoreCal: false });
+    } catch (err) {
+        log('camera switch failed: ' + err.message, 'err');
+    }
+});
+
 $('btnStartCam').addEventListener('click', async () => {
     try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
-            audio: false
-        });
-        video.srcObject = stream;
-        await video.play();
-        stage.width = video.videoWidth || 1280;
-        stage.height = video.videoHeight || 720;
-        camRunning = true;
-        $('btnCalibrate').disabled = false;
-        log(`camera ${stage.width}x${stage.height}`, 'info');
-        const saved = loadCal();
-        if (saved) {
-            cal = saved.cal; calPoints = saved.points;
-            log('restored saved calibration — recalibrate if the camera moved', 'info');
-            $('btnDetect').classList.remove('hidden');
+        const preferred = (() => { try { return localStorage.getItem(CAM_KEY) || null; } catch { return null; } })();
+        try {
+            await startCamera(preferred);
+        } catch {
+            if (!preferred) throw new Error('no camera available');
+            await startCamera(null); // remembered camera unplugged — fall back to default
         }
-        requestAnimationFrame(renderLoop);
     } catch (e) {
         log('camera failed: ' + e.message, 'err');
     }
@@ -331,13 +382,22 @@ stage.addEventListener('click', (e) => {
 });
 
 function saveCal() {
-    try { localStorage.setItem(CAL_KEY, JSON.stringify({ points: calPoints, w: stage.width, h: stage.height })); } catch {}
+    // Keyed per camera: a phone cal must never restore for a desktop webcam (and back).
+    try {
+        const raw = JSON.parse(localStorage.getItem(CAL_KEY) || 'null');
+        const store = raw && raw.byCam ? raw : { byCam: {} };
+        store.byCam[currentCamId || 'default'] = { points: calPoints, w: stage.width, h: stage.height };
+        localStorage.setItem(CAL_KEY, JSON.stringify(store));
+    } catch {}
 }
 function loadCal() {
     try {
         const raw = JSON.parse(localStorage.getItem(CAL_KEY) || 'null');
-        if (!raw || raw.w !== stage.width || raw.h !== stage.height) return null;
-        return { cal: calibrate(raw.points), points: raw.points };
+        if (!raw) return null;
+        // legacy single-cal format (pre-picker) supported as a fallback entry
+        const entry = raw.byCam ? raw.byCam[currentCamId || 'default'] : raw;
+        if (!entry || entry.w !== stage.width || entry.h !== stage.height) return null;
+        return { cal: calibrate(entry.points), points: entry.points };
     } catch { return null; }
 }
 

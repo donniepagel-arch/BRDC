@@ -23,9 +23,12 @@
  *        contact-center dry-run/history/delivery/resend (js?v=2 css?v=1),
  *        signed-out consistency (home js?v=60, dashboard-auth js?v=11),
  *        iPhone scorer usability pass, submitGameResult participant auth (functions)
+ * v83 - Auto-score engine v4 hardening (MOTION-deadlock rebaseline + 2-frame dart
+ *        confirmation vs glints) + lab desktop-webcam support (camera picker,
+ *        per-camera saved calibration)
  */
 
-const CACHE_VERSION = 'brdc-v82';
+const CACHE_VERSION = 'brdc-v83';
 const CACHE_NAME = `brdc-cache-${CACHE_VERSION}`;
 
 // Critical pages - scorer pages prioritized for offline use
