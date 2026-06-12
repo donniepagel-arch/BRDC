@@ -36,9 +36,12 @@
  * v86 - Aim Darts: the loop's two-line 501 game ported to a multiplayer vNext
  *        page (aim-darts-vnext.html), wired into scorer-setup as the "On-screen
  *        (Aim Darts)" game type, saves casual via savePickupGame like the scorers.
+ * v87 - Trainers: Checkout Trainer (reuses the verified outshot engine — live
+ *        re-planning + per-out stats) + Cricket Strategy teacher (correct embedded
+ *        advisor + 5 lessons + sandbox). Both wired into scorer-setup game types.
  */
 
-const CACHE_VERSION = 'brdc-v86';
+const CACHE_VERSION = 'brdc-v87';
 const CACHE_NAME = `brdc-cache-${CACHE_VERSION}`;
 
 // Critical pages - scorer pages prioritized for offline use

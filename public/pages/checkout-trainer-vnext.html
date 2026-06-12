@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Checkout Trainer — BRDC</title>
+<link rel="icon" type="image/png" href="/images/favicon.png">
+<!-- the verified outshot engine: getSuggestedShot / getCheckout / isCheckout / isBogeyNumber / parseTarget (globals) -->
+<script src="/virtual-darts/js/phase2/outshotTables.js?v=1"></script>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@700;800&display=swap">
+<style>
+  :root{--pink:#FF469A;--teal:#91D7EB;--gold:#FDD835;--green:#39ff14;--red:#ff6b5a;
+    --bg:#0c1020;--panel:#161d35;--ink:#f3f6ff;--muted:#8ea0c8;--board-dark:#16100a;}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font-family:'Inter',system-ui,sans-serif;min-height:100vh;
+    display:flex;flex-direction:column;align-items:center;padding:10px;overflow-x:hidden}
+  .ct-top{width:100%;max-width:600px;display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+  .ct-title{font-family:'Bebas Neue',sans-serif;letter-spacing:2px;font-size:1.5rem;color:var(--gold)}
+  .ct-title small{display:block;font-family:Inter;font-size:.5rem;letter-spacing:2px;color:var(--muted)}
+  .ct-exit{background:none;border:1px solid #33406a;color:var(--muted);border-radius:8px;padding:7px 12px;font-size:.8rem;cursor:pointer}
+  .ct-exit:hover{color:var(--ink);border-color:var(--pink)}
+  .ct-modes{width:100%;max-width:600px;display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;align-items:center}
+  .ct-chip{background:var(--panel);border:1px solid #25305a;color:var(--muted);border-radius:18px;padding:6px 12px;font-size:.78rem;font-weight:700;cursor:pointer}
+  .ct-chip.active{border-color:var(--gold);color:var(--gold);background:rgba(253,216,53,.08)}
+  .ct-num{width:74px;background:#0e1530;border:1px solid #33406a;color:var(--gold);border-radius:8px;padding:6px 8px;font-size:1rem;font-weight:800;font-family:'JetBrains Mono',monospace;text-align:center}
+  /* coaching panel */
+  .ct-coach{width:100%;max-width:600px;background:var(--panel);border:2px solid #25305a;border-radius:14px;padding:12px 14px;margin-bottom:10px;display:flex;align-items:center;gap:14px}
+  .ct-rem{font-family:'JetBrains Mono',monospace;font-size:2.6rem;font-weight:800;color:var(--gold);line-height:1;min-width:90px;text-align:center}
+  .ct-rem small{display:block;font-family:Inter;font-size:.55rem;letter-spacing:1px;color:var(--muted);font-weight:700}
+  .ct-route{flex:1}
+  .ct-route .aim{font-size:1.4rem;font-weight:800;color:var(--teal)}
+  .ct-route .full{font-size:.85rem;color:var(--muted);margin-top:2px}
+  .ct-route .full b{color:var(--ink)}
+  .ct-route.bogey .aim{color:var(--pink)}
+  canvas{background:var(--board-dark);border:4px solid #2a1810;border-radius:50%;box-shadow:0 0 30px rgba(0,0,0,.7);
+    display:block;cursor:crosshair;touch-action:none;max-width:94vw;height:auto}
+  .ct-turn{display:flex;gap:10px;margin-top:10px;align-items:center;flex-wrap:wrap;justify-content:center}
+  .ct-slot{width:74px;text-align:center;padding:6px 4px;border:1px solid #25305a;border-radius:8px;background:var(--panel)}
+  .ct-slot.active{border-color:var(--gold);background:rgba(253,216,53,.07)}
+  .ct-slot .l{font-size:.58rem;color:var(--muted)}
+  .ct-slot .s{font-size:1.05rem;color:var(--gold);font-weight:800;font-family:'JetBrains Mono',monospace}
+  .ct-msg{margin-top:10px;padding:9px 14px;background:var(--panel);border-left:3px solid var(--gold);border-radius:6px;font-size:.92rem;min-height:1.2em;width:600px;max-width:95vw;text-align:center}
+  .ct-msg.win{border-left-color:var(--green);color:var(--green)}
+  .ct-msg.bust{border-left-color:var(--red);color:var(--red)}
+  .ct-stats{margin-top:10px;width:600px;max-width:95vw;display:flex;gap:8px}
+  .ct-stat{flex:1;background:var(--panel);border:1px solid #25305a;border-radius:10px;padding:8px;text-align:center}
+  .ct-stat b{display:block;font-size:1.3rem;color:var(--gold);font-family:'JetBrains Mono',monospace}
+  .ct-stat span{font-size:.6rem;color:var(--muted);letter-spacing:.5px}
+  .ct-hint{margin-top:10px;color:var(--muted);font-size:.76rem;text-align:center;max-width:560px;line-height:1.5}
+  kbd{background:#0e1530;padding:1px 6px;border-radius:3px;border:1px solid #33406a;color:var(--ink);font-size:.74rem}
+  .ct-weak{margin-top:8px;width:600px;max-width:95vw;font-size:.72rem;color:var(--muted);text-align:center}
+  .ct-weak b{color:var(--pink)}
+</style>
+</head>
+<body>
+  <div class="ct-top">
+    <div class="ct-title">CHECKOUT TRAINER<small>LEARN YOUR OUTS</small></div>
+    <button class="ct-exit" id="ctExit">Exit</button>
+  </div>
+  <div class="ct-modes" id="ctModes">
+    <span style="font-size:.72rem;color:var(--muted)">Drill:</span>
+    <button class="ct-chip" data-n="121">121</button>
+    <button class="ct-chip" data-n="100">100</button>
+    <button class="ct-chip" data-n="81">81</button>
+    <button class="ct-chip" data-n="60">60</button>
+    <button class="ct-chip" data-n="40">40</button>
+    <input class="ct-num" id="ctNum" type="number" min="2" max="170" placeholder="#">
+    <button class="ct-chip" id="ctSet">Set</button>
+    <button class="ct-chip active" id="ctRandom">🎲 Random</button>
+  </div>
+
+  <div class="ct-coach">
+    <div class="ct-rem" id="ctRem">121<small>REMAINING</small></div>
+    <div class="ct-route" id="ctRoute"><div class="aim" id="ctAim">T20</div><div class="full" id="ctFull"></div></div>
+  </div>
+
+  <canvas id="board" width="500" height="500"></canvas>
+  <div class="ct-turn">
+    <div class="ct-slot" id="slot0"><div class="l">DART 1</div><div class="s" id="s0">—</div></div>
+    <div class="ct-slot" id="slot1"><div class="l">DART 2</div><div class="s" id="s1">—</div></div>
+    <div class="ct-slot" id="slot2"><div class="l">DART 3</div><div class="s" id="s2">—</div></div>
+  </div>
+  <div class="ct-msg" id="msg">Aim at the glowing target — tap to lock side-to-side, tap again for up-down.</div>
+  <div class="ct-stats">
+    <div class="ct-stat"><b id="stHitRate">0%</b><span>THIS OUT</span></div>
+    <div class="ct-stat"><b id="stAvg">—</b><span>AVG DARTS</span></div>
+    <div class="ct-stat"><b id="stSession">0</b><span>CHECKOUTS</span></div>
+  </div>
+  <div class="ct-weak" id="ctWeak"></div>
+  <div class="ct-hint"><kbd>Space</kbd>/tap lock aim · <kbd>N</kbd> next · the route re-plans live after every dart (miss the treble, it tells you the new out)</div>
+
+<script>
+(function(){
+  const qp = new URLSearchParams(location.search);
+  const board = document.getElementById('board');
+  const ctx = board.getContext('2d');
+  const W=board.width,H=board.height,CX=W/2,CY=H/2;
+  // verified board geometry + scoring (same as the aim game)
+  const R_DOUBLE_OUT=224,R_DOUBLE_IN=206,R_TRIPLE_OUT=141,R_TRIPLE_IN=124,R_BULL_OUTER=20,R_BULL_INNER=9;
+  const SEG=[20,1,18,4,13,6,10,15,2,17,3,19,7,16,8,11,14,9,12,5];
+  const radiusOf=(x,y)=>Math.hypot(x-CX,y-CY);
+  const angleOf=(x,y)=>{let a=Math.atan2(y-CY,x-CX)+Math.PI/2;if(a<0)a+=Math.PI*2;return a;};
+  const segAt=a=>SEG[Math.floor(((a+Math.PI/20)%(Math.PI*2))/(Math.PI/10))%20];
+  function scoreDart(x,y){const r=radiusOf(x,y);
+    if(r>R_DOUBLE_OUT)return{score:0,label:'MISS',ring:'miss'};
+    if(r<=R_BULL_INNER)return{score:50,label:'BULL',ring:'double'};
+    if(r<=R_BULL_OUTER)return{score:25,label:'25',ring:'single'};
+    const s=segAt(angleOf(x,y));
+    if(r>=R_DOUBLE_IN)return{score:s*2,label:'D'+s,ring:'double'};
+    if(r<=R_TRIPLE_OUT&&r>=R_TRIPLE_IN)return{score:s*3,label:'T'+s,ring:'triple'};
+    return{score:s,label:''+s,ring:'single'};}
+
+  // board position of a target label (for the glowing guide marker)
+  function targetPos(label){
+    if(!label)return null;
+    const p=parseTarget(label);
+    if(p.ring==='double-bull')return{x:CX,y:CY,r:R_BULL_INNER+3};
+    if(p.ring==='single-bull')return{x:CX,y:CY,r:R_BULL_OUTER};
+    const idx=SEG.indexOf(p.segment);if(idx<0)return null;
+    const ang=idx*Math.PI/10-Math.PI/2;
+    let rad=p.ring==='treble'?(R_TRIPLE_IN+R_TRIPLE_OUT)/2:p.ring==='double'?(R_DOUBLE_IN+R_DOUBLE_OUT)/2:(R_TRIPLE_OUT+R_DOUBLE_IN)/2;
+    return{x:CX+Math.cos(ang)*rad,y:CY+Math.sin(ang)*rad,r:13};
+  }
+
+  // ── stats (per-checkout) in localStorage ──
+  const SKEY='brdc:checkoutTrainer:stats:v1';
+  const stats=(()=>{try{return JSON.parse(localStorage.getItem(SKEY)||'{}')}catch{return{}}})();
+  let sessionCheckouts=0;
+  function recordAttempt(target,hit,darts){
+    const s=stats[target]||(stats[target]={att:0,hit:0,darts:0});
+    s.att++; if(hit){s.hit++;s.darts+=darts;sessionCheckouts++;}
+    try{localStorage.setItem(SKEY,JSON.stringify(stats))}catch{}
+  }
+  function renderStats(){
+    const s=stats[state.target]||{att:0,hit:0,darts:0};
+    document.getElementById('stHitRate').textContent=s.att?Math.round(s.hit/s.att*100)+'%':'0%';
+    document.getElementById('stAvg').textContent=s.hit?(s.darts/s.hit).toFixed(1):'—';
+    document.getElementById('stSession').textContent=sessionCheckouts;
+    // weak spots: lowest hit-rate among attempted (>=3 attempts)
+    const weak=Object.entries(stats).filter(([,v])=>v.att>=3).map(([k,v])=>({k:+k,r:v.hit/v.att}))
+      .sort((a,b)=>a.r-b.r).slice(0,3);
+    document.getElementById('ctWeak').innerHTML = weak.length
+      ? 'Weak spots: ' + weak.map(w=>`<b>${w.k}</b> (${Math.round(w.r*100)}%)`).join(' · ')
+      : '';
+  }
+
+  // ── state ──
+  let state, modeRandom = !qp.get('target');
+  function pickRandomCheckout(){ let n; do{ n=2+Math.floor(Math.random()*169); }while(!isCheckout(n)); return n; }
+  function startTarget(n){
+    state={target:n,remaining:n,darts:[],dartIndex:0,phase:'aim_x',aimX:CX,aimY:CY,sweepX:0,sweepY:0,dX:1,dY:1,done:false};
+    document.querySelectorAll('.ct-chip[data-n]').forEach(c=>c.classList.toggle('active',+c.dataset.n===n));
+    document.getElementById('ctRandom').classList.toggle('active',modeRandom);
+    for(let i=0;i<3;i++)document.getElementById('s'+i).textContent='—';
+    setMsg('Aim at the glowing target.','');
+    updateCoach(); renderStats();
+  }
+  function setMsg(t,c){const m=document.getElementById('msg');m.textContent=t;m.className='ct-msg'+(c?' '+c:'');}
+
+  function updateCoach(){
+    document.getElementById('ctRem').innerHTML=state.remaining+'<small>REMAINING</small>';
+    const s=getSuggestedShot(state.remaining,3-state.dartIndex);
+    const routeEl=document.getElementById('ctRoute');
+    document.getElementById('ctAim').textContent=s.target;
+    let full='';
+    if(s.type==='checkout'&&s.fullPath)full='Route: <b>'+s.fullPath.join(' → ')+'</b>';
+    else if(s.type==='setup')full='Setup — '+s.reason;
+    else if(s.type==='bogey_escape')full=s.reason;
+    else full=s.reason||'';
+    document.getElementById('ctFull').innerHTML=full;
+    routeEl.classList.toggle('bogey',s.type==='bogey_escape');
+    state.guide=s.target;
+  }
+
+  function commit(){
+    if(state.done)return;
+    if(state.phase==='aim_x'){state.aimX=60+state.sweepX*(W-120);state.phase='aim_y';}
+    else if(state.phase==='aim_y'){
+      state.aimY=60+state.sweepY*(H-120);
+      const wob=8,fx=state.aimX+(Math.random()-.5)*wob,fy=state.aimY+(Math.random()-.5)*wob;
+      const res=scoreDart(fx,fy);
+      state.darts.push({x:fx,y:fy,...res});
+      document.getElementById('s'+state.dartIndex).textContent=res.label;
+      const before=state.remaining, after=before-res.score;
+      let bust=false,win=false;
+      if(after<0||after===1)bust=true;
+      else if(after===0){ if(res.ring==='double')win=true; else bust=true; }
+      if(win){
+        state.remaining=0;state.done=true;
+        recordAttempt(state.target,true,state.dartIndex+1);
+        setMsg(`🎯 Checked out in ${state.dartIndex+1} dart${state.dartIndex?'s':''}! (${res.label})`,'win');
+        renderStats(); nextSoon(); return;
+      }
+      if(bust){
+        state.done=true; recordAttempt(state.target,false,0);
+        setMsg(`Bust on ${res.label} — that leaves ${after<0?'< 0':after}. Try again.`,'bust');
+        renderStats(); nextSoon(); return;
+      }
+      state.remaining=after;
+      if(state.dartIndex>=2){
+        state.done=true; recordAttempt(state.target,false,0);
+        setMsg(`Out of darts — ${res.label} leaves ${after}. Next time aim ${getSuggestedShot(after,3).target}.`,'');
+        renderStats(); nextSoon(); return;
+      }
+      state.dartIndex++; state.phase='aim_x'; state.aimX=CX; state.aimY=CY; state.sweepX=0; state.sweepY=0;
+      updateCoach();
+    }
+  }
+  function nextSoon(){ setTimeout(()=>{ startTarget(modeRandom?pickRandomCheckout():state.target); }, 1500); }
+
+  // ── input ──
+  document.addEventListener('keydown',e=>{
+    if(e.key===' '||e.key==='Enter'){e.preventDefault();commit();}
+    if(e.key==='n'||e.key==='N')startTarget(modeRandom?pickRandomCheckout():state.target);
+  });
+  board.addEventListener('mousedown',commit);
+  board.addEventListener('touchstart',e=>{e.preventDefault();commit();},{passive:false});
+  document.querySelectorAll('.ct-chip[data-n]').forEach(c=>c.addEventListener('click',()=>{modeRandom=false;startTarget(+c.dataset.n);}));
+  document.getElementById('ctSet').addEventListener('click',()=>{const n=parseInt(document.getElementById('ctNum').value,10);if(n>=2&&n<=170&&isCheckout(n)){modeRandom=false;startTarget(n);}else setMsg(n&&isBogeyNumber(n)?n+' is a bogey number — not a 3-dart checkout.':'Enter a checkout 2–170.','bust');});
+  document.getElementById('ctRandom').addEventListener('click',()=>{modeRandom=true;startTarget(pickRandomCheckout());});
+  document.getElementById('ctExit').addEventListener('click',()=>{try{if(history.length>1){history.back();return}}catch{}location.href='/pages/scorer-setup-vnext.html';});
+
+  // ── draw ──
+  function update(){
+    if(state.phase==='aim_x'){state.sweepX+=0.014*state.dX;if(state.sweepX>=1){state.sweepX=1;state.dX=-1}if(state.sweepX<=0){state.sweepX=0;state.dX=1}}
+    else if(state.phase==='aim_y'){state.sweepY+=0.018*state.dY;if(state.sweepY>=1){state.sweepY=1;state.dY=-1}if(state.sweepY<=0){state.sweepY=0;state.dY=1}}
+  }
+  function drawBoard(){
+    ctx.fillStyle='#2a1810';ctx.beginPath();ctx.arc(CX,CY,R_DOUBLE_OUT+18,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#f0e0c0';ctx.font='bold 15px JetBrains Mono,monospace';ctx.textAlign='center';ctx.textBaseline='middle';
+    for(let i=0;i<20;i++){const a=i*Math.PI/10-Math.PI/2;ctx.fillText(SEG[i],CX+Math.cos(a)*(R_DOUBLE_OUT+11),CY+Math.sin(a)*(R_DOUBLE_OUT+11));}
+    for(let i=0;i<20;i++){const a0=i*Math.PI/10-Math.PI/2-Math.PI/20,a1=a0+Math.PI/10,cream=i%2===0;
+      ctx.fillStyle=cream?'#f0e0c0':'#1a0c08';
+      ctx.beginPath();ctx.arc(CX,CY,R_DOUBLE_IN,a0,a1);ctx.arc(CX,CY,R_TRIPLE_OUT,a1,a0,true);ctx.closePath();ctx.fill();
+      ctx.beginPath();ctx.arc(CX,CY,R_TRIPLE_IN,a0,a1);ctx.arc(CX,CY,R_BULL_OUTER,a1,a0,true);ctx.closePath();ctx.fill();
+      ctx.fillStyle=cream?'#2d8a3a':'#c8402a';
+      ctx.beginPath();ctx.arc(CX,CY,R_TRIPLE_OUT,a0,a1);ctx.arc(CX,CY,R_TRIPLE_IN,a1,a0,true);ctx.closePath();ctx.fill();
+      ctx.beginPath();ctx.arc(CX,CY,R_DOUBLE_OUT,a0,a1);ctx.arc(CX,CY,R_DOUBLE_IN,a1,a0,true);ctx.closePath();ctx.fill();}
+    ctx.fillStyle='#2d8a3a';ctx.beginPath();ctx.arc(CX,CY,R_BULL_OUTER,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#c8402a';ctx.beginPath();ctx.arc(CX,CY,R_BULL_INNER,0,Math.PI*2);ctx.fill();
+  }
+  function drawGuide(){
+    if(state.done||!state.guide)return;
+    const p=targetPos(state.guide);if(!p)return;
+    const t=(Date.now?0:0); // no time-based; static glow ring
+    ctx.save();
+    ctx.strokeStyle='rgba(253,216,53,.95)';ctx.lineWidth=3;ctx.shadowColor='#FDD835';ctx.shadowBlur=16;
+    ctx.beginPath();ctx.arc(p.x,p.y,p.r+4,0,Math.PI*2);ctx.stroke();
+    ctx.restore();
+  }
+  function drawSweep(){
+    if(state.phase==='aim_x'){const x=60+state.sweepX*(W-120);ctx.strokeStyle='#3DEFFF';ctx.shadowColor='#3DEFFF';ctx.shadowBlur=10;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();ctx.shadowBlur=0;}
+    else if(state.phase==='aim_y'){ctx.strokeStyle='rgba(61,239,255,.4)';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(state.aimX,0);ctx.lineTo(state.aimX,H);ctx.stroke();const y=60+state.sweepY*(H-120);ctx.strokeStyle='#3DEFFF';ctx.shadowColor='#3DEFFF';ctx.shadowBlur=10;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();ctx.shadowBlur=0;}
+  }
+  function drawDart(d){ctx.save();ctx.strokeStyle='#888';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(d.x,d.y);ctx.lineTo(d.x+12,d.y-12);ctx.stroke();ctx.fillStyle=d.ring==='double'&&d.score?'#39ff14':'#FF469A';ctx.beginPath();ctx.arc(d.x,d.y,3,0,Math.PI*2);ctx.fill();ctx.restore();}
+  function draw(){ctx.fillStyle='#16100a';ctx.fillRect(0,0,W,H);drawBoard();state.darts.forEach(drawDart);drawGuide();if(state.phase==='aim_x'||state.phase==='aim_y')drawSweep();}
+  function loop(){update();draw();requestAnimationFrame(loop);}
+
+  // boot
+  const start = qp.get('target') ? parseInt(qp.get('target'),10) : pickRandomCheckout();
+  startTarget(isCheckout(start)?start:pickRandomCheckout());
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

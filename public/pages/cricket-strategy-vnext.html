@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Cricket Strategy — BRDC</title>
+<link rel="icon" type="image/png" href="/images/favicon.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@700;800&display=swap">
+<style>
+  :root{--pink:#FF469A;--teal:#91D7EB;--gold:#FDD835;--green:#39ff14;--red:#ff6b5a;
+    --bg:#0c1020;--panel:#161d35;--ink:#f3f6ff;--muted:#8ea0c8;}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font-family:'Inter',system-ui,sans-serif;min-height:100vh;
+    display:flex;flex-direction:column;align-items:center;padding:10px;overflow-x:hidden}
+  .cs-top{width:100%;max-width:560px;display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+  .cs-title{font-family:'Bebas Neue',sans-serif;letter-spacing:2px;font-size:1.5rem;color:var(--gold)}
+  .cs-title small{display:block;font-family:Inter;font-size:.5rem;letter-spacing:2px;color:var(--muted)}
+  .cs-exit{background:none;border:1px solid #33406a;color:var(--muted);border-radius:8px;padding:7px 12px;font-size:.8rem;cursor:pointer}
+  .cs-modes{width:100%;max-width:560px;display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;align-items:center}
+  .cs-chip{background:var(--panel);border:1px solid #25305a;color:var(--muted);border-radius:18px;padding:6px 12px;font-size:.76rem;font-weight:700;cursor:pointer}
+  .cs-chip.active{border-color:var(--gold);color:var(--gold);background:rgba(253,216,53,.08)}
+  /* scoreboard */
+  .cs-board{width:100%;max-width:560px;background:var(--panel);border:2px solid #25305a;border-radius:14px;overflow:hidden}
+  .cs-row{display:grid;grid-template-columns:1fr 70px 1fr;align-items:center;border-bottom:1px solid #1f2945}
+  .cs-row:last-child{border-bottom:0}
+  .cs-row.head{background:#0e1530;font-size:.66rem;color:var(--muted);letter-spacing:1px;text-align:center;padding:7px 0;font-weight:700}
+  .cs-num{text-align:center;font-family:'Bebas Neue',sans-serif;font-size:1.5rem;color:var(--ink);background:#0e1530;padding:8px 0}
+  .cs-mk{display:flex;justify-content:center;align-items:center;gap:4px;padding:10px 8px;cursor:pointer;min-height:46px;font-family:'JetBrains Mono',monospace;font-size:1.3rem;font-weight:800}
+  .cs-mk .pip{color:var(--muted)}
+  .cs-mk .pip.on{color:var(--gold)}
+  .cs-mk.closed{background:rgba(57,255,20,.06)}
+  .cs-mk.closed .pip.on{color:var(--green)}
+  .cs-mk.dead{opacity:.4}
+  .cs-scores{display:grid;grid-template-columns:1fr 70px 1fr;text-align:center;width:100%;max-width:560px;margin-top:8px}
+  .cs-scores .sc{background:var(--panel);border:1px solid #25305a;border-radius:10px;padding:8px;margin:0 4px}
+  .cs-scores .sc b{display:block;font-size:1.6rem;color:var(--gold);font-family:'JetBrains Mono',monospace}
+  .cs-scores .sc span{font-size:.6rem;color:var(--muted)}
+  .cs-scores .sc.lead b{color:var(--green)}
+  .cs-scores .pm{display:flex;flex-direction:column;justify-content:center;gap:4px}
+  .cs-scores .pm button{background:#0e1530;border:1px solid #33406a;color:var(--ink);border-radius:6px;font-size:.7rem;padding:3px;cursor:pointer}
+  /* advice */
+  .cs-advice{width:100%;max-width:560px;background:linear-gradient(180deg,rgba(255,70,154,.1),var(--panel));border:2px solid var(--pink);border-radius:14px;padding:14px;margin-top:12px}
+  .cs-advice .aim{font-family:'Bebas Neue',sans-serif;font-size:2rem;letter-spacing:1px;color:var(--gold)}
+  .cs-advice .why{font-size:.92rem;color:var(--ink);margin-top:4px}
+  .cs-advice .tag{display:inline-block;font-size:.6rem;font-weight:800;letter-spacing:1px;padding:2px 8px;border-radius:10px;margin-top:8px;background:rgba(255,70,154,.2);color:var(--pink)}
+  .cs-lesson{width:100%;max-width:560px;margin-top:10px;font-size:.86rem;color:var(--muted);line-height:1.55;background:var(--panel);border-left:3px solid var(--teal);border-radius:6px;padding:10px 12px;display:none}
+  .cs-lesson.show{display:block}
+  .cs-lesson b{color:var(--teal)}
+  .cs-nav{width:100%;max-width:560px;display:flex;gap:8px;margin-top:10px}
+  .cs-btn{flex:1;background:linear-gradient(180deg,var(--pink),#d63384);color:#fff;border:0;border-radius:10px;padding:11px;font-weight:800;cursor:pointer}
+  .cs-btn.ghost{background:none;border:1px solid #33406a;color:var(--muted)}
+  .cs-hint{margin-top:10px;color:var(--muted);font-size:.74rem;text-align:center;max-width:520px;line-height:1.5}
+</style>
+</head>
+<body>
+  <div class="cs-top">
+    <div class="cs-title">CRICKET STRATEGY<small>WHAT TO THROW & WHY</small></div>
+    <button class="cs-exit" id="csExit">Exit</button>
+  </div>
+  <div class="cs-modes" id="csModes">
+    <button class="cs-chip active" data-mode="lessons">📖 Lessons</button>
+    <button class="cs-chip" data-mode="sandbox">🎯 Sandbox</button>
+    <span id="csScenLabel" style="font-size:.74rem;color:var(--muted);margin-left:6px"></span>
+  </div>
+
+  <div class="cs-board" id="csGrid"></div>
+  <div class="cs-scores">
+    <div class="sc" id="scYou"><b id="youPts">0</b><span>YOU</span></div>
+    <div class="pm" id="pmWrap"><button data-who="you" data-d="1">YOU +</button><button data-who="opp" data-d="1">OPP +</button></div>
+    <div class="sc" id="scOpp"><b id="oppPts">0</b><span>OPPONENT</span></div>
+  </div>
+
+  <div class="cs-advice">
+    <div class="aim" id="csAim">—</div>
+    <div class="why" id="csWhy">Set the board, or step through the lessons.</div>
+    <div class="tag" id="csTag" style="display:none"></div>
+  </div>
+  <div class="cs-lesson" id="csLesson"></div>
+
+  <div class="cs-nav" id="csNav"></div>
+  <div class="cs-hint" id="csHint">Tap a player's marks to cycle 0→/→✕→closed. In Sandbox the advice updates live.</div>
+
+<script>
+(function(){
+  const NUMS=[20,19,18,17,16,15,'bull'];
+  const label=n=>n==='bull'?'BULL':String(n);
+  let mode='lessons', scenIdx=0;
+  let you=blank(), opp=blank();
+  function blank(){return {20:0,19:0,18:0,17:0,16:0,15:0,bull:0,points:0};}
+
+  // ── lessons: curated states + the principle each teaches ──
+  const LESSONS=[
+    { name:'Opening', you:blank(), opp:blank(),
+      lesson:`Cricket is won by <b>closing all your numbers AND being level-or-ahead on points</b>. Open on the <b>20s</b> — most points per mark — and always aim the <b>treble</b>: one dart, three marks.` },
+    { name:'Build a lead', you:{...blank(),20:3}, opp:blank(),
+      lesson:`You've <b>closed 20</b> and your opponent hasn't — so every 20 you hit now <b>scores 20 points</b> they can't stop until they close it. <b>Keep pounding the 20</b> to bank a lead before moving on.` },
+    { name:'Stop the bleeding', you:blank(), opp:{...blank(),20:3,points:40},
+      lesson:`Opponent closed the 20 and is <b>racking points on you (40 already)</b>. You're behind — but the fastest fix is <b>defense</b>: close the 20 yourself so it goes <b>dead</b> and their points stop. A number both players close can't be scored on.` },
+    { name:'Don’t throw at dead numbers', you:{...blank(),20:3,19:3}, opp:{...blank(),20:3,19:3,points:0},
+      lesson:`Both of you have closed 20 and 19 — they're <b>dead</b>. Throwing there is wasted darts. <b>Move to the next open number</b> (18) and keep the game moving.` },
+    { name:'Close out to win', you:{...blank(),20:3,19:3,18:3,17:3,16:3,15:3,points:60}, opp:{...blank(),20:3,19:3,18:3,17:3,16:3,15:3,points:40},
+      lesson:`Everything's closed but the <b>Bull</b>, and you're <b>ahead on points</b>. Close the Bull and the game is <b>yours</b> — you don't need more points, just the last close. If you were <b>behind</b>, you'd have to score first, not close.` },
+  ];
+
+  // ── render scoreboard ──
+  function renderGrid(){
+    const g=document.getElementById('csGrid');
+    g.innerHTML=`<div class="cs-row head"><div>YOU</div><div></div><div>OPP</div></div>`;
+    for(const n of NUMS){
+      const row=document.createElement('div');row.className='cs-row';
+      row.appendChild(markCell(you,n,'you'));
+      const num=document.createElement('div');num.className='cs-num';num.textContent=label(n);row.appendChild(num);
+      row.appendChild(markCell(opp,n,'opp'));
+      g.appendChild(row);
+    }
+  }
+  function markCell(stateObj,n,who){
+    const c=document.createElement('div');
+    const m=stateObj[n], dead=you[n]>=3&&opp[n]>=3;
+    c.className='cs-mk'+(m>=3?' closed':'')+(dead?' dead':'');
+    c.innerHTML=[0,1,2].map(i=>`<span class="pip${i<m?' on':''}">${m>=3?'✕':(i<m?'/':'·')}</span>`).join('');
+    if(m>=3)c.innerHTML='<span class="pip on">✕</span>';
+    c.addEventListener('click',()=>{ if(mode!=='sandbox')return; stateObj[n]=(stateObj[n]+1)%4; refresh(); });
+    return c;
+  }
+  function renderScores(){
+    document.getElementById('youPts').textContent=you.points;
+    document.getElementById('oppPts').textContent=opp.points;
+    document.getElementById('scYou').classList.toggle('lead',you.points>opp.points);
+    document.getElementById('scOpp').classList.toggle('lead',opp.points>you.points);
+  }
+
+  // ── correct cricket advisor (the existing CricketLogic gave poor advice —
+  //    suggested Bull on an open board, ignored defense; this encodes real strategy) ──
+  const PTS={20:20,19:19,18:18,17:17,16:16,15:15,bull:25};
+  const highest=list=>NUMS.find(n=>list.includes(n));   // NUMS is 20→bull, so first = highest value
+  function cricketAdvice(you,opp){
+    const cl=(st,n)=>st[n]>=3;
+    const lead=you.points-opp.points;
+    const myOpen=NUMS.filter(n=>!cl(you,n));
+    const myScore=NUMS.filter(n=>cl(you,n)&&!cl(opp,n));   // you closed, they didn't → you score here
+    const oppScore=NUMS.filter(n=>cl(opp,n)&&!cl(you,n));  // they closed, you didn't → they score; you can close it
+    const bothOpen=NUMS.filter(n=>!cl(you,n)&&!cl(opp,n));
+
+    // 1. all your numbers closed
+    if(!myOpen.length){
+      if(lead>=0) return {aim:null,type:'win',why:`All your numbers are closed and you're ${lead>0?'ahead':'level'} — game shot! Nothing left to do.`};
+      if(myScore.length){const t=highest(myScore);return{aim:t,type:'score',why:`You're behind but the ${label(t)} is still yours to score — pound it to catch up.`};}
+      return {aim:null,type:'tough',why:`Everything's closed and you're behind with nothing left to score. Only a missed-close by them saves it.`};
+    }
+    // 2. DEFENSE — they're racking points on a number you can still close, and you're not safely ahead
+    if(oppScore.length){
+      const t=highest(oppScore);
+      if(lead<=0 || lead<PTS[t]*2) return {aim:t,type:'defense',why:`They're scoring on the ${label(t)} (${PTS[t]}/mark). Close it — it goes dead and their points stop. Defense first when you're not clear.`};
+    }
+    // 3. OFFENSE — you have a number closed that they don't → bank points
+    if(myScore.length){
+      const t=highest(myScore);
+      return {aim:t,type:'score',why:`You've closed the ${label(t)} and they haven't — every hit scores ${PTS[t]}. Pound it for a lead before they close it.`};
+    }
+    // 4. DEVELOP — open the highest number still live for both; treble = 3 marks at once
+    if(bothOpen.length){
+      const t=highest(bothOpen);
+      const last = myOpen.length===1;
+      if(last && lead>=0) return {aim:t,type:'win',why:`Close the ${label(t)} for the win — it's your last number and you're ahead. Go for it.`};
+      return {aim:t,type:'develop',why:`Open the ${label(t)} — highest open number first, and go for the treble (3 marks in one dart).`};
+    }
+    // 5. only numbers left are ones they've already closed (dead to score) — close to finish
+    const t=highest(myOpen);
+    return {aim:t,type:'develop',why:`Close the ${label(t)} to finish your board${lead<0?" — but you'll need points too, find a number they haven't closed":''}.`};
+  }
+
+  function renderAdvice(){
+    const s=cricketAdvice(you,opp);
+    const aim = s.aim!=null ? (s.aim==='bull'?'BULL':'T'+s.aim) : null;
+    document.getElementById('csAim').textContent = s.type==='win'&&!aim ? '✓ GAME SHOT' : (aim?'AIM: '+aim:'—');
+    document.getElementById('csWhy').textContent = s.why;
+    const tag=document.getElementById('csTag');
+    const t={defense:'CLOSE (DEFENSE)',score:'SCORE',develop:'CLOSE',win:'WIN',tough:'BEHIND'}[s.type]||s.type.toUpperCase();
+    tag.style.display='inline-block';tag.textContent=t;
+  }
+  function refresh(){ renderGrid(); renderScores(); renderAdvice(); }
+
+  // ── mode + lesson navigation ──
+  function loadLesson(i){
+    scenIdx=(i+LESSONS.length)%LESSONS.length;
+    const L=LESSONS[scenIdx];
+    you=JSON.parse(JSON.stringify(L.you)); opp=JSON.parse(JSON.stringify(L.opp));
+    document.getElementById('csScenLabel').textContent=`${scenIdx+1}/${LESSONS.length} · ${L.name}`;
+    const les=document.getElementById('csLesson');les.classList.remove('show');les.innerHTML=L.lesson;
+    refresh();
+    renderNav();
+  }
+  function renderNav(){
+    const nav=document.getElementById('csNav');
+    if(mode==='lessons'){
+      nav.innerHTML=`<button class="cs-btn ghost" id="navPrev">‹ Prev</button><button class="cs-btn" id="navWhy">Why?</button><button class="cs-btn" id="navNext">Next ›</button>`;
+      document.getElementById('navPrev').onclick=()=>loadLesson(scenIdx-1);
+      document.getElementById('navNext').onclick=()=>loadLesson(scenIdx+1);
+      document.getElementById('navWhy').onclick=()=>document.getElementById('csLesson').classList.toggle('show');
+    }else{
+      nav.innerHTML=`<button class="cs-btn ghost" id="navClear">Clear board</button>`;
+      document.getElementById('navClear').onclick=()=>{you=blank();opp=blank();refresh();};
+    }
+  }
+
+  document.querySelectorAll('.cs-chip[data-mode]').forEach(c=>c.addEventListener('click',()=>{
+    mode=c.dataset.mode;
+    document.querySelectorAll('.cs-chip[data-mode]').forEach(x=>x.classList.toggle('active',x===c));
+    document.getElementById('csHint').textContent = mode==='sandbox'
+      ? 'Tap a player’s marks to cycle 0→/→✕→closed; use +/- for points. Advice updates live.'
+      : 'Step through the lessons — tap “Why?” for the principle behind each call.';
+    document.getElementById('csScenLabel').textContent = mode==='sandbox' ? 'live advisor' : '';
+    if(mode==='lessons')loadLesson(0); else { you=blank();opp=blank(); refresh(); renderNav(); document.getElementById('csLesson').classList.remove('show'); }
+  }));
+  document.querySelectorAll('#pmWrap button').forEach(b=>b.addEventListener('click',()=>{
+    if(mode!=='sandbox')return;
+    const st=b.dataset.who==='you'?you:opp; st.points=Math.max(0,st.points+ (b.dataset.d==='1'?5:-5)); refresh();
+  }));
+  // long-press / right-click points down — keep simple: shift-click subtracts
+  document.getElementById('pmWrap').addEventListener('contextmenu',e=>{e.preventDefault();});
+  document.getElementById('csExit').addEventListener('click',()=>{try{if(history.length>1){history.back();return}}catch{}location.href='/pages/scorer-setup-vnext.html';});
+
+  loadLesson(0);
+})();
+</script>
+</body>
+</html>

@@ -327,13 +327,14 @@ function updateRuleVisibility() {
     const cricket = game === 'cricket';
     const customX01 = game === 'x01';
     const aim = game === 'aim';
+    const trainer = game === 'checkout_trainer' || game === 'cricket_strategy';
     const x01 = ['301', '501', '701', 'x01', 'aim'].includes(game);
 
-    els.x01ScoreWrap.hidden = !customX01 && !aim;
-    els.inRuleWrap.hidden = !x01;
-    els.outRuleWrap.hidden = !x01;
-    els.startRulesWrap.hidden = choice;
-    els.corkOptionWrap.hidden = choice || els.startRule.value === 'select-starter';
+    els.x01ScoreWrap.hidden = (!customX01 && !aim) || trainer;
+    els.inRuleWrap.hidden = !x01 || trainer;
+    els.outRuleWrap.hidden = !x01 || trainer;
+    els.startRulesWrap.hidden = choice || trainer;
+    els.corkOptionWrap.hidden = choice || trainer || els.startRule.value === 'select-starter';
     els.corkOrderWrap.hidden = !choice;
     els.corkWinnerWrap.hidden = !choice;
     els.starterCard.hidden = choice || els.startRule.value !== 'select-starter';
@@ -408,6 +409,11 @@ function scorerUrlForGame(game, params) {
 }
 
 function buildLaunchUrl() {
+    // Solo practice trainers — no players/teams needed, launch straight in.
+    const gt = els.gameType.value;
+    if (gt === 'checkout_trainer') return '/pages/checkout-trainer-vnext.html';
+    if (gt === 'cricket_strategy') return '/pages/cricket-strategy-vnext.html';
+
     const homePlayers = playerPool.filter(player => player.teamId === 1);
     const awayPlayers = playerPool.filter(player => player.teamId === 2);
     if (!homePlayers.length || !awayPlayers.length) return '';
