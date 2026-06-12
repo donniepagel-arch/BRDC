@@ -53,6 +53,7 @@
   .ad-btn.ghost{background:none;border:1px solid #33406a;color:var(--muted)}
 </style>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@700;800&display=swap">
+<script src="/js/dartboard-render.js?v=1"></script>
 </head>
 <body>
   <div class="ad-top">
@@ -99,29 +100,17 @@
   const FN_BASE = 'https://us-central1-brdc-v2.cloudfunctions.net';
 
   const canvas = document.getElementById('game-canvas');
+  canvas.width=1000; canvas.height=1000; canvas.style.width='500px'; canvas.style.maxWidth='94vw'; canvas.style.height='auto';
   const ctx = canvas.getContext('2d');
-  const W = canvas.width, H = canvas.height, CX = W/2, CY = H/2;
+  const W = canvas.width, H = canvas.height, CX = W/2, CY = H/2, R = W*0.43;
   const msgEl = document.getElementById('msg');
   const turnTotalEl = document.getElementById('turnTotal');
 
-  // ── Board geometry + scoring (from the loop's build — proven correct) ───────
-  const R_DOUBLE_OUT=232,R_DOUBLE_IN=214,R_TRIPLE_OUT=146,R_TRIPLE_IN=129,R_BULL_OUTER=21,R_BULL_INNER=9;
-  const SEGMENTS=[20,1,18,4,13,6,10,15,2,17,3,19,7,16,8,11,14,9,12,5];
+  // ── Scoring via the shared realistic-board renderer (DB) ────────────────────
+  const SEGMENTS=DB.SEG;
   // aim sweep spans the whole board so every double (incl. D20 top / D3 bottom) is reachable
-  const AX0=CX-R_DOUBLE_OUT-4,AX1=CX+R_DOUBLE_OUT+4,AY0=CY-R_DOUBLE_OUT-4,AY1=CY+R_DOUBLE_OUT+4;
-  const radiusOf=(x,y)=>Math.hypot(x-CX,y-CY);
-  function angleOf(x,y){let a=Math.atan2(y-CY,x-CX)+Math.PI/2;if(a<0)a+=Math.PI*2;return a;}
-  function segmentAt(a){return SEGMENTS[Math.floor(((a+Math.PI/20)%(Math.PI*2))/(Math.PI/10))%20];}
-  function scoreDart(x,y){
-    const r=radiusOf(x,y);
-    if(r>R_DOUBLE_OUT)return{score:0,label:'MISS',ring:'miss'};
-    if(r<=R_BULL_INNER)return{score:50,label:'BULL',ring:'double'};
-    if(r<=R_BULL_OUTER)return{score:25,label:'25',ring:'single'};
-    const seg=segmentAt(angleOf(x,y));
-    if(r>=R_DOUBLE_IN)return{score:seg*2,label:'D'+seg,ring:'double'};
-    if(r<=R_TRIPLE_OUT&&r>=R_TRIPLE_IN)return{score:seg*3,label:'T'+seg,ring:'triple'};
-    return{score:seg,label:''+seg,ring:'single'};
-  }
+  const AX0=CX-R-6,AX1=CX+R+6,AY0=CY-R-6,AY1=CY+R+6;
+  const scoreDart=(x,y)=>DB.score(x,y,CX,CY,R);
   // valid finish: double-out (or bull) for 'double'; treble allowed for 'master'; any for 'straight'
   function isValidOut(ring){return OUT==='straight'?true:OUT==='master'?(ring==='double'||ring==='triple'):ring==='double';}
 
@@ -180,8 +169,13 @@
   function lockX(){state.aimX=AX0+state.sweepX*(AX1-AX0);state.phase='aim_y';setMsg('Side locked. Now lock up-down.','');}
   function lockY(){
     state.aimY=AY0+state.sweepY*(AY1-AY0);
-    const wob=8,fx=state.aimX+(Math.random()-.5)*wob,fy=state.aimY+(Math.random()-.5)*wob;
-    const res=scoreDart(fx,fy);
+    const wob=R*0.016,fx=state.aimX+(Math.random()-.5)*wob,fy=state.aimY+(Math.random()-.5)*wob;
+    // dart flies before it scores (anticipation)
+    state.phase='flight'; state.flight={t0:performance.now(),dur:470,toX:fx,toY:fy};
+  }
+  function landDart(){
+    const fx=state.flight.toX, fy=state.flight.toY, res=scoreDart(fx,fy);
+    state.flight=null;
     const dart={x:fx,y:fy,score:res.score,label:res.label,ring:res.ring};
     state.turnDarts.push(dart);trackDart(state.cur,dart);
     const before=cp().remaining, after=before-res.score;
@@ -304,49 +298,36 @@
   function update(){
     if(state.phase==='aim_x'){state.sweepX+=0.014*state.sweepDirX;if(state.sweepX>=1){state.sweepX=1;state.sweepDirX=-1}if(state.sweepX<=0){state.sweepX=0;state.sweepDirX=1}}
     else if(state.phase==='aim_y'){state.sweepY+=0.018*state.sweepDirY;if(state.sweepY>=1){state.sweepY=1;state.sweepDirY=-1}if(state.sweepY<=0){state.sweepY=0;state.sweepDirY=1}}
-  }
-  function drawBoard(){
-    ctx.fillStyle='#2a1810';ctx.beginPath();ctx.arc(CX,CY,R_DOUBLE_OUT+20,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle='#f0e0c0';ctx.font='bold 17px JetBrains Mono,monospace';ctx.textAlign='center';ctx.textBaseline='middle';
-    for(let i=0;i<20;i++){const a=i*Math.PI/10-Math.PI/2;ctx.fillText(SEGMENTS[i],CX+Math.cos(a)*(R_DOUBLE_OUT+13),CY+Math.sin(a)*(R_DOUBLE_OUT+13));}
-    for(let i=0;i<20;i++){
-      const a0=i*Math.PI/10-Math.PI/2-Math.PI/20,a1=a0+Math.PI/10,cream=i%2===0;
-      ctx.fillStyle=cream?'#f0e0c0':'#1a0c08';
-      ctx.beginPath();ctx.arc(CX,CY,R_DOUBLE_IN,a0,a1);ctx.arc(CX,CY,R_TRIPLE_OUT,a1,a0,true);ctx.closePath();ctx.fill();
-      ctx.beginPath();ctx.arc(CX,CY,R_TRIPLE_IN,a0,a1);ctx.arc(CX,CY,R_BULL_OUTER,a1,a0,true);ctx.closePath();ctx.fill();
-      ctx.fillStyle=cream?'#2d8a3a':'#c8402a';
-      ctx.beginPath();ctx.arc(CX,CY,R_TRIPLE_OUT,a0,a1);ctx.arc(CX,CY,R_TRIPLE_IN,a1,a0,true);ctx.closePath();ctx.fill();
-      ctx.beginPath();ctx.arc(CX,CY,R_DOUBLE_OUT,a0,a1);ctx.arc(CX,CY,R_DOUBLE_IN,a1,a0,true);ctx.closePath();ctx.fill();
-    }
-    ctx.strokeStyle='rgba(255,255,255,.14)';ctx.lineWidth=1;
-    for(let i=0;i<20;i++){const a=i*Math.PI/10-Math.PI/2-Math.PI/20;ctx.beginPath();ctx.moveTo(CX+Math.cos(a)*R_BULL_OUTER,CY+Math.sin(a)*R_BULL_OUTER);ctx.lineTo(CX+Math.cos(a)*R_DOUBLE_OUT,CY+Math.sin(a)*R_DOUBLE_OUT);ctx.stroke();}
-    for(const r of[R_TRIPLE_IN,R_TRIPLE_OUT,R_DOUBLE_IN,R_DOUBLE_OUT,R_BULL_OUTER]){ctx.beginPath();ctx.arc(CX,CY,r,0,Math.PI*2);ctx.stroke();}
-    ctx.fillStyle='#2d8a3a';ctx.beginPath();ctx.arc(CX,CY,R_BULL_OUTER,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle='#c8402a';ctx.beginPath();ctx.arc(CX,CY,R_BULL_INNER,0,Math.PI*2);ctx.fill();
+    else if(state.phase==='flight'&&state.flight){ if(performance.now()-state.flight.t0>=state.flight.dur) landDart(); }
   }
   function drawSweepers(){
     if(state.phase==='aim_x'){
       const x=AX0+state.sweepX*(AX1-AX0);
-      ctx.strokeStyle='#FDD835';ctx.shadowColor='#FDD835';ctx.shadowBlur=12;ctx.lineWidth=2;
+      ctx.strokeStyle='#FDD835';ctx.shadowColor='#FDD835';ctx.shadowBlur=12;ctx.lineWidth=R*0.01;
       ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();ctx.shadowBlur=0;
     }else if(state.phase==='aim_y'){
-      ctx.strokeStyle='rgba(253,216,53,.4)';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(state.aimX,0);ctx.lineTo(state.aimX,H);ctx.stroke();
+      ctx.strokeStyle='rgba(253,216,53,.4)';ctx.lineWidth=R*0.008;ctx.beginPath();ctx.moveTo(state.aimX,0);ctx.lineTo(state.aimX,H);ctx.stroke();
       const y=AY0+state.sweepY*(AY1-AY0);
-      ctx.strokeStyle='#FDD835';ctx.shadowColor='#FDD835';ctx.shadowBlur=12;ctx.lineWidth=2;
+      ctx.strokeStyle='#FDD835';ctx.shadowColor='#FDD835';ctx.shadowBlur=12;ctx.lineWidth=R*0.01;
       ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();ctx.shadowBlur=0;
     }
   }
-  function drawDart(d){
-    ctx.save();
-    ctx.strokeStyle='#888';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(d.x,d.y);ctx.lineTo(d.x+13,d.y-13);ctx.stroke();
-    ctx.fillStyle=d.bust?'#c8402a':(d.win?'#39ff14':'#FF469A');ctx.shadowColor=ctx.fillStyle;ctx.shadowBlur=8;
-    ctx.beginPath();ctx.moveTo(d.x+13,d.y-13);ctx.lineTo(d.x+17,d.y-11);ctx.lineTo(d.x+21,d.y-17);ctx.lineTo(d.x+17,d.y-21);ctx.lineTo(d.x+13,d.y-17);ctx.closePath();ctx.fill();ctx.shadowBlur=0;
-    ctx.fillStyle='#ddd';ctx.beginPath();ctx.arc(d.x,d.y,2.4,0,Math.PI*2);ctx.fill();ctx.restore();
+  function drawDart(d,scale=1,alpha=1){
+    ctx.save();ctx.globalAlpha=alpha;const L=R*0.07*scale;
+    ctx.strokeStyle='#cfd3da';ctx.lineWidth=R*0.012*scale;ctx.beginPath();ctx.moveTo(d.x,d.y);ctx.lineTo(d.x+L,d.y-L);ctx.stroke();
+    ctx.fillStyle=d.bust?'#c8402a':(d.win?'#39ff14':'#FF469A');ctx.shadowColor=ctx.fillStyle;ctx.shadowBlur=8*scale;
+    ctx.beginPath();ctx.moveTo(d.x+L,d.y-L);ctx.lineTo(d.x+L*1.32,d.y-L*0.85);ctx.lineTo(d.x+L*1.62,d.y-L*1.32);ctx.lineTo(d.x+L*1.32,d.y-L*1.62);ctx.lineTo(d.x+L*0.85,d.y-L*1.32);ctx.closePath();ctx.fill();ctx.shadowBlur=0;
+    ctx.fillStyle='#e2e2e2';ctx.beginPath();ctx.arc(d.x,d.y,R*0.011*scale,0,Math.PI*2);ctx.fill();ctx.restore();
+  }
+  function drawFlight(){
+    const f=state.flight,p=Math.min(1,(performance.now()-f.t0)/f.dur),e=1-Math.pow(1-p,3),fromY=H+R*0.6;
+    drawDart({x:f.toX,y:fromY+(f.toY-fromY)*e}, 0.5+0.85*e, 0.4+0.6*e);
   }
   function draw(){
-    ctx.fillStyle='#16100a';ctx.fillRect(0,0,W,H);
-    drawBoard();
-    state.turnDarts.forEach(drawDart);
+    ctx.fillStyle='#0c1020';ctx.fillRect(0,0,W,H);
+    DB.draw(ctx,CX,CY,R,{});
+    state.turnDarts.forEach(d=>drawDart(d));
+    if(state.phase==='flight'&&state.flight)drawFlight();
     if(state.phase==='aim_x'||state.phase==='aim_y')drawSweepers();
   }
   function loop(){update();draw();requestAnimationFrame(loop);}

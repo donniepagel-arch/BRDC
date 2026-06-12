@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Cricket Strategy — BRDC</title>
 <link rel="icon" type="image/png" href="/images/favicon.png">
+<script src="/js/dartboard-render.js?v=1"></script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@700;800&display=swap">
 <style>
   :root{--pink:#FF469A;--teal:#91D7EB;--gold:#FDD835;--green:#39ff14;--red:#ff6b5a;
@@ -87,54 +88,14 @@
   const NUMS=[20,19,18,17,16,15,'bull'];
   const label=n=>n==='bull'?'BULL':String(n);
 
-  // ── dartboard render (the "real board" view, like the checkout trainer) ──────
+  // ── dartboard render — shared realistic board (DB), cricket-focused view ─────
   const bd=document.getElementById('csBoard'), bctx=bd.getContext('2d');
-  const BW=bd.width,BH=bd.height,BCX=BW/2,BCY=BH/2;
-  const RDO=170,RDI=156,RTO=107,RTI=94,RBO=15,RBI=7;
-  const SEG=[20,1,18,4,13,6,10,15,2,17,3,19,7,16,8,11,14,9,12,5];
-  const CRICKET=new Set([20,19,18,17,16,15]);
-  function tpos(numLabel){
-    if(numLabel==='bull'||numLabel==='BULL')return{x:BCX,y:BCY,r:RBI+4};
-    const n=parseInt(numLabel,10),idx=SEG.indexOf(n);if(idx<0)return null;
-    const ang=idx*Math.PI/10-Math.PI/2;
-    return{x:BCX+Math.cos(ang)*((RTI+RTO)/2),y:BCY+Math.sin(ang)*((RTI+RTO)/2),r:11};
-  }
+  bd.width=760; bd.height=760; bd.style.width='340px'; bd.style.maxWidth='80vw'; bd.style.height='auto';
   function drawCricketBoard(advised){
-    bctx.fillStyle='#16100a';bctx.fillRect(0,0,BW,BH);
-    bctx.fillStyle='#2a1810';bctx.beginPath();bctx.arc(BCX,BCY,RDO+15,0,Math.PI*2);bctx.fill();
-    for(let i=0;i<20;i++){
-      const a0=i*Math.PI/10-Math.PI/2-Math.PI/20,a1=a0+Math.PI/10,cream=i%2===0;
-      bctx.fillStyle=cream?'#f0e0c0':'#1a0c08';
-      bctx.beginPath();bctx.arc(BCX,BCY,RDI,a0,a1);bctx.arc(BCX,BCY,RTO,a1,a0,true);bctx.closePath();bctx.fill();
-      bctx.beginPath();bctx.arc(BCX,BCY,RTI,a0,a1);bctx.arc(BCX,BCY,RBO,a1,a0,true);bctx.closePath();bctx.fill();
-      bctx.fillStyle=cream?'#2d8a3a':'#c8402a';
-      bctx.beginPath();bctx.arc(BCX,BCY,RTO,a0,a1);bctx.arc(BCX,BCY,RTI,a1,a0,true);bctx.closePath();bctx.fill();
-      bctx.beginPath();bctx.arc(BCX,BCY,RDO,a0,a1);bctx.arc(BCX,BCY,RDI,a1,a0,true);bctx.closePath();bctx.fill();
-    }
-    bctx.fillStyle='#2d8a3a';bctx.beginPath();bctx.arc(BCX,BCY,RBO,0,Math.PI*2);bctx.fill();
-    bctx.fillStyle='#c8402a';bctx.beginPath();bctx.arc(BCX,BCY,RBI,0,Math.PI*2);bctx.fill();
-    // overlay: dim non-cricket (1-14) + dead numbers; gold-lift LIVE cricket wedges
-    // so all six (15-20) pop regardless of their cream/black base colour
-    for(let i=0;i<20;i++){
-      const n=SEG[i], dead=you[n]>=3&&opp[n]>=3, live=CRICKET.has(n)&&!dead;
-      const a0=i*Math.PI/10-Math.PI/2-Math.PI/20,a1=a0+Math.PI/10;
-      bctx.beginPath();bctx.arc(BCX,BCY,RDO,a0,a1);bctx.arc(BCX,BCY,RBO,a1,a0,true);bctx.closePath();
-      bctx.fillStyle=live?'rgba(253,216,53,.16)':'rgba(10,13,26,.8)';bctx.fill();
-      if(live){bctx.lineWidth=1.5;bctx.strokeStyle='rgba(253,216,53,.5)';bctx.stroke();}
-    }
-    // numbers (live cricket bright gold, others dim)
-    bctx.font='bold 14px JetBrains Mono,monospace';bctx.textAlign='center';bctx.textBaseline='middle';
-    for(let i=0;i<20;i++){
-      const n=SEG[i],a=i*Math.PI/10-Math.PI/2,dead=you[n]>=3&&opp[n]>=3;
-      bctx.fillStyle=(CRICKET.has(n)&&!dead)?'#FDD835':(CRICKET.has(n)?'rgba(253,216,53,.35)':'rgba(240,224,192,.28)');
-      bctx.fillText(n==='bull'?'':n,BCX+Math.cos(a)*(RDO+11),BCY+Math.sin(a)*(RDO+11));
-    }
-    // glow the advised target's treble (or bull)
-    if(advised!=null){
-      const p=tpos(advised==='bull'?'bull':String(advised));
-      if(p){bctx.save();bctx.strokeStyle='rgba(253,216,53,.95)';bctx.lineWidth=3;bctx.shadowColor='#FDD835';bctx.shadowBlur=15;
-        bctx.beginPath();bctx.arc(p.x,p.y,p.r+4,0,Math.PI*2);bctx.stroke();bctx.restore();}
-    }
+    const dead=new Set([20,19,18,17,16,15].filter(n=>you[n]>=3&&opp[n]>=3));
+    const glow = advised==null?null:(advised==='bull'?'BULL':'T'+advised);
+    bctx.fillStyle='#0c1020';bctx.fillRect(0,0,bd.width,bd.height);
+    DB.draw(bctx, bd.width/2, bd.height/2, bd.width*0.42, {cricketOnly:true, deadNums:dead, glow});
   }
   let mode='lessons', scenIdx=0;
   let you=blank(), opp=blank();

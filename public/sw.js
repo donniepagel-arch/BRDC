@@ -46,9 +46,14 @@
  * v89 - Cricket Strategy teacher now shows the REAL dartboard (like the checkout
  *        trainer) — live cricket numbers (15-20) gold-lit, non-cricket + dead dimmed,
  *        advised target glows on the board — above the marks grid.
+ * v90 - Dartboard MAKEOVER: shared realistic renderer (js/dartboard-render.js) —
+ *        sisal/black wedges, red/green rings, silver spider wires, numbered surround,
+ *        depth, 2x backing for crisp retina. Used by aim-darts + checkout-trainer +
+ *        cricket-strategy. PLUS dart FLIGHT delay (dart flies ~470ms before it scores)
+ *        and the aim guide HIDES on the 2nd lock (anticipation), in the trainer + game.
  */
 
-const CACHE_VERSION = 'brdc-v89';
+const CACHE_VERSION = 'brdc-v90';
 const CACHE_NAME = `brdc-cache-${CACHE_VERSION}`;
 
 // Critical pages - scorer pages prioritized for offline use

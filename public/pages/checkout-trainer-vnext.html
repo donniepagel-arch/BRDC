@@ -7,6 +7,7 @@
 <link rel="icon" type="image/png" href="/images/favicon.png">
 <!-- the verified outshot engine: getSuggestedShot / getCheckout / isCheckout / isBogeyNumber / parseTarget (globals) -->
 <script src="/virtual-darts/js/phase2/outshotTables.js?v=1"></script>
+<script src="/js/dartboard-render.js?v=1"></script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@700;800&display=swap">
 <style>
   :root{--pink:#FF469A;--teal:#91D7EB;--gold:#FDD835;--green:#39ff14;--red:#ff6b5a;
@@ -93,36 +94,15 @@
 (function(){
   const qp = new URLSearchParams(location.search);
   const board = document.getElementById('board');
+  // hi-res backing store → the shared DB renderer draws a crisp, realistic board
+  board.width=1000; board.height=1000; board.style.width='500px'; board.style.maxWidth='94vw'; board.style.height='auto';
   const ctx = board.getContext('2d');
-  const W=board.width,H=board.height,CX=W/2,CY=H/2;
-  // verified board geometry + scoring (same as the aim game)
-  const R_DOUBLE_OUT=224,R_DOUBLE_IN=206,R_TRIPLE_OUT=141,R_TRIPLE_IN=124,R_BULL_OUTER=20,R_BULL_INNER=9;
-  const SEG=[20,1,18,4,13,6,10,15,2,17,3,19,7,16,8,11,14,9,12,5];
-  // aim sweep must span the WHOLE board so every double (incl. D20 top / D3 bottom) is reachable
-  const AX0=CX-R_DOUBLE_OUT-4,AX1=CX+R_DOUBLE_OUT+4,AY0=CY-R_DOUBLE_OUT-4,AY1=CY+R_DOUBLE_OUT+4;
-  const radiusOf=(x,y)=>Math.hypot(x-CX,y-CY);
-  const angleOf=(x,y)=>{let a=Math.atan2(y-CY,x-CX)+Math.PI/2;if(a<0)a+=Math.PI*2;return a;};
-  const segAt=a=>SEG[Math.floor(((a+Math.PI/20)%(Math.PI*2))/(Math.PI/10))%20];
-  function scoreDart(x,y){const r=radiusOf(x,y);
-    if(r>R_DOUBLE_OUT)return{score:0,label:'MISS',ring:'miss'};
-    if(r<=R_BULL_INNER)return{score:50,label:'BULL',ring:'double'};
-    if(r<=R_BULL_OUTER)return{score:25,label:'25',ring:'single'};
-    const s=segAt(angleOf(x,y));
-    if(r>=R_DOUBLE_IN)return{score:s*2,label:'D'+s,ring:'double'};
-    if(r<=R_TRIPLE_OUT&&r>=R_TRIPLE_IN)return{score:s*3,label:'T'+s,ring:'triple'};
-    return{score:s,label:''+s,ring:'single'};}
-
-  // board position of a target label (for the glowing guide marker)
-  function targetPos(label){
-    if(!label)return null;
-    const p=parseTarget(label);
-    if(p.ring==='double-bull')return{x:CX,y:CY,r:R_BULL_INNER+3};
-    if(p.ring==='single-bull')return{x:CX,y:CY,r:R_BULL_OUTER};
-    const idx=SEG.indexOf(p.segment);if(idx<0)return null;
-    const ang=idx*Math.PI/10-Math.PI/2;
-    let rad=p.ring==='treble'?(R_TRIPLE_IN+R_TRIPLE_OUT)/2:p.ring==='double'?(R_DOUBLE_IN+R_DOUBLE_OUT)/2:(R_TRIPLE_OUT+R_DOUBLE_IN)/2;
-    return{x:CX+Math.cos(ang)*rad,y:CY+Math.sin(ang)*rad,r:13};
-  }
+  const W=board.width,H=board.height,CX=W/2,CY=H/2,R=W*0.43;
+  const SEG=DB.SEG;
+  // aim sweep spans the whole board so every double (incl. D20 top / D3 bottom) is reachable
+  const AX0=CX-R-6,AX1=CX+R+6,AY0=CY-R-6,AY1=CY+R+6;
+  const scoreDart=(x,y)=>DB.score(x,y,CX,CY,R);
+  const targetPos=label=>label?DB.targetPos(label,CX,CY,R):null;
 
   // ── stats (per-checkout) in localStorage ──
   const SKEY='brdc:checkoutTrainer:stats:v1';
@@ -175,38 +155,35 @@
   }
 
   function commit(){
-    if(state.done)return;
+    if(state.done||state.phase==='flight')return;
     if(state.phase==='aim_x'){state.aimX=AX0+state.sweepX*(AX1-AX0);state.phase='aim_y';}
     else if(state.phase==='aim_y'){
       state.aimY=AY0+state.sweepY*(AY1-AY0);
-      const wob=8,fx=state.aimX+(Math.random()-.5)*wob,fy=state.aimY+(Math.random()-.5)*wob;
-      const res=scoreDart(fx,fy);
-      state.darts.push({x:fx,y:fy,...res});
-      document.getElementById('s'+state.dartIndex).textContent=res.label;
-      const before=state.remaining, after=before-res.score;
-      let bust=false,win=false;
-      if(after<0||after===1)bust=true;
-      else if(after===0){ if(res.ring==='double')win=true; else bust=true; }
-      if(win){
-        state.remaining=0;state.done=true;
-        recordAttempt(state.target,true,state.dartIndex+1);
-        setMsg(`🎯 Checked out in ${state.dartIndex+1} dart${state.dartIndex?'s':''}! (${res.label})`,'win');
-        renderStats(); nextSoon(); return;
-      }
-      if(bust){
-        state.done=true; recordAttempt(state.target,false,0);
-        setMsg(`Bust on ${res.label} — that leaves ${after<0?'< 0':after}. Try again.`,'bust');
-        renderStats(); nextSoon(); return;
-      }
-      state.remaining=after;
-      if(state.dartIndex>=2){
-        state.done=true; recordAttempt(state.target,false,0);
-        setMsg(`Out of darts — ${res.label} leaves ${after}. Next time aim ${getSuggestedShot(after,3).target}.`,'');
-        renderStats(); nextSoon(); return;
-      }
-      state.dartIndex++; state.phase='aim_x'; state.aimX=CX; state.aimY=CY; state.sweepX=0; state.sweepY=0;
-      updateCoach();
+      const wob=R*0.016,fx=state.aimX+(Math.random()-.5)*wob,fy=state.aimY+(Math.random()-.5)*wob;
+      // anticipation: hide the target guide, then the dart "flies" before it scores
+      state.guide=null;
+      state.phase='flight';
+      state.flight={t0:performance.now(),dur:470,toX:fx,toY:fy};
     }
+  }
+  function landDart(){
+    const fx=state.flight.toX, fy=state.flight.toY, res=scoreDart(fx,fy);
+    state.flight=null; state.phase='aim_x';
+    state.darts.push({x:fx,y:fy,...res});
+    document.getElementById('s'+state.dartIndex).textContent=res.label;
+    const before=state.remaining, after=before-res.score;
+    let bust=false,win=false;
+    if(after<0||after===1)bust=true;
+    else if(after===0){ if(res.ring==='double')win=true; else bust=true; }
+    if(win){ state.remaining=0;state.done=true;recordAttempt(state.target,true,state.dartIndex+1);
+      setMsg(`🎯 Checked out in ${state.dartIndex+1} dart${state.dartIndex?'s':''}! (${res.label})`,'win');renderStats();nextSoon();return; }
+    if(bust){ state.done=true;recordAttempt(state.target,false,0);
+      setMsg(`Bust on ${res.label} — that leaves ${after<0?'< 0':after}. Try again.`,'bust');renderStats();nextSoon();return; }
+    state.remaining=after;
+    if(state.dartIndex>=2){ state.done=true;recordAttempt(state.target,false,0);
+      setMsg(`Out of darts — ${res.label} leaves ${after}. Next time aim ${getSuggestedShot(after,3).target}.`,'');renderStats();nextSoon();return; }
+    state.dartIndex++; state.aimX=CX;state.aimY=CY;state.sweepX=0;state.sweepY=0;
+    updateCoach();
   }
   function nextSoon(){ setTimeout(()=>{ startTarget(modeRandom?pickRandomCheckout():state.target); }, 1500); }
 
@@ -226,36 +203,28 @@
   function update(){
     if(state.phase==='aim_x'){state.sweepX+=0.014*state.dX;if(state.sweepX>=1){state.sweepX=1;state.dX=-1}if(state.sweepX<=0){state.sweepX=0;state.dX=1}}
     else if(state.phase==='aim_y'){state.sweepY+=0.018*state.dY;if(state.sweepY>=1){state.sweepY=1;state.dY=-1}if(state.sweepY<=0){state.sweepY=0;state.dY=1}}
-  }
-  function drawBoard(){
-    ctx.fillStyle='#2a1810';ctx.beginPath();ctx.arc(CX,CY,R_DOUBLE_OUT+18,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle='#f0e0c0';ctx.font='bold 15px JetBrains Mono,monospace';ctx.textAlign='center';ctx.textBaseline='middle';
-    for(let i=0;i<20;i++){const a=i*Math.PI/10-Math.PI/2;ctx.fillText(SEG[i],CX+Math.cos(a)*(R_DOUBLE_OUT+11),CY+Math.sin(a)*(R_DOUBLE_OUT+11));}
-    for(let i=0;i<20;i++){const a0=i*Math.PI/10-Math.PI/2-Math.PI/20,a1=a0+Math.PI/10,cream=i%2===0;
-      ctx.fillStyle=cream?'#f0e0c0':'#1a0c08';
-      ctx.beginPath();ctx.arc(CX,CY,R_DOUBLE_IN,a0,a1);ctx.arc(CX,CY,R_TRIPLE_OUT,a1,a0,true);ctx.closePath();ctx.fill();
-      ctx.beginPath();ctx.arc(CX,CY,R_TRIPLE_IN,a0,a1);ctx.arc(CX,CY,R_BULL_OUTER,a1,a0,true);ctx.closePath();ctx.fill();
-      ctx.fillStyle=cream?'#2d8a3a':'#c8402a';
-      ctx.beginPath();ctx.arc(CX,CY,R_TRIPLE_OUT,a0,a1);ctx.arc(CX,CY,R_TRIPLE_IN,a1,a0,true);ctx.closePath();ctx.fill();
-      ctx.beginPath();ctx.arc(CX,CY,R_DOUBLE_OUT,a0,a1);ctx.arc(CX,CY,R_DOUBLE_IN,a1,a0,true);ctx.closePath();ctx.fill();}
-    ctx.fillStyle='#2d8a3a';ctx.beginPath();ctx.arc(CX,CY,R_BULL_OUTER,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle='#c8402a';ctx.beginPath();ctx.arc(CX,CY,R_BULL_INNER,0,Math.PI*2);ctx.fill();
-  }
-  function drawGuide(){
-    if(state.done||!state.guide)return;
-    const p=targetPos(state.guide);if(!p)return;
-    const t=(Date.now?0:0); // no time-based; static glow ring
-    ctx.save();
-    ctx.strokeStyle='rgba(253,216,53,.95)';ctx.lineWidth=3;ctx.shadowColor='#FDD835';ctx.shadowBlur=16;
-    ctx.beginPath();ctx.arc(p.x,p.y,p.r+4,0,Math.PI*2);ctx.stroke();
-    ctx.restore();
+    else if(state.phase==='flight'){ if(performance.now()-state.flight.t0>=state.flight.dur) landDart(); }
   }
   function drawSweep(){
-    if(state.phase==='aim_x'){const x=AX0+state.sweepX*(AX1-AX0);ctx.strokeStyle='#3DEFFF';ctx.shadowColor='#3DEFFF';ctx.shadowBlur=10;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();ctx.shadowBlur=0;}
-    else if(state.phase==='aim_y'){ctx.strokeStyle='rgba(61,239,255,.4)';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(state.aimX,0);ctx.lineTo(state.aimX,H);ctx.stroke();const y=AY0+state.sweepY*(AY1-AY0);ctx.strokeStyle='#3DEFFF';ctx.shadowColor='#3DEFFF';ctx.shadowBlur=10;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();ctx.shadowBlur=0;}
+    if(state.phase==='aim_x'){const x=AX0+state.sweepX*(AX1-AX0);ctx.strokeStyle='#3DEFFF';ctx.shadowColor='#3DEFFF';ctx.shadowBlur=12;ctx.lineWidth=R*0.01;ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();ctx.shadowBlur=0;}
+    else if(state.phase==='aim_y'){ctx.strokeStyle='rgba(61,239,255,.4)';ctx.lineWidth=R*0.008;ctx.beginPath();ctx.moveTo(state.aimX,0);ctx.lineTo(state.aimX,H);ctx.stroke();const y=AY0+state.sweepY*(AY1-AY0);ctx.strokeStyle='#3DEFFF';ctx.shadowColor='#3DEFFF';ctx.shadowBlur=12;ctx.lineWidth=R*0.01;ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();ctx.shadowBlur=0;}
   }
-  function drawDart(d){ctx.save();ctx.strokeStyle='#888';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(d.x,d.y);ctx.lineTo(d.x+12,d.y-12);ctx.stroke();ctx.fillStyle=d.ring==='double'&&d.score?'#39ff14':'#FF469A';ctx.beginPath();ctx.arc(d.x,d.y,3,0,Math.PI*2);ctx.fill();ctx.restore();}
-  function draw(){ctx.fillStyle='#16100a';ctx.fillRect(0,0,W,H);drawBoard();state.darts.forEach(drawDart);drawGuide();if(state.phase==='aim_x'||state.phase==='aim_y')drawSweep();}
+  function drawDart(d,scale=1,alpha=1){ctx.save();ctx.globalAlpha=alpha;const L=R*0.07*scale;
+    ctx.strokeStyle='#cfd3da';ctx.lineWidth=R*0.012*scale;ctx.beginPath();ctx.moveTo(d.x,d.y);ctx.lineTo(d.x+L,d.y-L);ctx.stroke();
+    ctx.fillStyle=(d.ring==='double'&&d.score)?'#39ff14':'#FF469A';ctx.shadowColor=ctx.fillStyle;ctx.shadowBlur=8*scale;
+    ctx.beginPath();ctx.moveTo(d.x+L,d.y-L);ctx.lineTo(d.x+L*1.32,d.y-L*0.85);ctx.lineTo(d.x+L*1.62,d.y-L*1.32);ctx.lineTo(d.x+L*1.32,d.y-L*1.62);ctx.lineTo(d.x+L*0.85,d.y-L*1.32);ctx.closePath();ctx.fill();ctx.shadowBlur=0;
+    ctx.fillStyle='#e2e2e2';ctx.beginPath();ctx.arc(d.x,d.y,R*0.011*scale,0,Math.PI*2);ctx.fill();ctx.restore();}
+  function drawFlight(){
+    const f=state.flight,p=Math.min(1,(performance.now()-f.t0)/f.dur),e=1-Math.pow(1-p,3),fromY=H+R*0.6;
+    drawDart({x:f.toX,y:fromY+(f.toY-fromY)*e,ring:'',score:0}, 0.5+0.85*e, 0.4+0.6*e);
+  }
+  function draw(){
+    ctx.fillStyle='#0c1020';ctx.fillRect(0,0,W,H);
+    DB.draw(ctx,CX,CY,R,{glow:(state.phase==='aim_x'||state.phase==='aim_y')?state.guide:null});
+    state.darts.forEach(d=>drawDart(d));
+    if(state.phase==='flight')drawFlight();
+    if(state.phase==='aim_x'||state.phase==='aim_y')drawSweep();
+  }
   function loop(){update();draw();requestAnimationFrame(loop);}
 
   // boot
