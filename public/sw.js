@@ -53,7 +53,9 @@
  *        and the aim guide HIDES on the 2nd lock (anticipation), in the trainer + game.
  */
 
-const CACHE_VERSION = 'brdc-v90';
+// v91 - Fix: desktop Play button was dead (_wireDesktopPlayBtn never called) — now wired.
+//        + commit glossary.html (was deployed-only, not in git).
+const CACHE_VERSION = 'brdc-v91';
 const CACHE_NAME = `brdc-cache-${CACHE_VERSION}`;
 
 // Critical pages - scorer pages prioritized for offline use

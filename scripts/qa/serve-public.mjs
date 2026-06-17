@@ -1,6 +1,9 @@
-// Tiny static server for device testing (adb reverse tcp:5601).
-// Usage: node scripts/qa/serve-public.mjs [port]
+// Tiny static server for device testing.
+// Usage: node scripts/qa/serve-public.mjs [port] [--https]
+//   --https serves over TLS (self-signed _lan-cert.pem) bound to 0.0.0.0 so a phone
+//   on the LAN can reach it at a SECURE origin (required for the camera + WebGPU).
 import http from 'http';
+import https from 'https';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -13,7 +16,7 @@ const MIME = {
   '.json': 'application/json', '.ico': 'image/x-icon', '.woff2': 'font/woff2',
 };
 
-http.createServer((req, res) => {
+const handler = (req, res) => {
   const urlPath = decodeURIComponent(new URL(req.url, 'http://x').pathname);
   // Auto-label capture: page POSTs {id, image dataURL, label (YOLO txt), split} →
   // writes a labeled sample into the darts-vision dataset (images/ + labels/).
@@ -79,4 +82,15 @@ http.createServer((req, res) => {
     });
     res.end(data);
   });
-}).listen(port, () => console.log(`serving ${root} on :${port}`));
+};
+
+const useHttps = process.argv.includes('--https');
+const certDir = path.dirname(fileURLToPath(import.meta.url));
+const server = useHttps
+  ? https.createServer({
+      key: fs.readFileSync(path.join(certDir, '_lan-key.pem')),
+      cert: fs.readFileSync(path.join(certDir, '_lan-cert.pem')),
+    }, handler)
+  : http.createServer(handler);
+server.listen(port, '0.0.0.0', () =>
+  console.log(`serving ${root} on ${useHttps ? 'https' : 'http'}://0.0.0.0:${port}`));

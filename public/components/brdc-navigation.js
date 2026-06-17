@@ -284,6 +284,10 @@ class BRDCNavigation {
             e.stopPropagation();
             this._toggleAvatarMenu(bar.querySelector('#brdcAvatarBtnDesktop'));
         });
+
+        // Wire the desktop Play button. _wireDesktopPlayBtn() existed but was never
+        // called, which left desktop Play dead while mobile Play (wired separately) worked.
+        this._wireDesktopPlayBtn();
     }
 
     _desktopTab(key, label) {
