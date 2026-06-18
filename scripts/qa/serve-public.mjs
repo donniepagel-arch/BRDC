@@ -28,7 +28,7 @@ const handler = (req, res) => {
         const { id, image, label, split = 'train' } = JSON.parse(body);
         const safeId = String(id).replace(/[^a-z0-9_-]/gi, '');
         const sp = split === 'val' ? 'val' : 'train';
-        const dsRoot = path.resolve(root, '..', '..', 'darts-vision', 'dataset');
+        const dsRoot = path.resolve(root, '..', 'darts-vision', 'dataset');
         const imgDir = path.join(dsRoot, 'images', sp);
         const lblDir = path.join(dsRoot, 'labels', sp);
         fs.mkdirSync(imgDir, { recursive: true });
@@ -46,7 +46,7 @@ const handler = (req, res) => {
   // Dataset stats helper
   if (req.method === 'GET' && urlPath === '/capture/stats') {
     try {
-      const dsRoot = path.resolve(root, '..', '..', 'darts-vision', 'dataset');
+      const dsRoot = path.resolve(root, '..', 'darts-vision', 'dataset');
       const count = (sp) => { try { return fs.readdirSync(path.join(dsRoot, 'images', sp)).filter(f => f.endsWith('.jpg')).length; } catch { return 0; } };
       res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ train: count('train'), val: count('val') }));
     } catch (e) { res.writeHead(500).end(String(e)); }
