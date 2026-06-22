@@ -129,6 +129,7 @@
         <div class="btn-row" id="cameraBtns">
             <button class="lab-btn primary" id="btnStartCam">Start camera</button>
             <select class="lab-btn hidden" id="camSelect" title="Choose camera"></select>
+            <button class="lab-btn primary" id="btnCvCal" disabled>⚡ Auto-cal (CV)</button>
             <button class="lab-btn gold" id="btnAutoCal" disabled>Auto-calibrate (tap 20)</button>
             <button class="lab-btn" id="btnCalibrate" disabled>Manual (4 taps)</button>
             <button class="lab-btn gold hidden" id="btnDetect">Start detecting</button>
@@ -138,6 +139,7 @@
         <div class="btn-row hidden" id="photoBtns">
             <label class="lab-btn primary" for="photoInput">Load photo</label>
             <input type="file" id="photoInput" accept="image/*" style="display:none">
+            <button class="lab-btn primary" id="btnPhotoCvCal" disabled>⚡ Auto-cal (CV)</button>
             <button class="lab-btn gold" id="btnPhotoAutoCal" disabled>Auto-calibrate (tap 20)</button>
             <button class="lab-btn" id="btnPhotoCal" disabled>Manual (4 taps)</button>
         </div>
@@ -182,7 +184,7 @@ import {
     CAL_TARGETS, BOARD_RADII, SEGMENT_ORDER,
     calibrate, autoCalibrate, refineCalibration, applyHomography, scoreFromImagePoint, scoreFromBoardPoint,
     computeHomography, toGray, diffMask, denoiseMask, findBlobs, findDartTip, createDetector
-} from '/js/autoscore-engine.js?v=6';
+} from '/js/autoscore-engine.js?v=7';
 import { loadDetector } from '/js/onnx-detector.js?v=1';
 
 // Auto-score detection engine: the trained ONNX model when one exists, else the
@@ -256,6 +258,7 @@ async function startCamera(deviceId, { restoreCal = true } = {}) {
     camRunning = true;
     $('btnCalibrate').disabled = false;
     $('btnAutoCal').disabled = false;
+    $('btnCvCal').disabled = false;
     log(`camera ${stage.width}x${stage.height}`, 'info');
     const saved = restoreCal ? loadCal() : null;
     if (saved) {
@@ -332,6 +335,7 @@ $('photoInput').addEventListener('change', (e) => {
         drawPhoto();
         $('btnPhotoCal').disabled = false;
         $('btnPhotoAutoCal').disabled = false;
+        $('btnPhotoCvCal').disabled = false;
         log(`photo loaded ${img.naturalWidth}x${img.naturalHeight}`, 'info');
     };
     img.src = URL.createObjectURL(f);
@@ -365,6 +369,35 @@ function startAutoCalibration() {
 }
 $('btnAutoCal').addEventListener('click', startAutoCalibration);
 $('btnPhotoAutoCal').addEventListener('click', startAutoCalibration);
+
+// Classical CV auto-cal: POST the frame to /calibrate (cvcal.py finds the board from
+// its red+green rings) → apply the 4 returned cal points → edge-snap refine. No taps.
+async function cvCalibrate() {
+    stopCalibration();
+    log('⚡ CV calibrating from board rings…', 'info');
+    try {
+        const frame = currentFrameData();                 // full-res RGBA at stage dims
+        const c = document.createElement('canvas');
+        c.width = frame.width; c.height = frame.height;
+        c.getContext('2d').putImageData(frame, 0, 0);
+        const r = await fetch('/calibrate', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ image: c.toDataURL('image/jpeg', 0.92) }) }).then(x => x.json());
+        if (!r.ok) { log('CV-cal failed: ' + r.error, 'err'); log('fallback: Auto-calibrate (tap 20) or Manual', 'info'); return; }
+        calPoints = [r.cal.top, r.cal.right, r.cal.bottom, r.cal.left].map(p => ({ x: p[0], y: p[1] }));
+        cal = calibrate(calPoints);
+        log(`⚡ CV-cal ✔ bull (${r.bull[0]},${r.bull[1]}) — overlay should hug`, 'hit');
+        try {
+            const ref = refineCalibration(frame.data, frame.width, frame.height, calPoints, { regWeight: 0.04 });
+            cal = { H: ref.H, inverse: ref.inverse }; calPoints = ref.calPoints;
+            log(`SNAPPED ✔ edge-fit +${ref.gain}% — rings locked tight`, 'hit');
+        } catch (rErr) { log('refine skipped (' + rErr.message + ') — using CV fit', 'info'); }
+        saveCal();
+        if (mode === 'camera') $('btnDetect').classList.remove('hidden');
+        if (mode === 'photo') drawPhoto();
+    } catch (err) { log('CV-cal error: ' + err.message, 'err'); }
+}
+$('btnCvCal').addEventListener('click', cvCalibrate);
+$('btnPhotoCvCal').addEventListener('click', cvCalibrate);
 
 /** Full-res RGBA of what's on deck: live camera frame or the loaded photo. */
 function currentFrameData() {
@@ -614,8 +647,18 @@ async function onnxFrame() {
 // Self-harvest: save the just-completed turn (frame with darts + detector-proposed
 // labels) into the training dataset. Tonight (classical) this seeds clean real
 // frames; once a model ships, cross-check ONNX vs classical before harvesting.
+const HARVEST_CONF = 0.55;
 function maybeHarvest() {
     if (!$('harvestToggle')?.checked || !lastFullFrame || calPoints.length !== 4 || !turn.darts.length) { lastFullFrame = null; return; }
+    // Confidence/quality gate: classical mis-locations surface as low-conf or MISS reads.
+    // Harvest only if EVERY dart is confident + scored a valid hit — else skip the whole
+    // frame (a partial label would teach the model to ignore the real darts we dropped).
+    const clean = turn.darts.every(d => d.confidence >= HARVEST_CONF && d.res && d.res.score > 0);
+    if (!clean) {
+        const lo = turn.darts.filter(d => d.confidence < HARVEST_CONF || !d.res || d.res.score <= 0).length;
+        log(`🌾 skipped — ${lo}/${turn.darts.length} dart(s) low-conf or edge/MISS`, 'info');
+        lastFullFrame = null; return;
+    }
     const W = stage.width, H = stage.height;
     const box = Math.max(16, Math.round(W * 0.02)), bw = (box / W).toFixed(6), bh = (box / H).toFixed(6);
     const lines = [];

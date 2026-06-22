@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>BRDC — Board Streamer</title>
+<style>
+  :root { --pink:#FF469A; --cyan:#19E3FF; --gold:#FDD835; --ink:#0f1320; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--ink); color:#e8eefc; font:15px/1.45 system-ui,sans-serif; padding:16px; text-align:center; }
+  h1 { font-size:17px; color:var(--cyan); margin:0 0 4px; }
+  p.sub { color:#8fa0c8; font-size:13px; margin:0 0 16px; }
+  button { background:var(--pink); color:#fff; border:none; border-radius:12px; padding:16px 24px; font-size:17px; font-weight:700; width:100%; max-width:360px; }
+  button:disabled { opacity:.5; }
+  .preview { margin:16px auto 0; max-width:360px; border-radius:12px; overflow:hidden; background:#000; }
+  video { width:100%; display:block; }
+  .stat { margin-top:14px; font-family:ui-monospace,monospace; font-size:14px; }
+  .stat b { color:var(--gold); }
+  .ok { color:#38e08f; }
+  .err { color:#ff6b6b; }
+  .hint { color:#8fa0c8; font-size:12px; margin-top:18px; line-height:1.6; }
+</style>
+</head>
+<body>
+  <h1>🎯 Board Streamer</h1>
+  <p class="sub">Mount this phone aimed at the board, tap start, then leave it. Label on the tablet.</p>
+  <button id="btnStart">Start camera</button>
+  <div class="preview"><video id="cam" playsinline muted autoplay></video></div>
+  <div class="stat" id="stat">idle</div>
+  <p class="hint">Once it says <b>streaming</b>, don't touch the phone — open the labeler on the tablet:<br><b id="url"></b></p>
+
+<script>
+const $ = id => document.getElementById(id);
+const video = $('cam');
+let sent = 0, fails = 0, timer = null;
+const oc = document.createElement('canvas');
+const octx = oc.getContext('2d');
+
+$('url').textContent = location.origin.replace('localhost','192.168.40.51') + '/pages/autoscore-labeler.html';
+
+async function pushFrame(){
+  if (!video.videoWidth) return;
+  if (oc.width !== video.videoWidth){ oc.width = video.videoWidth; oc.height = video.videoHeight; }
+  octx.drawImage(video, 0, 0, oc.width, oc.height);
+  try {
+    await fetch('/stream-push', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ image: oc.toDataURL('image/jpeg', 0.85) }) });
+    sent++; $('stat').innerHTML = `<span class="ok">streaming ✓</span> — <b>${sent}</b> frames sent (${oc.width}×${oc.height})`;
+  } catch (e) { fails++; $('stat').innerHTML = `<span class="err">push failed</span> ×${fails}: ${e.message}`; }
+}
+
+// Keep the screen awake so a MOUNTED, untouched phone never sleeps (which would
+// pause the camera). Re-acquire if the OS drops it (e.g. brief visibility change).
+let wakeLock = null;
+async function keepAwake(){
+  try { wakeLock = await navigator.wakeLock?.request('screen'); } catch {}
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') keepAwake(); });
+
+$('btnStart').addEventListener('click', async () => {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video:{ facingMode:'environment', width:{ideal:1280}, height:{ideal:720} }, audio:false });
+    video.srcObject = stream; await video.play();
+    await keepAwake();
+    $('btnStart').disabled = true; $('btnStart').textContent = 'streaming…';
+    $('stat').textContent = 'camera on — starting stream';
+    clearInterval(timer); timer = setInterval(pushFrame, 250);   // ~4 fps
+  } catch (e) { $('stat').innerHTML = `<span class="err">camera failed:</span> ${e.message}`; }
+});
+</script>
+</body>
+</html>
